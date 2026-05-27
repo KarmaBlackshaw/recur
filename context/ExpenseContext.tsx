@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import type { Expense, Status } from "../types";
 import * as expensesDB from "../db/expenses";
-import { nextDueDate } from "../utils/dateHelpers";
 
 interface State {
   expenses: Expense[];
@@ -27,8 +26,8 @@ function reducer(state: State, action: Action): State {
     case "ADD":
       return {
         ...state,
-        expenses: [...state.expenses, action.payload].sort((a, b) =>
-          a.dueDate.localeCompare(b.dueDate)
+        expenses: [...state.expenses, action.payload].sort(
+          (a, b) => a.dueDay - b.dueDay
         ),
       };
     case "UPDATE":
@@ -36,7 +35,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         expenses: state.expenses
           .map((e) => (e.id === action.payload.id ? action.payload : e))
-          .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+          .sort((a, b) => a.dueDay - b.dueDay),
       };
     case "REMOVE":
       return {
@@ -84,26 +83,16 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       if (!expense) return;
 
       if (expense.status === "unpaid") {
-        // Mark paid
-        const newStatus: Status = "paid";
+        await expensesDB.updateStatus(id, "paid");
+        dispatch({ type: "UPDATE", payload: { ...expense, status: "paid" } });
+
         if (expense.recurrence !== "one-off") {
-          // Optimistically show paid, then auto-advance after 500ms
-          await expensesDB.updateStatus(id, newStatus);
-          dispatch({ type: "UPDATE", payload: { ...expense, status: newStatus } });
           setTimeout(async () => {
-            const next = nextDueDate(expense.dueDate, expense.recurrence);
-            await expensesDB.updateStatus(id, "unpaid", next);
-            dispatch({
-              type: "UPDATE",
-              payload: { ...expense, status: "unpaid", dueDate: next },
-            });
+            await expensesDB.updateStatus(id, "unpaid");
+            dispatch({ type: "UPDATE", payload: { ...expense, status: "unpaid" } });
           }, 500);
-        } else {
-          await expensesDB.updateStatus(id, newStatus);
-          dispatch({ type: "UPDATE", payload: { ...expense, status: newStatus } });
         }
       } else {
-        // Toggle back to unpaid
         await expensesDB.updateStatus(id, "unpaid");
         dispatch({ type: "UPDATE", payload: { ...expense, status: "unpaid" } });
       }

@@ -6,7 +6,7 @@ export interface Expense {
   name: string;
   category: string;
   amount: number;
-  dueDate: string;        // ISO date YYYY-MM-DD
+  dueDay: number;        // 1–31, anchor day of month
   recurrence: Recurrence;
   status: Status;
   notes?: string;

@@ -5,7 +5,7 @@ import type { Expense, Status } from "../types";
 export async function getAll(): Promise<Expense[]> {
   const db = await getDB();
   const rows = await db.getAllAsync<Expense>(
-    "SELECT * FROM expenses ORDER BY dueDate ASC"
+    "SELECT * FROM expenses ORDER BY dueDay ASC"
   );
   return rows;
 }
@@ -17,27 +17,19 @@ export async function insert(
   const id = Date.now().toString();
   const createdAt = new Date().toISOString();
   await db.runAsync(
-    `INSERT INTO expenses (id, name, category, amount, dueDate, recurrence, status, notes, createdAt)
+    `INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, notes, createdAt)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, e.name, e.category, e.amount, e.dueDate, e.recurrence, e.status ?? "unpaid", e.notes ?? null, createdAt]
+    [id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status ?? "unpaid", e.notes ?? null, createdAt]
   );
   return { ...e, id, createdAt, status: e.status ?? "unpaid" };
 }
 
 export async function updateStatus(
   id: string,
-  status: Status,
-  dueDate?: string
+  status: Status
 ): Promise<void> {
   const db = await getDB();
-  if (dueDate) {
-    await db.runAsync(
-      "UPDATE expenses SET status = ?, dueDate = ? WHERE id = ?",
-      [status, dueDate, id]
-    );
-  } else {
-    await db.runAsync("UPDATE expenses SET status = ? WHERE id = ?", [status, id]);
-  }
+  await db.runAsync("UPDATE expenses SET status = ? WHERE id = ?", [status, id]);
 }
 
 export async function remove(id: string): Promise<void> {

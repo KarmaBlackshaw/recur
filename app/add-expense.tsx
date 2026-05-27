@@ -2,7 +2,6 @@ import React, { useRef } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
 } from "react-native";
@@ -125,9 +124,7 @@ export default function AddExpenseScreen() {
         />
 
         {/* Category */}
-        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-1">
-          Category
-        </Text>
+        <AppText variant="label" className="mb-1.5 mt-1">Category</AppText>
         <Controller
           control={control}
           name="category"
@@ -143,9 +140,6 @@ export default function AddExpenseScreen() {
         />
 
         {/* Due Day */}
-        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-3">
-          Due Day (1–31) *
-        </Text>
         <Controller
           control={control}
           name="dueDay"
@@ -157,13 +151,12 @@ export default function AddExpenseScreen() {
             },
           }}
           render={({ field: { value, onChange, onBlur } }) => (
-            <TextInput
-              className="bg-surface border border-border rounded-[10px] px-3.5 py-3 text-white font-quicksand text-[15px] mb-1"
+            <AppTextInput
+              label="Due Day (1–31) *"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               placeholder="1"
-              placeholderTextColor="rgba(255,255,255,0.3)"
               keyboardType="number-pad"
               returnKeyType="next"
               maxLength={2}
@@ -172,9 +165,7 @@ export default function AddExpenseScreen() {
         />
 
         {/* Recurrence */}
-        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-1">
-          Recurrence
-        </Text>
+        <AppText variant="label" className="mb-1.5 mt-1">Recurrence</AppText>
         <Controller
           control={control}
           name="recurrence"
@@ -204,23 +195,18 @@ export default function AddExpenseScreen() {
         />
 
         {/* Notes */}
-        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-1">
-          Notes
-        </Text>
         <Controller
           control={control}
           name="notes"
           render={({ field: { value, onChange, onBlur } }) => (
-            <TextInput
-              className="bg-surface border border-border rounded-[10px] px-3.5 py-3 text-white font-quicksand text-[15px] mb-1 h-[72px]"
+            <AppTextInput
+              label="Notes"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               placeholder="Optional note…"
-              placeholderTextColor="rgba(255,255,255,0.3)"
               multiline
               maxLength={200}
-              textAlignVertical="top"
             />
           )}
         />

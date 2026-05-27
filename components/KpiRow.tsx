@@ -1,7 +1,6 @@
 import React from "react";
-import { ScrollView, View, Text, StyleSheet } from "react-native";
+import { ScrollView, View, Text } from "react-native";
 import type { Expense } from "../types";
-import { colors } from "../constants/theme";
 
 interface Props {
   expenses: Expense[];
@@ -12,55 +11,33 @@ export function KpiRow({ expenses }: Props) {
   const paid = expenses.filter((e) => e.status === "paid").reduce((sum, e) => sum + e.amount, 0);
   const unpaid = expenses.filter((e) => e.status === "unpaid").reduce((sum, e) => sum + e.amount, 0);
 
-  const fmt = (n: number) => `₱${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
+  const fmt = (n: number) =>
+    `₱${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
+      contentContainerClassName="px-4 gap-3 py-2"
     >
-      <KpiCard label="Total" value={fmt(total)} color={colors.secondary} />
-      <KpiCard label="Paid" value={fmt(paid)} color={colors.paid} />
-      <KpiCard label="Unpaid" value={fmt(unpaid)} color={unpaid > 0 ? colors.overdue : "rgba(255,255,255,0.4)"} />
+      <KpiCard label="Total" value={fmt(total)} color="#3B82F6" />
+      <KpiCard label="Paid" value={fmt(paid)} color="#059669" />
+      <KpiCard
+        label="Unpaid"
+        value={fmt(unpaid)}
+        color={unpaid > 0 ? "#DC2626" : "rgba(255,255,255,0.4)"}
+      />
     </ScrollView>
   );
 }
 
 function KpiCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <View style={styles.card}>
-      <Text style={[styles.value, { color }]}>{value}</Text>
-      <Text style={styles.label}>{label}</Text>
+    <View className="bg-surface rounded-xl p-4 min-w-[120px] border border-border">
+      <Text className="text-lg font-caveat-bold mb-0.5" style={{ color }}>{value}</Text>
+      <Text className="text-white/50 text-[11px] font-quicksand-medium uppercase tracking-widest">
+        {label}
+      </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    paddingHorizontal: 16,
-    gap: 12,
-    paddingVertical: 8,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    minWidth: 120,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  value: {
-    fontSize: 18,
-    fontFamily: "Caveat_700Bold",
-    marginBottom: 2,
-  },
-  label: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 11,
-    fontFamily: "Quicksand_500Medium",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-});

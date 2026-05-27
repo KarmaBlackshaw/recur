@@ -1,7 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../constants/theme";
 
 interface Props {
   onAdd?: () => void;
@@ -9,32 +8,12 @@ interface Props {
 
 export function EmptyState({ onAdd }: Props) {
   return (
-    <View style={styles.container}>
+    <View className="flex-1 items-center justify-center pt-20 gap-3">
       <Ionicons name="wallet-outline" size={64} color="rgba(255,255,255,0.15)" />
-      <Text style={styles.title}>No expenses yet</Text>
-      <Text style={styles.subtitle}>Tap + to add your first recurring expense</Text>
+      <Text className="text-white/50 text-lg font-quicksand-bold">No expenses yet</Text>
+      <Text className="text-white/30 text-sm font-quicksand text-center px-8">
+        Tap + to add your first recurring expense
+      </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 80,
-    gap: 12,
-  },
-  title: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 18,
-    fontFamily: "Quicksand_700Bold",
-  },
-  subtitle: {
-    color: "rgba(255,255,255,0.3)",
-    fontSize: 13,
-    fontFamily: "Quicksand_400Regular",
-    textAlign: "center",
-    paddingHorizontal: 32,
-  },
-});

@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   SectionList,
-  StyleSheet,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -53,17 +52,17 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.screen}>
-        <ActivityIndicator color={colors.secondary} size="large" style={{ marginTop: 80 }} />
+      <SafeAreaView className="flex-1 bg-background">
+        <ActivityIndicator color={colors.secondary} size="large" className="mt-20" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.appTitle}>Recur</Text>
+      <View className="flex-row justify-between items-center px-5 pt-3 pb-2">
+        <Text className="text-white text-[32px] font-caveat-bold tracking-wide">Recur</Text>
       </View>
 
       {/* KPI row */}
@@ -78,21 +77,31 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => <ExpenseCard expense={item} index={index} />}
           renderSectionHeader={({ section }) => (
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, section.accent ? { color: section.accent } : {}]}>
+            <View className="px-4 pt-4 pb-1.5">
+              <Text
+                className="text-[11px] font-quicksand-bold uppercase tracking-widest"
+                style={section.accent ? { color: section.accent } : { color: "rgba(255,255,255,0.5)" }}
+              >
                 {section.title}
               </Text>
             </View>
           )}
           stickySectionHeadersEnabled={false}
-          contentContainerStyle={styles.listContent}
+          contentContainerClassName="pb-10"
           showsVerticalScrollIndicator={false}
         />
       )}
 
       {/* FAB */}
       <TouchableOpacity
-        style={styles.fab}
+        className="absolute bottom-8 right-6 w-14 h-14 rounded-full bg-primary items-center justify-center"
+        style={{
+          shadowColor: colors.secondary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 12,
+          elevation: 8,
+        }}
         onPress={() => router.push("/add-expense")}
         accessibilityLabel="Add expense"
       >
@@ -101,55 +110,3 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  appTitle: {
-    color: "#FFFFFF",
-    fontSize: 32,
-    fontFamily: "Caveat_700Bold",
-    letterSpacing: 1,
-  },
-  fab: {
-    position: "absolute",
-    bottom: 32,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  sectionHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 6,
-  },
-  sectionTitle: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 11,
-    fontFamily: "Quicksand_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 1.5,
-  },
-  listContent: {
-    paddingBottom: 40,
-  },
-});

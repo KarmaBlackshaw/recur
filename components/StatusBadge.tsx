@@ -1,5 +1,5 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet } from "react-native";
+import { TouchableOpacity, Text } from "react-native";
 import type { Status } from "../types";
 import { colors } from "../constants/theme";
 
@@ -19,28 +19,13 @@ export function StatusBadge({ status, overdue, onToggle }: Props) {
   return (
     <TouchableOpacity
       onPress={onToggle}
-      style={[styles.badge, { backgroundColor: bg }]}
+      className="rounded-xl px-2.5 py-1 min-w-[64px] items-center"
+      style={{ backgroundColor: bg }}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       accessibilityRole="button"
       accessibilityLabel={`Status: ${label}. Tap to toggle.`}
     >
-      <Text style={styles.label}>{label}</Text>
+      <Text className="text-white text-[11px] font-quicksand-bold tracking-wide">{label}</Text>
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    minWidth: 64,
-    alignItems: "center",
-  },
-  label: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontFamily: "Quicksand_700Bold",
-    letterSpacing: 0.5,
-  },
-});

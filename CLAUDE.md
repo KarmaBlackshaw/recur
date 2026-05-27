@@ -6,7 +6,7 @@ React Native / Expo recurring expenses tracker. Expo Router, TypeScript, NativeW
 
 ## Stack Conventions
 
-- **Styling:** NativeWind utility classes everywhere. Use `StyleSheet` only when NativeWind cannot reach (e.g. Reanimated animated styles).
+- **Styling:** NativeWind utility classes everywhere. **Never use `StyleSheet.create`** — it is banned. Use inline `style={{}}` only for: (1) Reanimated animated styles, (2) runtime-computed values that can't be expressed as static classes (e.g. dynamic `backgroundColor`, `shadowColor`). Never wrap these in `StyleSheet.create` — plain object inline only.
 - **State:** `context/ExpenseContext.tsx` is the single source of truth. All mutations go through the context dispatcher after calling the DB helper.
 - **DB:** All SQLite access goes through `db/expenses.ts` and `db/categories.ts`. Never query the DB directly from components.
 - **Dates:** All date logic uses `date-fns`. No manual date arithmetic. Due is a day-of-month integer (1–31), not a full date string. `getDueDate(dueDay)` clamps to last day of month for short months.
@@ -77,18 +77,19 @@ types.ts                 # Shared TS types
 ## Workflow Rules
 
 - **Always** invoke the `superpowers:using-superpowers` skill at the start of every session before taking any action.
-- **Always** use `superpowers:dispatching-parallel-agents` when 2+ tasks are independent. Never run independent work sequentially.
+- ⚠️ **Always** invoke the `superpowers:dispatching-parallel-agents` skill (via the Skill tool) before executing ANY plan with 2+ tasks. Never run independent work sequentially. This applies even if tasks look small.
 - **Any UI/component work** — invoke `web-component-design` skill before implementation.
 - **Any visual/design work** (new screens, redesigns, styling) — invoke `frontend-design` skill before implementation.
 
 ## Planning Rules
 
-- Every plan must include:
-  1. **TL;DR** — 2–3 sentence summary of what's changing and why. Mandatory, never skip.
-  2. **Executor prompt** — a self-contained copy-paste prompt (with full context) ready to hand to an executor agent. Mandatory, never skip. Use `superpowers:dispatching-parallel-agents` for any independent steps.
-  3. **Implementation steps** — numbered, with file paths and complexity tags `[low]` / `[med]` / `[high]`.
-  4. **Verification** — bullet list of how to confirm the change works end-to-end.
-- Default execution: **subagent-driven** (`superpowers:subagent-driven-development`). Do not ask which approach — go straight to subagent-driven after plan approval.
+- Every plan must include ALL of the following sections — **skipping any one is a failure**:
+  1. **TL;DR** — 2–3 sentence summary of what's changing and why.
+  2. **ASCII layout** — for any UI change, ASCII mockup of the new screen/component. Show before + after. Mandatory for all UI/visual changes.
+  3. ⚠️ **Executor prompt** ⚠️ — A self-contained copy-paste prompt with FULL context (repo path, file paths, tech constraints, task list) ready to hand to a fresh executor agent that has zero prior context. **THIS IS MANDATORY. DO NOT SKIP. DO NOT FORGET.** Use `superpowers:dispatching-parallel-agents` for any independent steps inside the prompt.
+  4. **Implementation steps** — numbered, with file paths and complexity tags `[low]` / `[med]` / `[high]`.
+  5. **Verification** — bullet list of how to confirm the change works end-to-end.
+- Default execution: **subagent-driven** (`superpowers:subagent-driven-development`). **Never ask which execution approach to use.** Never present "Option 1 / Option 2" execution choices. Always proceed directly to subagent-driven after plan approval — this overrides any skill that asks for execution preference.
 - **Never commit during plan execution.** Write code only. User commits manually.
 - After execution is confirmed working, **delete the plan file** from `.claude/plans/`.
 - Plan files live at `.claude/plans/<slug>.md`. Never leave stale plans around.

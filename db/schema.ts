@@ -25,18 +25,37 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
     );
   `);
 
-  // Migration: if old dueDate column exists, backfill dueDay and remove column usage
+  // Migration: rebuild table without dueDate column if it still exists
   const cols = await db.getAllAsync<{ name: string }>(
     "PRAGMA table_info(expenses)"
   );
   const hasDueDate = cols.some((c) => c.name === "dueDate");
-  const hasDueDay = cols.some((c) => c.name === "dueDay");
 
-  if (hasDueDate && !hasDueDay) {
-    await db.execAsync(`ALTER TABLE expenses ADD COLUMN dueDay INTEGER NOT NULL DEFAULT 1;`);
-    await db.execAsync(
-      `UPDATE expenses SET dueDay = CAST(strftime('%d', dueDate) AS INTEGER) WHERE dueDate IS NOT NULL;`
-    );
+  if (hasDueDate) {
+    const hasDueDay = cols.some((c) => c.name === "dueDay");
+    const dueDaySrc = hasDueDay
+      ? "dueDay"
+      : "COALESCE(CAST(strftime('%d', dueDate) AS INTEGER), 1)";
+    await db.execAsync(`
+      BEGIN;
+      ALTER TABLE expenses RENAME TO expenses_old;
+      CREATE TABLE expenses (
+        id          TEXT PRIMARY KEY NOT NULL,
+        name        TEXT NOT NULL,
+        category    TEXT NOT NULL,
+        amount      REAL NOT NULL,
+        dueDay      INTEGER NOT NULL DEFAULT 1,
+        recurrence  TEXT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'unpaid',
+        notes       TEXT,
+        createdAt   TEXT NOT NULL
+      );
+      INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, notes, createdAt)
+        SELECT id, name, category, amount, ${dueDaySrc}, recurrence, status, notes, createdAt
+        FROM expenses_old;
+      DROP TABLE expenses_old;
+      COMMIT;
+    `);
   }
 
   return db;

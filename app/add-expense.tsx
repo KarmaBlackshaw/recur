@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -64,30 +63,34 @@ export default function AddExpenseScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleCancel} style={styles.backBtn}>
+      <View className="flex-row items-center px-3 pt-2 pb-3">
+        <TouchableOpacity onPress={handleCancel} className="p-1">
           <Ionicons name="chevron-back" size={24} color={colors.secondary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Add Expense</Text>
-        <View style={styles.headerSpacer} />
+        <Text className="flex-1 text-center text-white text-[22px] font-caveat-bold">
+          Add Expense
+        </Text>
+        <View className="w-8" />
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerClassName="px-5 pb-5"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {/* Name */}
-        <Text style={styles.label}>Name *</Text>
+        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-1">
+          Name *
+        </Text>
         <Controller
           control={control}
           name="name"
           rules={{ required: true, validate: (v) => v.trim().length >= 1 || "Required" }}
           render={({ field: { value, onChange, onBlur } }) => (
             <TextInput
-              style={styles.input}
+              className="bg-surface border border-border rounded-[10px] px-3.5 py-3 text-white font-quicksand text-[15px] mb-1"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -99,7 +102,9 @@ export default function AddExpenseScreen() {
         />
 
         {/* Amount */}
-        <Text style={styles.label}>Amount *</Text>
+        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-1">
+          Amount *
+        </Text>
         <Controller
           control={control}
           name="amount"
@@ -112,7 +117,7 @@ export default function AddExpenseScreen() {
           }}
           render={({ field: { value, onChange, onBlur } }) => (
             <TextInput
-              style={styles.input}
+              className="bg-surface border border-border rounded-[10px] px-3.5 py-3 text-white font-quicksand text-[15px] mb-1"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -125,7 +130,9 @@ export default function AddExpenseScreen() {
         />
 
         {/* Category */}
-        <Text style={styles.label}>Category</Text>
+        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-1">
+          Category
+        </Text>
         <Controller
           control={control}
           name="category"
@@ -135,7 +142,9 @@ export default function AddExpenseScreen() {
         />
 
         {/* Due Day */}
-        <Text style={[styles.label, { marginTop: 12 }]}>Due Day (1–31) *</Text>
+        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-3">
+          Due Day (1–31) *
+        </Text>
         <Controller
           control={control}
           name="dueDay"
@@ -148,7 +157,7 @@ export default function AddExpenseScreen() {
           }}
           render={({ field: { value, onChange, onBlur } }) => (
             <TextInput
-              style={styles.input}
+              className="bg-surface border border-border rounded-[10px] px-3.5 py-3 text-white font-quicksand text-[15px] mb-1"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -162,26 +171,28 @@ export default function AddExpenseScreen() {
         />
 
         {/* Recurrence */}
-        <Text style={styles.label}>Recurrence</Text>
+        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-1">
+          Recurrence
+        </Text>
         <Controller
           control={control}
           name="recurrence"
           render={({ field: { value, onChange } }) => (
-            <View style={styles.segmented}>
+            <View className="flex-row bg-surface rounded-[10px] border border-border mb-1 overflow-hidden">
               {RECURRENCE_OPTIONS.map((opt) => (
                 <TouchableOpacity
                   key={opt.value}
-                  style={[
-                    styles.segment,
-                    value === opt.value && styles.segmentActive,
-                  ]}
+                  className={`flex-1 py-2.5 items-center ${
+                    value === opt.value ? "bg-primary" : ""
+                  }`}
                   onPress={() => onChange(opt.value)}
                 >
                   <Text
-                    style={[
-                      styles.segmentText,
-                      value === opt.value && styles.segmentTextActive,
-                    ]}
+                    className={`text-xs ${
+                      value === opt.value
+                        ? "text-white font-quicksand-bold"
+                        : "text-white/50 font-quicksand-medium"
+                    }`}
                   >
                     {opt.label}
                   </Text>
@@ -192,13 +203,15 @@ export default function AddExpenseScreen() {
         />
 
         {/* Notes */}
-        <Text style={styles.label}>Notes</Text>
+        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-1">
+          Notes
+        </Text>
         <Controller
           control={control}
           name="notes"
           render={({ field: { value, onChange, onBlur } }) => (
             <TextInput
-              style={[styles.input, styles.notesInput]}
+              className="bg-surface border border-border rounded-[10px] px-3.5 py-3 text-white font-quicksand text-[15px] mb-1 h-[72px]"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -213,89 +226,17 @@ export default function AddExpenseScreen() {
 
         {/* Save */}
         <TouchableOpacity
-          style={[styles.saveBtn, !isValid && styles.saveBtnDisabled]}
+          className={`bg-primary rounded-xl py-3.5 items-center mt-4 ${!isValid ? "opacity-40" : ""}`}
           onPress={onSubmit}
           disabled={!isValid}
         >
-          <Text style={styles.saveBtnText}>Save Expense</Text>
+          <Text className="text-white text-[15px] font-quicksand-bold tracking-wide">
+            Save Expense
+          </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 32 }} />
+        <View className="h-8" />
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  backBtn: { padding: 4 },
-  title: {
-    flex: 1,
-    textAlign: "center",
-    color: "#FFFFFF",
-    fontSize: 22,
-    fontFamily: "Caveat_700Bold",
-  },
-  headerSpacer: { width: 32 },
-  content: { paddingHorizontal: 20, paddingBottom: 20 },
-  label: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 11,
-    fontFamily: "Quicksand_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 6,
-    marginTop: 4,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: "#FFFFFF",
-    fontFamily: "Quicksand_400Regular",
-    fontSize: 15,
-    marginBottom: 4,
-  },
-  segmented: {
-    flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 4,
-    overflow: "hidden",
-  },
-  segment: { flex: 1, paddingVertical: 10, alignItems: "center" },
-  segmentActive: { backgroundColor: colors.primary },
-  segmentText: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 12,
-    fontFamily: "Quicksand_500Medium",
-  },
-  segmentTextActive: { color: "#FFFFFF", fontFamily: "Quicksand_700Bold" },
-  notesInput: { height: 72, marginBottom: 4 },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  saveBtnDisabled: { opacity: 0.4 },
-  saveBtnText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontFamily: "Quicksand_700Bold",
-    letterSpacing: 0.5,
-  },
-});

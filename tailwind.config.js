@@ -13,6 +13,7 @@ module.exports = {
         overdue: "#DC2626",
         border: "rgba(255,255,255,0.08)",
         textPrimary: "#FFFFFF",
+        textMuted: "rgba(255,255,255,0.4)",
       },
       fontFamily: {
         caveat: ["Caveat_400Regular"],

@@ -21,13 +21,28 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
     );
 
     CREATE TABLE IF NOT EXISTS categories (
-      name TEXT PRIMARY KEY NOT NULL
+      name       TEXT PRIMARY KEY NOT NULL
     );
+  `);
 
-    INSERT OR IGNORE INTO categories (name) VALUES
-      ('Housing'),('Utilities'),('Insurance'),('Subscriptions'),
-      ('Transport'),('Food'),('Health'),('Entertainment'),
-      ('Education'),('Savings'),('Debt'),('Other');
+  // Migration: add sort_order to categories if missing
+  const catCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(categories)");
+  const hasSortOrder = catCols.some((c) => c.name === "sort_order");
+  if (!hasSortOrder) {
+    await db.execAsync(`ALTER TABLE categories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`);
+    // Backfill preset order for existing rows
+    const existing = await db.getAllAsync<{ name: string }>("SELECT name FROM categories ORDER BY name ASC");
+    for (let i = 0; i < existing.length; i++) {
+      await db.runAsync("UPDATE categories SET sort_order = ? WHERE name = ?", [i, existing[i].name]);
+    }
+  }
+
+  // Seed presets after sort_order column is guaranteed to exist
+  await db.execAsync(`
+    INSERT OR IGNORE INTO categories (name, sort_order) VALUES
+      ('Housing',0),('Utilities',1),('Insurance',2),('Subscriptions',3),
+      ('Transport',4),('Food',5),('Health',6),('Entertainment',7),
+      ('Education',8),('Savings',9),('Debt',10),('Other',11);
   `);
 
   // Migration: rebuild table without dueDate column if it still exists

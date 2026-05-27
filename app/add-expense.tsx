@@ -111,19 +111,16 @@ export default function AddExpenseScreen() {
             },
           }}
           render={({ field: { value, onChange, onBlur } }) => (
-            <View style={styles.amountRow}>
-              <Text style={styles.currencyPrefix}>$</Text>
-              <TextInput
-                style={[styles.input, styles.amountInput]}
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                placeholder="0.00"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                keyboardType="decimal-pad"
-                returnKeyType="next"
-              />
-            </View>
+            <TextInput
+              style={styles.input}
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="0.00"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              keyboardType="decimal-pad"
+              returnKeyType="next"
+            />
           )}
         />
 
@@ -269,14 +266,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 4,
   },
-  amountRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  currencyPrefix: {
-    color: colors.secondary,
-    fontSize: 18,
-    fontFamily: "Caveat_700Bold",
-    marginRight: 8,
-  },
-  amountInput: { flex: 1, marginBottom: 0 },
   segmented: {
     flexDirection: "row",
     backgroundColor: colors.surface,

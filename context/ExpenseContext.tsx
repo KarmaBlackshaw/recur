@@ -80,6 +80,7 @@ interface ExpenseContextValue {
   loading: boolean;
   userName: string | null;
   addExpense: (e: Omit<Expense, "id" | "createdAt">) => Promise<void>;
+  updateExpense: (id: string, fields: Omit<Expense, "id" | "createdAt">) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setUserName: (name: string | null) => void;
   getMonthStatus: (id: string, year: number, month: number) => Status;
@@ -123,6 +124,16 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const updateExpense = useCallback(
+    async (id: string, fields: Omit<Expense, "id" | "createdAt">) => {
+      const existing = state.expenses.find((e) => e.id === id);
+      if (!existing) return;
+      await expensesDB.update(id, fields);
+      dispatch({ type: "UPDATE", payload: { ...existing, ...fields } });
+    },
+    [state.expenses]
+  );
+
   const getMonthStatus = useCallback(
     (id: string, year: number, month: number): Status => {
       const expense = state.expenses.find((e) => e.id === id);
@@ -164,6 +175,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         loading: state.loading,
         userName: state.userName,
         addExpense,
+        updateExpense,
         deleteExpense,
         setUserName,
         getMonthStatus,

@@ -32,6 +32,17 @@ export async function updateStatus(
   await db.runAsync("UPDATE expenses SET status = ? WHERE id = ?", [status, id]);
 }
 
+export async function update(
+  id: string,
+  e: Omit<Expense, "id" | "createdAt">
+): Promise<void> {
+  const db = await getDB();
+  await db.runAsync(
+    `UPDATE expenses SET name=?, category=?, amount=?, dueDay=?, recurrence=?, status=?, notes=? WHERE id=?`,
+    [e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.notes ?? null, id]
+  );
+}
+
 export async function remove(id: string): Promise<void> {
   const db = await getDB();
   await db.runAsync("DELETE FROM expenses WHERE id = ?", [id]);

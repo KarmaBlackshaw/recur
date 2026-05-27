@@ -6,6 +6,7 @@ import {
   Alert,
   StyleSheet,
 } from "react-native";
+import { router } from "expo-router";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { Feather } from "@expo/vector-icons";
 import Animated, {
@@ -97,16 +98,21 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
       renderRightActions={renderRightActions}
       overshootRight={false}
     >
-      <Animated.View
-        entering={FadeInDown.delay(index * 60).duration(300)}
-        className="flex-row items-center bg-surface rounded-2xl mx-4 my-1.5 px-4 py-3.5 border border-white/[0.07]"
-        style={[
-          styles.shadow,
-          overdueFlag ? styles.shadowOverdue : null,
-          overdueFlag ? { borderLeftWidth: 3, borderLeftColor: colors.overdue } : null,
-          overdueFlag ? glowStyle : null,
-        ]}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => router.push({ pathname: "/add-expense", params: { id: expense.id } })}
+        accessibilityLabel="Edit expense"
       >
+        <Animated.View
+          entering={FadeInDown.delay(index * 60).duration(300)}
+          className="flex-row items-center bg-surface rounded-2xl mx-4 my-1.5 px-4 py-3.5 border border-white/[0.07]"
+          style={[
+            styles.shadow,
+            overdueFlag ? styles.shadowOverdue : null,
+            overdueFlag ? { borderLeftWidth: 3, borderLeftColor: colors.overdue } : null,
+            overdueFlag ? glowStyle : null,
+          ]}
+        >
         {/* Category icon bubble */}
         <View
           className="w-11 h-11 rounded-xl items-center justify-center mr-3.5"
@@ -161,6 +167,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
           />
         </View>
       </Animated.View>
+      </TouchableOpacity>
     </ReanimatedSwipeable>
   );
 }

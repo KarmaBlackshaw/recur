@@ -4,9 +4,10 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { Feather } from "@expo/vector-icons";
 import { useExpenses } from "../context/ExpenseContext";
@@ -24,7 +25,10 @@ const RECURRENCE_OPTIONS: { label: string; value: Recurrence }[] = [
 ];
 
 export default function AddExpenseScreen() {
-  const { addExpense } = useExpenses();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { addExpense, updateExpense, expenses } = useExpenses();
+  const editingExpense = id ? expenses.find((e) => e.id === id) ?? null : null;
+  const isEditing = editingExpense !== null;
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
 
   const {
@@ -35,28 +39,50 @@ export default function AddExpenseScreen() {
   } = useForm<ExpenseFormValues>({
     mode: "onChange",
     defaultValues: {
-      name: "",
-      amount: "",
-      category: "Other",
-      dueDay: "1",
-      recurrence: "monthly",
-      notes: "",
+      name: editingExpense?.name ?? "",
+      amount: editingExpense?.amount?.toString() ?? "",
+      category: editingExpense?.category ?? "Other",
+      dueDay: editingExpense?.dueDay?.toString() ?? "1",
+      recurrence: editingExpense?.recurrence ?? "monthly",
+      notes: editingExpense?.notes ?? "",
     },
   });
 
+  React.useEffect(() => {
+    if (editingExpense) {
+      reset({
+        name: editingExpense.name,
+        amount: editingExpense.amount.toString(),
+        category: editingExpense.category,
+        dueDay: editingExpense.dueDay.toString(),
+        recurrence: editingExpense.recurrence,
+        notes: editingExpense.notes ?? "",
+      });
+    }
+  }, [editingExpense?.id]);
+
   const onSubmit = handleSubmit(async (data) => {
-    const amountNum = parseFloat(data.amount);
-    await addExpense({
+    const fields = {
       name: data.name.trim(),
-      amount: amountNum,
+      amount: parseFloat(data.amount),
       category: data.category,
       dueDay: parseInt(data.dueDay, 10),
       recurrence: data.recurrence,
-      status: "unpaid",
+      status: editingExpense?.status ?? "unpaid",
       notes: data.notes.trim() || undefined,
-    });
-    reset();
-    router.back();
+    };
+
+    try {
+      if (isEditing && id) {
+        await updateExpense(id, fields);
+      } else {
+        await addExpense(fields);
+      }
+      reset();
+      router.back();
+    } catch {
+      Alert.alert("Save failed", "Something went wrong. Please try again.");
+    }
   });
 
   function handleCancel() {
@@ -72,7 +98,7 @@ export default function AddExpenseScreen() {
           <Feather name="chevron-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-white text-[22px]" style={{ fontFamily: "Oswald_Bold" }}>
-          Add Expense
+          {isEditing ? "Edit Expense" : "Add Expense"}
         </Text>
         <View className="w-8" />
       </View>
@@ -218,7 +244,7 @@ export default function AddExpenseScreen() {
           disabled={!isValid}
         >
           <Text className="text-white text-[15px] font-quicksand-bold tracking-wide">
-            Save Expense
+            {isEditing ? "Save Changes" : "Save Expense"}
           </Text>
         </TouchableOpacity>
 

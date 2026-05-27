@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import * as SplashScreen from "expo-splash-screen";
 import {
   useFonts,

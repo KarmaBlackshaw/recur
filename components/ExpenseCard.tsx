@@ -123,7 +123,7 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
 
         {/* Right: amount + badge */}
         <View style={styles.right}>
-          <Text style={styles.amount}>${expense.amount.toFixed(2)}</Text>
+          <Text style={styles.amount}>₱{expense.amount.toFixed(2)}</Text>
           <StatusBadge
             status={expense.status}
             overdue={overdueFlag}

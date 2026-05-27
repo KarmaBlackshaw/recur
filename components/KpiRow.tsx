@@ -12,8 +12,8 @@ export function KpiRow({ expenses }: Props) {
   const paid = expenses.filter((e) => e.status === "paid").reduce((sum, e) => sum + e.amount, 0);
   const unpaid = expenses.filter((e) => e.status === "unpaid").reduce((sum, e) => sum + e.amount, 0);
 
-  const fmt = (n: number) =>
-    n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+  const fmt = (n: number) => `₱${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 
   return (
     <ScrollView

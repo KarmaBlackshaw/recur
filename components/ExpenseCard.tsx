@@ -79,11 +79,11 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
   function renderRightActions() {
     return (
       <TouchableOpacity
-        className="bg-overdue justify-center items-center w-16 my-1.5 mr-4 rounded-2xl"
+        className="justify-center items-center w-16 my-1.5 mr-4"
         onPress={handleDelete}
         accessibilityLabel="Delete expense"
       >
-        <Feather name="trash-2" size={20} color="#FFFFFF" />
+        <Feather name="trash-2" size={20} color={colors.overdue} />
       </TouchableOpacity>
     );
   }

@@ -12,3 +12,12 @@ export interface Expense {
   notes?: string;
   createdAt: string;
 }
+
+export interface ExpenseFormValues {
+  name: string;
+  amount: string;
+  category: string;
+  dueDay: string;
+  recurrence: Recurrence;
+  notes: string;
+}

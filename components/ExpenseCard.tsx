@@ -6,7 +6,7 @@ import {
   Alert,
   StyleSheet,
 } from "react-native";
-import Swipeable from "react-native-gesture-handler/Swipeable";
+import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { Feather } from "@expo/vector-icons";
 import Animated, {
   FadeInDown,
@@ -40,7 +40,7 @@ interface Props {
 
 export function ExpenseCard({ expense, index = 0 }: Props) {
   const { toggleStatus, deleteExpense } = useExpenses();
-  const swipeRef = useRef<Swipeable>(null);
+  const swipeRef = useRef<SwipeableMethods>(null);
   const overdueFlag = isOverdue(expense.dueDay) && expense.status === "unpaid";
 
   const pulse = useSharedValue(0);
@@ -85,7 +85,7 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
     CATEGORY_ICONS[expense.category] ?? "more-horizontal";
 
   return (
-    <Swipeable
+    <ReanimatedSwipeable
       ref={swipeRef}
       renderRightActions={renderRightActions}
       overshootRight={false}
@@ -142,7 +142,7 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
 
         {/* Amount + status */}
         <View className="items-end gap-2 ml-3">
-          <Text className="text-white text-[17px] leading-tight" style={{ fontFamily: "Oswald_Medium" }}>
+          <Text className="text-white text-[17px] leading-tight" style={{ fontFamily: "Oswald_Regular" }}>
             ₱{expense.amount.toFixed(2)}
           </Text>
           <StatusBadge
@@ -152,7 +152,7 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
           />
         </View>
       </Animated.View>
-    </Swipeable>
+    </ReanimatedSwipeable>
   );
 }
 

@@ -26,11 +26,7 @@ export function KpiRow({ expenses }: Props) {
     .reduce((sum, e) => sum + e.amount, 0);
 
   const fmt = (n: number) =>
-    n.toLocaleString("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-    });
+    "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <View className="flex-row px-4 gap-2.5 py-2">

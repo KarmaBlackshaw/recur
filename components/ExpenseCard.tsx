@@ -23,14 +23,14 @@ import { colors } from "../constants/theme";
 import type { Expense } from "../types";
 
 const CATEGORY_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
-  Housing: "home-outline",
-  Utilities: "flash-outline",
-  Subscriptions: "apps-outline",
-  Insurance: "shield-checkmark-outline",
-  Transport: "car-outline",
-  Food: "restaurant-outline",
-  Health: "medkit-outline",
-  Other: "ellipsis-horizontal-circle-outline",
+  Housing: "home",
+  Utilities: "zap",
+  Subscriptions: "grid",
+  Insurance: "shield",
+  Transport: "truck",
+  Food: "coffee",
+  Health: "heart",
+  Other: "more-horizontal",
 };
 
 interface Props {
@@ -82,7 +82,7 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
   }
 
   const iconName =
-    CATEGORY_ICONS[expense.category] ?? "ellipsis-horizontal-circle-outline";
+    CATEGORY_ICONS[expense.category] ?? "more-horizontal";
 
   return (
     <Swipeable

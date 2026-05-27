@@ -85,13 +85,6 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       if (expense.status === "unpaid") {
         await expensesDB.updateStatus(id, "paid");
         dispatch({ type: "UPDATE", payload: { ...expense, status: "paid" } });
-
-        if (expense.recurrence !== "one-off") {
-          setTimeout(async () => {
-            await expensesDB.updateStatus(id, "unpaid");
-            dispatch({ type: "UPDATE", payload: { ...expense, status: "unpaid" } });
-          }, 500);
-        }
       } else {
         await expensesDB.updateStatus(id, "unpaid");
         dispatch({ type: "UPDATE", payload: { ...expense, status: "unpaid" } });

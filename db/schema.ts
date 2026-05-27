@@ -88,6 +88,13 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
     }
   }
 
+  // Migration: add icon column to categories if missing
+  const catColsForIcon = await db.getAllAsync<{ name: string }>("PRAGMA table_info(categories)");
+  const hasIcon = catColsForIcon.some((c) => c.name === "icon");
+  if (!hasIcon) {
+    await db.execAsync(`ALTER TABLE categories ADD COLUMN icon TEXT NOT NULL DEFAULT 'more-horizontal'`);
+  }
+
   // Seed presets — id uses the name slug as a stable value for presets
   await db.execAsync(`
     INSERT OR IGNORE INTO categories (id, name, sort_order) VALUES
@@ -98,6 +105,28 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
       ('preset-education','Education',8),('preset-savings','Savings',9),
       ('preset-debt','Debt',10),('preset-other','Other',11);
   `);
+
+  // Backfill preset icons (one-time)
+  const presetIconsMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_preset_icons_v1'"
+  );
+  if (!presetIconsMigrated) {
+    await db.execAsync(`UPDATE categories SET icon = 'home'            WHERE id = 'preset-housing'`);
+    await db.execAsync(`UPDATE categories SET icon = 'zap'             WHERE id = 'preset-utilities'`);
+    await db.execAsync(`UPDATE categories SET icon = 'shield'          WHERE id = 'preset-insurance'`);
+    await db.execAsync(`UPDATE categories SET icon = 'grid'            WHERE id = 'preset-subscriptions'`);
+    await db.execAsync(`UPDATE categories SET icon = 'truck'           WHERE id = 'preset-transport'`);
+    await db.execAsync(`UPDATE categories SET icon = 'coffee'          WHERE id = 'preset-food'`);
+    await db.execAsync(`UPDATE categories SET icon = 'heart'           WHERE id = 'preset-health'`);
+    await db.execAsync(`UPDATE categories SET icon = 'music'           WHERE id = 'preset-entertainment'`);
+    await db.execAsync(`UPDATE categories SET icon = 'book'            WHERE id = 'preset-education'`);
+    await db.execAsync(`UPDATE categories SET icon = 'dollar-sign'     WHERE id = 'preset-savings'`);
+    await db.execAsync(`UPDATE categories SET icon = 'credit-card'     WHERE id = 'preset-debt'`);
+    await db.execAsync(`UPDATE categories SET icon = 'more-horizontal' WHERE id = 'preset-other'`);
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_preset_icons_v1', '1')"
+    );
+  }
 
   // Migration: rebuild table without dueDate column if it still exists
   const cols = await db.getAllAsync<{ name: string }>(

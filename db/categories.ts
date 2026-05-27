@@ -3,6 +3,7 @@ import { getDB } from "./schema";
 export interface Category {
   id: string;
   name: string;
+  icon: string;
 }
 
 export async function getAll(): Promise<string[]> {
@@ -16,11 +17,11 @@ export async function getAll(): Promise<string[]> {
 export async function getAllWithIds(): Promise<Category[]> {
   const db = await getDB();
   return db.getAllAsync<Category>(
-    "SELECT id, name FROM categories ORDER BY sort_order ASC"
+    "SELECT id, name, icon FROM categories ORDER BY sort_order ASC"
   );
 }
 
-export async function insertCategory(name: string): Promise<void> {
+export async function insertCategory(name: string, icon = "more-horizontal"): Promise<void> {
   const db = await getDB();
   const row = await db.getFirstAsync<{ max_order: number }>(
     "SELECT MAX(sort_order) as max_order FROM categories"
@@ -28,8 +29,8 @@ export async function insertCategory(name: string): Promise<void> {
   const nextOrder = (row?.max_order ?? -1) + 1;
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   await db.runAsync(
-    "INSERT OR IGNORE INTO categories (id, name, sort_order) VALUES (?, ?, ?)",
-    [id, name, nextOrder]
+    "INSERT OR IGNORE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)",
+    [id, name, icon, nextOrder]
   );
 }
 
@@ -55,4 +56,9 @@ export async function updateOrder(ids: string[]): Promise<void> {
     await db.execAsync("ROLLBACK");
     throw e;
   }
+}
+
+export async function updateIcon(id: string, icon: string): Promise<void> {
+  const db = await getDB();
+  await db.runAsync("UPDATE categories SET icon = ? WHERE id = ?", [icon, id]);
 }

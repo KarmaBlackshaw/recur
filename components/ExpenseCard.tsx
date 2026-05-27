@@ -24,17 +24,6 @@ import { useExpenses } from "../context/ExpenseContext";
 import { colors } from "../constants/theme";
 import type { Expense } from "../types";
 
-const CATEGORY_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
-  Housing: "home",
-  Utilities: "zap",
-  Subscriptions: "grid",
-  Insurance: "shield",
-  Transport: "truck",
-  Food: "coffee",
-  Health: "heart",
-  Other: "more-horizontal",
-};
-
 interface Props {
   expense: Expense;
   index?: number;
@@ -42,7 +31,7 @@ interface Props {
 }
 
 export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
-  const { getMonthStatus, toggleMonthStatus, deleteExpense } = useExpenses();
+  const { getMonthStatus, toggleMonthStatus, deleteExpense, categoryIconMap } = useExpenses();
   const swipeRef = useRef<SwipeableMethods>(null);
   const refDate = referenceDate ?? new Date();
   const year = refDate.getFullYear();
@@ -89,8 +78,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
     );
   }
 
-  const iconName =
-    CATEGORY_ICONS[expense.category] ?? "more-horizontal";
+  const iconName = (categoryIconMap[expense.category] ?? "more-horizontal") as keyof typeof Feather.glyphMap;
 
   return (
     <ReanimatedSwipeable

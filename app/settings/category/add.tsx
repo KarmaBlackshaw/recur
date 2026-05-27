@@ -1,26 +1,43 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { View, TextInput, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { AppText } from "../../../components/ui/AppText";
 import { AppButton } from "../../../components/ui/AppButton";
-import { getAll, insertCategory, renameCategory } from "../../../db/categories";
+import { getAll, insertCategory, renameCategory, updateIcon } from "../../../db/categories";
+import { IconPickerBottomSheet, IconPickerBottomSheetRef } from "../../../components/IconPickerBottomSheet";
+import { useExpenses } from "../../../context/ExpenseContext";
 import { colors } from "../../../constants/theme";
 
 export default function AddCategoryScreen() {
-  const { editId, editName } = useLocalSearchParams<{ editId?: string; editName?: string }>();
+  const { editId, editName, editIcon } = useLocalSearchParams<{
+    editId?: string;
+    editName?: string;
+    editIcon?: string;
+  }>();
   const isEdit = !!editId;
   const [name, setName] = useState(editName ?? "");
+  const [icon, setIcon] = useState(editIcon ?? "more-horizontal");
+  const iconPickerRef = useRef<IconPickerBottomSheetRef>(null);
+  const { reloadCategoryIcons } = useExpenses();
 
   async function handleSave() {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (isEdit) {
-      if (trimmed === editName) { router.back(); return; }
+      if (trimmed === editName && icon === editIcon) {
+        router.back();
+        return;
+      }
       const existing = await getAll();
-      if (existing.includes(trimmed)) { Alert.alert("Already exists"); return; }
-      await renameCategory(editId!, trimmed);
+      if (trimmed !== editName && existing.includes(trimmed)) {
+        Alert.alert("Already exists");
+        return;
+      }
+      if (trimmed !== editName) await renameCategory(editId!, trimmed);
+      if (icon !== editIcon) await updateIcon(editId!, icon);
+      await reloadCategoryIcons();
       router.back();
       return;
     }
@@ -29,7 +46,8 @@ export default function AddCategoryScreen() {
       Alert.alert("Already exists");
       return;
     }
-    await insertCategory(trimmed);
+    await insertCategory(trimmed, icon);
+    await reloadCategoryIcons();
     router.back();
   }
 
@@ -57,12 +75,41 @@ export default function AddCategoryScreen() {
           returnKeyType="done"
           onSubmitEditing={handleSave}
         />
+
+        <View className="flex-row items-center gap-3">
+          <TouchableOpacity
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              backgroundColor: "rgba(99,102,241,0.12)",
+              alignItems: "center",
+              justifyContent: "center",
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.1)",
+            }}
+            onPress={() => iconPickerRef.current?.present()}
+            accessibilityLabel="Pick icon"
+          >
+            <Feather name={icon as keyof typeof Feather.glyphMap} size={24} color={colors.secondary} />
+          </TouchableOpacity>
+          <AppText variant="body-medium" className="text-white/50 text-sm">
+            Tap to choose icon
+          </AppText>
+        </View>
+
         <AppButton
           label={isEdit ? "Save Changes" : "Save Category"}
           onPress={handleSave}
           disabled={!name.trim()}
         />
       </View>
+
+      <IconPickerBottomSheet
+        ref={iconPickerRef}
+        value={icon}
+        onChange={setIcon}
+      />
     </SafeAreaView>
   );
 }

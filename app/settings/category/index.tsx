@@ -7,14 +7,17 @@ import { AppText } from "../../../components/ui/AppText";
 import { DraggableList } from "../../../components/ui/DraggableList";
 import { Category, getAllWithIds, deleteCategory, updateOrder } from "../../../db/categories";
 import { colors } from "../../../constants/theme";
+import { useExpenses } from "../../../context/ExpenseContext";
 
 export default function ManageCategoriesScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const { reloadCategoryIcons } = useExpenses();
 
   useFocusEffect(
     useCallback(() => {
       getAllWithIds().then(setCategories);
-    }, [])
+      reloadCategoryIcons();
+    }, [reloadCategoryIcons])
   );
 
   function handleDelete(cat: Category) {
@@ -65,8 +68,20 @@ export default function ManageCategoriesScreen() {
             <TouchableOpacity className="p-1" onPress={() => handleDelete(item)}>
               <Feather name="trash-2" size={18} color={colors.overdue} />
             </TouchableOpacity>
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                backgroundColor: "rgba(99,102,241,0.12)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Feather name={(item.icon ?? "more-horizontal") as keyof typeof Feather.glyphMap} size={16} color={colors.secondary} />
+            </View>
             <AppText variant="body-medium" className="flex-1 text-white text-sm">{item.name}</AppText>
-            <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: item.id, editName: item.name } })}>
+            <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: item.id, editName: item.name, editIcon: item.icon } })}>
               <Feather name="edit-2" size={16} color={colors.secondary} />
             </TouchableOpacity>
             <Ionicons name="reorder-two-outline" size={20} color="rgba(255,255,255,0.4)" />

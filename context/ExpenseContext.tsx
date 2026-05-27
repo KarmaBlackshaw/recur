@@ -11,12 +11,14 @@ import * as expensesDB from "../db/expenses";
 import * as preferencesDB from "../db/preferences";
 import * as monthsDB from "../db/expenseMonths";
 import { monthKey } from "../utils/monthKey";
+import { getAllWithIds } from "../db/categories";
 
 interface State {
   expenses: Expense[];
   loading: boolean;
   userName: string | null;
   monthStatuses: Record<string, Status>;
+  categoryIconMap: Record<string, string>;
 }
 
 type Action =
@@ -26,7 +28,8 @@ type Action =
   | { type: "REMOVE"; payload: string }
   | { type: "SET_USER_NAME"; payload: string | null }
   | { type: "LOAD_MONTHS"; payload: MonthStatus[] }
-  | { type: "SET_MONTH_STATUS"; payload: { expenseId: string; year: number; month: number; status: Status } };
+  | { type: "SET_MONTH_STATUS"; payload: { expenseId: string; year: number; month: number; status: Status } }
+  | { type: "SET_CATEGORY_ICONS"; payload: Record<string, string> };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -70,6 +73,8 @@ function reducer(state: State, action: Action): State {
         },
       };
     }
+    case "SET_CATEGORY_ICONS":
+      return { ...state, categoryIconMap: action.payload };
     default:
       return state;
   }
@@ -85,6 +90,8 @@ interface ExpenseContextValue {
   setUserName: (name: string | null) => void;
   getMonthStatus: (id: string, year: number, month: number) => Status;
   toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
+  categoryIconMap: Record<string, string>;
+  reloadCategoryIcons: () => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -95,6 +102,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     loading: true,
     userName: null,
     monthStatuses: {},
+    categoryIconMap: {},
   });
 
   useEffect(() => {
@@ -102,10 +110,14 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       expensesDB.getAll(),
       preferencesDB.getPreference("user_name"),
       monthsDB.getAll(),
-    ]).then(([rows, name, months]) => {
+      getAllWithIds(),
+    ]).then(([rows, name, months, cats]) => {
       dispatch({ type: "LOAD", payload: rows });
       dispatch({ type: "SET_USER_NAME", payload: name });
       dispatch({ type: "LOAD_MONTHS", payload: months });
+      const iconMap: Record<string, string> = {};
+      for (const c of cats) iconMap[c.name] = c.icon;
+      dispatch({ type: "SET_CATEGORY_ICONS", payload: iconMap });
     }).catch(() => {
       dispatch({ type: "LOAD", payload: [] });
       dispatch({ type: "LOAD_MONTHS", payload: [] });
@@ -168,6 +180,13 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "REMOVE", payload: id });
   }, []);
 
+  const reloadCategoryIcons = useCallback(async () => {
+    const cats = await getAllWithIds();
+    const iconMap: Record<string, string> = {};
+    for (const c of cats) iconMap[c.name] = c.icon;
+    dispatch({ type: "SET_CATEGORY_ICONS", payload: iconMap });
+  }, []);
+
   return (
     <ExpenseContext.Provider
       value={{
@@ -180,6 +199,8 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         setUserName,
         getMonthStatus,
         toggleMonthStatus,
+        categoryIconMap: state.categoryIconMap,
+        reloadCategoryIcons,
       }}
     >
       {children}

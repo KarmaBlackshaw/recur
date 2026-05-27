@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   View,
   Text,
@@ -9,9 +9,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import { Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { useExpenses } from "../context/ExpenseContext";
-import { CategoryPicker } from "../components/CategoryPicker";
+import { CategoryBottomSheet, CategoryBottomSheetRef } from "../components/CategoryBottomSheet";
+import { AppText } from "../components/ui/AppText";
+import { AppTextInput } from "../components/ui/AppTextInput";
 import { colors } from "../constants/theme";
 import type { Recurrence, ExpenseFormValues } from "../types";
 
@@ -24,6 +26,7 @@ const RECURRENCE_OPTIONS: { label: string; value: Recurrence }[] = [
 
 export default function AddExpenseScreen() {
   const { addExpense } = useExpenses();
+  const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
 
   const {
     control,
@@ -67,7 +70,7 @@ export default function AddExpenseScreen() {
       {/* Header */}
       <View className="flex-row items-center px-3 pt-2 pb-3">
         <TouchableOpacity onPress={handleCancel} className="p-1">
-          <Ionicons name="chevron-back" size={24} color={colors.secondary} />
+          <Feather name="chevron-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-white text-[22px] font-caveat-bold">
           Add Expense
@@ -81,30 +84,23 @@ export default function AddExpenseScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Name */}
-        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-1">
-          Name *
-        </Text>
         <Controller
           control={control}
           name="name"
           rules={{ required: true, validate: (v) => v.trim().length >= 1 || "Required" }}
           render={({ field: { value, onChange, onBlur } }) => (
-            <TextInput
-              className="bg-surface border border-border rounded-[10px] px-3.5 py-3 text-white font-quicksand text-[15px] mb-1"
+            <AppTextInput
+              label="Name *"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               placeholder="e.g. Netflix"
-              placeholderTextColor="rgba(255,255,255,0.3)"
               returnKeyType="next"
             />
           )}
         />
 
         {/* Amount */}
-        <Text className="text-white/60 text-[11px] font-quicksand-bold uppercase tracking-widest mb-1.5 mt-1">
-          Amount *
-        </Text>
         <Controller
           control={control}
           name="amount"
@@ -116,13 +112,12 @@ export default function AddExpenseScreen() {
             },
           }}
           render={({ field: { value, onChange, onBlur } }) => (
-            <TextInput
-              className="bg-surface border border-border rounded-[10px] px-3.5 py-3 text-white font-quicksand text-[15px] mb-1"
+            <AppTextInput
+              label="Amount *"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               placeholder="0.00"
-              placeholderTextColor="rgba(255,255,255,0.3)"
               keyboardType="decimal-pad"
               returnKeyType="next"
             />
@@ -136,8 +131,14 @@ export default function AddExpenseScreen() {
         <Controller
           control={control}
           name="category"
-          render={({ field: { value, onChange } }) => (
-            <CategoryPicker value={value} onChange={onChange} />
+          render={({ field: { value } }) => (
+            <TouchableOpacity
+              className="bg-surface border border-border rounded-xl px-3.5 py-3 flex-row items-center justify-between mb-1"
+              onPress={() => categorySheetRef.current?.present()}
+            >
+              <AppText variant="body-medium" className="text-white text-base">{value}</AppText>
+              <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.4)" />
+            </TouchableOpacity>
           )}
         />
 
@@ -182,7 +183,7 @@ export default function AddExpenseScreen() {
               {RECURRENCE_OPTIONS.map((opt) => (
                 <TouchableOpacity
                   key={opt.value}
-                  className={`flex-1 py-2.5 items-center ${
+                  className={`flex-1 py-4 items-center ${
                     value === opt.value ? "bg-primary" : ""
                   }`}
                   onPress={() => onChange(opt.value)}
@@ -237,6 +238,18 @@ export default function AddExpenseScreen() {
 
         <View className="h-8" />
       </ScrollView>
+
+      <Controller
+        control={control}
+        name="category"
+        render={({ field: { value, onChange } }) => (
+          <CategoryBottomSheet
+            ref={categorySheetRef}
+            value={value}
+            onChange={onChange}
+          />
+        )}
+      />
     </SafeAreaView>
   );
 }

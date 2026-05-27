@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { isWithinInterval, addDays, startOfToday } from "date-fns";
 import { useExpenses } from "../context/ExpenseContext";
 import { ExpenseCard } from "../components/ExpenseCard";
@@ -68,7 +68,7 @@ export default function HomeScreen() {
           accessibilityLabel="Settings"
           onPress={() => {}}
         >
-          <Ionicons name="settings-outline" size={18} color="rgba(255,255,255,0.6)" />
+          <Feather name="settings" size={18} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
       </View>
 
@@ -91,7 +91,7 @@ export default function HomeScreen() {
           renderSectionHeader={({ section }) => (
             <View className="px-5 pt-5 pb-2 flex-row items-center gap-2">
               {section.accent === colors.overdue && (
-                <Ionicons name="warning" size={12} color={colors.overdue} />
+                <Feather name="alert-triangle" size={12} color={colors.overdue} />
               )}
               <Text
                 className="text-[11px] font-['Quicksand_700Bold'] uppercase tracking-widest"
@@ -120,7 +120,7 @@ export default function HomeScreen() {
         onPress={() => router.push("/add-expense")}
         accessibilityLabel="Add expense"
       >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
+        <Feather name="plus" size={28} color="#FFFFFF" />
       </TouchableOpacity>
     </SafeAreaView>
   );

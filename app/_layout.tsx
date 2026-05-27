@@ -13,6 +13,7 @@ import {
   Quicksand_500Medium,
   Quicksand_700Bold,
 } from "@expo-google-fonts/quicksand";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { ExpenseProvider } from "../context/ExpenseContext";
 import { colors } from "../constants/theme";
 import "../global.css";
@@ -40,12 +41,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ExpenseProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-            }}
-          />
+          <BottomSheetModalProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+              }}
+            />
+          </BottomSheetModalProvider>
         </ExpenseProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

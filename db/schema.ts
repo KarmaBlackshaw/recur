@@ -23,6 +23,11 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
     CREATE TABLE IF NOT EXISTS categories (
       name TEXT PRIMARY KEY NOT NULL
     );
+
+    INSERT OR IGNORE INTO categories (name) VALUES
+      ('Housing'),('Utilities'),('Insurance'),('Subscriptions'),
+      ('Transport'),('Food'),('Health'),('Entertainment'),
+      ('Education'),('Savings'),('Debt'),('Other');
   `);
 
   // Migration: rebuild table without dueDate column if it still exists

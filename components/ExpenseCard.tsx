@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from "react-native";
 import Swipeable from "react-native-gesture-handler/Swipeable";
-import { Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -22,7 +22,7 @@ import { useExpenses } from "../context/ExpenseContext";
 import { colors } from "../constants/theme";
 import type { Expense } from "../types";
 
-const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+const CATEGORY_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   Housing: "home-outline",
   Utilities: "flash-outline",
   Subscriptions: "apps-outline",
@@ -76,7 +76,7 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
         onPress={handleDelete}
         accessibilityLabel="Delete expense"
       >
-        <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+        <Feather name="trash-2" size={20} color="#FFFFFF" />
       </TouchableOpacity>
     );
   }
@@ -105,7 +105,7 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
           className="w-11 h-11 rounded-xl items-center justify-center mr-3.5"
           style={{ backgroundColor: overdueFlag ? "rgba(248,113,113,0.12)" : "rgba(99,102,241,0.12)" }}
         >
-          <Ionicons
+          <Feather
             name={iconName}
             size={22}
             color={overdueFlag ? colors.overdue : colors.secondary}

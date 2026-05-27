@@ -16,6 +16,16 @@ export function getDueDate(dueDay: number): Date {
   return new Date(now.getFullYear(), now.getMonth(), clampedDay);
 }
 
+export function getDueDateForMonth(
+  dueDay: number,
+  year: number,
+  month: number  // 0-indexed, e.g. January = 0
+): Date {
+  const maxDay = getDaysInMonth(new Date(year, month));
+  const clampedDay = Math.min(dueDay, maxDay);
+  return new Date(year, month, clampedDay);
+}
+
 export function isOverdue(dueDay: number): boolean {
   const d = startOfDay(getDueDate(dueDay));
   return isPast(d) && !isToday(d);

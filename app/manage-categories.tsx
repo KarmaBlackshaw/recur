@@ -1,18 +1,21 @@
-import React, { useEffect, useState } from "react";
-import { View, TouchableOpacity, FlatList, Alert } from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { AppText } from "../components/ui/AppText";
-import { getAll, deleteCategory } from "../db/categories";
+import { DraggableList } from "../components/ui/DraggableList";
+import { getAll, deleteCategory, updateOrder } from "../db/categories";
 import { colors } from "../constants/theme";
 
 export default function ManageCategoriesScreen() {
   const [categories, setCategories] = useState<string[]>([]);
 
-  useEffect(() => {
-    getAll().then(setCategories);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      getAll().then(setCategories);
+    }, [])
+  );
 
   function handleDelete(name: string) {
     Alert.alert("Delete category", `Remove "${name}"?`, [
@@ -22,15 +25,23 @@ export default function ManageCategoriesScreen() {
         style: "destructive",
         onPress: async () => {
           await deleteCategory(name);
-          setCategories((prev) => prev.filter((c) => c !== name));
+          setCategories((prev) => {
+            const next = prev.filter((c) => c !== name);
+            updateOrder(next);
+            return next;
+          });
         },
       },
     ]);
   }
 
+  function handleReorder(reordered: string[]) {
+    setCategories(reordered);
+    updateOrder(reordered);
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* Header */}
       <View className="flex-row items-center px-3 pt-2 pb-3">
         <TouchableOpacity className="p-1" onPress={() => router.back()}>
           <Feather name="chevron-left" size={24} color={colors.secondary} />
@@ -43,11 +54,13 @@ export default function ManageCategoriesScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
+      <DraggableList
         data={categories}
         keyExtractor={(item) => item}
+        itemHeight={52}
+        onReorder={handleReorder}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
-        renderItem={({ item }) => (
+        renderItem={(item) => (
           <View className="bg-surface border border-border rounded-xl px-3 py-3 mb-1 flex-row items-center gap-3">
             <TouchableOpacity className="p-1" onPress={() => handleDelete(item)}>
               <Feather name="trash-2" size={18} color={colors.overdue} />
@@ -56,9 +69,7 @@ export default function ManageCategoriesScreen() {
             <TouchableOpacity className="p-1">
               <Feather name="edit-2" size={16} color={colors.secondary} />
             </TouchableOpacity>
-            <TouchableOpacity className="p-1">
-              <Ionicons name="reorder-two-outline" size={18} color="rgba(255,255,255,0.3)" />
-            </TouchableOpacity>
+            <Ionicons name="reorder-two-outline" size={20} color="rgba(255,255,255,0.4)" />
           </View>
         )}
       />

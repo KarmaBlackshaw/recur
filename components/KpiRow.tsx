@@ -75,8 +75,8 @@ function KpiCard({ label, value, valueColor, bgColor, borderColor, icon }: KpiCa
         <Ionicons name={icon} size={16} color={valueColor} />
       </View>
       <Text
-        className="text-[18px] font-['Caveat_700Bold'] leading-tight"
-        style={{ color: valueColor }}
+        className="text-[18px] leading-tight"
+        style={{ color: valueColor, fontFamily: "Oswald_Regular" }}
       >
         {value}
       </Text>

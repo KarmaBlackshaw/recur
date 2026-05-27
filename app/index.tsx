@@ -62,7 +62,7 @@ export default function HomeScreen() {
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
       <View className="flex-row justify-between items-center px-5 pt-2 pb-3">
-        <Text className="text-white text-[34px] font-['Caveat_700Bold'] tracking-wide">Recur</Text>
+        <Text className="text-white text-[34px] tracking-wide" style={{ fontFamily: "Oswald_Medium" }}>Recur</Text>
         <TouchableOpacity
           className="w-10 h-10 rounded-full bg-white/[0.07] items-center justify-center"
           accessibilityLabel="Settings"

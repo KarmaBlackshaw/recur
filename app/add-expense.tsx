@@ -71,7 +71,7 @@ export default function AddExpenseScreen() {
         <TouchableOpacity onPress={handleCancel} className="p-1">
           <Feather name="chevron-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
-        <Text className="flex-1 text-center text-white text-[22px] font-caveat-bold">
+        <Text className="flex-1 text-center text-white text-[22px]" style={{ fontFamily: "Oswald_Bold" }}>
           Add Expense
         </Text>
         <View className="w-8" />

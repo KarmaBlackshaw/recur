@@ -3,11 +3,7 @@ import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as SplashScreen from "expo-splash-screen";
-import {
-  useFonts,
-  Caveat_400Regular,
-  Caveat_700Bold,
-} from "@expo-google-fonts/caveat";
+import { useFonts } from "expo-font";
 import {
   Quicksand_400Regular,
   Quicksand_500Medium,
@@ -22,8 +18,10 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Caveat_400Regular,
-    Caveat_700Bold,
+    Oswald_Regular: require("../assets/fonts/oswald/Oswald-Regular.ttf"),
+    Oswald_Medium: require("../assets/fonts/oswald/Oswald-Medium.ttf"),
+    Oswald_SemiBold: require("../assets/fonts/oswald/Oswald-SemiBold.ttf"),
+    Oswald_Bold: require("../assets/fonts/oswald/Oswald-Bold.ttf"),
     Quicksand_400Regular,
     Quicksand_500Medium,
     Quicksand_700Bold,

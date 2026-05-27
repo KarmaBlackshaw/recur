@@ -30,13 +30,24 @@ export default function HomeScreen() {
     const today = startOfToday();
     const in30 = addDays(today, 30);
 
-    const overdue = expenses.filter(
-      (e) => e.status === "unpaid" && isOverdue(e.dueDay)
-    );
-    const upcoming = expenses.filter((e) => {
-      const d = getDueDate(e.dueDay);
-      return isWithinInterval(d, { start: today, end: in30 }) && !isOverdue(e.dueDay);
-    });
+    const overdue = expenses
+      .filter((e) => e.status === "unpaid" && isOverdue(e.dueDay))
+      .sort((a, b) => a.dueDay - b.dueDay);
+    const upcoming = expenses
+      .filter((e) => {
+        const d = getDueDate(e.dueDay);
+        return isWithinInterval(d, { start: today, end: in30 }) && !isOverdue(e.dueDay);
+      })
+      .sort((a, b) => a.dueDay - b.dueDay);
+
+    // IDs already shown in Overdue or Upcoming — excluded from This Month
+    const shownIds = new Set([...overdue, ...upcoming].map((e) => e.id));
+
+    const thisMonthExpenses = expenses
+      .filter((e) => !shownIds.has(e.id))
+      .sort((a, b) => a.dueDay - b.dueDay);
+
+    const nextMonthExpenses = [...expenses].sort((a, b) => a.dueDay - b.dueDay);
 
     const result: Section[] = [];
     if (overdue.length > 0) {
@@ -45,7 +56,12 @@ export default function HomeScreen() {
     if (upcoming.length > 0) {
       result.push({ title: "Upcoming — Next 30 Days", data: upcoming, accent: colors.secondary });
     }
-    result.push({ title: "All Expenses", data: expenses });
+    if (thisMonthExpenses.length > 0) {
+      result.push({ title: "This Month", data: thisMonthExpenses });
+    }
+    if (nextMonthExpenses.length > 0) {
+      result.push({ title: "Next Month", data: nextMonthExpenses });
+    }
     return result;
   }, [expenses]);
 

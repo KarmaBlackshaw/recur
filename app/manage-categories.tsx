@@ -66,7 +66,7 @@ export default function ManageCategoriesScreen() {
               <Feather name="trash-2" size={18} color={colors.overdue} />
             </TouchableOpacity>
             <AppText variant="body-medium" className="flex-1 text-white text-sm">{item}</AppText>
-            <TouchableOpacity className="p-1">
+            <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/add-category", params: { edit: item } })}>
               <Feather name="edit-2" size={16} color={colors.secondary} />
             </TouchableOpacity>
             <Ionicons name="reorder-two-outline" size={20} color="rgba(255,255,255,0.4)" />

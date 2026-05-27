@@ -18,9 +18,13 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
       notes       TEXT,
       createdAt   TEXT NOT NULL
     );
+  `);
+  await db.execAsync(`
     CREATE TABLE IF NOT EXISTS categories (
       name       TEXT PRIMARY KEY NOT NULL
     );
+  `);
+  await db.execAsync(`
     CREATE TABLE IF NOT EXISTS prefs (
       key   TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
@@ -58,9 +62,9 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
     const dueDaySrc = hasDueDay
       ? "dueDay"
       : "COALESCE(CAST(strftime('%d', dueDate) AS INTEGER), 1)";
+    await db.execAsync(`BEGIN;`);
+    await db.execAsync(`ALTER TABLE expenses RENAME TO expenses_old;`);
     await db.execAsync(`
-      BEGIN;
-      ALTER TABLE expenses RENAME TO expenses_old;
       CREATE TABLE expenses (
         id          TEXT PRIMARY KEY NOT NULL,
         name        TEXT NOT NULL,
@@ -72,12 +76,14 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
         notes       TEXT,
         createdAt   TEXT NOT NULL
       );
+    `);
+    await db.execAsync(`
       INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, notes, createdAt)
         SELECT id, name, category, amount, ${dueDaySrc}, recurrence, status, notes, createdAt
         FROM expenses_old;
-      DROP TABLE expenses_old;
-      COMMIT;
     `);
+    await db.execAsync(`DROP TABLE expenses_old;`);
+    await db.execAsync(`COMMIT;`);
   }
 
   return db;

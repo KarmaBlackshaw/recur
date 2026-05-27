@@ -20,6 +20,11 @@ export async function insertCategory(name: string): Promise<void> {
   );
 }
 
+export async function renameCategory(oldName: string, newName: string): Promise<void> {
+  const db = await getDB();
+  await db.runAsync("UPDATE categories SET name = ? WHERE name = ?", [newName, oldName]);
+}
+
 export async function deleteCategory(name: string): Promise<void> {
   const db = await getDB();
   await db.runAsync("DELETE FROM categories WHERE name = ?", [name]);

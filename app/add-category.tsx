@@ -1,19 +1,29 @@
 import React, { useState } from "react";
 import { View, TextInput, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { AppText } from "../components/ui/AppText";
 import { AppButton } from "../components/ui/AppButton";
-import { getAll, insertCategory } from "../db/categories";
+import { getAll, insertCategory, renameCategory } from "../db/categories";
 import { colors } from "../constants/theme";
 
 export default function AddCategoryScreen() {
-  const [name, setName] = useState("");
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const isEdit = !!edit;
+  const [name, setName] = useState(edit ?? "");
 
   async function handleSave() {
     const trimmed = name.trim();
     if (!trimmed) return;
+    if (isEdit) {
+      if (trimmed === edit) { router.back(); return; }
+      const existing = await getAll();
+      if (existing.includes(trimmed)) { Alert.alert("Already exists"); return; }
+      await renameCategory(edit!, trimmed);
+      router.back();
+      return;
+    }
     const existing = await getAll();
     if (existing.includes(trimmed)) {
       Alert.alert("Already exists");
@@ -31,7 +41,7 @@ export default function AddCategoryScreen() {
           <Feather name="chevron-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
         <AppText variant="heading" className="flex-1 text-center text-white text-xl">
-          Add Category
+          {isEdit ? "Edit Category" : "Add Category"}
         </AppText>
         <View style={{ width: 32 }} />
       </View>
@@ -49,7 +59,7 @@ export default function AddCategoryScreen() {
           onSubmitEditing={handleSave}
         />
         <AppButton
-          label="Save Category"
+          label={isEdit ? "Save Changes" : "Save Category"}
           onPress={handleSave}
           disabled={!name.trim()}
         />

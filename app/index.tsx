@@ -41,7 +41,7 @@ export default function HomeScreen() {
 
     const result: Section[] = [];
     if (overdue.length > 0) {
-      result.push({ title: "⚠ Overdue", data: overdue, accent: colors.overdue });
+      result.push({ title: "Overdue", data: overdue, accent: colors.overdue });
     }
     if (upcoming.length > 0) {
       result.push({ title: "Upcoming — Next 30 Days", data: upcoming, accent: colors.secondary });
@@ -52,8 +52,8 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-background">
-        <ActivityIndicator color={colors.secondary} size="large" className="mt-20" />
+      <SafeAreaView className="flex-1 bg-background items-center justify-center">
+        <ActivityIndicator color={colors.secondary} size="large" />
       </SafeAreaView>
     );
   }
@@ -61,12 +61,24 @@ export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
-      <View className="flex-row justify-between items-center px-5 pt-3 pb-2">
-        <Text className="text-white text-[32px] font-caveat-bold tracking-wide">Recur</Text>
+      <View className="flex-row justify-between items-center px-5 pt-2 pb-3">
+        <Text className="text-white text-[34px] font-['Caveat_700Bold'] tracking-wide">Recur</Text>
+        <TouchableOpacity
+          className="w-10 h-10 rounded-full bg-white/[0.07] items-center justify-center"
+          accessibilityLabel="Settings"
+          onPress={() => {}}
+        >
+          <Ionicons name="settings-outline" size={18} color="rgba(255,255,255,0.6)" />
+        </TouchableOpacity>
       </View>
 
       {/* KPI row */}
       {expenses.length > 0 && <KpiRow expenses={expenses} />}
+
+      {/* Divider */}
+      {expenses.length > 0 && (
+        <View className="mx-5 mt-3 mb-1 h-px bg-white/[0.06]" />
+      )}
 
       {/* Expense sections */}
       {expenses.length === 0 ? (
@@ -77,17 +89,20 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => <ExpenseCard expense={item} index={index} />}
           renderSectionHeader={({ section }) => (
-            <View className="px-4 pt-4 pb-1.5">
+            <View className="px-5 pt-5 pb-2 flex-row items-center gap-2">
+              {section.accent === colors.overdue && (
+                <Ionicons name="warning" size={12} color={colors.overdue} />
+              )}
               <Text
-                className="text-[11px] font-quicksand-bold uppercase tracking-widest"
-                style={section.accent ? { color: section.accent } : { color: "rgba(255,255,255,0.5)" }}
+                className="text-[11px] font-['Quicksand_700Bold'] uppercase tracking-widest"
+                style={{ color: section.accent ?? "rgba(255,255,255,0.4)" }}
               >
                 {section.title}
               </Text>
             </View>
           )}
           stickySectionHeadersEnabled={false}
-          contentContainerClassName="pb-10"
+          contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -98,9 +113,9 @@ export default function HomeScreen() {
         style={{
           shadowColor: colors.secondary,
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.4,
-          shadowRadius: 12,
-          elevation: 8,
+          shadowOpacity: 0.5,
+          shadowRadius: 16,
+          elevation: 10,
         }}
         onPress={() => router.push("/add-expense")}
         accessibilityLabel="Add expense"

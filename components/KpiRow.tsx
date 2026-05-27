@@ -1,41 +1,86 @@
 import React from "react";
-import { ScrollView, View, Text } from "react-native";
+import { View, Text } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import type { Expense } from "../types";
 
 interface Props {
   expenses: Expense[];
 }
 
+interface KpiCardProps {
+  label: string;
+  value: string;
+  valueColor: string;
+  bgColor: string;
+  borderColor: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
+
 export function KpiRow({ expenses }: Props) {
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const paid = expenses.filter((e) => e.status === "paid").reduce((sum, e) => sum + e.amount, 0);
-  const unpaid = expenses.filter((e) => e.status === "unpaid").reduce((sum, e) => sum + e.amount, 0);
+  const paid = expenses
+    .filter((e) => e.status === "paid")
+    .reduce((sum, e) => sum + e.amount, 0);
+  const unpaid = expenses
+    .filter((e) => e.status === "unpaid")
+    .reduce((sum, e) => sum + e.amount, 0);
 
   const fmt = (n: number) =>
-    `₱${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    n.toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+    });
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerClassName="px-4 gap-3 py-2"
-    >
-      <KpiCard label="Total" value={fmt(total)} color="#3B82F6" />
-      <KpiCard label="Paid" value={fmt(paid)} color="#059669" />
+    <View className="flex-row px-4 gap-2.5 py-2">
+      <KpiCard
+        label="Total"
+        value={fmt(total)}
+        valueColor="#818CF8"
+        bgColor="rgba(99,102,241,0.10)"
+        borderColor="rgba(99,102,241,0.18)"
+        icon="wallet-outline"
+      />
+      <KpiCard
+        label="Paid"
+        value={fmt(paid)}
+        valueColor="#34D399"
+        bgColor="rgba(52,211,153,0.10)"
+        borderColor="rgba(52,211,153,0.18)"
+        icon="checkmark-circle-outline"
+      />
       <KpiCard
         label="Unpaid"
         value={fmt(unpaid)}
-        color={unpaid > 0 ? "#DC2626" : "rgba(255,255,255,0.4)"}
+        valueColor={unpaid > 0 ? "#F87171" : "rgba(255,255,255,0.4)"}
+        bgColor={unpaid > 0 ? "rgba(248,113,113,0.10)" : "rgba(255,255,255,0.04)"}
+        borderColor={unpaid > 0 ? "rgba(248,113,113,0.18)" : "rgba(255,255,255,0.07)"}
+        icon="time-outline"
       />
-    </ScrollView>
+    </View>
   );
 }
 
-function KpiCard({ label, value, color }: { label: string; value: string; color: string }) {
+function KpiCard({ label, value, valueColor, bgColor, borderColor, icon }: KpiCardProps) {
   return (
-    <View className="bg-surface rounded-xl p-4 min-w-[120px] border border-border">
-      <Text className="text-lg font-caveat-bold mb-0.5" style={{ color }}>{value}</Text>
-      <Text className="text-white/50 text-[11px] font-quicksand-medium uppercase tracking-widest">
+    <View
+      className="flex-1 rounded-2xl px-3 py-3 border"
+      style={{ backgroundColor: bgColor, borderColor }}
+    >
+      <View
+        className="w-8 h-8 rounded-xl items-center justify-center mb-2"
+        style={{ backgroundColor: borderColor }}
+      >
+        <Ionicons name={icon} size={16} color={valueColor} />
+      </View>
+      <Text
+        className="text-[18px] font-['Caveat_700Bold'] leading-tight"
+        style={{ color: valueColor }}
+      >
+        {value}
+      </Text>
+      <Text className="text-white/40 text-[10px] font-['Quicksand_500Medium'] uppercase tracking-widest mt-0.5">
         {label}
       </Text>
     </View>

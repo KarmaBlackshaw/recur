@@ -14,6 +14,8 @@ import {
   Quicksand_700Bold,
 } from "@expo-google-fonts/quicksand";
 import { ExpenseProvider } from "../context/ExpenseContext";
+import { colors } from "../constants/theme";
+import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -41,7 +43,7 @@ export default function RootLayout() {
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: "#0F172A" },
+              contentStyle: { backgroundColor: colors.background },
             }}
           />
         </ExpenseProvider>

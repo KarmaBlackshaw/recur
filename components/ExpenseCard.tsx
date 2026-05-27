@@ -4,6 +4,7 @@ import {
   Text,
   TouchableOpacity,
   Alert,
+  StyleSheet,
 } from "react-native";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +19,7 @@ import Animated, {
 import { StatusBadge } from "./StatusBadge";
 import { formatDue, isOverdue } from "../utils/dateHelpers";
 import { useExpenses } from "../context/ExpenseContext";
+import { colors } from "../constants/theme";
 import type { Expense } from "../types";
 
 const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -52,32 +54,29 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
 
   const glowStyle = useAnimatedStyle(() => ({
     shadowOpacity: interpolate(pulse.value, [0, 1], [0.1, 0.45]),
-    shadowRadius: interpolate(pulse.value, [0, 1], [4, 12]),
+    shadowRadius: interpolate(pulse.value, [0, 1], [4, 14]),
   }));
 
   function handleDelete() {
     swipeRef.current?.close();
-    Alert.alert(
-      "Delete expense",
-      `Remove "${expense.name}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteExpense(expense.id),
-        },
-      ]
-    );
+    Alert.alert("Delete expense", `Remove "${expense.name}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => deleteExpense(expense.id),
+      },
+    ]);
   }
 
   function renderRightActions() {
     return (
       <TouchableOpacity
-        className="bg-overdue justify-center items-center w-16 my-1 mr-4 rounded-xl"
+        className="bg-overdue justify-center items-center w-16 my-1.5 mr-4 rounded-2xl"
         onPress={handleDelete}
+        accessibilityLabel="Delete expense"
       >
-        <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
+        <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
       </TouchableOpacity>
     );
   }
@@ -86,49 +85,65 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
     CATEGORY_ICONS[expense.category] ?? "ellipsis-horizontal-circle-outline";
 
   return (
-    <Swipeable ref={swipeRef} renderRightActions={renderRightActions} overshootRight={false}>
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={renderRightActions}
+      overshootRight={false}
+    >
       <Animated.View
         entering={FadeInDown.delay(index * 60).duration(300)}
-        className={`flex-row items-center bg-surface rounded-xl mx-4 my-1 p-3 border border-border ${
-          overdueFlag ? "border-l-[3px] border-l-overdue" : ""
-        }`}
+        className="flex-row items-center bg-surface rounded-2xl mx-4 my-1.5 px-4 py-3.5 border border-white/[0.07]"
         style={[
-          { shadowColor: overdueFlag ? "#DC2626" : "#000", shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-          overdueFlag && glowStyle,
+          styles.shadow,
+          overdueFlag ? styles.shadowOverdue : null,
+          overdueFlag ? { borderLeftWidth: 3, borderLeftColor: colors.overdue } : null,
+          overdueFlag ? glowStyle : null,
         ]}
       >
-        {/* Left: category icon */}
-        <View className="w-9 h-9 rounded-[10px] bg-secondary/10 items-center justify-center mr-3">
-          <Ionicons name={iconName} size={20} color="#3B82F6" />
+        {/* Category icon bubble */}
+        <View
+          className="w-11 h-11 rounded-xl items-center justify-center mr-3.5"
+          style={{ backgroundColor: overdueFlag ? "rgba(248,113,113,0.12)" : "rgba(99,102,241,0.12)" }}
+        >
+          <Ionicons
+            name={iconName}
+            size={22}
+            color={overdueFlag ? colors.overdue : colors.secondary}
+          />
         </View>
 
-        {/* Middle: name + category + notes */}
-        <View className="flex-1 gap-0.5">
-          <View className="flex-row items-center gap-1.5">
-            <Text className="text-white text-sm font-quicksand-bold shrink" numberOfLines={1}>
-              {expense.name}
-            </Text>
-            <Text className="text-white/40 text-[10px] font-quicksand-medium bg-white/5 px-1.5 py-0.5 rounded">
+        {/* Name + meta */}
+        <View className="flex-1">
+          <Text
+            className="text-white text-[15px] font-['Quicksand_700Bold'] mb-0.5"
+            numberOfLines={1}
+          >
+            {expense.name}
+          </Text>
+          <View className="flex-row items-center gap-2">
+            <Text className="text-white/40 text-[10px] font-['Quicksand_500Medium'] bg-white/[0.06] px-2 py-0.5 rounded-md">
               {expense.category}
+            </Text>
+            <Text
+              className={`text-[11px] font-['Quicksand_500Medium'] ${overdueFlag ? "text-overdue" : "text-white/35"}`}
+            >
+              {overdueFlag ? "⚠ " : ""}{formatDue(expense.dueDay)}
             </Text>
           </View>
           {expense.notes ? (
-            <Text className="text-white/45 text-[11px] font-quicksand" numberOfLines={1}>
+            <Text
+              className="text-white/30 text-[11px] font-['Quicksand_400Regular'] mt-1"
+              numberOfLines={1}
+            >
               {expense.notes}
             </Text>
           ) : null}
-          <Text className={`text-[11px] font-quicksand-medium mt-0.5 ${overdueFlag ? "text-overdue" : "text-white/40"}`}>
-            {overdueFlag && (
-              <Ionicons name="warning-outline" size={12} color="#DC2626" />
-            )}{" "}
-            {formatDue(expense.dueDay)}
-          </Text>
         </View>
 
-        {/* Right: amount + badge */}
-        <View className="items-end gap-1.5 ml-2">
-          <Text className="text-white text-[15px] font-caveat-bold">
-            ₱{expense.amount.toFixed(2)}
+        {/* Amount + status */}
+        <View className="items-end gap-2 ml-3">
+          <Text className="text-white text-[17px] font-['Caveat_700Bold'] leading-tight">
+            ${expense.amount.toFixed(2)}
           </Text>
           <StatusBadge
             status={expense.status}
@@ -140,3 +155,16 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
     </Swipeable>
   );
 }
+
+const styles = StyleSheet.create({
+  shadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  shadowOverdue: {
+    shadowColor: "#F87171",
+  },
+});

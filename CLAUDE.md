@@ -46,14 +46,14 @@ interface Expense {
 ## Design Tokens
 
 ```
-bg:       #0F172A
-surface:  #101A34
-primary:  #1E40AF
-secondary:#3B82F6
-paid:     #059669
-overdue:  #DC2626
+bg:       #161618
+surface:  #1C1C1E
+primary:  #6366F1
+secondary:#818CF8
+paid:     #34D399
+overdue:  #F87171
 text:     #FFFFFF
-border:   rgba(255,255,255,0.08)
+border:   rgba(255,255,255,0.07)
 ```
 
 Fonts: Caveat (headings) + Quicksand (body) via `@expo-google-fonts`.

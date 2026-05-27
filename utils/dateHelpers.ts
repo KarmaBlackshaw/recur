@@ -1,42 +1,33 @@
 import {
   isPast,
   startOfDay,
-  addWeeks,
-  addMonths,
-  addYears,
   isToday,
   isTomorrow,
   differenceInCalendarDays,
+  getDaysInMonth,
   format,
 } from "date-fns";
 import type { Recurrence } from "../types";
 
-export function isOverdue(dueDate: string): boolean {
-  const d = startOfDay(new Date(dueDate));
-  return isPast(d) && !isToday(new Date(dueDate));
+export function getDueDate(dueDay: number): Date {
+  const now = new Date();
+  const maxDay = getDaysInMonth(now);
+  const clampedDay = Math.min(dueDay, maxDay);
+  return new Date(now.getFullYear(), now.getMonth(), clampedDay);
 }
 
-export function nextDueDate(dueDate: string, recurrence: Recurrence): string {
-  const d = new Date(dueDate);
-  let next: Date;
-  switch (recurrence) {
-    case "weekly":
-      next = addWeeks(d, 1);
-      break;
-    case "monthly":
-      next = addMonths(d, 1);
-      break;
-    case "yearly":
-      next = addYears(d, 1);
-      break;
-    default:
-      return dueDate;
-  }
-  return format(next, "yyyy-MM-dd");
+export function isOverdue(dueDay: number): boolean {
+  const d = startOfDay(getDueDate(dueDay));
+  return isPast(d) && !isToday(d);
 }
 
-export function formatDue(dueDate: string): string {
-  const d = new Date(dueDate);
+export function nextDueDay(dueDay: number, recurrence: Recurrence): number {
+  // dueDay is a fixed anchor (1–31) — it never changes between cycles.
+  return dueDay;
+}
+
+export function formatDue(dueDay: number): string {
+  const d = getDueDate(dueDay);
   if (isToday(d)) return "Today";
   if (isTomorrow(d)) return "Tomorrow";
   const diff = differenceInCalendarDays(d, new Date());

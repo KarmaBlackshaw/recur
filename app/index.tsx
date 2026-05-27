@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   View,
   Text,
@@ -8,12 +8,11 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { isWithinInterval, addDays, startOfToday } from "date-fns";
 import { useExpenses } from "../context/ExpenseContext";
 import { ExpenseCard } from "../components/ExpenseCard";
-import { AddExpenseModal } from "../components/AddExpenseModal";
 import { KpiRow } from "../components/KpiRow";
 import { EmptyState } from "../components/EmptyState";
 import { isOverdue, getDueDate } from "../utils/dateHelpers";
@@ -28,7 +27,6 @@ interface Section {
 
 export default function HomeScreen() {
   const { expenses, loading } = useExpenses();
-  const modalRef = useRef<BottomSheetModal>(null) as React.RefObject<BottomSheetModal>;
 
   const sections: Section[] = useMemo(() => {
     const today = startOfToday();
@@ -53,10 +51,6 @@ export default function HomeScreen() {
     return result;
   }, [expenses]);
 
-  function openModal() {
-    modalRef.current?.present();
-  }
-
   if (loading) {
     return (
       <SafeAreaView style={styles.screen}>
@@ -77,7 +71,7 @@ export default function HomeScreen() {
 
       {/* Expense sections */}
       {expenses.length === 0 ? (
-        <EmptyState onAdd={openModal} />
+        <EmptyState onAdd={() => router.push("/add-expense")} />
       ) : (
         <SectionList
           sections={sections}
@@ -97,12 +91,13 @@ export default function HomeScreen() {
       )}
 
       {/* FAB */}
-      <TouchableOpacity style={styles.fab} onPress={openModal} accessibilityLabel="Add expense">
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push("/add-expense")}
+        accessibilityLabel="Add expense"
+      >
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
-
-      {/* Add modal */}
-      <AddExpenseModal bottomSheetRef={modalRef} />
     </SafeAreaView>
   );
 }

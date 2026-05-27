@@ -17,6 +17,7 @@ import Animated, {
   interpolate,
 } from "react-native-reanimated";
 import { StatusBadge } from "./StatusBadge";
+import { format } from "date-fns";
 import { formatDueDate, getDueDateForMonth, isOverdueOn } from "../utils/dateHelpers";
 import { useExpenses } from "../context/ExpenseContext";
 import { colors } from "../constants/theme";
@@ -130,14 +131,14 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
             <Text className="text-white/40 text-[10px] font-['Quicksand_500Medium'] bg-white/[0.06] px-2 py-0.5 rounded-md">
               {expense.category}
             </Text>
-            {resolvedStatus !== "paid" && (
-              <Text
-                className={`text-[11px] font-['Quicksand_500Medium'] ${overdueFlag ? "text-overdue" : "text-white/35"}`}
-              >
-                {overdueFlag ? "⚠ " : ""}{formatDueDate(dueDate)}
-              </Text>
-            )}
           </View>
+          <Text
+            className={`text-[11px] font-['Quicksand_500Medium'] mt-0.5 ${overdueFlag ? "text-overdue" : "text-white/35"}`}
+          >
+            {resolvedStatus === "paid"
+              ? format(dueDate, "MMM d")
+              : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
+          </Text>
           {expense.notes ? (
             <Text
               className="text-white/30 text-[11px] font-['Quicksand_400Regular'] mt-1"

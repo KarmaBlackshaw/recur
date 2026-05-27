@@ -142,7 +142,7 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
 
         {/* Amount + status */}
         <View className="items-end gap-2 ml-3">
-          <Text className="text-white text-[17px] leading-tight" style={{ fontFamily: "Oswald_Bold" }}>
+          <Text className="text-white text-[17px] leading-tight" style={{ fontFamily: "Oswald_Medium" }}>
             ${expense.amount.toFixed(2)}
           </Text>
           <StatusBadge

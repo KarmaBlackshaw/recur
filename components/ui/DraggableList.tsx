@@ -17,7 +17,10 @@ interface DraggableListProps<T> {
   contentContainerStyle?: object;
 }
 
-const SPRING = { damping: 20, stiffness: 200, mass: 0.5 };
+const SPRING = { damping: 22, stiffness: 220, mass: 0.4 };
+
+// Registry so parent can drive each item's offsetY shared value
+type OffsetRegistry = Map<string, Animated.SharedValue<number>>;
 
 export function DraggableList<T>({
   data,
@@ -29,6 +32,7 @@ export function DraggableList<T>({
 }: DraggableListProps<T>) {
   const [order, setOrder] = useState<number[]>(() => data.map((_, i) => i));
   const orderRef = useRef(order);
+  const registry = useRef<OffsetRegistry>(new Map());
 
   const prevDataRef = useRef(data);
   if (prevDataRef.current !== data) {
@@ -38,20 +42,42 @@ export function DraggableList<T>({
     setOrder([...next]);
   }
 
-  // activeVisualIndex: which slot is being dragged (-1 = none)
   const activeVisualIndex = useSharedValue(-1);
-  // fingerY: current absolute Y of the finger
   const fingerY = useSharedValue(0);
-  // listTop: absolute Y of the top of the list container
   const listTop = useSharedValue(0);
 
-  const reorder = useCallback((from: number, to: number) => {
-    const next = [...orderRef.current];
-    const [item] = next.splice(from, 1);
-    next.splice(to, 0, item);
-    orderRef.current = next;
-    setOrder([...next]);
-  }, []);
+  const reorder = useCallback(
+    (from: number, to: number) => {
+      const next = [...orderRef.current];
+
+      // Slide displaced items by one slot
+      if (from < to) {
+        for (let vi = from + 1; vi <= to; vi++) {
+          const key = keyExtractor(data[next[vi]]);
+          const sv = registry.current.get(key);
+          if (sv) {
+            sv.value = -itemHeight;
+            sv.value = withSpring(0, SPRING);
+          }
+        }
+      } else {
+        for (let vi = to; vi < from; vi++) {
+          const key = keyExtractor(data[next[vi]]);
+          const sv = registry.current.get(key);
+          if (sv) {
+            sv.value = itemHeight;
+            sv.value = withSpring(0, SPRING);
+          }
+        }
+      }
+
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      orderRef.current = next;
+      setOrder([...next]);
+    },
+    [data, itemHeight, keyExtractor]
+  );
 
   const commit = useCallback(() => {
     onReorder(orderRef.current.map((i) => data[i]));
@@ -64,31 +90,38 @@ export function DraggableList<T>({
       }}
     >
       <ScrollView contentContainerStyle={contentContainerStyle} scrollEnabled>
-        {order.map((dataIndex, visualIndex) => (
-          <DraggableItem
-            key={keyExtractor(data[dataIndex])}
-            visualIndex={visualIndex}
-            activeVisualIndex={activeVisualIndex}
-            fingerY={fingerY}
-            listTop={listTop}
-            itemHeight={itemHeight}
-            totalItems={order.length}
-            onReorder={reorder}
-            onCommit={commit}
-          >
-            {renderItem(data[dataIndex], dataIndex)}
-          </DraggableItem>
-        ))}
+        {order.map((dataIndex, visualIndex) => {
+          const key = keyExtractor(data[dataIndex]);
+          return (
+            <DraggableItem
+              key={key}
+              itemKey={key}
+              visualIndex={visualIndex}
+              activeVisualIndex={activeVisualIndex}
+              fingerY={fingerY}
+              listTop={listTop}
+              registry={registry.current}
+              itemHeight={itemHeight}
+              totalItems={order.length}
+              onReorder={reorder}
+              onCommit={commit}
+            >
+              {renderItem(data[dataIndex], dataIndex)}
+            </DraggableItem>
+          );
+        })}
       </ScrollView>
     </View>
   );
 }
 
 interface ItemProps {
+  itemKey: string;
   visualIndex: number;
   activeVisualIndex: Animated.SharedValue<number>;
   fingerY: Animated.SharedValue<number>;
   listTop: Animated.SharedValue<number>;
+  registry: OffsetRegistry;
   itemHeight: number;
   totalItems: number;
   onReorder: (from: number, to: number) => void;
@@ -97,16 +130,23 @@ interface ItemProps {
 }
 
 function DraggableItem({
+  itemKey,
   visualIndex,
   activeVisualIndex,
   fingerY,
   listTop,
+  registry,
   itemHeight,
   totalItems,
   onReorder,
   onCommit,
   children,
 }: ItemProps) {
+  const offsetY = useSharedValue(0);
+
+  // Register this item's shared value so the parent can drive it
+  registry.set(itemKey, offsetY);
+
   const gesture = Gesture.Pan()
     .activateAfterLongPress(200)
     .onStart((e) => {
@@ -117,7 +157,6 @@ function DraggableItem({
       if (activeVisualIndex.value !== visualIndex) return;
       fingerY.value = e.absoluteY;
 
-      // Which slot is the finger over right now?
       const relY = e.absoluteY - listTop.value;
       const targetIndex = Math.max(
         0,
@@ -142,25 +181,21 @@ function DraggableItem({
 
   const style = useAnimatedStyle(() => {
     const isDragging = activeVisualIndex.value === visualIndex;
-    if (!isDragging) {
+
+    if (isDragging) {
+      const slotTop = listTop.value + visualIndex * itemHeight;
+      const dragOffset = fingerY.value - slotTop - itemHeight / 2;
       return {
-        zIndex: 1,
-        opacity: 1,
-        transform: [{ translateY: 0 }, { scale: withSpring(1, SPRING) }],
+        zIndex: 100,
+        opacity: 0.88,
+        transform: [{ translateY: dragOffset }, { scale: withSpring(1.03, SPRING) }],
       };
     }
 
-    // Keep the item under the finger: finger pos relative to where this slot sits
-    const slotTop = listTop.value + visualIndex * itemHeight;
-    const offset = fingerY.value - slotTop - itemHeight / 2;
-
     return {
-      zIndex: 100,
-      opacity: 0.88,
-      transform: [
-        { translateY: offset },
-        { scale: withSpring(1.03, SPRING) },
-      ],
+      zIndex: 1,
+      opacity: 1,
+      transform: [{ translateY: offsetY.value }, { scale: 1 }],
     };
   });
 

@@ -31,6 +31,6 @@ export function formatDue(dueDay: number): string {
   if (isToday(d)) return "Today";
   if (isTomorrow(d)) return "Tomorrow";
   const diff = differenceInCalendarDays(d, new Date());
-  if (diff > 0 && diff <= 6) return `${diff} days`;
+  if (diff > 0) return `${diff} days`;
   return format(d, "MMM d");
 }

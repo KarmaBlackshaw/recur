@@ -66,7 +66,7 @@ export default function HomeScreen() {
         <TouchableOpacity
           className="w-10 h-10 rounded-full bg-white/[0.07] items-center justify-center"
           accessibilityLabel="Settings"
-          onPress={() => {}}
+          onPress={() => router.push("/settings")}
         >
           <Feather name="settings" size={18} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>

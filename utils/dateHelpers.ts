@@ -45,5 +45,5 @@ export function getGreeting(name?: string | null): string {
 }
 
 export function getFormattedDate(): string {
-  return format(new Date(), "EEEE, MMM d").toUpperCase();
+  return format(new Date(), "EEEE, MMM d");
 }

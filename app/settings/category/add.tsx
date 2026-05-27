@@ -3,24 +3,24 @@ import { View, TextInput, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { AppText } from "../components/ui/AppText";
-import { AppButton } from "../components/ui/AppButton";
-import { getAll, insertCategory, renameCategory } from "../db/categories";
-import { colors } from "../constants/theme";
+import { AppText } from "../../../components/ui/AppText";
+import { AppButton } from "../../../components/ui/AppButton";
+import { getAll, insertCategory, renameCategory } from "../../../db/categories";
+import { colors } from "../../../constants/theme";
 
 export default function AddCategoryScreen() {
-  const { edit } = useLocalSearchParams<{ edit?: string }>();
-  const isEdit = !!edit;
-  const [name, setName] = useState(edit ?? "");
+  const { editId, editName } = useLocalSearchParams<{ editId?: string; editName?: string }>();
+  const isEdit = !!editId;
+  const [name, setName] = useState(editName ?? "");
 
   async function handleSave() {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (isEdit) {
-      if (trimmed === edit) { router.back(); return; }
+      if (trimmed === editName) { router.back(); return; }
       const existing = await getAll();
       if (existing.includes(trimmed)) { Alert.alert("Already exists"); return; }
-      await renameCategory(edit!, trimmed);
+      await renameCategory(editId!, trimmed);
       router.back();
       return;
     }
@@ -35,7 +35,6 @@ export default function AddCategoryScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* Header */}
       <View className="flex-row items-center px-3 pt-2 pb-3">
         <TouchableOpacity className="p-1" onPress={() => router.back()}>
           <Feather name="chevron-left" size={24} color={colors.secondary} />

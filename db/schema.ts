@@ -31,8 +31,17 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
     );
   `);
 
-  // Migration: add sort_order to categories if missing
+  // Migration: add id + sort_order to categories if missing
   const catCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(categories)");
+  const hasId = catCols.some((c) => c.name === "id");
+  if (!hasId) {
+    await db.execAsync(`ALTER TABLE categories ADD COLUMN id TEXT NOT NULL DEFAULT ''`);
+    const rows = await db.getAllAsync<{ name: string }>("SELECT name FROM categories");
+    for (const row of rows) {
+      const uuid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await db.runAsync("UPDATE categories SET id = ? WHERE name = ?", [uuid, row.name]);
+    }
+  }
   const hasSortOrder = catCols.some((c) => c.name === "sort_order");
   if (!hasSortOrder) {
     await db.execAsync(`ALTER TABLE categories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`);
@@ -43,12 +52,15 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
     }
   }
 
-  // Seed presets after sort_order column is guaranteed to exist
+  // Seed presets — id uses the name slug as a stable value for presets
   await db.execAsync(`
-    INSERT OR IGNORE INTO categories (name, sort_order) VALUES
-      ('Housing',0),('Utilities',1),('Insurance',2),('Subscriptions',3),
-      ('Transport',4),('Food',5),('Health',6),('Entertainment',7),
-      ('Education',8),('Savings',9),('Debt',10),('Other',11);
+    INSERT OR IGNORE INTO categories (id, name, sort_order) VALUES
+      ('preset-housing','Housing',0),('preset-utilities','Utilities',1),
+      ('preset-insurance','Insurance',2),('preset-subscriptions','Subscriptions',3),
+      ('preset-transport','Transport',4),('preset-food','Food',5),
+      ('preset-health','Health',6),('preset-entertainment','Entertainment',7),
+      ('preset-education','Education',8),('preset-savings','Savings',9),
+      ('preset-debt','Debt',10),('preset-other','Other',11);
   `);
 
   // Migration: rebuild table without dueDate column if it still exists

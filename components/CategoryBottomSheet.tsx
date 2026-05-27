@@ -33,7 +33,7 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
         className="p-1"
         onPress={() => {
           sheetRef.current?.dismiss();
-          router.push("/manage-categories");
+          router.push("/settings/category");
         }}
       >
         <Feather name="edit-2" size={18} color={colors.secondary} />

@@ -3,31 +3,31 @@ import { View, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { AppText } from "../components/ui/AppText";
-import { DraggableList } from "../components/ui/DraggableList";
-import { getAll, deleteCategory, updateOrder } from "../db/categories";
-import { colors } from "../constants/theme";
+import { AppText } from "../../../components/ui/AppText";
+import { DraggableList } from "../../../components/ui/DraggableList";
+import { Category, getAllWithIds, deleteCategory, updateOrder } from "../../../db/categories";
+import { colors } from "../../../constants/theme";
 
 export default function ManageCategoriesScreen() {
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useFocusEffect(
     useCallback(() => {
-      getAll().then(setCategories);
+      getAllWithIds().then(setCategories);
     }, [])
   );
 
-  function handleDelete(name: string) {
-    Alert.alert("Delete category", `Remove "${name}"?`, [
+  function handleDelete(cat: Category) {
+    Alert.alert("Delete category", `Remove "${cat.name}"?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
-          await deleteCategory(name);
+          await deleteCategory(cat.id);
           setCategories((prev) => {
-            const next = prev.filter((c) => c !== name);
-            updateOrder(next);
+            const next = prev.filter((c) => c.id !== cat.id);
+            updateOrder(next.map((c) => c.id));
             return next;
           });
         },
@@ -35,9 +35,9 @@ export default function ManageCategoriesScreen() {
     ]);
   }
 
-  function handleReorder(reordered: string[]) {
+  function handleReorder(reordered: Category[]) {
     setCategories(reordered);
-    updateOrder(reordered);
+    updateOrder(reordered.map((c) => c.id));
   }
 
   return (
@@ -49,14 +49,14 @@ export default function ManageCategoriesScreen() {
         <AppText variant="heading" className="flex-1 text-center text-white text-xl">
           Categories
         </AppText>
-        <TouchableOpacity className="p-1" onPress={() => router.push("/add-category")}>
+        <TouchableOpacity className="p-1" onPress={() => router.push("/settings/category/add")}>
           <Feather name="plus" size={24} color={colors.secondary} />
         </TouchableOpacity>
       </View>
 
       <DraggableList
         data={categories}
-        keyExtractor={(item) => item}
+        keyExtractor={(item) => item.id}
         itemHeight={52}
         onReorder={handleReorder}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
@@ -65,8 +65,8 @@ export default function ManageCategoriesScreen() {
             <TouchableOpacity className="p-1" onPress={() => handleDelete(item)}>
               <Feather name="trash-2" size={18} color={colors.overdue} />
             </TouchableOpacity>
-            <AppText variant="body-medium" className="flex-1 text-white text-sm">{item}</AppText>
-            <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/add-category", params: { edit: item } })}>
+            <AppText variant="body-medium" className="flex-1 text-white text-sm">{item.name}</AppText>
+            <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: item.id, editName: item.name } })}>
               <Feather name="edit-2" size={16} color={colors.secondary} />
             </TouchableOpacity>
             <Ionicons name="reorder-two-outline" size={20} color="rgba(255,255,255,0.4)" />

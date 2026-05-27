@@ -60,7 +60,7 @@ export default function SettingsScreen() {
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
           <TouchableOpacity
             className="flex-row items-center px-3.5 py-3"
-            onPress={() => router.push("/manage-categories")}
+            onPress={() => router.push("/settings/category")}
             accessibilityLabel="Manage categories"
           >
             <View

@@ -21,3 +21,10 @@ export interface ExpenseFormValues {
   recurrence: Recurrence;
   notes: string;
 }
+
+export interface MonthStatus {
+  expenseId: string;
+  year: number;
+  month: number;   // 0-based (JS Date.getMonth())
+  status: Status;
+}

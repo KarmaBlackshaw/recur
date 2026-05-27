@@ -1,11 +1,19 @@
 import * as SQLite from "expo-sqlite";
 
 let db: SQLite.SQLiteDatabase | null = null;
+let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-export async function getDB(): Promise<SQLite.SQLiteDatabase> {
-  if (db) return db;
+export function getDB(): Promise<SQLite.SQLiteDatabase> {
+  if (db) return Promise.resolve(db);
+  if (initPromise) return initPromise;
+  initPromise = _init();
+  return initPromise;
+}
+
+async function _init(): Promise<SQLite.SQLiteDatabase> {
   db = await SQLite.openDatabaseAsync("recur.db");
   await db.execAsync(`PRAGMA journal_mode = WAL;`);
+  await db.execAsync(`PRAGMA foreign_keys = ON;`);
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS expenses (
       id          TEXT PRIMARY KEY NOT NULL,
@@ -30,6 +38,34 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
       value TEXT NOT NULL
     );
   `);
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS expense_months (
+      expense_id  TEXT NOT NULL,
+      year        INTEGER NOT NULL,
+      month       INTEGER NOT NULL,
+      status      TEXT NOT NULL DEFAULT 'unpaid',
+      PRIMARY KEY (expense_id, year, month),
+      FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE
+    );
+  `);
+
+  // One-time migration: seed expense_months for currently-paid recurring expenses
+  const migrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_expense_months_v1'"
+  );
+  if (!migrated) {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth(); // 0-based
+    await db.runAsync(
+      `INSERT OR IGNORE INTO expense_months (expense_id, year, month, status)
+       SELECT id, ?, ?, status FROM expenses WHERE status = 'paid' AND recurrence != 'one-off'`,
+      [year, month]
+    );
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_expense_months_v1', '1')"
+    );
+  }
 
   // Migration: add id + sort_order to categories if missing
   const catCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(categories)");

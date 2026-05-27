@@ -14,7 +14,7 @@ import { useExpenses } from "../context/ExpenseContext";
 import { ExpenseCard } from "../components/ExpenseCard";
 import { KpiRow } from "../components/KpiRow";
 import { EmptyState } from "../components/EmptyState";
-import { isOverdue, getDueDate, getGreeting, getFormattedDate } from "../utils/dateHelpers";
+import { isOverdueOn, getDueDate, getGreeting, getFormattedDate } from "../utils/dateHelpers";
 import { colors } from "../constants/theme";
 import type { Expense } from "../types";
 
@@ -22,48 +22,67 @@ interface Section {
   title: string;
   data: Expense[];
   accent?: string;
+  referenceDate?: Date;
 }
 
 export default function HomeScreen() {
-  const { expenses, loading, userName } = useExpenses();
-  const sections: Section[] = useMemo(() => {
+  const { expenses, loading, userName, getMonthStatus } = useExpenses();
+  const { sections, currentMonthList } = useMemo(() => {
     const today = startOfToday();
     const in30 = addDays(today, 30);
 
-    const overdue = expenses
-      .filter((e) => e.status === "unpaid" && isOverdue(e.dueDay))
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const nextMonthYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+    const nextMonth = today.getMonth() === 11 ? 0 : today.getMonth() + 1;
+    const currentMonthRef = new Date(currentYear, currentMonth, 1);
+    const nextMonthRef = new Date(nextMonthYear, nextMonth, 1);
+
+    const resolve = (e: Expense, year: number, month: number): Expense =>
+      ({ ...e, status: getMonthStatus(e.id, year, month) });
+
+    const currentMonthList = expenses.map((e) => resolve(e, currentYear, currentMonth));
+    const nextMonthList = expenses
+      .filter((e) => e.recurrence !== "one-off")
+      .map((e) => resolve(e, nextMonthYear, nextMonth));
+
+    const overdue = currentMonthList
+      .filter((e) => e.status === "unpaid" && isOverdueOn(e.dueDay, currentYear, currentMonth))
       .sort((a, b) => a.dueDay - b.dueDay);
-    const upcoming = expenses
+    const upcoming = currentMonthList
       .filter((e) => {
         const d = getDueDate(e.dueDay);
-        return isWithinInterval(d, { start: today, end: in30 }) && !isOverdue(e.dueDay);
+        return (
+          isWithinInterval(d, { start: today, end: in30 }) &&
+          !isOverdueOn(e.dueDay, currentYear, currentMonth)
+        );
       })
       .sort((a, b) => a.dueDay - b.dueDay);
 
     // IDs already shown in Overdue or Upcoming — excluded from This Month
     const shownIds = new Set([...overdue, ...upcoming].map((e) => e.id));
 
-    const thisMonthExpenses = expenses
+    const thisMonthExpenses = currentMonthList
       .filter((e) => !shownIds.has(e.id))
       .sort((a, b) => a.dueDay - b.dueDay);
 
-    const nextMonthExpenses = [...expenses].sort((a, b) => a.dueDay - b.dueDay);
+    const nextMonthExpenses = [...nextMonthList].sort((a, b) => a.dueDay - b.dueDay);
 
     const result: Section[] = [];
     if (overdue.length > 0) {
-      result.push({ title: "Overdue", data: overdue, accent: colors.overdue });
+      result.push({ title: "Overdue", data: overdue, accent: colors.overdue, referenceDate: currentMonthRef });
     }
     if (upcoming.length > 0) {
-      result.push({ title: "Upcoming — Next 30 Days", data: upcoming, accent: colors.secondary });
+      result.push({ title: "Upcoming — Next 30 Days", data: upcoming, accent: colors.secondary, referenceDate: currentMonthRef });
     }
     if (thisMonthExpenses.length > 0) {
-      result.push({ title: "This Month", data: thisMonthExpenses });
+      result.push({ title: "This Month", data: thisMonthExpenses, referenceDate: currentMonthRef });
     }
     if (nextMonthExpenses.length > 0) {
-      result.push({ title: "Next Month", data: nextMonthExpenses });
+      result.push({ title: "Next Month", data: nextMonthExpenses, referenceDate: nextMonthRef });
     }
-    return result;
-  }, [expenses]);
+    return { sections: result, currentMonthList };
+  }, [expenses, getMonthStatus]);
 
   if (loading) {
     return (
@@ -101,7 +120,7 @@ export default function HomeScreen() {
       </View>
 
       {/* KPI row */}
-      {expenses.length > 0 && <KpiRow expenses={expenses} />}
+      {expenses.length > 0 && <KpiRow expenses={currentMonthList} />}
 
       {/* Divider */}
       {expenses.length > 0 && (
@@ -115,7 +134,9 @@ export default function HomeScreen() {
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => <ExpenseCard expense={item} index={index} />}
+          renderItem={({ item, index, section }) => (
+            <ExpenseCard expense={item} index={index} referenceDate={(section as Section).referenceDate} />
+          )}
           renderSectionHeader={({ section }) => (
             <View className="px-5 pt-5 pb-2 flex-row items-center gap-2">
               {section.accent === colors.overdue && (

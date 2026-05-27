@@ -37,7 +37,10 @@ export function nextDueDay(dueDay: number, recurrence: Recurrence): number {
 }
 
 export function formatDue(dueDay: number): string {
-  const d = getDueDate(dueDay);
+  return formatDueDate(getDueDate(dueDay));
+}
+
+export function formatDueDate(d: Date): string {
   if (isToday(d)) return "Today";
   if (isTomorrow(d)) return "Tomorrow";
   const diff = differenceInCalendarDays(d, new Date());
@@ -56,4 +59,9 @@ export function getGreeting(name?: string | null): string {
 
 export function getFormattedDate(): string {
   return format(new Date(), "EEEE, MMM d");
+}
+
+export function isOverdueOn(dueDay: number, year: number, month: number): boolean {
+  const d = startOfDay(getDueDateForMonth(dueDay, year, month));
+  return isPast(d) && !isToday(d);
 }

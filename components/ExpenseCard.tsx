@@ -17,7 +17,7 @@ import Animated, {
   interpolate,
 } from "react-native-reanimated";
 import { StatusBadge } from "./StatusBadge";
-import { formatDue, isOverdue } from "../utils/dateHelpers";
+import { formatDueDate, getDueDateForMonth, isOverdueOn } from "../utils/dateHelpers";
 import { useExpenses } from "../context/ExpenseContext";
 import { colors } from "../constants/theme";
 import type { Expense } from "../types";
@@ -36,12 +36,18 @@ const CATEGORY_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 interface Props {
   expense: Expense;
   index?: number;
+  referenceDate?: Date;
 }
 
-export function ExpenseCard({ expense, index = 0 }: Props) {
-  const { toggleStatus, deleteExpense } = useExpenses();
+export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
+  const { getMonthStatus, toggleMonthStatus, deleteExpense } = useExpenses();
   const swipeRef = useRef<SwipeableMethods>(null);
-  const overdueFlag = isOverdue(expense.dueDay) && expense.status === "unpaid";
+  const refDate = referenceDate ?? new Date();
+  const year = refDate.getFullYear();
+  const month = refDate.getMonth();
+  const dueDate = getDueDateForMonth(expense.dueDay, year, month);
+  const resolvedStatus = getMonthStatus(expense.id, year, month);
+  const overdueFlag = resolvedStatus === "unpaid" && isOverdueOn(expense.dueDay, year, month);
 
   const pulse = useSharedValue(0);
   React.useEffect(() => {
@@ -124,11 +130,11 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
             <Text className="text-white/40 text-[10px] font-['Quicksand_500Medium'] bg-white/[0.06] px-2 py-0.5 rounded-md">
               {expense.category}
             </Text>
-            {expense.status !== "paid" && (
+            {resolvedStatus !== "paid" && (
               <Text
                 className={`text-[11px] font-['Quicksand_500Medium'] ${overdueFlag ? "text-overdue" : "text-white/35"}`}
               >
-                {overdueFlag ? "⚠ " : ""}{formatDue(expense.dueDay)}
+                {overdueFlag ? "⚠ " : ""}{formatDueDate(dueDate)}
               </Text>
             )}
           </View>
@@ -148,9 +154,9 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
             ₱{expense.amount.toFixed(2)}
           </Text>
           <StatusBadge
-            status={expense.status}
+            status={resolvedStatus}
             overdue={overdueFlag}
-            onToggle={() => toggleStatus(expense.id)}
+            onToggle={() => toggleMonthStatus(expense.id, year, month)}
           />
         </View>
       </Animated.View>

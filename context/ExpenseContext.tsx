@@ -6,13 +6,17 @@ import React, {
   useCallback,
 } from "react";
 import type { Expense, Status } from "../types";
+import type { MonthStatus } from "../types";
 import * as expensesDB from "../db/expenses";
 import * as preferencesDB from "../db/preferences";
+import * as monthsDB from "../db/expenseMonths";
+import { monthKey } from "../utils/monthKey";
 
 interface State {
   expenses: Expense[];
   loading: boolean;
   userName: string | null;
+  monthStatuses: Record<string, Status>;
 }
 
 type Action =
@@ -20,7 +24,9 @@ type Action =
   | { type: "ADD"; payload: Expense }
   | { type: "UPDATE"; payload: Expense }
   | { type: "REMOVE"; payload: string }
-  | { type: "SET_USER_NAME"; payload: string | null };
+  | { type: "SET_USER_NAME"; payload: string | null }
+  | { type: "LOAD_MONTHS"; payload: MonthStatus[] }
+  | { type: "SET_MONTH_STATUS"; payload: { expenseId: string; year: number; month: number; status: Status } };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -47,6 +53,23 @@ function reducer(state: State, action: Action): State {
       };
     case "SET_USER_NAME":
       return { ...state, userName: action.payload };
+    case "LOAD_MONTHS": {
+      const map: Record<string, Status> = {};
+      for (const m of action.payload) {
+        map[monthKey(m.expenseId, m.year, m.month)] = m.status;
+      }
+      return { ...state, monthStatuses: map };
+    }
+    case "SET_MONTH_STATUS": {
+      const { expenseId, year, month, status } = action.payload;
+      return {
+        ...state,
+        monthStatuses: {
+          ...state.monthStatuses,
+          [monthKey(expenseId, year, month)]: status,
+        },
+      };
+    }
     default:
       return state;
   }
@@ -57,9 +80,10 @@ interface ExpenseContextValue {
   loading: boolean;
   userName: string | null;
   addExpense: (e: Omit<Expense, "id" | "createdAt">) => Promise<void>;
-  toggleStatus: (id: string) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setUserName: (name: string | null) => void;
+  getMonthStatus: (id: string, year: number, month: number) => Status;
+  toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -69,17 +93,21 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     expenses: [],
     loading: true,
     userName: null,
+    monthStatuses: {},
   });
 
   useEffect(() => {
     Promise.all([
       expensesDB.getAll(),
       preferencesDB.getPreference("user_name"),
-    ]).then(([rows, name]) => {
+      monthsDB.getAll(),
+    ]).then(([rows, name, months]) => {
       dispatch({ type: "LOAD", payload: rows });
       dispatch({ type: "SET_USER_NAME", payload: name });
+      dispatch({ type: "LOAD_MONTHS", payload: months });
     }).catch(() => {
       dispatch({ type: "LOAD", payload: [] });
+      dispatch({ type: "LOAD_MONTHS", payload: [] });
     });
   }, []);
 
@@ -95,20 +123,33 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const toggleStatus = useCallback(
-    async (id: string) => {
+  const getMonthStatus = useCallback(
+    (id: string, year: number, month: number): Status => {
+      const expense = state.expenses.find((e) => e.id === id);
+      if (!expense) return "unpaid";
+      if (expense.recurrence === "one-off") return expense.status;
+      return state.monthStatuses[monthKey(id, year, month)] ?? "unpaid";
+    },
+    [state.expenses, state.monthStatuses]
+  );
+
+  const toggleMonthStatus = useCallback(
+    async (id: string, year: number, month: number): Promise<void> => {
       const expense = state.expenses.find((e) => e.id === id);
       if (!expense) return;
 
-      if (expense.status === "unpaid") {
-        await expensesDB.updateStatus(id, "paid");
-        dispatch({ type: "UPDATE", payload: { ...expense, status: "paid" } });
+      if (expense.recurrence === "one-off") {
+        const next: Status = expense.status === "unpaid" ? "paid" : "unpaid";
+        await expensesDB.updateStatus(id, next);
+        dispatch({ type: "UPDATE", payload: { ...expense, status: next } });
       } else {
-        await expensesDB.updateStatus(id, "unpaid");
-        dispatch({ type: "UPDATE", payload: { ...expense, status: "unpaid" } });
+        const current = state.monthStatuses[monthKey(id, year, month)] ?? "unpaid";
+        const next: Status = current === "unpaid" ? "paid" : "unpaid";
+        await monthsDB.upsertStatus(id, year, month, next);
+        dispatch({ type: "SET_MONTH_STATUS", payload: { expenseId: id, year, month, status: next } });
       }
     },
-    [state.expenses]
+    [state.expenses, state.monthStatuses]
   );
 
   const deleteExpense = useCallback(async (id: string) => {
@@ -123,9 +164,10 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         loading: state.loading,
         userName: state.userName,
         addExpense,
-        toggleStatus,
         deleteExpense,
         setUserName,
+        getMonthStatus,
+        toggleMonthStatus,
       }}
     >
       {children}

@@ -34,3 +34,16 @@ export function formatDue(dueDay: number): string {
   if (diff > 0) return `${diff} days`;
   return format(d, "MMM d");
 }
+
+export function getGreeting(name?: string | null): string {
+  const hour = new Date().getHours();
+  let salutation: string;
+  if (hour >= 5 && hour < 12) salutation = "Good Morning";
+  else if (hour >= 12 && hour < 18) salutation = "Good Afternoon";
+  else salutation = "Good Evening";
+  return name ? `${salutation}, ${name}` : salutation;
+}
+
+export function getFormattedDate(): string {
+  return format(new Date(), "EEEE, MMM d").toUpperCase();
+}

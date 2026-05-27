@@ -35,6 +35,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
+    "emulator:cold-boot": "bash scripts/cold-boot-emulators.sh",
     "ios": "expo start --ios",
     "web": "expo start --web"
   },

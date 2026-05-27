@@ -14,7 +14,7 @@ import { useExpenses } from "../context/ExpenseContext";
 import { ExpenseCard } from "../components/ExpenseCard";
 import { KpiRow } from "../components/KpiRow";
 import { EmptyState } from "../components/EmptyState";
-import { isOverdue, getDueDate } from "../utils/dateHelpers";
+import { isOverdue, getDueDate, getGreeting, getFormattedDate } from "../utils/dateHelpers";
 import { colors } from "../constants/theme";
 import type { Expense } from "../types";
 
@@ -25,8 +25,7 @@ interface Section {
 }
 
 export default function HomeScreen() {
-  const { expenses, loading } = useExpenses();
-
+  const { expenses, loading, userName } = useExpenses();
   const sections: Section[] = useMemo(() => {
     const today = startOfToday();
     const in30 = addDays(today, 30);
@@ -61,10 +60,23 @@ export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
-      <View className="flex-row justify-between items-center px-5 pt-2 pb-3">
-        <Text className="text-white text-[34px] tracking-wide" style={{ fontFamily: "Oswald_Medium" }}>Recur</Text>
+      <View className="flex-row justify-between items-start px-5 pt-2 pb-3">
+        <View>
+          <Text
+            className="text-[11px] tracking-widest uppercase"
+            style={{ color: "rgba(255,255,255,0.45)", fontFamily: "Quicksand_700Bold" }}
+          >
+            {getFormattedDate().toUpperCase()}
+          </Text>
+          <Text
+            className="text-white text-[28px] tracking-wide"
+            style={{ fontFamily: "Oswald_Medium" }}
+          >
+            {getGreeting(userName)}
+          </Text>
+        </View>
         <TouchableOpacity
-          className="w-10 h-10 rounded-full bg-white/[0.07] items-center justify-center"
+          className="w-10 h-10 rounded-full bg-white/[0.07] items-center justify-center mt-1"
           accessibilityLabel="Settings"
           onPress={() => router.push("/settings")}
         >
@@ -122,6 +134,7 @@ export default function HomeScreen() {
       >
         <Feather name="plus" size={28} color="#FFFFFF" />
       </TouchableOpacity>
+
     </SafeAreaView>
   );
 }

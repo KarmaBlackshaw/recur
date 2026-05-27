@@ -5,9 +5,8 @@ let db: SQLite.SQLiteDatabase | null = null;
 export async function getDB(): Promise<SQLite.SQLiteDatabase> {
   if (db) return db;
   db = await SQLite.openDatabaseAsync("recur.db");
+  await db.execAsync(`PRAGMA journal_mode = WAL;`);
   await db.execAsync(`
-    PRAGMA journal_mode = WAL;
-
     CREATE TABLE IF NOT EXISTS expenses (
       id          TEXT PRIMARY KEY NOT NULL,
       name        TEXT NOT NULL,
@@ -19,9 +18,12 @@ export async function getDB(): Promise<SQLite.SQLiteDatabase> {
       notes       TEXT,
       createdAt   TEXT NOT NULL
     );
-
     CREATE TABLE IF NOT EXISTS categories (
       name       TEXT PRIMARY KEY NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS prefs (
+      key   TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL
     );
   `);
 

@@ -5,11 +5,14 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { AppText } from "../components/ui/AppText";
+import { useExpenses } from "../context/ExpenseContext";
 import { colors } from "../constants/theme";
 
 const version = Constants.expoConfig?.version ?? "—";
 
 export default function SettingsScreen() {
+  const { userName } = useExpenses();
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
@@ -24,6 +27,32 @@ export default function SettingsScreen() {
       </View>
 
       <View className="px-4 pt-2">
+        {/* PROFILE section */}
+        <AppText variant="label" className="text-white/40 mb-2 pl-1">
+          Profile
+        </AppText>
+        <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
+          <TouchableOpacity
+            className="flex-row items-center px-3.5 py-3"
+            onPress={() => router.push("/settings/profile")}
+            accessibilityLabel="Edit profile"
+          >
+            <View
+              className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+              style={{ backgroundColor: colors.primary }}
+            >
+              <Feather name="user" size={15} color="#FFFFFF" />
+            </View>
+            <AppText variant="body-medium" className="flex-1 text-white text-sm">
+              Your Name
+            </AppText>
+            <AppText variant="caption" className="text-white/35 mr-2">
+              {userName ?? "Not set"}
+            </AppText>
+            <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
+          </TouchableOpacity>
+        </View>
+
         {/* APP section */}
         <AppText variant="label" className="text-white/40 mb-2 pl-1">
           App

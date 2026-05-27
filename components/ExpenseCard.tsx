@@ -124,11 +124,13 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
             <Text className="text-white/40 text-[10px] font-['Quicksand_500Medium'] bg-white/[0.06] px-2 py-0.5 rounded-md">
               {expense.category}
             </Text>
-            <Text
-              className={`text-[11px] font-['Quicksand_500Medium'] ${overdueFlag ? "text-overdue" : "text-white/35"}`}
-            >
-              {overdueFlag ? "⚠ " : ""}{formatDue(expense.dueDay)}
-            </Text>
+            {expense.status !== "paid" && (
+              <Text
+                className={`text-[11px] font-['Quicksand_500Medium'] ${overdueFlag ? "text-overdue" : "text-white/35"}`}
+              >
+                {overdueFlag ? "⚠ " : ""}{formatDue(expense.dueDay)}
+              </Text>
+            )}
           </View>
           {expense.notes ? (
             <Text

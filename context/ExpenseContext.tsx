@@ -7,17 +7,20 @@ import React, {
 } from "react";
 import type { Expense, Status } from "../types";
 import * as expensesDB from "../db/expenses";
+import * as preferencesDB from "../db/preferences";
 
 interface State {
   expenses: Expense[];
   loading: boolean;
+  userName: string | null;
 }
 
 type Action =
   | { type: "LOAD"; payload: Expense[] }
   | { type: "ADD"; payload: Expense }
   | { type: "UPDATE"; payload: Expense }
-  | { type: "REMOVE"; payload: string };
+  | { type: "REMOVE"; payload: string }
+  | { type: "SET_USER_NAME"; payload: string | null };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -42,6 +45,8 @@ function reducer(state: State, action: Action): State {
         ...state,
         expenses: state.expenses.filter((e) => e.id !== action.payload),
       };
+    case "SET_USER_NAME":
+      return { ...state, userName: action.payload };
     default:
       return state;
   }
@@ -50,9 +55,11 @@ function reducer(state: State, action: Action): State {
 interface ExpenseContextValue {
   expenses: Expense[];
   loading: boolean;
+  userName: string | null;
   addExpense: (e: Omit<Expense, "id" | "createdAt">) => Promise<void>;
   toggleStatus: (id: string) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  setUserName: (name: string | null) => void;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -61,12 +68,23 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, {
     expenses: [],
     loading: true,
+    userName: null,
   });
 
   useEffect(() => {
-    expensesDB.getAll().then((rows) => {
+    Promise.all([
+      expensesDB.getAll(),
+      preferencesDB.getPreference("user_name"),
+    ]).then(([rows, name]) => {
       dispatch({ type: "LOAD", payload: rows });
+      dispatch({ type: "SET_USER_NAME", payload: name });
+    }).catch(() => {
+      dispatch({ type: "LOAD", payload: [] });
     });
+  }, []);
+
+  const setUserName = useCallback((name: string | null) => {
+    dispatch({ type: "SET_USER_NAME", payload: name });
   }, []);
 
   const addExpense = useCallback(
@@ -103,9 +121,11 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       value={{
         expenses: state.expenses,
         loading: state.loading,
+        userName: state.userName,
         addExpense,
         toggleStatus,
         deleteExpense,
+        setUserName,
       }}
     >
       {children}

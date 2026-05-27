@@ -41,7 +41,7 @@ interface Props {
 export function ExpenseCard({ expense, index = 0 }: Props) {
   const { toggleStatus, deleteExpense } = useExpenses();
   const swipeRef = useRef<Swipeable>(null);
-  const overdueFlag = isOverdue(expense.dueDate) && expense.status === "unpaid";
+  const overdueFlag = isOverdue(expense.dueDay) && expense.status === "unpaid";
 
   // Pulse glow for overdue
   const pulse = useSharedValue(0);
@@ -117,7 +117,7 @@ export function ExpenseCard({ expense, index = 0 }: Props) {
             {overdueFlag && (
               <Ionicons name="warning-outline" size={12} color={colors.overdue} />
             )}{" "}
-            {formatDue(expense.dueDate)}
+            {formatDue(expense.dueDay)}
           </Text>
         </View>
 

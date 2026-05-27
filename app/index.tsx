@@ -10,13 +10,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
-import { isWithinInterval, addDays, startOfDay, parseISO } from "date-fns";
+import { isWithinInterval, addDays, startOfToday } from "date-fns";
 import { useExpenses } from "../context/ExpenseContext";
 import { ExpenseCard } from "../components/ExpenseCard";
 import { AddExpenseModal } from "../components/AddExpenseModal";
 import { KpiRow } from "../components/KpiRow";
 import { EmptyState } from "../components/EmptyState";
-import { isOverdue } from "../utils/dateHelpers";
+import { isOverdue, getDueDate } from "../utils/dateHelpers";
 import { colors } from "../constants/theme";
 import type { Expense } from "../types";
 
@@ -31,15 +31,15 @@ export default function HomeScreen() {
   const modalRef = useRef<BottomSheetModal>(null) as React.RefObject<BottomSheetModal>;
 
   const sections: Section[] = useMemo(() => {
-    const today = startOfDay(new Date());
+    const today = startOfToday();
     const in30 = addDays(today, 30);
 
     const overdue = expenses.filter(
-      (e) => e.status === "unpaid" && isOverdue(e.dueDate)
+      (e) => e.status === "unpaid" && isOverdue(e.dueDay)
     );
     const upcoming = expenses.filter((e) => {
-      const d = parseISO(e.dueDate);
-      return isWithinInterval(d, { start: today, end: in30 }) && !isOverdue(e.dueDate);
+      const d = getDueDate(e.dueDay);
+      return isWithinInterval(d, { start: today, end: in30 }) && !isOverdue(e.dueDay);
     });
 
     const result: Section[] = [];

@@ -84,10 +84,12 @@ types.ts                 # Shared TS types
 ## Planning Rules
 
 - Every plan must include:
-  1. **TL;DR** — 2–3 sentence summary of what's changing and why.
-  2. **Implementation steps** — numbered, with file paths and complexity tags `[low]` / `[med]` / `[high]`.
-  3. **Executor prompt** — a self-contained copy-paste prompt ready to hand to an executor agent. Must instruct the executor to use `superpowers:dispatching-parallel-agents` for any independent steps.
+  1. **TL;DR** — 2–3 sentence summary of what's changing and why. Mandatory, never skip.
+  2. **Executor prompt** — a self-contained copy-paste prompt (with full context) ready to hand to an executor agent. Mandatory, never skip. Use `superpowers:dispatching-parallel-agents` for any independent steps.
+  3. **Implementation steps** — numbered, with file paths and complexity tags `[low]` / `[med]` / `[high]`.
   4. **Verification** — bullet list of how to confirm the change works end-to-end.
+- Default execution: **subagent-driven** (`superpowers:subagent-driven-development`). Do not ask which approach — go straight to subagent-driven after plan approval.
+- **Never commit during plan execution.** Write code only. User commits manually.
 - After execution is confirmed working, **delete the plan file** from `.claude/plans/`.
 - Plan files live at `.claude/plans/<slug>.md`. Never leave stale plans around.
 

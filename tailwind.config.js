@@ -16,8 +16,10 @@ module.exports = {
         textMuted: "rgba(255,255,255,0.4)",
       },
       fontFamily: {
-        caveat: ["Caveat_400Regular"],
-        "caveat-bold": ["Caveat_700Bold"],
+        oswald: ["Oswald_Regular"],
+        "oswald-medium": ["Oswald_Medium"],
+        "oswald-semibold": ["Oswald_SemiBold"],
+        "oswald-bold": ["Oswald_Bold"],
         quicksand: ["Quicksand_400Regular"],
         "quicksand-medium": ["Quicksand_500Medium"],
         "quicksand-bold": ["Quicksand_700Bold"],

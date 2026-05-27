@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Platform,
   ScrollView,
   Alert,
 } from "react-native";
@@ -15,8 +14,6 @@ import {
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { Controller, useForm } from "react-hook-form";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { format } from "date-fns";
 import { useExpenses } from "../context/ExpenseContext";
 import { CategoryPicker } from "./CategoryPicker";
 import { colors } from "../constants/theme";
@@ -26,7 +23,7 @@ export interface ExpenseFormValues {
   name: string;
   amount: string;
   category: string;
-  dueDate: Date;
+  dueDay: string;
   recurrence: Recurrence;
   notes: string;
 }
@@ -57,7 +54,7 @@ export function AddExpenseModal({ bottomSheetRef }: Props) {
       name: "",
       amount: "",
       category: "Other",
-      dueDate: new Date(),
+      dueDay: "1",
       recurrence: "monthly",
       notes: "",
     },
@@ -73,7 +70,7 @@ export function AddExpenseModal({ bottomSheetRef }: Props) {
       name: data.name.trim(),
       amount: amountNum,
       category: data.category,
-      dueDate: format(data.dueDate, "yyyy-MM-dd"),
+      dueDay: parseInt(data.dueDay, 10),
       recurrence: data.recurrence,
       status: "unpaid",
       notes: data.notes.trim() || undefined,
@@ -157,22 +154,30 @@ export function AddExpenseModal({ bottomSheetRef }: Props) {
           )}
         />
 
-        {/* Due Date */}
-        <Text style={[styles.label, { marginTop: 12 }]}>Due Date</Text>
+        {/* Due Day */}
+        <Text style={[styles.label, { marginTop: 12 }]}>Due Day (1–31) *</Text>
         <Controller
           control={control}
-          name="dueDate"
-          render={({ field: { value, onChange } }) => (
-            <View style={styles.datePickerWrap}>
-              <DateTimePicker
-                value={value}
-                mode="date"
-                display={Platform.OS === "ios" ? "inline" : "default"}
-                onChange={(_, date) => date && onChange(date)}
-                themeVariant="dark"
-                accentColor={colors.secondary}
-              />
-            </View>
+          name="dueDay"
+          rules={{
+            required: true,
+            validate: (v) => {
+              const n = parseInt(v, 10);
+              return (!isNaN(n) && n >= 1 && n <= 31) || "Must be 1–31";
+            },
+          }}
+          render={({ field: { value, onChange, onBlur } }) => (
+            <TextInput
+              style={styles.input}
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="1"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              keyboardType="number-pad"
+              returnKeyType="next"
+              maxLength={2}
+            />
           )}
         />
 
@@ -242,17 +247,9 @@ export function AddExpenseModal({ bottomSheetRef }: Props) {
 }
 
 const styles = StyleSheet.create({
-  sheetBg: {
-    backgroundColor: "#0D1829",
-  },
-  handle: {
-    backgroundColor: "rgba(255,255,255,0.25)",
-    width: 36,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
+  sheetBg: { backgroundColor: "#0D1829" },
+  handle: { backgroundColor: "rgba(255,255,255,0.25)", width: 36 },
+  content: { paddingHorizontal: 20, paddingBottom: 20 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -260,11 +257,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingTop: 8,
   },
-  title: {
-    color: "#FFFFFF",
-    fontSize: 22,
-    fontFamily: "Caveat_700Bold",
-  },
+  title: { color: "#FFFFFF", fontSize: 22, fontFamily: "Caveat_700Bold" },
   cancelBtn: {
     color: colors.secondary,
     fontSize: 14,
@@ -291,24 +284,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 4,
   },
-  amountRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
+  amountRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
   currencyPrefix: {
     color: colors.secondary,
     fontSize: 18,
     fontFamily: "Caveat_700Bold",
     marginRight: 8,
   },
-  amountInput: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  datePickerWrap: {
-    marginBottom: 4,
-  },
+  amountInput: { flex: 1, marginBottom: 0 },
   segmented: {
     flexDirection: "row",
     backgroundColor: colors.surface,
@@ -318,27 +301,15 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     overflow: "hidden",
   },
-  segment: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  segmentActive: {
-    backgroundColor: colors.primary,
-  },
+  segment: { flex: 1, paddingVertical: 10, alignItems: "center" },
+  segmentActive: { backgroundColor: colors.primary },
   segmentText: {
     color: "rgba(255,255,255,0.5)",
     fontSize: 12,
     fontFamily: "Quicksand_500Medium",
   },
-  segmentTextActive: {
-    color: "#FFFFFF",
-    fontFamily: "Quicksand_700Bold",
-  },
-  notesInput: {
-    height: 72,
-    marginBottom: 4,
-  },
+  segmentTextActive: { color: "#FFFFFF", fontFamily: "Quicksand_700Bold" },
+  notesInput: { height: 72, marginBottom: 4 },
   saveBtn: {
     backgroundColor: colors.primary,
     borderRadius: 12,
@@ -346,9 +317,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 16,
   },
-  saveBtnDisabled: {
-    opacity: 0.4,
-  },
+  saveBtnDisabled: { opacity: 0.4 },
   saveBtnText: {
     color: "#FFFFFF",
     fontSize: 15,

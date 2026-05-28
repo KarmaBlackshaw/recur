@@ -23,8 +23,9 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
     const [categories, setCategories] = React.useState<string[]>([]);
 
     React.useImperativeHandle(ref, () => ({
-      present: () => {
-        getAll().then(setCategories);
+      present: async () => {
+        const cats = await getAll();
+        setCategories(cats);
         sheetRef.current?.present();
       },
     }));

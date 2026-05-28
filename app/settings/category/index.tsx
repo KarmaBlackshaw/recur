@@ -15,8 +15,14 @@ export default function ManageCategoriesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      getAllWithIds().then(setCategories);
+      let active = true;
+      async function load() {
+        const cats = await getAllWithIds();
+        if (active) setCategories(cats);
+      }
+      load();
       reloadCategoryIcons();
+      return () => { active = false; };
     }, [reloadCategoryIcons])
   );
 

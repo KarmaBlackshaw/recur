@@ -14,6 +14,8 @@ React Native / Expo recurring expenses tracker. Expo Router, TypeScript, NativeW
 - **Forms:** `react-hook-form` with `Controller` for every form field. Save button disabled when `!isValid`.
 - **Animations:** `react-native-reanimated` for all animations. No `Animated` API from React Native core.
 - **Bottom sheets:** `@gorhom/bottom-sheet` (`BottomSheetModal`). No plain `Modal` for primary flows.
+- **No monkey patches:** Never suppress warnings or errors with guards, flags, or workarounds that hide the symptom without fixing the root cause. Always trace to root cause and fix there.
+- **Async style:** Always use `async/await`. Never use `.then()` / `.catch()` chains.
 
 ## Data Model
 

@@ -14,6 +14,7 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
   db = await SQLite.openDatabaseAsync("recur.db");
   await db.execAsync(`PRAGMA journal_mode = WAL;`);
   await db.execAsync(`PRAGMA foreign_keys = ON;`);
+
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS expenses (
       id          TEXT PRIMARY KEY NOT NULL,
@@ -49,37 +50,11 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
     );
   `);
 
-  // Migration: allow NULL amount (TBD expenses)
+  // Legacy: amount is already nullable in the canonical CREATE TABLE above.
   const amountNullMigrated = await db.getFirstAsync<{ value: string }>(
     "SELECT value FROM prefs WHERE key = 'migrated_amount_nullable_v1'"
   );
   if (!amountNullMigrated) {
-    const expCols = await db.getAllAsync<{ name: string; notnull: number }>("PRAGMA table_info(expenses)");
-    const amountCol = expCols.find((c) => c.name === "amount");
-    if (amountCol && amountCol.notnull === 1) {
-      await db.execAsync(`BEGIN;`);
-      await db.execAsync(`ALTER TABLE expenses RENAME TO expenses_old;`);
-      await db.execAsync(`
-        CREATE TABLE expenses (
-          id          TEXT PRIMARY KEY NOT NULL,
-          name        TEXT NOT NULL,
-          category    TEXT NOT NULL,
-          amount      REAL,
-          dueDay      INTEGER NOT NULL DEFAULT 1,
-          recurrence  TEXT NOT NULL,
-          status      TEXT NOT NULL DEFAULT 'unpaid',
-          notes       TEXT,
-          createdAt   TEXT NOT NULL
-        );
-      `);
-      await db.execAsync(`
-        INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, notes, createdAt)
-          SELECT id, name, category, amount, dueDay, recurrence, status, notes, createdAt
-          FROM expenses_old;
-      `);
-      await db.execAsync(`DROP TABLE expenses_old;`);
-      await db.execAsync(`COMMIT;`);
-    }
     await db.runAsync(
       "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_amount_nullable_v1', '1')"
     );
@@ -164,39 +139,14 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
     );
   }
 
-  // Migration: rebuild table without dueDate column if it still exists
-  const cols = await db.getAllAsync<{ name: string }>(
-    "PRAGMA table_info(expenses)"
+  // Legacy: dueDate column was removed. All queries in db/expenses.ts enumerate columns explicitly so a residual column is inert.
+  const dueDateMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_remove_duedate_v1'"
   );
-  const hasDueDate = cols.some((c) => c.name === "dueDate");
-
-  if (hasDueDate) {
-    const hasDueDay = cols.some((c) => c.name === "dueDay");
-    const dueDaySrc = hasDueDay
-      ? "dueDay"
-      : "COALESCE(CAST(strftime('%d', dueDate) AS INTEGER), 1)";
-    await db.execAsync(`BEGIN;`);
-    await db.execAsync(`ALTER TABLE expenses RENAME TO expenses_old;`);
-    await db.execAsync(`
-      CREATE TABLE expenses (
-        id          TEXT PRIMARY KEY NOT NULL,
-        name        TEXT NOT NULL,
-        category    TEXT NOT NULL,
-        amount      REAL,
-        dueDay      INTEGER NOT NULL DEFAULT 1,
-        recurrence  TEXT NOT NULL,
-        status      TEXT NOT NULL DEFAULT 'unpaid',
-        notes       TEXT,
-        createdAt   TEXT NOT NULL
-      );
-    `);
-    await db.execAsync(`
-      INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, notes, createdAt)
-        SELECT id, name, category, amount, ${dueDaySrc}, recurrence, status, notes, createdAt
-        FROM expenses_old;
-    `);
-    await db.execAsync(`DROP TABLE expenses_old;`);
-    await db.execAsync(`COMMIT;`);
+  if (!dueDateMigrated) {
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_remove_duedate_v1', '1')"
+    );
   }
 
   return db;

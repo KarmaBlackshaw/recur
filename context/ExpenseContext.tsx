@@ -2,9 +2,9 @@ import React, {
   createContext,
   useContext,
   useReducer,
-  useEffect,
   useCallback,
 } from "react";
+import { useAsyncEffect } from "../utils/useAsyncEffect";
 import type { Expense, Status, MonthStatus, FeatherIconName } from "../types";
 import * as expensesDB from "../db/expenses";
 import * as preferencesDB from "../db/preferences";
@@ -28,7 +28,7 @@ type Action =
   | { type: "SET_USER_NAME"; payload: string | null }
   | { type: "LOAD_MONTHS"; payload: MonthStatus[] }
   | { type: "SET_MONTH_STATUS"; payload: { expenseId: string; year: number; month: number; status: Status } }
-  | { type: "SET_CATEGORY_ICONS"; payload: Record<string, string> };
+  | { type: "SET_CATEGORY_ICONS"; payload: Record<string, FeatherIconName> };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -104,23 +104,26 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     categoryIconMap: {},
   });
 
-  useEffect(() => {
-    Promise.all([
-      expensesDB.getAll(),
-      preferencesDB.getPreference("user_name"),
-      monthsDB.getAll(),
-      getAllWithIds(),
-    ]).then(([rows, name, months, cats]) => {
+  useAsyncEffect(async (active) => {
+    try {
+      const [rows, name, months, cats] = await Promise.all([
+        expensesDB.getAll(),
+        preferencesDB.getPreference("user_name"),
+        monthsDB.getAll(),
+        getAllWithIds(),
+      ]);
+      if (!active()) return;
       dispatch({ type: "LOAD", payload: rows });
       dispatch({ type: "SET_USER_NAME", payload: name });
       dispatch({ type: "LOAD_MONTHS", payload: months });
       const iconMap: Record<string, FeatherIconName> = {};
       for (const c of cats) iconMap[c.name] = c.icon;
       dispatch({ type: "SET_CATEGORY_ICONS", payload: iconMap });
-    }).catch(() => {
+    } catch {
+      if (!active()) return;
       dispatch({ type: "LOAD", payload: [] });
       dispatch({ type: "LOAD_MONTHS", payload: [] });
-    });
+    }
   }, []);
 
   const setUserName = useCallback((name: string | null) => {

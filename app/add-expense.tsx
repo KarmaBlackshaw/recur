@@ -14,6 +14,7 @@ import { useExpenses } from "../context/ExpenseContext";
 import { CategoryBottomSheet, CategoryBottomSheetRef } from "../components/CategoryBottomSheet";
 import { AppText } from "../components/ui/AppText";
 import { AppTextInput } from "../components/ui/AppTextInput";
+import { AppRadioGroup } from "../components/ui/AppRadioGroup";
 import { colors } from "../constants/theme";
 import type { Recurrence, ExpenseFormValues } from "../types";
 
@@ -191,32 +192,16 @@ export default function AddExpenseScreen() {
         />
 
         {/* Recurrence */}
-        <AppText variant="label" className="mb-1.5 mt-1">Recurrence</AppText>
         <Controller
           control={control}
           name="recurrence"
           render={({ field: { value, onChange } }) => (
-            <View className="flex-row bg-surface rounded-[10px] border border-border mb-1 overflow-hidden">
-              {RECURRENCE_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  className={`flex-1 py-4 items-center ${
-                    value === opt.value ? "bg-primary" : ""
-                  }`}
-                  onPress={() => onChange(opt.value)}
-                >
-                  <Text
-                    className={`text-xs ${
-                      value === opt.value
-                        ? "text-white font-quicksand-bold"
-                        : "text-white/50 font-quicksand-medium"
-                    }`}
-                  >
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <AppRadioGroup
+              label="Recurrence"
+              options={RECURRENCE_OPTIONS}
+              value={value}
+              onChange={onChange}
+            />
           )}
         />
 

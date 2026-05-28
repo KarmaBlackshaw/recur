@@ -15,7 +15,7 @@ export function AppTextInput({ label, multiline, className = "", ...props }: App
         </AppText>
       )}
       <TextInput
-        className={`bg-surface border border-border rounded-[10px] px-3.5 py-3 text-white font-quicksand text-[15px] mb-1 ${multiline ? "h-[72px]" : ""} ${className}`}
+        className={`bg-surface border border-border rounded-[10px] px-4 py-4 text-white font-quicksand text-[15px] mb-1 ${multiline ? "h-[72px]" : "h-[52px]"} ${className}`}
         placeholderTextColor="rgba(255,255,255,0.3)"
         multiline={multiline}
         textAlignVertical={multiline ? "top" : undefined}

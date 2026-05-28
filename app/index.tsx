@@ -158,7 +158,7 @@ export default function HomeScreen() {
 
       {/* FAB */}
       <TouchableOpacity
-        className="absolute bottom-8 right-6 w-14 h-14 rounded-full bg-primary items-center justify-center"
+        className="absolute bottom-8 right-6 size-[60px] rounded-full bg-primary items-center justify-center"
         style={{
           shadowColor: colors.secondary,
           shadowOffset: { width: 0, height: 4 },

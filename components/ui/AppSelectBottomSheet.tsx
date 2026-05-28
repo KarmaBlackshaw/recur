@@ -12,6 +12,17 @@ import { Feather } from "@expo/vector-icons";
 import { AppText } from "./AppText";
 import { AppTextInput } from "./AppTextInput";
 
+function EmptyItems({ searching }: { searching: boolean }) {
+  return (
+    <View className="flex-1 items-center justify-center py-12 gap-2">
+      <Feather name={searching ? "search" : "inbox"} size={36} color="rgba(255,255,255,0.15)" />
+      <AppText variant="body-medium" className="text-white/40 text-sm text-center">
+        {searching ? "No results" : "Nothing here yet"}
+      </AppText>
+    </View>
+  );
+}
+
 export interface AppSelectBottomSheetRef {
   present: () => void;
   dismiss: () => void;
@@ -117,16 +128,20 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
           />
         )}
 
-        <BottomSheetFlatList<T>
-          data={filtered}
-          keyExtractor={(item) => keyExtractor(item)}
-          numColumns={columns}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 32 }}
-          renderItem={({ item }) =>
-            renderItem(item, keyExtractor(item) === keyExtractor(value), () => handleSelect(item)) as React.ReactElement
-          }
-        />
+        {filtered.length === 0 ? (
+          <EmptyItems searching={searchable && search.trim().length > 0} />
+        ) : (
+          <BottomSheetFlatList<T>
+            data={filtered}
+            keyExtractor={(item) => keyExtractor(item)}
+            numColumns={columns}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 32 }}
+            renderItem={({ item }) =>
+              renderItem(item, keyExtractor(item) === keyExtractor(value), () => handleSelect(item)) as React.ReactElement
+            }
+          />
+        )}
       </BottomSheetView>
     </BottomSheetModal>
   );

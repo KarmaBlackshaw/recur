@@ -1,7 +1,6 @@
 import React, { useRef } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   ScrollView,
   Alert,
@@ -12,6 +11,7 @@ import { Controller, useForm } from "react-hook-form";
 import { Feather } from "@expo/vector-icons";
 import { useExpenses } from "../context/ExpenseContext";
 import { CategoryBottomSheet, CategoryBottomSheetRef } from "../components/CategoryBottomSheet";
+import { AppButton } from "../components/ui/AppButton";
 import { AppText } from "../components/ui/AppText";
 import { AppTextInput } from "../components/ui/AppTextInput";
 import { AppRadioGroup } from "../components/ui/AppRadioGroup";
@@ -98,9 +98,9 @@ export default function AddExpenseScreen() {
         <TouchableOpacity onPress={handleCancel} className="p-1">
           <Feather name="chevron-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
-        <Text className="flex-1 text-center text-white text-[22px]" style={{ fontFamily: "Oswald_Bold" }}>
+        <AppText variant="heading" className="flex-1 text-center text-[22px]">
           {isEditing ? "Edit Expense" : "Add Expense"}
-        </Text>
+        </AppText>
         <View className="w-8" />
       </View>
 
@@ -223,15 +223,12 @@ export default function AddExpenseScreen() {
         />
 
         {/* Save */}
-        <TouchableOpacity
-          className={`bg-primary rounded-xl py-3.5 items-center mt-4 ${!isValid ? "opacity-40" : ""}`}
+        <AppButton
+          label={isEditing ? "Save Changes" : "Save Expense"}
           onPress={onSubmit}
           disabled={!isValid}
-        >
-          <Text className="text-white text-[15px] font-quicksand-bold tracking-wide">
-            {isEditing ? "Save Changes" : "Save Expense"}
-          </Text>
-        </TouchableOpacity>
+          className="mt-4"
+        />
 
         <View className="h-8" />
       </ScrollView>

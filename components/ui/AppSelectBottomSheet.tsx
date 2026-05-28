@@ -1,105 +1,132 @@
 // components/ui/AppSelectBottomSheet.tsx
-import React, { forwardRef, useCallback, useMemo, useRef } from "react";
-import { View, TouchableOpacity, FlatList } from "react-native";
+import React, { forwardRef, useCallback, useMemo, useRef, useState } from "react";
+import { View, TouchableOpacity, Keyboard } from "react-native";
 import {
   BottomSheetModal,
   BottomSheetView,
+  BottomSheetFlatList,
   BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
 import { Feather } from "@expo/vector-icons";
 import { AppText } from "./AppText";
+import { AppTextInput } from "./AppTextInput";
 
 export interface AppSelectBottomSheetRef {
   present: () => void;
   dismiss: () => void;
 }
 
-interface Props {
+interface Props<T> {
   title: string;
-  items: string[];
-  value: string;
-  onChange: (item: string) => void;
+  items: T[];
+  value: T;
+  onChange: (item: T) => void;
+  keyExtractor: (item: T) => string;
+  renderItem: (item: T, selected: boolean, onSelect: () => void) => React.ReactNode;
+  columns?: number;
+  snapPoints?: string[];
+  searchable?: boolean;
+  getSearchKey?: (item: T) => string;
   action?: React.ReactNode;
 }
 
-export const AppSelectBottomSheet = forwardRef<AppSelectBottomSheetRef, Props>(
-  function AppSelectBottomSheet({ title, items, value, onChange, action }, ref) {
-    const sheetRef = useRef<BottomSheetModal>(null);
-    const snapPoints = useMemo(() => ["60%", "85%"], []);
+export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
+  {
+    title,
+    items,
+    value,
+    onChange,
+    keyExtractor,
+    renderItem,
+    columns = 3,
+    snapPoints: snapPointsProp,
+    searchable = false,
+    getSearchKey,
+    action,
+  }: Props<T>,
+  ref: React.Ref<AppSelectBottomSheetRef>
+) {
+  const sheetRef = useRef<BottomSheetModal>(null);
+  const [search, setSearch] = useState("");
+  const snapPoints = useMemo(() => snapPointsProp ?? ["60%", "85%"], [snapPointsProp]);
 
-    React.useImperativeHandle(ref, () => ({
-      present: () => sheetRef.current?.present(),
-      dismiss: () => sheetRef.current?.dismiss(),
-    }));
+  React.useImperativeHandle(ref, () => ({
+    present: () => {
+      Keyboard.dismiss();
+      if (searchable) setSearch("");
+      sheetRef.current?.present();
+    },
+    dismiss: () => sheetRef.current?.dismiss(),
+  }));
 
-    const handleSelect = useCallback(
-      (item: string) => {
-        onChange(item);
-        sheetRef.current?.dismiss();
-      },
-      [onChange]
-    );
+  const filtered = useMemo(() => {
+    if (!searchable || !search.trim()) return items;
+    const q = search.trim().toLowerCase();
+    const getKey = getSearchKey ?? keyExtractor;
+    return items.filter((item) => getKey(item).toLowerCase().includes(q));
+  }, [items, search, searchable, getSearchKey, keyExtractor]);
 
-    const renderBackdrop = useCallback(
-      (props: any) => (
-        <BottomSheetBackdrop
-          {...props}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-          opacity={0.6}
-        />
-      ),
-      []
-    );
+  const handleSelect = useCallback(
+    (item: T) => {
+      onChange(item);
+      sheetRef.current?.dismiss();
+    },
+    [onChange]
+  );
 
-    return (
-      <BottomSheetModal
-        ref={sheetRef}
-        snapPoints={snapPoints}
-        backgroundStyle={{ backgroundColor: "#1C1C1E" }}
-        handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
-        backdropComponent={renderBackdrop}
-      >
-        <BottomSheetView className="flex-1 px-4 pb-8">
-          <View className="flex-row items-center justify-between mb-4">
-            <AppText variant="heading" className="text-white text-lg">{title}</AppText>
-            <View className="flex-row gap-1">
-              {action}
-              <TouchableOpacity
-                className="p-1"
-                onPress={() => sheetRef.current?.dismiss()}
-              >
-                <Feather name="x" size={20} color="rgba(255,255,255,0.5)" />
-              </TouchableOpacity>
-            </View>
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.6}
+      />
+    ),
+    []
+  );
+
+  return (
+    <BottomSheetModal
+      ref={sheetRef}
+      snapPoints={snapPoints}
+      backgroundStyle={{ backgroundColor: "#1C1C1E" }}
+      handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
+      backdropComponent={renderBackdrop}
+    >
+      <BottomSheetView className="flex-1 px-4">
+        <View className="flex-row items-center justify-between mb-3">
+          <AppText variant="heading" className="text-white text-lg">{title}</AppText>
+          <View className="flex-row gap-1">
+            {action}
+            <TouchableOpacity className="p-1" onPress={() => sheetRef.current?.dismiss()}>
+              <Feather name="x" size={20} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
           </View>
+        </View>
 
-          <FlatList
-            data={items}
-            keyExtractor={(item) => item}
-            numColumns={3}
-            scrollEnabled={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                className={`flex-1 m-1 py-3.5 px-1 rounded-xl border items-center justify-center ${
-                  value === item
-                    ? "bg-primary border-secondary"
-                    : "bg-background border-white/10"
-                }`}
-                onPress={() => handleSelect(item)}
-              >
-                <AppText
-                  variant={value === item ? "body-bold" : "body-medium"}
-                  className={`text-xs text-center ${value === item ? "text-white" : "text-white/70"}`}
-                  numberOfLines={1}
-                >
-                  {item}
-                </AppText>
-              </TouchableOpacity>
-            )}
+        {searchable && (
+          <AppTextInput
+            className="mb-3"
+            placeholder="Search…"
+            value={search}
+            onChangeText={setSearch}
+            autoCapitalize="none"
+            autoCorrect={false}
           />
-        </BottomSheetView>
-      </BottomSheetModal>
-    );
-  }
-);
+        )}
+
+        <BottomSheetFlatList
+          data={filtered}
+          keyExtractor={(item) => keyExtractor(item as T)}
+          numColumns={columns}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 32 }}
+          renderItem={({ item }) =>
+            renderItem(item as T, keyExtractor(item as T) === keyExtractor(value), () => handleSelect(item as T)) as React.ReactElement
+          }
+        />
+      </BottomSheetView>
+    </BottomSheetModal>
+  );
+}) as <T>(props: Props<T> & { ref?: React.Ref<AppSelectBottomSheetRef> }) => React.ReactElement;

@@ -18,7 +18,7 @@
     "expo-sqlite": "~56.0.4",
     "expo-status-bar": "~56.0.4",
     "nativewind": "^4.2.4",
-    "react": "19.2.3",
+    "react": "19.2.6",
     "react-hook-form": "^7.76.1",
     "react-native": "0.85.3",
     "react-native-currency-input": "^1.1.1",
@@ -39,7 +39,9 @@
     "emulator:cold-boot": "bash scripts/cold-boot-emulators.sh",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "build:android": "npx expo run:android --variant release"
+    "build:android": "npx expo run:android --variant release",
+    "build:apk": "eas build --platform android --profile preview",
+    "build:aab": "eas build --platform android --profile production"
   },
   "private": true
 }

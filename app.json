@@ -24,7 +24,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.recur"
+      "package": "com.erniejeash.recur"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,6 +34,12 @@
       "expo-font",
       "@react-native-community/datetimepicker",
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bf32451e-a38e-49b9-b9f3-12b3ca043066"
+      }
+    }
   }
 }

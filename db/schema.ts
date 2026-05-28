@@ -19,7 +19,7 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
       id          TEXT PRIMARY KEY NOT NULL,
       name        TEXT NOT NULL,
       category    TEXT NOT NULL,
-      amount      REAL NOT NULL,
+      amount      REAL,
       dueDay      INTEGER NOT NULL DEFAULT 1,
       recurrence  TEXT NOT NULL,
       status      TEXT NOT NULL DEFAULT 'unpaid',
@@ -48,6 +48,42 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
       FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE
     );
   `);
+
+  // Migration: allow NULL amount (TBD expenses)
+  const amountNullMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_amount_nullable_v1'"
+  );
+  if (!amountNullMigrated) {
+    const expCols = await db.getAllAsync<{ name: string; notnull: number }>("PRAGMA table_info(expenses)");
+    const amountCol = expCols.find((c) => c.name === "amount");
+    if (amountCol && amountCol.notnull === 1) {
+      await db.execAsync(`BEGIN;`);
+      await db.execAsync(`ALTER TABLE expenses RENAME TO expenses_old;`);
+      await db.execAsync(`
+        CREATE TABLE expenses (
+          id          TEXT PRIMARY KEY NOT NULL,
+          name        TEXT NOT NULL,
+          category    TEXT NOT NULL,
+          amount      REAL,
+          dueDay      INTEGER NOT NULL DEFAULT 1,
+          recurrence  TEXT NOT NULL,
+          status      TEXT NOT NULL DEFAULT 'unpaid',
+          notes       TEXT,
+          createdAt   TEXT NOT NULL
+        );
+      `);
+      await db.execAsync(`
+        INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, notes, createdAt)
+          SELECT id, name, category, amount, dueDay, recurrence, status, notes, createdAt
+          FROM expenses_old;
+      `);
+      await db.execAsync(`DROP TABLE expenses_old;`);
+      await db.execAsync(`COMMIT;`);
+    }
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_amount_nullable_v1', '1')"
+    );
+  }
 
   // One-time migration: seed expense_months for currently-paid recurring expenses
   const migrated = await db.getFirstAsync<{ value: string }>(
@@ -146,7 +182,7 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
         id          TEXT PRIMARY KEY NOT NULL,
         name        TEXT NOT NULL,
         category    TEXT NOT NULL,
-        amount      REAL NOT NULL,
+        amount      REAL,
         dueDay      INTEGER NOT NULL DEFAULT 1,
         recurrence  TEXT NOT NULL,
         status      TEXT NOT NULL DEFAULT 'unpaid',

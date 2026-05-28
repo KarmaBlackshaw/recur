@@ -10,9 +10,9 @@ interface AppButtonProps extends TouchableOpacityProps {
 }
 
 const VARIANT_CLASS: Record<Variant, string> = {
-  primary:     "bg-primary rounded-xl py-3.5 items-center",
-  ghost:       "rounded-xl py-3.5 items-center border border-white/10",
-  destructive: "bg-overdue rounded-xl py-3.5 items-center",
+  primary:     "bg-primary rounded-xl h-[52px] items-center justify-center",
+  ghost:       "rounded-xl h-[52px] items-center justify-center border border-white/10",
+  destructive: "bg-overdue rounded-xl h-[52px] items-center justify-center",
 };
 
 export function AppButton({ label, variant = "primary", disabled, className = "", ...props }: AppButtonProps) {

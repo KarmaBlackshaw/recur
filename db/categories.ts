@@ -1,9 +1,10 @@
 import { getDB } from "./schema";
+import type { FeatherIconName } from "../types";
 
 export interface Category {
   id: string;
   name: string;
-  icon: string;
+  icon: FeatherIconName;
 }
 
 export async function getAll(): Promise<string[]> {
@@ -16,12 +17,13 @@ export async function getAll(): Promise<string[]> {
 
 export async function getAllWithIds(): Promise<Category[]> {
   const db = await getDB();
-  return db.getAllAsync<Category>(
+  const rows = await db.getAllAsync<{ id: string; name: string; icon: string }>(
     "SELECT id, name, icon FROM categories ORDER BY sort_order ASC"
   );
+  return rows.map((r) => ({ ...r, icon: r.icon as FeatherIconName }));
 }
 
-export async function insertCategory(name: string, icon = "more-horizontal"): Promise<void> {
+export async function insertCategory(name: string, icon: FeatherIconName = "more-horizontal"): Promise<void> {
   const db = await getDB();
   const row = await db.getFirstAsync<{ max_order: number }>(
     "SELECT MAX(sort_order) as max_order FROM categories"
@@ -58,7 +60,7 @@ export async function updateOrder(ids: string[]): Promise<void> {
   }
 }
 
-export async function updateIcon(id: string, icon: string): Promise<void> {
+export async function updateIcon(id: string, icon: FeatherIconName): Promise<void> {
   const db = await getDB();
   await db.runAsync("UPDATE categories SET icon = ? WHERE id = ?", [icon, id]);
 }

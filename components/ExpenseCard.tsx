@@ -78,7 +78,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
     );
   }
 
-  const iconName = (categoryIconMap[expense.category] ?? "more-horizontal") as keyof typeof Feather.glyphMap;
+  const iconName = categoryIconMap[expense.category] ?? "more-horizontal";
 
   return (
     <ReanimatedSwipeable

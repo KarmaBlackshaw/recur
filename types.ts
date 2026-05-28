@@ -1,3 +1,6 @@
+import type { Feather } from "@expo/vector-icons";
+
+export type FeatherIconName = keyof typeof Feather.glyphMap;
 export type Recurrence = 'weekly' | 'monthly' | 'yearly' | 'one-off';
 export type Status = 'unpaid' | 'paid';
 

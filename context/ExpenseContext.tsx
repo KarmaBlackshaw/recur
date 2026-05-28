@@ -5,8 +5,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import type { Expense, Status } from "../types";
-import type { MonthStatus } from "../types";
+import type { Expense, Status, MonthStatus, FeatherIconName } from "../types";
 import * as expensesDB from "../db/expenses";
 import * as preferencesDB from "../db/preferences";
 import * as monthsDB from "../db/expenseMonths";
@@ -18,7 +17,7 @@ interface State {
   loading: boolean;
   userName: string | null;
   monthStatuses: Record<string, Status>;
-  categoryIconMap: Record<string, string>;
+  categoryIconMap: Record<string, FeatherIconName>;
 }
 
 type Action =
@@ -90,7 +89,7 @@ interface ExpenseContextValue {
   setUserName: (name: string | null) => void;
   getMonthStatus: (id: string, year: number, month: number) => Status;
   toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
-  categoryIconMap: Record<string, string>;
+  categoryIconMap: Record<string, FeatherIconName>;
   reloadCategoryIcons: () => Promise<void>;
 }
 
@@ -115,7 +114,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: "LOAD", payload: rows });
       dispatch({ type: "SET_USER_NAME", payload: name });
       dispatch({ type: "LOAD_MONTHS", payload: months });
-      const iconMap: Record<string, string> = {};
+      const iconMap: Record<string, FeatherIconName> = {};
       for (const c of cats) iconMap[c.name] = c.icon;
       dispatch({ type: "SET_CATEGORY_ICONS", payload: iconMap });
     }).catch(() => {
@@ -182,7 +181,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
   const reloadCategoryIcons = useCallback(async () => {
     const cats = await getAllWithIds();
-    const iconMap: Record<string, string> = {};
+    const iconMap: Record<string, FeatherIconName> = {};
     for (const c of cats) iconMap[c.name] = c.icon;
     dispatch({ type: "SET_CATEGORY_ICONS", payload: iconMap });
   }, []);

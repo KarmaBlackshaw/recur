@@ -6,6 +6,7 @@ import {
   BottomSheetView,
   BottomSheetFlatList,
   BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { Feather } from "@expo/vector-icons";
 import { AppText } from "./AppText";
@@ -75,7 +76,7 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
   );
 
   const renderBackdrop = useCallback(
-    (props: any) => (
+    (props: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
         {...props}
         disappearsOnIndex={-1}
@@ -116,14 +117,14 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
           />
         )}
 
-        <BottomSheetFlatList
+        <BottomSheetFlatList<T>
           data={filtered}
-          keyExtractor={(item) => keyExtractor(item as T)}
+          keyExtractor={(item) => keyExtractor(item)}
           numColumns={columns}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 32 }}
           renderItem={({ item }) =>
-            renderItem(item as T, keyExtractor(item as T) === keyExtractor(value), () => handleSelect(item as T)) as React.ReactElement
+            renderItem(item, keyExtractor(item) === keyExtractor(value), () => handleSelect(item)) as React.ReactElement
           }
         />
       </BottomSheetView>

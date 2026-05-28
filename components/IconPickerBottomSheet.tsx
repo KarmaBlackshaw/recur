@@ -3,8 +3,9 @@ import { TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { AppSelectBottomSheet, AppSelectBottomSheetRef } from "./ui/AppSelectBottomSheet";
 import { colors } from "../constants/theme";
+import type { FeatherIconName } from "../types";
 
-const ALL_ICONS = Object.keys(Feather.glyphMap) as (keyof typeof Feather.glyphMap)[];
+const ALL_ICONS = Object.keys(Feather.glyphMap) as FeatherIconName[];
 
 export interface IconPickerBottomSheetRef {
   present: () => void;
@@ -12,8 +13,8 @@ export interface IconPickerBottomSheetRef {
 }
 
 interface Props {
-  value: string;
-  onChange: (icon: string) => void;
+  value: FeatherIconName;
+  onChange: (icon: FeatherIconName) => void;
 }
 
 export const IconPickerBottomSheet = forwardRef<IconPickerBottomSheetRef, Props>(
@@ -26,7 +27,7 @@ export const IconPickerBottomSheet = forwardRef<IconPickerBottomSheetRef, Props>
     }));
 
     const renderItem = useCallback(
-      (item: keyof typeof Feather.glyphMap, selected: boolean, onSelect: () => void) => (
+      (item: FeatherIconName, selected: boolean, onSelect: () => void) => (
         <TouchableOpacity
           style={{
             flex: 1,
@@ -56,9 +57,9 @@ export const IconPickerBottomSheet = forwardRef<IconPickerBottomSheetRef, Props>
         ref={sheetRef}
         title="Icon"
         items={ALL_ICONS}
-        value={value as keyof typeof Feather.glyphMap}
-        onChange={(icon) => onChange(icon)}
-        keyExtractor={(item) => item as string}
+        value={value}
+        onChange={onChange}
+        keyExtractor={(item) => item}
         renderItem={renderItem}
         columns={5}
         snapPoints={["80%"]}

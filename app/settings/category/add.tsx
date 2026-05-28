@@ -3,6 +3,7 @@ import { View, TextInput, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import type { FeatherIconName } from "../../../types";
 import { AppText } from "../../../components/ui/AppText";
 import { AppButton } from "../../../components/ui/AppButton";
 import { getAll, insertCategory, renameCategory, updateIcon } from "../../../db/categories";
@@ -18,7 +19,7 @@ export default function AddCategoryScreen() {
   }>();
   const isEdit = !!editId;
   const [name, setName] = useState(editName ?? "");
-  const [icon, setIcon] = useState(editIcon ?? "more-horizontal");
+  const [icon, setIcon] = useState<FeatherIconName>((editIcon ?? "more-horizontal") as FeatherIconName);
   const iconPickerRef = useRef<IconPickerBottomSheetRef>(null);
   const { reloadCategoryIcons } = useExpenses();
 
@@ -91,7 +92,7 @@ export default function AddCategoryScreen() {
             onPress={() => iconPickerRef.current?.present()}
             accessibilityLabel="Pick icon"
           >
-            <Feather name={icon as keyof typeof Feather.glyphMap} size={24} color={colors.secondary} />
+            <Feather name={icon} size={24} color={colors.secondary} />
           </TouchableOpacity>
           <AppText variant="body-medium" className="text-white/50 text-sm">
             Tap to choose icon

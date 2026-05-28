@@ -78,7 +78,7 @@ export default function ManageCategoriesScreen() {
                 justifyContent: "center",
               }}
             >
-              <Feather name={(item.icon ?? "more-horizontal") as keyof typeof Feather.glyphMap} size={16} color={colors.secondary} />
+              <Feather name={item.icon} size={16} color={colors.secondary} />
             </View>
             <AppText variant="body-medium" className="flex-1 text-white text-sm">{item.name}</AppText>
             <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: item.id, editName: item.name, editIcon: item.icon } })}>

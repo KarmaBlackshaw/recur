@@ -17,13 +17,13 @@ interface KpiCardProps {
 }
 
 export function KpiRow({ expenses }: Props) {
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const total = expenses.reduce((sum, e) => sum + (e.amount ?? 0), 0);
   const paid = expenses
     .filter((e) => e.status === "paid")
-    .reduce((sum, e) => sum + e.amount, 0);
+    .reduce((sum, e) => sum + (e.amount ?? 0), 0);
   const unpaid = expenses
     .filter((e) => e.status === "unpaid")
-    .reduce((sum, e) => sum + e.amount, 0);
+    .reduce((sum, e) => sum + (e.amount ?? 0), 0);
 
   const fmt = (n: number) =>
     "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

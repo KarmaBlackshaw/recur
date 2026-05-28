@@ -8,10 +8,10 @@ interface AppTextProps extends TextProps {
 }
 
 const VARIANT_STYLE: Record<Variant, { className: string; fontFamily: string }> = {
-  heading:       { className: "",                                          fontFamily: "Oswald_Bold" },
-  body:          { className: "",                                          fontFamily: "Quicksand_400Regular" },
-  "body-medium": { className: "",                                          fontFamily: "Quicksand_500Medium" },
-  "body-bold":   { className: "",                                          fontFamily: "Quicksand_700Bold" },
+  heading:       { className: "text-white",                                fontFamily: "Oswald_Bold" },
+  body:          { className: "text-white",                                fontFamily: "Quicksand_400Regular" },
+  "body-medium": { className: "text-white",                                fontFamily: "Quicksand_500Medium" },
+  "body-bold":   { className: "text-white",                                fontFamily: "Quicksand_700Bold" },
   label:         { className: "text-xs uppercase tracking-widest text-white/60", fontFamily: "Quicksand_700Bold" },
   caption:       { className: "text-xs text-white/40",                    fontFamily: "Quicksand_400Regular" },
 };

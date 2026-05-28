@@ -8,7 +8,7 @@ export interface Expense {
   id: string;
   name: string;
   category: string;
-  amount: number;
+  amount: number | null;
   dueDay: number;        // 1–31, anchor day of month
   recurrence: Recurrence;
   status: Status;

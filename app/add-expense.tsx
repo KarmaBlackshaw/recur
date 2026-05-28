@@ -41,7 +41,7 @@ export default function AddExpenseScreen() {
     mode: "onChange",
     defaultValues: {
       name: editingExpense?.name ?? "",
-      amount: editingExpense?.amount?.toString() ?? "",
+      amount: editingExpense?.amount != null ? editingExpense.amount.toString() : "",
       category: editingExpense?.category ?? "Other",
       dueDay: editingExpense?.dueDay?.toString() ?? "1",
       recurrence: editingExpense?.recurrence ?? "monthly",
@@ -53,7 +53,7 @@ export default function AddExpenseScreen() {
     if (editingExpense) {
       reset({
         name: editingExpense.name,
-        amount: editingExpense.amount.toString(),
+        amount: editingExpense.amount != null ? editingExpense.amount.toString() : "",
         category: editingExpense.category,
         dueDay: editingExpense.dueDay.toString(),
         recurrence: editingExpense.recurrence,
@@ -65,7 +65,7 @@ export default function AddExpenseScreen() {
   const onSubmit = handleSubmit(async (data) => {
     const fields = {
       name: data.name.trim(),
-      amount: parseFloat(data.amount),
+      amount: data.amount.trim() !== "" ? parseFloat(data.amount) : null,
       category: data.category,
       dueDay: parseInt(data.dueDay, 10),
       recurrence: data.recurrence,
@@ -131,19 +131,19 @@ export default function AddExpenseScreen() {
           control={control}
           name="amount"
           rules={{
-            required: true,
             validate: (v) => {
+              if (v === "" || v === undefined) return true;
               const n = parseFloat(v);
               return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
             },
           }}
           render={({ field: { value, onChange, onBlur } }) => (
             <AppTextInput
-              label="Amount *"
+              label="Amount"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
-              placeholder="0.00"
+              placeholder="TBD"
               keyboardType="decimal-pad"
               returnKeyType="next"
             />

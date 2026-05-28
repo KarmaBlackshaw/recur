@@ -10,7 +10,7 @@ React Native / Expo recurring expenses tracker. Expo Router, TypeScript, NativeW
 - **State:** `context/ExpenseContext.tsx` is the single source of truth. All mutations go through the context dispatcher after calling the DB helper.
 - **DB:** All SQLite access goes through `db/expenses.ts` and `db/categories.ts`. Never query the DB directly from components.
 - **Dates:** All date logic uses `date-fns`. No manual date arithmetic. Due is a day-of-month integer (1–31), not a full date string. `getDueDate(dueDay)` clamps to last day of month for short months.
-- **Icons:** `@expo/vector-icons` (Ionicons / Feather) only. No emojis as icons.
+- **Icons:** `@expo/vector-icons` (Ionicons / Feather) only. No emojis as icons. Use `FeatherIconName` (`keyof typeof Feather.glyphMap`, exported from `types.ts`) for all Feather icon name values — never `string`. The only permitted `as FeatherIconName` cast is at external boundaries (SQLite reads, URL params).
 - **Forms:** `react-hook-form` with `Controller` for every form field. Save button disabled when `!isValid`.
 - **Animations:** `react-native-reanimated` for all animations. No `Animated` API from React Native core.
 - **Bottom sheets:** `@gorhom/bottom-sheet` (`BottomSheetModal`). No plain `Modal` for primary flows.

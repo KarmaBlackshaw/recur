@@ -33,7 +33,7 @@ export default function SettingsScreen() {
         </AppText>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
           <TouchableOpacity
-            className="flex-row items-center px-3.5 py-3"
+            className="flex-row items-center px-5 py-4"
             onPress={() => router.push("/settings/profile")}
             accessibilityLabel="Edit profile"
           >
@@ -59,7 +59,7 @@ export default function SettingsScreen() {
         </AppText>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
           <TouchableOpacity
-            className="flex-row items-center px-3.5 py-3"
+            className="flex-row items-center px-5 py-4"
             onPress={() => router.push("/settings/category")}
             accessibilityLabel="Manage categories"
           >
@@ -81,7 +81,7 @@ export default function SettingsScreen() {
           About
         </AppText>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
-          <View className="flex-row items-center px-3.5 py-3">
+          <View className="flex-row items-center px-5 py-4">
             <View
               className="w-8 h-8 rounded-lg items-center justify-center mr-3"
               style={{ backgroundColor: colors.secondary }}
@@ -105,7 +105,7 @@ export default function SettingsScreen() {
             </AppText>
             <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
               <TouchableOpacity
-                className="flex-row items-center px-3.5 py-3"
+                className="flex-row items-center px-5 py-4"
                 onPress={() => router.push("/settings/dev")}
                 accessibilityLabel="Open dev tools"
               >

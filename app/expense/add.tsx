@@ -215,7 +215,7 @@ export default function AddExpenseScreen() {
           name="category"
           render={({ field: { value } }) => (
             <TouchableOpacity
-              className="bg-surface border border-border rounded-xl px-3.5 py-3 flex-row items-center justify-between mb-1"
+              className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
               onPress={() => categorySheetRef.current?.present()}
             >
               <AppText variant="body-medium" className="text-white text-base">{value}</AppText>

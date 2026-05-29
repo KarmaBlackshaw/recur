@@ -30,15 +30,11 @@ export const IconPickerBottomSheet = forwardRef<IconPickerBottomSheetRef, Props>
       (item: FeatherIconName, selected: boolean, onSelect: () => void) => (
         <TouchableOpacity
           style={{
-            flex: 1,
-            margin: 4,
-            aspectRatio: 1,
-            borderRadius: 12,
+            width: "100%",
+            paddingVertical: 20,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: selected ? "rgba(99,102,241,0.25)" : "rgba(255,255,255,0.04)",
-            borderWidth: 1,
-            borderColor: selected ? colors.primary : "rgba(255,255,255,0.06)",
+            backgroundColor: selected ? "rgba(99,102,241,0.25)" : undefined,
           }}
           onPress={onSelect}
         >

@@ -4,13 +4,37 @@ import { View, TouchableOpacity, Keyboard } from "react-native";
 import {
   BottomSheetModal,
   BottomSheetView,
-  BottomSheetFlatList,
+  BottomSheetScrollView,
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { Feather } from "@expo/vector-icons";
 import { AppText } from "./AppText";
 import { AppTextInput } from "./AppTextInput";
+
+const GRID_CONTENT_STYLE = {
+  flexDirection: "row" as const,
+  flexWrap: "wrap" as const,
+  alignItems: "flex-start" as const,
+};
+
+const GRID_BORDER_STYLE = {
+  borderTopWidth: 1,
+  borderColor: "rgba(255,255,255,0.07)",
+  overflow: "hidden" as const,
+  marginBottom: 32,
+};
+
+const CELL_STYLE = {
+  borderRightWidth: 1,
+  borderBottomWidth: 1,
+  borderColor: "rgba(255,255,255,0.07)",
+};
+
+const CELL_STYLE_SPACER = {
+  borderRightWidth: 1,
+  borderColor: "rgba(255,255,255,0.07)",
+};
 
 function EmptyItems({ searching }: { searching: boolean }) {
   return (
@@ -78,6 +102,12 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
     return items.filter((item) => getKey(item).toLowerCase().includes(q));
   }, [items, search, searchable, getSearchKey, keyExtractor]);
 
+  const itemStyle = useMemo(
+    () => ({ width: `${100 / columns}%` as const }),
+    [columns]
+  );
+  const selectedKey = value != null ? keyExtractor(value) : null;
+
   const handleSelect = useCallback(
     (item: T) => {
       onChange(item);
@@ -106,8 +136,8 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
       handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
       backdropComponent={renderBackdrop}
     >
-      <BottomSheetView className="flex-1 px-4">
-        <View className="flex-row items-center justify-between mb-3">
+      <BottomSheetView className="flex-1">
+        <View className="flex-row items-center justify-between mb-3 px-4">
           <AppText variant="heading" className="text-white text-lg">{title}</AppText>
           <View className="flex-row gap-1">
             {action}
@@ -119,7 +149,7 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
 
         {searchable && (
           <AppTextInput
-            className="mb-3"
+            className="mb-3 mx-4"
             placeholder="Search…"
             value={search}
             onChangeText={setSearch}
@@ -131,16 +161,24 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
         {filtered.length === 0 ? (
           <EmptyItems searching={searchable && search.trim().length > 0} />
         ) : (
-          <BottomSheetFlatList<T>
-            data={filtered}
-            keyExtractor={(item) => keyExtractor(item)}
-            numColumns={columns}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 32 }}
-            renderItem={({ item }) =>
-              renderItem(item, keyExtractor(item) === keyExtractor(value), () => handleSelect(item)) as React.ReactElement
-            }
-          />
+          <BottomSheetScrollView keyboardShouldPersistTaps="handled">
+            <View style={GRID_BORDER_STYLE}>
+              <View style={GRID_CONTENT_STYLE}>
+                {filtered.map((item) => (
+                  <View key={keyExtractor(item)} style={[itemStyle, CELL_STYLE]}>
+                    {renderItem(
+                      item,
+                      keyExtractor(item) === selectedKey,
+                      () => handleSelect(item)
+                    )}
+                  </View>
+                ))}
+                {Array.from({ length: (columns - (filtered.length % columns)) % columns }).map((_, i) => (
+                  <View key={`__spacer_${i}`} style={[itemStyle, CELL_STYLE_SPACER]} />
+                ))}
+              </View>
+            </View>
+          </BottomSheetScrollView>
         )}
       </BottomSheetView>
     </BottomSheetModal>

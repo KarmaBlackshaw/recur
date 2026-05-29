@@ -91,7 +91,9 @@ export function DraggableList<T>({
     >
       <ScrollView contentContainerStyle={contentContainerStyle} scrollEnabled>
         {order.map((dataIndex, visualIndex) => {
-          const key = keyExtractor(data[dataIndex]);
+          const item = data[dataIndex];
+          if (!item) return null;
+          const key = keyExtractor(item);
           return (
             <DraggableItem
               key={key}
@@ -106,7 +108,7 @@ export function DraggableList<T>({
               onReorder={reorder}
               onCommit={commit}
             >
-              {renderItem(data[dataIndex], dataIndex)}
+              {renderItem(item, dataIndex)}
             </DraggableItem>
           );
         })}

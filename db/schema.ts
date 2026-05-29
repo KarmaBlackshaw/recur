@@ -171,5 +171,16 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
     );
   }
 
+  // Migration: add reminder_days_before to expenses
+  const reminderDaysMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_reminder_days_before_v1'"
+  );
+  if (!reminderDaysMigrated) {
+    await db.execAsync(`ALTER TABLE expenses ADD COLUMN reminder_days_before INTEGER DEFAULT NULL`);
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_reminder_days_before_v1', '1')"
+    );
+  }
+
   return db;
 }

@@ -55,6 +55,7 @@ export default function AddExpenseScreen() {
       recurrence: editingExpense?.recurrence ?? "monthly",
       isVariable: editingExpense?.isVariable ?? false,
       notes: editingExpense?.notes ?? "",
+      reminderDaysBefore: '',
     },
   });
 
@@ -76,6 +77,7 @@ export default function AddExpenseScreen() {
         isVariable: editingExpense.isVariable,
         monthlyAmount: "",
         notes: editingExpense.notes ?? "",
+        reminderDaysBefore: editingExpense.reminderDaysBefore != null ? editingExpense.reminderDaysBefore.toString() : '',
       });
     }
   }, [editingExpense?.id]);
@@ -93,6 +95,7 @@ export default function AddExpenseScreen() {
       isVariable: isVar,
       status: editingExpense?.status ?? "unpaid",
       notes: data.notes.trim() || undefined,
+      reminderDaysBefore: data.reminderDaysBefore.trim() === '' ? null : parseInt(data.reminderDaysBefore, 10),
     };
 
     try {
@@ -279,6 +282,33 @@ export default function AddExpenseScreen() {
             />
           )}
         />
+
+        {/* Remind me */}
+        <Controller
+          control={control}
+          name="reminderDaysBefore"
+          rules={{
+            validate: (v) => {
+              if (!v || v.trim() === '') return true;
+              const n = parseInt(v, 10);
+              return (!isNaN(n) && n >= 1 && n <= 14) || 'Must be 1–14';
+            },
+          }}
+          render={({ field: { value, onChange, onBlur } }) => (
+            <AppTextInput
+              label="Remind me (days before)"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="1"
+              keyboardType="numeric"
+              maxLength={2}
+            />
+          )}
+        />
+        <AppText variant="caption" className="text-white/40 text-xs px-1 mb-3">
+          Leave blank for default (1 day before due)
+        </AppText>
 
         {/* Save */}
         <AppButton

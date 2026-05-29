@@ -11,6 +11,7 @@ import * as preferencesDB from "../db/preferences";
 import * as monthsDB from "../db/expenseMonths";
 import { monthKey } from "../utils/monthKey";
 import { getAllWithIds } from "../db/categories";
+import { scheduleAllNotifications } from '../utils/notifications';
 
 interface State {
   expenses: Expense[];
@@ -149,6 +150,13 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  async function _reschedule(expenses: Expense[]) {
+    const enabled = await preferencesDB.getPreference('notificationsEnabled');
+    if (enabled === 'false') return;
+    const time = (await preferencesDB.getPreference('reminderTime')) ?? '09:00';
+    await scheduleAllNotifications(expenses, time);
+  }
+
   const setUserName = useCallback((name: string | null) => {
     dispatch({ type: "SET_USER_NAME", payload: name });
   }, []);
@@ -164,8 +172,10 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           payload: { expenseId: saved.id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
         });
       }
+      const updatedExpenses = [...state.expenses, saved].sort((a, b) => a.dueDay - b.dueDay);
+      await _reschedule(updatedExpenses);
     },
-    []
+    [state.expenses]
   );
 
   const updateExpense = useCallback(
@@ -185,6 +195,10 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           payload: { expenseId: id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
         });
       }
+      const updatedExpenses = state.expenses
+        .map((e) => (e.id === id ? { ...existing, ...fields } : e))
+        .sort((a, b) => a.dueDay - b.dueDay);
+      await _reschedule(updatedExpenses);
     },
     [state.expenses]
   );
@@ -221,6 +235,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         await monthsDB.upsertStatus(id, year, month, next);
         dispatch({ type: "SET_MONTH_STATUS", payload: { expenseId: id, year, month, status: next } });
       }
+      await _reschedule(state.expenses);
     },
     [state.expenses, state.monthStatuses]
   );
@@ -228,7 +243,9 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   const deleteExpense = useCallback(async (id: string) => {
     await expensesDB.remove(id);
     dispatch({ type: "REMOVE", payload: id });
-  }, []);
+    const updatedExpenses = state.expenses.filter((e) => e.id !== id);
+    await _reschedule(updatedExpenses);
+  }, [state.expenses]);
 
   const reloadCategoryIcons = useCallback(async () => {
     const cats = await getAllWithIds();

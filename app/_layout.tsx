@@ -12,6 +12,8 @@ import {
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { ExpenseProvider } from "../context/ExpenseContext";
 import { colors } from "../constants/theme";
+import { requestPermissions } from "../utils/notifications";
+import { getPreference, setPreference } from "../db/preferences";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -32,6 +34,16 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    (async () => {
+      const asked = await getPreference('notificationsPermissionAsked');
+      if (asked !== null) return;
+      const granted = await requestPermissions();
+      if (!granted) await setPreference('notificationsEnabled', 'false');
+      await setPreference('notificationsPermissionAsked', 'true');
+    })();
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 

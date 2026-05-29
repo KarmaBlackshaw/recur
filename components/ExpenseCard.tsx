@@ -135,6 +135,9 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
             <Text className="text-white/40 text-[10px] font-['Quicksand_500Medium'] bg-white/[0.06] px-2 py-0.5 rounded-md">
               {expense.category}
             </Text>
+            {expense.reminderDaysBefore != null && (
+              <Feather name="bell" size={10} color={colors.secondary} style={{ marginTop: 2 }} />
+            )}
           </View>
           <Text
             className={`text-[11px] font-['Quicksand_500Medium'] mt-0.5 ${overdueFlag ? "text-overdue" : "text-white/35"}`}

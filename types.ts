@@ -15,6 +15,7 @@ export interface Expense {
   isVariable: boolean;
   notes?: string;
   createdAt: string;
+  reminderDaysBefore?: number | null;
 }
 
 export interface ExpenseFormValues {
@@ -26,6 +27,7 @@ export interface ExpenseFormValues {
   isVariable: boolean;
   monthlyAmount: string;
   notes: string;
+  reminderDaysBefore: string;
 }
 
 export interface MonthStatus {

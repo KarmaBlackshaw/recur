@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { formatAmount } from "../utils/dateHelpers";
 import type { Expense } from "../types";
 
 interface Props {
@@ -25,14 +26,11 @@ export function KpiRow({ expenses }: Props) {
     .filter((e) => e.status === "unpaid")
     .reduce((sum, e) => sum + (e.amount ?? 0), 0);
 
-  const fmt = (n: number) =>
-    "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
   return (
     <View className="flex-row px-4 gap-2.5 py-2">
       <KpiCard
         label="Total"
-        value={fmt(total)}
+        value={formatAmount(total)}
         valueColor="#818CF8"
         bgColor="rgba(99,102,241,0.10)"
         borderColor="rgba(99,102,241,0.18)"
@@ -40,7 +38,7 @@ export function KpiRow({ expenses }: Props) {
       />
       <KpiCard
         label="Paid"
-        value={fmt(paid)}
+        value={formatAmount(paid)}
         valueColor="#34D399"
         bgColor="rgba(52,211,153,0.10)"
         borderColor="rgba(52,211,153,0.18)"
@@ -48,7 +46,7 @@ export function KpiRow({ expenses }: Props) {
       />
       <KpiCard
         label="Unpaid"
-        value={fmt(unpaid)}
+        value={formatAmount(unpaid)}
         valueColor={unpaid > 0 ? "#F87171" : "rgba(255,255,255,0.4)"}
         bgColor={unpaid > 0 ? "rgba(248,113,113,0.10)" : "rgba(255,255,255,0.04)"}
         borderColor={unpaid > 0 ? "rgba(248,113,113,0.18)" : "rgba(255,255,255,0.07)"}

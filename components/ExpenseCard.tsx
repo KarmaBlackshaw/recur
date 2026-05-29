@@ -19,7 +19,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { StatusBadge } from "./StatusBadge";
 import { format } from "date-fns";
-import { formatDueDate, getDueDateForMonth, isOverdueOn } from "../utils/dateHelpers";
+import { formatDueDate, getDueDateForMonth, isOverdueOn, formatAmount } from "../utils/dateHelpers";
 import { useExpenses } from "../context/ExpenseContext";
 import { colors } from "../constants/theme";
 import type { Expense } from "../types";
@@ -146,7 +146,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
         {/* Amount + status */}
         <View className="items-end gap-2 ml-3">
           <Text className="text-white text-[17px] leading-tight" style={{ fontFamily: "Oswald_Regular" }}>
-            {expense.amount != null ? `₱${expense.amount.toFixed(2)}` : "TBD"}
+            {expense.amount != null ? formatAmount(expense.amount) : "TBD"}
           </Text>
           <StatusBadge
             status={resolvedStatus}

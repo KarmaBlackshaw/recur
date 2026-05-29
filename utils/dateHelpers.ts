@@ -61,6 +61,10 @@ export function getFormattedDate(): string {
   return format(new Date(), "EEEE, MMM d");
 }
 
+export function formatAmount(amount: number): string {
+  return "₱" + amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export function isOverdueOn(dueDay: number, year: number, month: number): boolean {
   const d = startOfDay(getDueDateForMonth(dueDay, year, month));
   return isPast(d) && !isToday(d);

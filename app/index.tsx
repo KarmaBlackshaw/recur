@@ -158,7 +158,7 @@ export default function HomeScreen() {
 
       {/* Expense list */}
       {expenses.length === 0 ? (
-        <EmptyState onAdd={() => router.push("/add-expense")} />
+        <EmptyState onAdd={() => router.push("/expense/add")} />
       ) : isCurrentMonth ? (
         <SectionList
           sections={sections}
@@ -168,7 +168,7 @@ export default function HomeScreen() {
               expense={item}
               index={index}
               referenceDate={(section as Section).referenceDate}
-              onPress={() => router.push({ pathname: "/add-expense", params: { id: item.id, year: selectedYear, month: selectedMonth } })}
+              onPress={() => router.push({ pathname: "/expense/add", params: { id: item.id, year: selectedYear, month: selectedMonth } })}
             />
           )}
           renderSectionHeader={({ section }) => (
@@ -197,7 +197,7 @@ export default function HomeScreen() {
               expense={item}
               index={index}
               referenceDate={new Date(selectedYear, selectedMonth, 1)}
-              onPress={() => router.push({ pathname: "/add-expense", params: { id: item.id, year: selectedYear, month: selectedMonth } })}
+              onPress={() => router.push({ pathname: "/expense/add", params: { id: item.id, year: selectedYear, month: selectedMonth } })}
             />
           )}
           contentContainerStyle={{ paddingBottom: 100 }}
@@ -222,7 +222,7 @@ export default function HomeScreen() {
           shadowRadius: 16,
           elevation: 10,
         }}
-        onPress={() => router.push("/add-expense")}
+        onPress={() => router.push("/expense/add")}
         accessibilityLabel="Add expense"
       >
         <Feather name="plus" size={28} color="#FFFFFF" />

@@ -92,7 +92,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
     >
       <TouchableOpacity
         activeOpacity={0.85}
-        onPress={onPress ?? (() => router.push({ pathname: "/add-expense", params: { id: expense.id } }))}
+        onPress={onPress ?? (() => router.push({ pathname: "/expense/add", params: { id: expense.id } }))}
         accessibilityLabel="Edit expense"
       >
         <Animated.View

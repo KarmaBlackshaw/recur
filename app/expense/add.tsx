@@ -9,14 +9,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { Feather } from "@expo/vector-icons";
-import { useExpenses } from "../context/ExpenseContext";
-import { CategoryBottomSheet, CategoryBottomSheetRef } from "../components/CategoryBottomSheet";
-import { AppButton } from "../components/ui/AppButton";
-import { AppText } from "../components/ui/AppText";
-import { AppTextInput } from "../components/ui/AppTextInput";
-import { AppRadioGroup } from "../components/ui/AppRadioGroup";
-import { colors } from "../constants/theme";
-import type { Recurrence, ExpenseFormValues } from "../types";
+import { useExpenses } from "../../context/ExpenseContext";
+import { CategoryBottomSheet, CategoryBottomSheetRef } from "../../components/CategoryBottomSheet";
+import { AppButton } from "../../components/ui/AppButton";
+import { AppText } from "../../components/ui/AppText";
+import { AppTextInput } from "../../components/ui/AppTextInput";
+import { AppRadioGroup } from "../../components/ui/AppRadioGroup";
+import { colors } from "../../constants/theme";
+import type { Recurrence, ExpenseFormValues } from "../../types";
 
 const RECURRENCE_OPTIONS: { label: string; value: Recurrence }[] = [
   { label: "Weekly", value: "weekly" },

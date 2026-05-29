@@ -12,6 +12,7 @@ export interface Expense {
   dueDay: number;        // 1–31, anchor day of month
   recurrence: Recurrence;
   status: Status;
+  isVariable: boolean;
   notes?: string;
   createdAt: string;
 }
@@ -22,12 +23,15 @@ export interface ExpenseFormValues {
   category: string;
   dueDay: string;
   recurrence: Recurrence;
+  isVariable: boolean;
+  monthlyAmount: string;
   notes: string;
 }
 
 export interface MonthStatus {
   expenseId: string;
   year: number;
-  month: number;   // 0-based (JS Date.getMonth())
+  month: number;
   status: Status;
+  amount?: number | null;
 }

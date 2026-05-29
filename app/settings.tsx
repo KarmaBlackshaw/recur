@@ -80,7 +80,7 @@ export default function SettingsScreen() {
         <AppText variant="label" className="text-white/40 mb-2 pl-1">
           About
         </AppText>
-        <View className="bg-surface border border-border rounded-2xl overflow-hidden">
+        <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
           <View className="flex-row items-center px-3.5 py-3">
             <View
               className="w-8 h-8 rounded-lg items-center justify-center mr-3"
@@ -96,6 +96,33 @@ export default function SettingsScreen() {
             </AppText>
           </View>
         </View>
+
+        {/* DEV TOOLS — dev builds only */}
+        {__DEV__ && (
+          <>
+            <AppText variant="label" className="text-white/40 mb-2 pl-1">
+              Developer
+            </AppText>
+            <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
+              <TouchableOpacity
+                className="flex-row items-center px-3.5 py-3"
+                onPress={() => router.push("/settings/dev")}
+                accessibilityLabel="Open dev tools"
+              >
+                <View
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+                  style={{ backgroundColor: "rgba(99,102,241,0.5)" }}
+                >
+                  <Feather name="code" size={15} color="#FFFFFF" />
+                </View>
+                <AppText variant="body-medium" className="flex-1 text-white text-sm">
+                  Dev Tools
+                </AppText>
+                <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );

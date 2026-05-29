@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   Alert,
-  StyleSheet,
 } from "react-native";
 import { router } from "expo-router";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -31,7 +30,7 @@ interface Props {
 }
 
 export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
-  const { getMonthStatus, toggleMonthStatus, deleteExpense, categoryIconMap } = useExpenses();
+  const { getMonthStatus, toggleMonthStatus, deleteExpense, categoryIconMap, getMonthAmount } = useExpenses();
   const swipeRef = useRef<SwipeableMethods>(null);
   const refDate = referenceDate ?? new Date();
   const year = refDate.getFullYear();
@@ -39,6 +38,10 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
   const dueDate = getDueDateForMonth(expense.dueDay, year, month);
   const resolvedStatus = getMonthStatus(expense.id, year, month);
   const overdueFlag = resolvedStatus === "unpaid" && isOverdueOn(expense.dueDay, year, month);
+  const monthlyActual = getMonthAmount(expense.id, year, month);
+  const displayAmount = expense.isVariable
+    ? (monthlyActual !== null ? monthlyActual : null)
+    : expense.amount;
 
   const pulse = useSharedValue(0);
   React.useEffect(() => {
@@ -95,8 +98,14 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
           entering={FadeInDown.delay(index * 60).duration(300)}
           className="flex-row items-center bg-surface rounded-2xl mx-4 my-1.5 px-4 py-3.5 border border-white/[0.07]"
           style={[
-            styles.shadow,
-            overdueFlag ? styles.shadowOverdue : null,
+            {
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.18,
+              shadowRadius: 6,
+              elevation: 3,
+            },
+            overdueFlag ? { shadowColor: "#F87171" } : null,
             overdueFlag ? { borderLeftWidth: 3, borderLeftColor: colors.overdue } : null,
             overdueFlag ? glowStyle : null,
           ]}
@@ -146,7 +155,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
         {/* Amount + status */}
         <View className="items-end gap-2 ml-3">
           <Text className="text-white text-[17px] leading-tight" style={{ fontFamily: "Oswald_Regular" }}>
-            {expense.amount != null ? formatAmount(expense.amount) : "TBD"}
+            {displayAmount !== null ? formatAmount(displayAmount) : "TBD"}
           </Text>
           <StatusBadge
             status={resolvedStatus}
@@ -159,16 +168,3 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
     </ReanimatedSwipeable>
   );
 }
-
-const styles = StyleSheet.create({
-  shadow: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  shadowOverdue: {
-    shadowColor: "#F87171",
-  },
-});

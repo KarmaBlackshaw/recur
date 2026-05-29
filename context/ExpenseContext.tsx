@@ -17,6 +17,7 @@ interface State {
   loading: boolean;
   userName: string | null;
   monthStatuses: Record<string, Status>;
+  monthAmounts: Record<string, number | null>;
   categoryIconMap: Record<string, FeatherIconName>;
 }
 
@@ -28,6 +29,7 @@ type Action =
   | { type: "SET_USER_NAME"; payload: string | null }
   | { type: "LOAD_MONTHS"; payload: MonthStatus[] }
   | { type: "SET_MONTH_STATUS"; payload: { expenseId: string; year: number; month: number; status: Status } }
+  | { type: "SET_MONTH_AMOUNT"; payload: { expenseId: string; year: number; month: number; amount: number | null } }
   | { type: "SET_CATEGORY_ICONS"; payload: Record<string, FeatherIconName> };
 
 function reducer(state: State, action: Action): State {
@@ -56,11 +58,25 @@ function reducer(state: State, action: Action): State {
     case "SET_USER_NAME":
       return { ...state, userName: action.payload };
     case "LOAD_MONTHS": {
-      const map: Record<string, Status> = {};
+      const statusMap: Record<string, Status> = {};
+      const amountMap: Record<string, number | null> = {};
       for (const m of action.payload) {
-        map[monthKey(m.expenseId, m.year, m.month)] = m.status;
+        statusMap[monthKey(m.expenseId, m.year, m.month)] = m.status;
+        if (m.amount !== undefined) {
+          amountMap[monthKey(m.expenseId, m.year, m.month)] = m.amount;
+        }
       }
-      return { ...state, monthStatuses: map };
+      return { ...state, monthStatuses: statusMap, monthAmounts: amountMap };
+    }
+    case "SET_MONTH_AMOUNT": {
+      const { expenseId, year, month, amount } = action.payload;
+      return {
+        ...state,
+        monthAmounts: {
+          ...state.monthAmounts,
+          [monthKey(expenseId, year, month)]: amount,
+        },
+      };
     }
     case "SET_MONTH_STATUS": {
       const { expenseId, year, month, status } = action.payload;
@@ -83,14 +99,20 @@ interface ExpenseContextValue {
   expenses: Expense[];
   loading: boolean;
   userName: string | null;
-  addExpense: (e: Omit<Expense, "id" | "createdAt">) => Promise<void>;
-  updateExpense: (id: string, fields: Omit<Expense, "id" | "createdAt">) => Promise<void>;
+  addExpense: (e: Omit<Expense, "id" | "createdAt">, monthlyAmount?: { year: number; month: number; amount: number | null }) => Promise<void>;
+  updateExpense: (
+    id: string,
+    fields: Omit<Expense, "id" | "createdAt">,
+    monthlyAmount?: { year: number; month: number; amount: number | null }
+  ) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setUserName: (name: string | null) => void;
   getMonthStatus: (id: string, year: number, month: number) => Status;
+  getMonthAmount: (id: string, year: number, month: number) => number | null;
   toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
   categoryIconMap: Record<string, FeatherIconName>;
   reloadCategoryIcons: () => Promise<void>;
+  reloadAll: () => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -101,6 +123,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     loading: true,
     userName: null,
     monthStatuses: {},
+    monthAmounts: {},
     categoryIconMap: {},
   });
 
@@ -131,19 +154,37 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addExpense = useCallback(
-    async (e: Omit<Expense, "id" | "createdAt">) => {
+    async (e: Omit<Expense, "id" | "createdAt">, monthlyAmount?: { year: number; month: number; amount: number | null }) => {
       const saved = await expensesDB.insert(e);
       dispatch({ type: "ADD", payload: saved });
+      if (e.isVariable && monthlyAmount !== undefined) {
+        await monthsDB.upsertMonthlyAmount(saved.id, monthlyAmount.year, monthlyAmount.month, monthlyAmount.amount);
+        dispatch({
+          type: "SET_MONTH_AMOUNT",
+          payload: { expenseId: saved.id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
+        });
+      }
     },
     []
   );
 
   const updateExpense = useCallback(
-    async (id: string, fields: Omit<Expense, "id" | "createdAt">) => {
+    async (
+      id: string,
+      fields: Omit<Expense, "id" | "createdAt">,
+      monthlyAmount?: { year: number; month: number; amount: number | null }
+    ) => {
       const existing = state.expenses.find((e) => e.id === id);
       if (!existing) return;
       await expensesDB.update(id, fields);
       dispatch({ type: "UPDATE", payload: { ...existing, ...fields } });
+      if (fields.isVariable && monthlyAmount !== undefined) {
+        await monthsDB.upsertMonthlyAmount(id, monthlyAmount.year, monthlyAmount.month, monthlyAmount.amount);
+        dispatch({
+          type: "SET_MONTH_AMOUNT",
+          payload: { expenseId: id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
+        });
+      }
     },
     [state.expenses]
   );
@@ -156,6 +197,13 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       return state.monthStatuses[monthKey(id, year, month)] ?? "unpaid";
     },
     [state.expenses, state.monthStatuses]
+  );
+
+  const getMonthAmount = useCallback(
+    (id: string, year: number, month: number): number | null => {
+      return state.monthAmounts[monthKey(id, year, month)] ?? null;
+    },
+    [state.monthAmounts]
   );
 
   const toggleMonthStatus = useCallback(
@@ -189,6 +237,19 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_CATEGORY_ICONS", payload: iconMap });
   }, []);
 
+  const reloadAll = useCallback(async () => {
+    const [rows, months, cats] = await Promise.all([
+      expensesDB.getAll(),
+      monthsDB.getAll(),
+      getAllWithIds(),
+    ]);
+    dispatch({ type: "LOAD", payload: rows });
+    dispatch({ type: "LOAD_MONTHS", payload: months });
+    const iconMap: Record<string, FeatherIconName> = {};
+    for (const c of cats) iconMap[c.name] = c.icon;
+    dispatch({ type: "SET_CATEGORY_ICONS", payload: iconMap });
+  }, []);
+
   return (
     <ExpenseContext.Provider
       value={{
@@ -200,9 +261,11 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         deleteExpense,
         setUserName,
         getMonthStatus,
+        getMonthAmount,
         toggleMonthStatus,
         categoryIconMap: state.categoryIconMap,
         reloadCategoryIcons,
+        reloadAll,
       }}
     >
       {children}

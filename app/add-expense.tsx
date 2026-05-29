@@ -27,7 +27,10 @@ const RECURRENCE_OPTIONS: { label: string; value: Recurrence }[] = [
 
 export default function AddExpenseScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { addExpense, updateExpense, expenses } = useExpenses();
+  const { addExpense, updateExpense, expenses, getMonthAmount } = useExpenses();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
   const editingExpense = id ? expenses.find((e) => e.id === id) ?? null : null;
   const isEditing = editingExpense !== null;
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
@@ -36,6 +39,7 @@ export default function AddExpenseScreen() {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { isValid },
   } = useForm<ExpenseFormValues>({
     mode: "onChange",
@@ -45,39 +49,61 @@ export default function AddExpenseScreen() {
       category: editingExpense?.category ?? "Other",
       dueDay: editingExpense?.dueDay?.toString() ?? "1",
       recurrence: editingExpense?.recurrence ?? "monthly",
+      isVariable: editingExpense?.isVariable ?? false,
       notes: editingExpense?.notes ?? "",
     },
   });
 
+  const isVariableWatched = watch("isVariable");
+
   React.useEffect(() => {
     if (editingExpense) {
+      const existingMonthlyAmount = editingExpense.isVariable
+        ? getMonthAmount(editingExpense.id, currentYear, currentMonth)
+        : null;
       reset({
         name: editingExpense.name,
-        amount: editingExpense.amount != null ? editingExpense.amount.toString() : "",
+        amount: editingExpense.isVariable
+          ? (existingMonthlyAmount != null ? existingMonthlyAmount.toString() : "")
+          : (editingExpense.amount != null ? editingExpense.amount.toString() : ""),
         category: editingExpense.category,
         dueDay: editingExpense.dueDay.toString(),
         recurrence: editingExpense.recurrence,
+        isVariable: editingExpense.isVariable,
+        monthlyAmount: "",
         notes: editingExpense.notes ?? "",
       });
     }
   }, [editingExpense?.id]);
 
   const onSubmit = handleSubmit(async (data) => {
+    const isVar = data.isVariable;
+    const parsedAmount = data.amount.trim() !== "" ? parseFloat(data.amount) : null;
+
     const fields = {
       name: data.name.trim(),
-      amount: data.amount.trim() !== "" ? parseFloat(data.amount) : null,
+      amount: isVar ? null : parsedAmount,
       category: data.category,
       dueDay: parseInt(data.dueDay, 10),
       recurrence: data.recurrence,
+      isVariable: isVar,
       status: editingExpense?.status ?? "unpaid",
       notes: data.notes.trim() || undefined,
     };
 
     try {
       if (isEditing && id) {
-        await updateExpense(id, fields);
+        await updateExpense(id, fields, isVar ? {
+          year: currentYear,
+          month: currentMonth,
+          amount: parsedAmount,
+        } : undefined);
       } else {
-        await addExpense(fields);
+        await addExpense(fields, isVar ? {
+          year: currentYear,
+          month: currentMonth,
+          amount: parsedAmount,
+        } : undefined);
       }
       reset();
       router.back();
@@ -126,12 +152,40 @@ export default function AddExpenseScreen() {
           )}
         />
 
+        {/* Variable checkbox */}
+        <Controller
+          control={control}
+          name="isVariable"
+          render={({ field: { value, onChange } }) => (
+            <TouchableOpacity
+              className="flex-row items-center gap-3 bg-surface border border-border rounded-xl px-3.5 py-3 mb-1 mt-1"
+              onPress={() => onChange(!value)}
+              accessibilityLabel="Toggle variable expense"
+            >
+              <View
+                className="w-5 h-5 rounded border-2 items-center justify-center"
+                style={{
+                  borderColor: value ? colors.primary : "rgba(255,255,255,0.25)",
+                  backgroundColor: value ? colors.primary : "transparent",
+                }}
+              >
+                {value && <Feather name="check" size={12} color="#FFFFFF" />}
+              </View>
+              <View className="flex-1">
+                <AppText variant="body-medium" className="text-white text-sm">Variable amount</AppText>
+                <AppText variant="caption" className="text-white/40 text-xs">Amount changes each month</AppText>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+
         {/* Amount */}
         <Controller
           control={control}
           name="amount"
           rules={{
             validate: (v) => {
+              if (isVariableWatched) return true;
               if (v === "" || v === undefined) return true;
               const n = parseFloat(v);
               return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
@@ -139,11 +193,11 @@ export default function AddExpenseScreen() {
           }}
           render={({ field: { value, onChange, onBlur } }) => (
             <AppTextInput
-              label="Amount"
+              label={isVariableWatched ? "This Month's Amount" : "Amount"}
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
-              placeholder="TBD"
+              placeholder="0.00"
               keyboardType="decimal-pad"
               returnKeyType="next"
             />

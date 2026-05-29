@@ -26,9 +26,9 @@ interface Section {
 }
 
 export default function HomeScreen() {
-  const { expenses, loading, userName, getMonthStatus } = useExpenses();
+  const { expenses, loading, userName, getMonthStatus, getMonthAmount } = useExpenses();
+  const today = startOfToday();
   const { sections, currentMonthList } = useMemo(() => {
-    const today = startOfToday();
     const in30 = addDays(today, 30);
 
     const currentYear = today.getFullYear();
@@ -120,7 +120,14 @@ export default function HomeScreen() {
       </View>
 
       {/* KPI row */}
-      {expenses.length > 0 && <KpiRow expenses={currentMonthList} />}
+      {expenses.length > 0 && (
+        <KpiRow
+          expenses={currentMonthList}
+          getMonthAmount={getMonthAmount}
+          year={today.getFullYear()}
+          month={today.getMonth()}
+        />
+      )}
 
       {/* Divider */}
       {expenses.length > 0 && (

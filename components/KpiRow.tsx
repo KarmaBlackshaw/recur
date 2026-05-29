@@ -6,6 +6,9 @@ import type { Expense } from "../types";
 
 interface Props {
   expenses: Expense[];
+  getMonthAmount: (id: string, year: number, month: number) => number | null;
+  year: number;
+  month: number;
 }
 
 interface KpiCardProps {
@@ -17,14 +20,22 @@ interface KpiCardProps {
   icon: keyof typeof Ionicons.glyphMap;
 }
 
-export function KpiRow({ expenses }: Props) {
-  const total = expenses.reduce((sum, e) => sum + (e.amount ?? 0), 0);
+export function KpiRow({ expenses, getMonthAmount, year, month }: Props) {
+  function resolveAmount(e: Expense): number {
+    if (e.isVariable) {
+      const actual = getMonthAmount(e.id, year, month);
+      return actual ?? 0;
+    }
+    return e.amount ?? 0;
+  }
+
+  const total = expenses.reduce((sum, e) => sum + resolveAmount(e), 0);
   const paid = expenses
     .filter((e) => e.status === "paid")
-    .reduce((sum, e) => sum + (e.amount ?? 0), 0);
+    .reduce((sum, e) => sum + resolveAmount(e), 0);
   const unpaid = expenses
     .filter((e) => e.status === "unpaid")
-    .reduce((sum, e) => sum + (e.amount ?? 0), 0);
+    .reduce((sum, e) => sum + resolveAmount(e), 0);
 
   return (
     <View className="flex-row px-4 gap-2.5 py-2">

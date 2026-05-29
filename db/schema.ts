@@ -149,5 +149,27 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
     );
   }
 
+  // Migration: add is_variable to expenses
+  const isVariableMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_expenses_is_variable_v1'"
+  );
+  if (!isVariableMigrated) {
+    await db.execAsync(`ALTER TABLE expenses ADD COLUMN is_variable INTEGER NOT NULL DEFAULT 0`);
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_expenses_is_variable_v1', '1')"
+    );
+  }
+
+  // Migration: add amount to expense_months
+  const monthAmountMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_expense_months_amount_v1'"
+  );
+  if (!monthAmountMigrated) {
+    await db.execAsync(`ALTER TABLE expense_months ADD COLUMN amount REAL`);
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_expense_months_amount_v1', '1')"
+    );
+  }
+
   return db;
 }

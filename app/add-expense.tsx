@@ -26,11 +26,15 @@ const RECURRENCE_OPTIONS: { label: string; value: Recurrence }[] = [
 ];
 
 export default function AddExpenseScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, year: yearParam, month: monthParam } = useLocalSearchParams<{
+    id?: string;
+    year?: string;
+    month?: string;
+  }>();
   const { addExpense, updateExpense, expenses, getMonthAmount } = useExpenses();
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
+  const currentYear = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
+  const currentMonth = monthParam ? parseInt(monthParam, 10) : now.getMonth();
   const editingExpense = id ? expenses.find((e) => e.id === id) ?? null : null;
   const isEditing = editingExpense !== null;
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);

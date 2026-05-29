@@ -27,9 +27,10 @@ interface Props {
   expense: Expense;
   index?: number;
   referenceDate?: Date;
+  onPress?: () => void;
 }
 
-export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
+export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Props) {
   const { getMonthStatus, toggleMonthStatus, deleteExpense, categoryIconMap, getMonthAmount } = useExpenses();
   const swipeRef = useRef<SwipeableMethods>(null);
   const refDate = referenceDate ?? new Date();
@@ -91,7 +92,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate }: Props) {
     >
       <TouchableOpacity
         activeOpacity={0.85}
-        onPress={() => router.push({ pathname: "/add-expense", params: { id: expense.id } })}
+        onPress={onPress ?? (() => router.push({ pathname: "/add-expense", params: { id: expense.id } }))}
         accessibilityLabel="Edit expense"
       >
         <Animated.View

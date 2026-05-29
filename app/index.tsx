@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   SectionList,
+  FlatList,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,7 +13,8 @@ import { Feather } from "@expo/vector-icons";
 import { isWithinInterval, addDays, startOfToday } from "date-fns";
 import { useExpenses } from "../context/ExpenseContext";
 import { ExpenseCard } from "../components/ExpenseCard";
-import { KpiRow } from "../components/KpiRow";
+import { KpiRow } from "../components/kpi/KpiRow";
+import { MonthNavigator } from "../components/MonthNavigator";
 import { EmptyState } from "../components/EmptyState";
 import { isOverdueOn, getDueDate, getGreeting, getFormattedDate } from "../utils/dateHelpers";
 import { colors } from "../constants/theme";
@@ -26,25 +28,46 @@ interface Section {
 }
 
 export default function HomeScreen() {
-  const { expenses, loading, userName, getMonthStatus, getMonthAmount } = useExpenses();
+  const { expenses, loading, userName, getMonthStatus } = useExpenses();
   const today = startOfToday();
-  const { sections, currentMonthList } = useMemo(() => {
-    const in30 = addDays(today, 30);
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
+  const isCurrentMonth =
+    selectedYear === today.getFullYear() && selectedMonth === today.getMonth();
 
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const nextMonthYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
-    const nextMonth = today.getMonth() === 11 ? 0 : today.getMonth() + 1;
-    const currentMonthRef = new Date(currentYear, currentMonth, 1);
-    const nextMonthRef = new Date(nextMonthYear, nextMonth, 1);
-
-    const resolve = (e: Expense, year: number, month: number): Expense =>
+  const { sections, flatList } = useMemo(() => {
+    const resolveStatus = (e: Expense, year: number, month: number): Expense =>
       ({ ...e, status: getMonthStatus(e.id, year, month) });
 
-    const currentMonthList = expenses.map((e) => resolve(e, currentYear, currentMonth));
+    if (!isCurrentMonth) {
+      const list = expenses
+        .filter((e) => {
+          if (e.recurrence === "one-off") {
+            const created = new Date(e.createdAt);
+            return (
+              created.getFullYear() === selectedYear &&
+              created.getMonth() === selectedMonth
+            );
+          }
+          return true;
+        })
+        .map((e) => resolveStatus(e, selectedYear, selectedMonth))
+        .sort((a, b) => a.dueDay - b.dueDay);
+      return { sections: [], flatList: list };
+    }
+
+    const in30 = addDays(today, 30);
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const nextMonthYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+    const nextMonthVal = currentMonth === 11 ? 0 : currentMonth + 1;
+    const currentMonthRef = new Date(currentYear, currentMonth, 1);
+    const nextMonthRef = new Date(nextMonthYear, nextMonthVal, 1);
+
+    const currentMonthList = expenses.map((e) => resolveStatus(e, currentYear, currentMonth));
     const nextMonthList = expenses
       .filter((e) => e.recurrence !== "one-off")
-      .map((e) => resolve(e, nextMonthYear, nextMonth));
+      .map((e) => resolveStatus(e, nextMonthYear, nextMonthVal));
 
     const overdue = currentMonthList
       .filter((e) => e.status === "unpaid" && isOverdueOn(e.dueDay, currentYear, currentMonth))
@@ -59,13 +82,10 @@ export default function HomeScreen() {
       })
       .sort((a, b) => a.dueDay - b.dueDay);
 
-    // IDs already shown in Overdue or Upcoming — excluded from This Month
     const shownIds = new Set([...overdue, ...upcoming].map((e) => e.id));
-
     const thisMonthExpenses = currentMonthList
       .filter((e) => !shownIds.has(e.id))
       .sort((a, b) => a.dueDay - b.dueDay);
-
     const nextMonthExpenses = [...nextMonthList].sort((a, b) => a.dueDay - b.dueDay);
 
     const result: Section[] = [];
@@ -81,8 +101,8 @@ export default function HomeScreen() {
     if (nextMonthExpenses.length > 0) {
       result.push({ title: "Next Month", data: nextMonthExpenses, referenceDate: nextMonthRef });
     }
-    return { sections: result, currentMonthList };
-  }, [expenses, getMonthStatus]);
+    return { sections: result, flatList: [] };
+  }, [expenses, getMonthStatus, selectedYear, selectedMonth, isCurrentMonth]);
 
   if (loading) {
     return (
@@ -119,14 +139,16 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Month navigator */}
+      <MonthNavigator
+        year={selectedYear}
+        month={selectedMonth}
+        onChange={(y, m) => { setSelectedYear(y); setSelectedMonth(m); }}
+      />
+
       {/* KPI row */}
       {expenses.length > 0 && (
-        <KpiRow
-          expenses={currentMonthList}
-          getMonthAmount={getMonthAmount}
-          year={today.getFullYear()}
-          month={today.getMonth()}
-        />
+        <KpiRow year={selectedYear} month={selectedMonth} />
       )}
 
       {/* Divider */}
@@ -134,15 +156,20 @@ export default function HomeScreen() {
         <View className="mx-5 mt-3 mb-1 h-px bg-white/[0.06]" />
       )}
 
-      {/* Expense sections */}
+      {/* Expense list */}
       {expenses.length === 0 ? (
         <EmptyState onAdd={() => router.push("/add-expense")} />
-      ) : (
+      ) : isCurrentMonth ? (
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
           renderItem={({ item, index, section }) => (
-            <ExpenseCard expense={item} index={index} referenceDate={(section as Section).referenceDate} />
+            <ExpenseCard
+              expense={item}
+              index={index}
+              referenceDate={(section as Section).referenceDate}
+              onPress={() => router.push({ pathname: "/add-expense", params: { id: item.id, year: selectedYear, month: selectedMonth } })}
+            />
           )}
           renderSectionHeader={({ section }) => (
             <View className="px-5 pt-5 pb-2 flex-row items-center gap-2">
@@ -160,6 +187,28 @@ export default function HomeScreen() {
           stickySectionHeadersEnabled={false}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <FlatList
+          data={flatList}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <ExpenseCard
+              expense={item}
+              index={index}
+              referenceDate={new Date(selectedYear, selectedMonth, 1)}
+              onPress={() => router.push({ pathname: "/add-expense", params: { id: item.id, year: selectedYear, month: selectedMonth } })}
+            />
+          )}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View className="flex-1 items-center justify-center pt-20">
+              <Text className="text-white/30 text-sm font-['Quicksand_500Medium']">
+                No expenses for this month
+              </Text>
+            </View>
+          }
         />
       )}
 

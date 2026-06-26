@@ -1,24 +1,17 @@
 import React, { useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  SectionList,
-  FlatList,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, SectionList, FlatList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { isWithinInterval, addDays, startOfToday } from "date-fns";
-import { useExpenses } from "../context/ExpenseContext";
-import { ExpenseCard } from "../components/ExpenseCard";
-import { KpiRow } from "../components/kpi/KpiRow";
-import { MonthNavigator } from "../components/MonthNavigator";
-import { EmptyState } from "../components/EmptyState";
-import { isOverdueOn, getDueDate, getGreeting, getFormattedDate } from "../utils/dateHelpers";
-import { colors } from "../constants/theme";
-import type { Expense } from "../types";
+import { useExpenses } from "../../context/ExpenseContext";
+import { ExpenseCard } from "../../components/ExpenseCard";
+import { KpiRow } from "../../components/kpi/KpiRow";
+import { MonthNavigator } from "../../components/MonthNavigator";
+import { EmptyState } from "../../components/EmptyState";
+import { isOverdueOn, getDueDate } from "../../utils/dateHelpers";
+import { colors } from "../../constants/theme";
+import type { Expense } from "../../types";
 
 interface Section {
   title: string;
@@ -27,30 +20,25 @@ interface Section {
   referenceDate?: Date;
 }
 
-export default function HomeScreen() {
-  const { expenses, loading, userName, getMonthStatus } = useExpenses();
+export default function RecurringScreen() {
+  const { expenses, loading, getMonthStatus } = useExpenses();
   const today = startOfToday();
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
   const isCurrentMonth =
     selectedYear === today.getFullYear() && selectedMonth === today.getMonth();
 
+  const recurringExpenses = useMemo(
+    () => expenses.filter((e) => e.recurrence !== "one-off"),
+    [expenses]
+  );
+
   const { sections, flatList } = useMemo(() => {
     const resolveStatus = (e: Expense, year: number, month: number): Expense =>
       ({ ...e, status: getMonthStatus(e.id, year, month) });
 
     if (!isCurrentMonth) {
-      const list = expenses
-        .filter((e) => {
-          if (e.recurrence === "one-off") {
-            const created = new Date(e.createdAt);
-            return (
-              created.getFullYear() === selectedYear &&
-              created.getMonth() === selectedMonth
-            );
-          }
-          return true;
-        })
+      const list = recurringExpenses
         .map((e) => resolveStatus(e, selectedYear, selectedMonth))
         .sort((a, b) => a.dueDay - b.dueDay);
       return { sections: [], flatList: list };
@@ -64,10 +52,8 @@ export default function HomeScreen() {
     const currentMonthRef = new Date(currentYear, currentMonth, 1);
     const nextMonthRef = new Date(nextMonthYear, nextMonthVal, 1);
 
-    const currentMonthList = expenses.map((e) => resolveStatus(e, currentYear, currentMonth));
-    const nextMonthList = expenses
-      .filter((e) => e.recurrence !== "one-off")
-      .map((e) => resolveStatus(e, nextMonthYear, nextMonthVal));
+    const currentMonthList = recurringExpenses.map((e) => resolveStatus(e, currentYear, currentMonth));
+    const nextMonthList = recurringExpenses.map((e) => resolveStatus(e, nextMonthYear, nextMonthVal));
 
     const overdue = currentMonthList
       .filter((e) => e.status === "unpaid" && isOverdueOn(e.dueDay, currentYear, currentMonth))
@@ -102,7 +88,7 @@ export default function HomeScreen() {
       result.push({ title: "Next Month", data: nextMonthExpenses, referenceDate: nextMonthRef });
     }
     return { sections: result, flatList: [] };
-  }, [expenses, getMonthStatus, selectedYear, selectedMonth, isCurrentMonth]);
+  }, [recurringExpenses, getMonthStatus, selectedYear, selectedMonth, isCurrentMonth]);
 
   if (loading) {
     return (
@@ -114,51 +100,21 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* Header */}
-      <View className="flex-row justify-between items-start px-5 pt-2 pb-3">
-        <View>
-          <Text
-            className="text-[11px] tracking-widest uppercase"
-            style={{ color: "rgba(255,255,255,0.45)", fontFamily: "Quicksand_700Bold" }}
-          >
-            {getFormattedDate().toUpperCase()}
-          </Text>
-          <Text
-            className="text-white text-[28px] tracking-wide"
-            style={{ fontFamily: "Oswald_Medium" }}
-          >
-            {getGreeting(userName)}
-          </Text>
-        </View>
-        <TouchableOpacity
-          className="w-10 h-10 rounded-full bg-white/[0.07] items-center justify-center mt-1"
-          accessibilityLabel="Settings"
-          onPress={() => router.push("/settings")}
-        >
-          <Feather name="settings" size={18} color="rgba(255,255,255,0.6)" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Month navigator */}
       <MonthNavigator
         year={selectedYear}
         month={selectedMonth}
         onChange={(y, m) => { setSelectedYear(y); setSelectedMonth(m); }}
       />
 
-      {/* KPI row */}
-      {expenses.length > 0 && (
-        <KpiRow year={selectedYear} month={selectedMonth} />
+      {recurringExpenses.length > 0 && (
+        <KpiRow year={selectedYear} month={selectedMonth} recurringOnly />
       )}
-
-      {/* Divider */}
-      {expenses.length > 0 && (
+      {recurringExpenses.length > 0 && (
         <View className="mx-5 mt-3 mb-1 h-px bg-white/[0.06]" />
       )}
 
-      {/* Expense list */}
-      {expenses.length === 0 ? (
-        <EmptyState onAdd={() => router.push("/expense/add")} />
+      {recurringExpenses.length === 0 ? (
+        <EmptyState onAdd={() => router.push("/expense/add?type=recurring")} />
       ) : isCurrentMonth ? (
         <SectionList
           sections={sections}
@@ -185,7 +141,7 @@ export default function HomeScreen() {
             </View>
           )}
           stickySectionHeadersEnabled={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
         />
       ) : (
@@ -200,34 +156,17 @@ export default function HomeScreen() {
               onPress={() => router.push({ pathname: "/expense/add", params: { id: item.id, year: selectedYear, month: selectedMonth } })}
             />
           )}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View className="flex-1 items-center justify-center pt-20">
               <Text className="text-white/30 text-sm font-['Quicksand_500Medium']">
-                No expenses for this month
+                No recurring expenses for this month
               </Text>
             </View>
           }
         />
       )}
-
-      {/* FAB */}
-      <TouchableOpacity
-        className="absolute bottom-8 right-6 size-[60px] rounded-full bg-primary items-center justify-center"
-        style={{
-          shadowColor: colors.secondary,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.5,
-          shadowRadius: 16,
-          elevation: 10,
-        }}
-        onPress={() => router.push("/expense/add")}
-        accessibilityLabel="Add expense"
-      >
-        <Feather name="plus" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
-
     </SafeAreaView>
   );
 }

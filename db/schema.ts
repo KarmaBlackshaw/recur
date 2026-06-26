@@ -182,5 +182,20 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
     );
   }
 
+  // Migration: add paid_date to expenses (when a one-off was paid)
+  const paidDateMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_paid_date_v1'"
+  );
+  if (!paidDateMigrated) {
+    await db.execAsync(`ALTER TABLE expenses ADD COLUMN paid_date TEXT`);
+    // Backfill existing paid one-offs so they have a sensible paid date (use createdAt).
+    await db.runAsync(
+      `UPDATE expenses SET paid_date = createdAt WHERE recurrence = 'one-off' AND status = 'paid' AND paid_date IS NULL`
+    );
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_paid_date_v1', '1')"
+    );
+  }
+
   return db;
 }

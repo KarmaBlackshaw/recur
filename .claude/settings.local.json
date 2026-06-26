@@ -1,8 +1,18 @@
 {
-  "permissions": {
-    "allow": [
-      "WebSearch",
-      "Bash(npx expo *)"
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"REPO RULE: before responding, invoke these skills via the Skill tool, in order: using-superpowers, dispatching-parallel-agents,  web-component-design. Skip an invocation only if that skill is already loaded this session.\"}}'",
+            "statusMessage": "Loading repo skills"
+          }
+        ]
+      }
     ]
+  },
+  "permissions": {
+    "allow": ["WebSearch", "Bash(npx expo *)"]
   }
 }

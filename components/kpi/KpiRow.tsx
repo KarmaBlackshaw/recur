@@ -8,17 +8,21 @@ import type { Expense } from "../../types";
 interface Props {
   year: number;
   month: number;
+  recurringOnly?: boolean;
 }
 
-export function KpiRow({ year, month }: Props) {
+export function KpiRow({ year, month, recurringOnly = false }: Props) {
   const { expenses, getMonthAmount, getMonthStatus } = useExpenses();
+  const source = recurringOnly
+    ? expenses.filter((e) => e.recurrence !== "one-off")
+    : expenses;
 
   function resolveAmount(e: Expense): number {
     if (e.isVariable) return getMonthAmount(e.id, year, month) ?? 0;
     return e.amount ?? 0;
   }
 
-  const resolvedExpenses = expenses.map((e) => ({
+  const resolvedExpenses = source.map((e) => ({
     ...e,
     status: getMonthStatus(e.id, year, month),
   }));

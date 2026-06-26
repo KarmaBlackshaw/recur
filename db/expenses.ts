@@ -7,8 +7,9 @@ export async function getAll(): Promise<Expense[]> {
     id: string; name: string; category: string; amount: number | null;
     dueDay: number; recurrence: string; status: string; is_variable: number;
     reminder_days_before: number | null; notes: string | null; createdAt: string;
+    paid_date: string | null;
   }>(
-    "SELECT id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt FROM expenses ORDER BY dueDay ASC"
+    "SELECT id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date FROM expenses ORDER BY dueDay ASC"
   );
   return rows.map((r) => ({
     id: r.id,
@@ -22,6 +23,7 @@ export async function getAll(): Promise<Expense[]> {
     reminderDaysBefore: r.reminder_days_before ?? null,
     notes: r.notes ?? undefined,
     createdAt: r.createdAt,
+    paidDate: r.paid_date ?? null,
   }));
 }
 
@@ -31,20 +33,25 @@ export async function insert(
   const db = await getDB();
   const id = Date.now().toString();
   const createdAt = new Date().toISOString();
+  // Regular (one-off) expenses represent money already spent → auto-paid.
+  const status: Status = e.recurrence === "one-off" ? "paid" : (e.status ?? "unpaid");
+  // One-offs carry a paid date (defaults to today); recurring never do.
+  const paidDate: string | null =
+    e.recurrence === "one-off" ? (e.paidDate ?? createdAt) : null;
   await db.runAsync(
-    `INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status ?? "unpaid", e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, createdAt]
+    `INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, e.name, e.category, e.amount, e.dueDay, e.recurrence, status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, createdAt, paidDate]
   );
-  return { ...e, id, createdAt, status: e.status ?? "unpaid" };
+  return { ...e, id, createdAt, status, paidDate };
 }
 
 export async function insertWithId(e: Expense): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    `INSERT OR IGNORE INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [e.id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.createdAt]
+    `INSERT OR IGNORE INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [e.id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.createdAt, e.paidDate ?? null]
   );
 }
 
@@ -62,8 +69,8 @@ export async function update(
 ): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    `UPDATE expenses SET name=?, category=?, amount=?, dueDay=?, recurrence=?, status=?, is_variable=?, reminder_days_before=?, notes=? WHERE id=?`,
-    [e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, id]
+    `UPDATE expenses SET name=?, category=?, amount=?, dueDay=?, recurrence=?, status=?, is_variable=?, reminder_days_before=?, notes=?, paid_date=? WHERE id=?`,
+    [e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.recurrence === "one-off" ? (e.paidDate ?? null) : null, id]
   );
 }
 

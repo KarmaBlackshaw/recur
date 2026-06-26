@@ -16,6 +16,7 @@ export interface Expense {
   notes?: string;
   createdAt: string;
   reminderDaysBefore?: number | null;
+  paidDate?: string | null;   // ISO date — when a one-off was paid (default today on insert). Null for recurring.
 }
 
 export interface ExpenseFormValues {
@@ -28,6 +29,7 @@ export interface ExpenseFormValues {
   monthlyAmount: string;
   notes: string;
   reminderDaysBefore: string;
+  paidDate: string;   // ISO date string (one-off only)
 }
 
 export interface MonthStatus {

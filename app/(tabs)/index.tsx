@@ -1,0 +1,161 @@
+import React, { useMemo } from "react";
+import { View, Text, TouchableOpacity, ActivityIndicator, SectionList } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import { Feather } from "@expo/vector-icons";
+import { addDays, startOfToday, parseISO } from "date-fns";
+import { useExpenses } from "../../context/ExpenseContext";
+import { KpiRow } from "../../components/kpi/KpiRow";
+import { ExpenseCard } from "../../components/ExpenseCard";
+import { EmptyState } from "../../components/EmptyState";
+import { isOverdueOn, getDueDate, getGreeting, getFormattedDate } from "../../utils/dateHelpers";
+import { colors } from "../../constants/theme";
+import type { Expense } from "../../types";
+
+interface Section {
+  title: string;
+  data: Expense[];
+  accent?: string;
+}
+
+export default function HomeScreen() {
+  const { expenses, loading, userName, getMonthStatus } = useExpenses();
+  const today = startOfToday();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const monthRef = new Date(year, month, 1);
+
+  const sections = useMemo<Section[]>(() => {
+    const in7 = addDays(today, 7);
+    const overdue: Expense[] = [];
+    const upcoming: Expense[] = [];
+    for (const e of expenses) {
+      if (e.recurrence === "one-off") continue;
+      if (getMonthStatus(e.id, year, month) !== "unpaid") continue;
+      if (isOverdueOn(e.dueDay, year, month)) {
+        overdue.push(e);
+      } else {
+        const d = getDueDate(e.dueDay);
+        if (d >= today && d <= in7) upcoming.push(e);
+      }
+    }
+    overdue.sort((a, b) => a.dueDay - b.dueDay);
+    upcoming.sort((a, b) => a.dueDay - b.dueDay);
+
+    const last7 = addDays(today, -7);
+    const inWindow = (d: Date) => d >= last7 && d <= today;
+    const recent: Expense[] = [];
+    for (const e of expenses) {
+      if (e.recurrence === "one-off") {
+        if (e.status === "paid" && e.paidDate && inWindow(parseISO(e.paidDate))) {
+          recent.push(e);
+        }
+      } else {
+        if (getMonthStatus(e.id, year, month) === "paid" && inWindow(getDueDate(e.dueDay))) {
+          recent.push(e);
+        }
+      }
+    }
+    const recentDate = (e: Expense): Date =>
+      e.recurrence === "one-off" && e.paidDate ? parseISO(e.paidDate) : getDueDate(e.dueDay);
+    recent.sort((a, b) => recentDate(b).getTime() - recentDate(a).getTime());
+
+    const result: Section[] = [];
+    if (overdue.length > 0) {
+      result.push({ title: "Overdue", data: overdue, accent: colors.overdue });
+    }
+    if (upcoming.length > 0) {
+      result.push({ title: "Upcoming — Next 7 Days", data: upcoming, accent: colors.secondary });
+    }
+    if (recent.length > 0) {
+      result.push({ title: "Recently Paid — Last 7 Days", data: recent, accent: colors.paid });
+    }
+    return result;
+  }, [expenses, getMonthStatus, year, month]);
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center">
+        <ActivityIndicator color={colors.secondary} size="large" />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+      {/* Header */}
+      <View className="flex-row justify-between items-start px-5 pt-2 pb-3">
+        <View>
+          <Text
+            className="text-[11px] tracking-widest uppercase"
+            style={{ color: "rgba(255,255,255,0.45)", fontFamily: "Quicksand_700Bold" }}
+          >
+            {getFormattedDate().toUpperCase()}
+          </Text>
+          <Text className="text-white text-[28px] tracking-wide" style={{ fontFamily: "Oswald_Medium" }}>
+            {getGreeting(userName)}
+          </Text>
+        </View>
+        <TouchableOpacity
+          className="w-10 h-10 rounded-full bg-white/[0.07] items-center justify-center mt-1"
+          accessibilityLabel="Settings"
+          onPress={() => router.push("/settings")}
+        >
+          <Feather name="settings" size={18} color="rgba(255,255,255,0.6)" />
+        </TouchableOpacity>
+      </View>
+
+      {expenses.length === 0 ? (
+        <EmptyState onAdd={() => router.push("/expense/add?type=regular")} />
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={
+            <View>
+              <Text
+                className="px-5 pt-2 pb-1 text-[11px] uppercase tracking-widest"
+                style={{ color: "rgba(255,255,255,0.4)", fontFamily: "Quicksand_700Bold" }}
+              >
+                This Month
+              </Text>
+              <KpiRow year={year} month={month} />
+            </View>
+          }
+          renderItem={({ item, index }) => (
+            <ExpenseCard
+              expense={item}
+              index={index}
+              referenceDate={monthRef}
+              onPress={() => router.push({ pathname: "/expense/add", params: { id: item.id, year, month } })}
+            />
+          )}
+          renderSectionHeader={({ section }) => (
+            <View className="px-5 pt-5 pb-2 flex-row items-center gap-2">
+              {(section as Section).accent === colors.overdue && (
+                <Feather name="alert-triangle" size={12} color={colors.overdue} />
+              )}
+              <Text
+                className="text-[11px] font-['Quicksand_700Bold'] uppercase tracking-widest"
+                style={{ color: (section as Section).accent ?? "rgba(255,255,255,0.4)" }}
+              >
+                {section.title}
+              </Text>
+            </View>
+          )}
+          stickySectionHeadersEnabled={false}
+          contentContainerStyle={{ paddingBottom: 140 }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View className="mx-5 mt-3 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-white/[0.07]">
+              <Feather name="check-circle" size={15} color={colors.paid} />
+              <Text className="text-white/60 text-[13px] font-['Quicksand_500Medium']">
+                All clear — nothing overdue or due soon
+              </Text>
+            </View>
+          }
+        />
+      )}
+    </SafeAreaView>
+  );
+}

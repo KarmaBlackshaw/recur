@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   TouchableOpacity,
@@ -17,19 +17,21 @@ import { AppTextInput } from "../../components/ui/AppTextInput";
 import { AppRadioGroup } from "../../components/ui/AppRadioGroup";
 import { colors } from "../../constants/theme";
 import type { Recurrence, ExpenseFormValues } from "../../types";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { format, parseISO, startOfDay } from "date-fns";
 
 const RECURRENCE_OPTIONS: { label: string; value: Recurrence }[] = [
   { label: "Weekly", value: "weekly" },
   { label: "Monthly", value: "monthly" },
   { label: "Yearly", value: "yearly" },
-  { label: "One-off", value: "one-off" },
 ];
 
 export default function AddExpenseScreen() {
-  const { id, year: yearParam, month: monthParam } = useLocalSearchParams<{
+  const { id, year: yearParam, month: monthParam, type } = useLocalSearchParams<{
     id?: string;
     year?: string;
     month?: string;
+    type?: "regular" | "recurring";
   }>();
   const { addExpense, updateExpense, expenses, getMonthAmount } = useExpenses();
   const now = new Date();
@@ -37,7 +39,9 @@ export default function AddExpenseScreen() {
   const currentMonth = monthParam ? parseInt(monthParam, 10) : now.getMonth();
   const editingExpense = id ? expenses.find((e) => e.id === id) ?? null : null;
   const isEditing = editingExpense !== null;
+  const isRegular = isEditing ? editingExpense!.recurrence === "one-off" : type === "regular";
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
+  const [showPaidPicker, setShowPaidPicker] = useState(false);
 
   const {
     control,
@@ -52,10 +56,11 @@ export default function AddExpenseScreen() {
       amount: editingExpense?.amount != null ? editingExpense.amount.toString() : "",
       category: editingExpense?.category ?? "Other",
       dueDay: editingExpense?.dueDay?.toString() ?? "1",
-      recurrence: editingExpense?.recurrence ?? "monthly",
+      recurrence: editingExpense?.recurrence ?? (type === "regular" ? "one-off" : "monthly"),
       isVariable: editingExpense?.isVariable ?? false,
       notes: editingExpense?.notes ?? "",
       reminderDaysBefore: '',
+      paidDate: editingExpense?.paidDate ?? new Date().toISOString(),
     },
   });
 
@@ -78,24 +83,26 @@ export default function AddExpenseScreen() {
         monthlyAmount: "",
         notes: editingExpense.notes ?? "",
         reminderDaysBefore: editingExpense.reminderDaysBefore != null ? editingExpense.reminderDaysBefore.toString() : '',
+        paidDate: editingExpense.paidDate ?? new Date().toISOString(),
       });
     }
   }, [editingExpense?.id]);
 
   const onSubmit = handleSubmit(async (data) => {
-    const isVar = data.isVariable;
+    const isVar = isRegular ? false : data.isVariable;
     const parsedAmount = data.amount.trim() !== "" ? parseFloat(data.amount) : null;
 
     const fields = {
       name: data.name.trim(),
       amount: isVar ? null : parsedAmount,
       category: data.category,
-      dueDay: parseInt(data.dueDay, 10),
-      recurrence: data.recurrence,
+      dueDay: isRegular ? 1 : parseInt(data.dueDay, 10),
+      recurrence: isRegular ? "one-off" : data.recurrence,
       isVariable: isVar,
       status: editingExpense?.status ?? "unpaid",
       notes: data.notes.trim() || undefined,
-      reminderDaysBefore: data.reminderDaysBefore.trim() === '' ? null : parseInt(data.reminderDaysBefore, 10),
+      reminderDaysBefore: isRegular ? null : (data.reminderDaysBefore.trim() === '' ? null : parseInt(data.reminderDaysBefore, 10)),
+      paidDate: isRegular ? data.paidDate : null,
     };
 
     try {
@@ -132,7 +139,9 @@ export default function AddExpenseScreen() {
           <Feather name="chevron-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
         <AppText variant="heading" className="flex-1 text-center text-[22px]">
-          {isEditing ? "Edit Expense" : "Add Expense"}
+          {isRegular
+            ? (isEditing ? "Edit Expense" : "Add Expense")
+            : (isEditing ? "Edit Recurring Expense" : "Add Recurring Expense")}
         </AppText>
         <View className="w-8" />
       </View>
@@ -160,31 +169,33 @@ export default function AddExpenseScreen() {
         />
 
         {/* Variable checkbox */}
-        <Controller
-          control={control}
-          name="isVariable"
-          render={({ field: { value, onChange } }) => (
-            <TouchableOpacity
-              className="flex-row items-center gap-3 bg-surface border border-border rounded-xl px-3.5 py-3 mb-1 mt-1"
-              onPress={() => onChange(!value)}
-              accessibilityLabel="Toggle variable expense"
-            >
-              <View
-                className="w-5 h-5 rounded border-2 items-center justify-center"
-                style={{
-                  borderColor: value ? colors.primary : "rgba(255,255,255,0.25)",
-                  backgroundColor: value ? colors.primary : "transparent",
-                }}
+        {!isRegular && (
+          <Controller
+            control={control}
+            name="isVariable"
+            render={({ field: { value, onChange } }) => (
+              <TouchableOpacity
+                className="flex-row items-center gap-3 bg-surface border border-border rounded-xl px-3.5 py-3 mb-1 mt-1"
+                onPress={() => onChange(!value)}
+                accessibilityLabel="Toggle variable expense"
               >
-                {value && <Feather name="check" size={12} color="#FFFFFF" />}
-              </View>
-              <View className="flex-1">
-                <AppText variant="body-medium" className="text-white text-sm">Variable amount</AppText>
-                <AppText variant="caption" className="text-white/40 text-xs">Amount changes each month</AppText>
-              </View>
-            </TouchableOpacity>
-          )}
-        />
+                <View
+                  className="w-5 h-5 rounded border-2 items-center justify-center"
+                  style={{
+                    borderColor: value ? colors.primary : "rgba(255,255,255,0.25)",
+                    backgroundColor: value ? colors.primary : "transparent",
+                  }}
+                >
+                  {value && <Feather name="check" size={12} color="#FFFFFF" />}
+                </View>
+                <View className="flex-1">
+                  <AppText variant="body-medium" className="text-white text-sm">Variable amount</AppText>
+                  <AppText variant="caption" className="text-white/40 text-xs">Amount changes each month</AppText>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        )}
 
         {/* Amount */}
         <Controller
@@ -228,43 +239,83 @@ export default function AddExpenseScreen() {
         />
 
         {/* Due Day */}
-        <Controller
-          control={control}
-          name="dueDay"
-          rules={{
-            required: true,
-            validate: (v) => {
-              const n = parseInt(v, 10);
-              return (!isNaN(n) && n >= 1 && n <= 31) || "Must be 1–31";
-            },
-          }}
-          render={({ field: { value, onChange, onBlur } }) => (
-            <AppTextInput
-              label="Due Day (1–31) *"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="1"
-              keyboardType="number-pad"
-              returnKeyType="next"
-              maxLength={2}
-            />
-          )}
-        />
+        {!isRegular && (
+          <Controller
+            control={control}
+            name="dueDay"
+            rules={{
+              required: true,
+              validate: (v) => {
+                const n = parseInt(v, 10);
+                return (!isNaN(n) && n >= 1 && n <= 31) || "Must be 1–31";
+              },
+            }}
+            render={({ field: { value, onChange, onBlur } }) => (
+              <AppTextInput
+                label="Due Day (1–31) *"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="1"
+                keyboardType="number-pad"
+                returnKeyType="next"
+                maxLength={2}
+              />
+            )}
+          />
+        )}
 
         {/* Recurrence */}
-        <Controller
-          control={control}
-          name="recurrence"
-          render={({ field: { value, onChange } }) => (
-            <AppRadioGroup
-              label="Recurrence"
-              options={RECURRENCE_OPTIONS}
-              value={value}
-              onChange={onChange}
-            />
-          )}
-        />
+        {!isRegular && (
+          <Controller
+            control={control}
+            name="recurrence"
+            render={({ field: { value, onChange } }) => (
+              <AppRadioGroup
+                label="Recurrence"
+                options={RECURRENCE_OPTIONS}
+                value={value}
+                onChange={onChange}
+              />
+            )}
+          />
+        )}
+
+        {/* Paid Date (one-off only) */}
+        {isRegular && (
+          <Controller
+            control={control}
+            name="paidDate"
+            render={({ field: { value, onChange } }) => (
+              <>
+                <AppText variant="label" className="mb-1.5 mt-1">Paid Date</AppText>
+                <TouchableOpacity
+                  className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
+                  onPress={() => setShowPaidPicker(true)}
+                  accessibilityLabel="Select paid date"
+                >
+                  <AppText variant="body-medium" className="text-white text-base">
+                    {format(parseISO(value), "MMM d, yyyy")}
+                  </AppText>
+                  <Feather name="calendar" size={16} color="rgba(255,255,255,0.4)" />
+                </TouchableOpacity>
+                {showPaidPicker && (
+                  <DateTimePicker
+                    value={parseISO(value)}
+                    mode="date"
+                    maximumDate={new Date()}
+                    onChange={(event, date) => {
+                      setShowPaidPicker(false);
+                      if (event.type === "set" && date) {
+                        onChange(startOfDay(date).toISOString());
+                      }
+                    }}
+                  />
+                )}
+              </>
+            )}
+          />
+        )}
 
         {/* Notes */}
         <Controller
@@ -284,31 +335,35 @@ export default function AddExpenseScreen() {
         />
 
         {/* Remind me */}
-        <Controller
-          control={control}
-          name="reminderDaysBefore"
-          rules={{
-            validate: (v) => {
-              if (!v || v.trim() === '') return true;
-              const n = parseInt(v, 10);
-              return (!isNaN(n) && n >= 1 && n <= 14) || 'Must be 1–14';
-            },
-          }}
-          render={({ field: { value, onChange, onBlur } }) => (
-            <AppTextInput
-              label="Remind me (days before)"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="1"
-              keyboardType="numeric"
-              maxLength={2}
+        {!isRegular && (
+          <>
+            <Controller
+              control={control}
+              name="reminderDaysBefore"
+              rules={{
+                validate: (v) => {
+                  if (!v || v.trim() === '') return true;
+                  const n = parseInt(v, 10);
+                  return (!isNaN(n) && n >= 1 && n <= 14) || 'Must be 1–14';
+                },
+              }}
+              render={({ field: { value, onChange, onBlur } }) => (
+                <AppTextInput
+                  label="Remind me (days before)"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="1"
+                  keyboardType="numeric"
+                  maxLength={2}
+                />
+              )}
             />
-          )}
-        />
-        <AppText variant="caption" className="text-white/40 text-xs px-1 mb-3">
-          Leave blank for default (1 day before due)
-        </AppText>
+            <AppText variant="caption" className="text-white/40 text-xs px-1 mb-3">
+              Leave blank for default (1 day before due)
+            </AppText>
+          </>
+        )}
 
         {/* Save */}
         <AppButton

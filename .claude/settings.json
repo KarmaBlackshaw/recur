@@ -1,0 +1,16 @@
+{
+  "autoMemoryEnabled": false,
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat \"${CLAUDE_PROJECT_DIR:-.}/.claude/memory/MEMORY.md\" 2>/dev/null | jq -Rs '{hookSpecificOutput:{hookEventName:\"UserPromptSubmit\",additionalContext:(\"=== IN-REPO MEMORY (.claude/memory/) — read this before responding; open the linked entry files when relevant ===\\n\\n\" + . + \"\\n\\n=== END MEMORY ===\\nAFTER you finish responding: summarize the durable main points of this exchange, then create or update a memory file in .claude/memory/ (frontmatter with name, description, metadata.type) and add a one-line index entry to .claude/memory/MEMORY.md. Skip only if nothing durable was learned.\")}}'",
+            "statusMessage": "Loading repo memory"
+          }
+        ]
+      }
+    ]
+  }
+}

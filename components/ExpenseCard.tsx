@@ -36,9 +36,10 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
   const refDate = referenceDate ?? new Date();
   const year = refDate.getFullYear();
   const month = refDate.getMonth();
+  const isRegular = expense.recurrence === "one-off";
   const dueDate = getDueDateForMonth(expense.dueDay, year, month);
   const resolvedStatus = getMonthStatus(expense.id, year, month);
-  const overdueFlag = resolvedStatus === "unpaid" && isOverdueOn(expense.dueDay, year, month);
+  const overdueFlag = !isRegular && resolvedStatus === "unpaid" && isOverdueOn(expense.dueDay, year, month);
   const monthlyActual = getMonthAmount(expense.id, year, month);
   const displayAmount = expense.isVariable
     ? (monthlyActual !== null ? monthlyActual : null)
@@ -142,9 +143,11 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
           <Text
             className={`text-[11px] font-['Quicksand_500Medium'] mt-0.5 ${overdueFlag ? "text-overdue" : "text-white/35"}`}
           >
-            {resolvedStatus === "paid"
-              ? format(dueDate, "MMM d")
-              : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
+            {isRegular
+              ? format(new Date(expense.createdAt), "MMM d")
+              : resolvedStatus === "paid"
+                ? format(dueDate, "MMM d")
+                : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
           </Text>
           {expense.notes ? (
             <Text

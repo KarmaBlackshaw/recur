@@ -69,3 +69,17 @@ export function isOverdueOn(dueDay: number, year: number, month: number): boolea
   const d = startOfDay(getDueDateForMonth(dueDay, year, month));
   return isPast(d) && !isToday(d);
 }
+
+export function isEndedOn(
+  endYear: number | null | undefined,
+  endMonth: number | null | undefined,
+  year: number,
+  month: number
+): boolean {
+  if (endYear == null || endMonth == null) return false;
+  return year > endYear || (year === endYear && month > endMonth);
+}
+
+export function formatEndMonth(endYear: number, endMonth: number): string {
+  return format(new Date(endYear, endMonth, 1), "MMM yyyy");
+}

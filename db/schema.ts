@@ -197,5 +197,17 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
     );
   }
 
+  // Migration: add end_year / end_month to expenses (recurring end month)
+  const endMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_expense_end_v1'"
+  );
+  if (!endMigrated) {
+    await db.execAsync(`ALTER TABLE expenses ADD COLUMN end_year INTEGER`);
+    await db.execAsync(`ALTER TABLE expenses ADD COLUMN end_month INTEGER`);
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_expense_end_v1', '1')"
+    );
+  }
+
   return db;
 }

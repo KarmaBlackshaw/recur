@@ -7,9 +7,9 @@ export async function getAll(): Promise<Expense[]> {
     id: string; name: string; category: string; amount: number | null;
     dueDay: number; recurrence: string; status: string; is_variable: number;
     reminder_days_before: number | null; notes: string | null; createdAt: string;
-    paid_date: string | null;
+    paid_date: string | null; end_year: number | null; end_month: number | null;
   }>(
-    "SELECT id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date FROM expenses ORDER BY dueDay ASC"
+    "SELECT id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date, end_year, end_month FROM expenses ORDER BY dueDay ASC"
   );
   return rows.map((r) => ({
     id: r.id,
@@ -24,6 +24,8 @@ export async function getAll(): Promise<Expense[]> {
     notes: r.notes ?? undefined,
     createdAt: r.createdAt,
     paidDate: r.paid_date ?? null,
+    endYear: r.end_year ?? null,
+    endMonth: r.end_month ?? null,
   }));
 }
 
@@ -38,20 +40,22 @@ export async function insert(
   // One-offs carry a paid date (defaults to today); recurring never do.
   const paidDate: string | null =
     e.recurrence === "one-off" ? (e.paidDate ?? createdAt) : null;
+  const endYear = e.recurrence === "one-off" ? null : (e.endYear ?? null);
+  const endMonth = e.recurrence === "one-off" ? null : (e.endMonth ?? null);
   await db.runAsync(
-    `INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, e.name, e.category, e.amount, e.dueDay, e.recurrence, status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, createdAt, paidDate]
+    `INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date, end_year, end_month)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, e.name, e.category, e.amount, e.dueDay, e.recurrence, status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, createdAt, paidDate, endYear, endMonth]
   );
-  return { ...e, id, createdAt, status, paidDate };
+  return { ...e, id, createdAt, status, paidDate, endYear, endMonth };
 }
 
 export async function insertWithId(e: Expense): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    `INSERT OR IGNORE INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [e.id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.createdAt, e.paidDate ?? null]
+    `INSERT OR IGNORE INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date, end_year, end_month)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [e.id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.createdAt, e.paidDate ?? null, e.endYear ?? null, e.endMonth ?? null]
   );
 }
 
@@ -69,8 +73,8 @@ export async function update(
 ): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    `UPDATE expenses SET name=?, category=?, amount=?, dueDay=?, recurrence=?, status=?, is_variable=?, reminder_days_before=?, notes=?, paid_date=? WHERE id=?`,
-    [e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.recurrence === "one-off" ? (e.paidDate ?? null) : null, id]
+    `UPDATE expenses SET name=?, category=?, amount=?, dueDay=?, recurrence=?, status=?, is_variable=?, reminder_days_before=?, notes=?, paid_date=?, end_year=?, end_month=? WHERE id=?`,
+    [e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.recurrence === "one-off" ? (e.paidDate ?? null) : null, e.recurrence === "one-off" ? null : (e.endYear ?? null), e.recurrence === "one-off" ? null : (e.endMonth ?? null), id]
   );
 }
 

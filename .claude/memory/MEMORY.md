@@ -26,3 +26,8 @@
 - **Type:** project
 - **Summary:** Home gains a 3rd section "Recently Paid — Last 7 days" + new `paid_date` column / form date-picker field for one-offs; recurring anchored on due date, one-offs on `paidDate`
 - **Key fact:** migration `migrated_paid_date_v1` (ALTER expenses ADD paid_date TEXT, backfill from createdAt); one-off insert defaults paidDate to today; `@react-native-community/datetimepicker` now in use; Expenses tab still anchors one-offs to `createdAt` (not paidDate)
+
+### [recurring-end-date-feature](./recurring_end_date_feature.md)
+- **Type:** project
+- **Summary:** Optional **end month** for recurring expenses — `endYear`/`endMonth` columns + `isEndedOn` helper; post-end months render greyed "ENDED" (bottom Ended section), excluded from due/overdue/KPI/reminders
+- **Key fact:** migration `migrated_expense_end_v1` (two separate ALTERs: end_year/end_month INTEGER, NULL=open-ended, forced null for one-off); end **month** granularity not full date; tsc baseline still 5 errors — DraggableList ones carry a node_modules path so `grep -v node_modules` hides them

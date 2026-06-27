@@ -18,7 +18,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { StatusBadge } from "./StatusBadge";
 import { format } from "date-fns";
-import { formatDueDate, getDueDateForMonth, isOverdueOn, formatAmount } from "../utils/dateHelpers";
+import { formatDueDate, getDueDateForMonth, isOverdueOn, formatAmount, isEndedOn, formatEndMonth } from "../utils/dateHelpers";
 import { useExpenses } from "../context/ExpenseContext";
 import { colors } from "../constants/theme";
 import type { Expense } from "../types";
@@ -39,7 +39,8 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
   const isRegular = expense.recurrence === "one-off";
   const dueDate = getDueDateForMonth(expense.dueDay, year, month);
   const resolvedStatus = getMonthStatus(expense.id, year, month);
-  const overdueFlag = !isRegular && resolvedStatus === "unpaid" && isOverdueOn(expense.dueDay, year, month);
+  const ended = !isRegular && isEndedOn(expense.endYear, expense.endMonth, year, month);
+  const overdueFlag = !isRegular && !ended && resolvedStatus === "unpaid" && isOverdueOn(expense.dueDay, year, month);
   const monthlyActual = getMonthAmount(expense.id, year, month);
   const displayAmount = expense.isVariable
     ? (monthlyActual !== null ? monthlyActual : null)
@@ -110,6 +111,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
             overdueFlag ? { shadowColor: "#F87171" } : null,
             overdueFlag ? { borderLeftWidth: 3, borderLeftColor: colors.overdue } : null,
             overdueFlag ? glowStyle : null,
+            ended ? { opacity: 0.5 } : null,
           ]}
         >
         {/* Category icon bubble */}
@@ -143,11 +145,13 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
           <Text
             className={`text-[11px] font-['Quicksand_500Medium'] mt-0.5 ${overdueFlag ? "text-overdue" : "text-white/35"}`}
           >
-            {isRegular
-              ? format(new Date(expense.createdAt), "MMM d")
-              : resolvedStatus === "paid"
-                ? format(dueDate, "MMM d")
-                : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
+            {ended
+              ? `Ended ${formatEndMonth(expense.endYear!, expense.endMonth!)}`
+              : isRegular
+                ? format(new Date(expense.createdAt), "MMM d")
+                : resolvedStatus === "paid"
+                  ? format(dueDate, "MMM d")
+                  : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
           </Text>
           {expense.notes ? (
             <Text
@@ -164,11 +168,17 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
           <Text className="text-white text-[17px] leading-tight" style={{ fontFamily: "Oswald_Regular" }}>
             {displayAmount !== null ? formatAmount(displayAmount) : "TBD"}
           </Text>
-          <StatusBadge
-            status={resolvedStatus}
-            overdue={overdueFlag}
-            onToggle={() => toggleMonthStatus(expense.id, year, month)}
-          />
+          {ended ? (
+            <View className="px-2 py-1 rounded-md bg-white/[0.06]">
+              <Text className="text-white/40 text-[10px] font-['Quicksand_700Bold'] uppercase tracking-wider">Ended</Text>
+            </View>
+          ) : (
+            <StatusBadge
+              status={resolvedStatus}
+              overdue={overdueFlag}
+              onToggle={() => toggleMonthStatus(expense.id, year, month)}
+            />
+          )}
         </View>
       </Animated.View>
       </TouchableOpacity>

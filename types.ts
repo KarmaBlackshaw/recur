@@ -17,6 +17,8 @@ export interface Expense {
   createdAt: string;
   reminderDaysBefore?: number | null;
   paidDate?: string | null;   // ISO date — when a one-off was paid (default today on insert). Null for recurring.
+  endYear?: number | null;   // recurring end anchor — year. NULL = open-ended. Always null for one-off.
+  endMonth?: number | null;  // 0-based month. NULL = open-ended.
 }
 
 export interface ExpenseFormValues {
@@ -30,6 +32,8 @@ export interface ExpenseFormValues {
   notes: string;
   reminderDaysBefore: string;
   paidDate: string;   // ISO date string (one-off only)
+  hasEndDate: boolean;
+  endDate: string;   // ISO date string, first-of-end-month (recurring only)
 }
 
 export interface MonthStatus {

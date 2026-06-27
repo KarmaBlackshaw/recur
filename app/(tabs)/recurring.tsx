@@ -9,7 +9,7 @@ import { ExpenseCard } from "../../components/ExpenseCard";
 import { KpiRow } from "../../components/kpi/KpiRow";
 import { MonthNavigator } from "../../components/MonthNavigator";
 import { EmptyState } from "../../components/EmptyState";
-import { isOverdueOn, getDueDate } from "../../utils/dateHelpers";
+import { isOverdueOn, getDueDate, isEndedOn } from "../../utils/dateHelpers";
 import { colors } from "../../constants/theme";
 import type { Expense } from "../../types";
 
@@ -40,7 +40,11 @@ export default function RecurringScreen() {
     if (!isCurrentMonth) {
       const list = recurringExpenses
         .map((e) => resolveStatus(e, selectedYear, selectedMonth))
-        .sort((a, b) => a.dueDay - b.dueDay);
+        .sort((a, b) => {
+          const ae = isEndedOn(a.endYear, a.endMonth, selectedYear, selectedMonth) ? 1 : 0;
+          const be = isEndedOn(b.endYear, b.endMonth, selectedYear, selectedMonth) ? 1 : 0;
+          return ae !== be ? ae - be : a.dueDay - b.dueDay;
+        });
       return { sections: [], flatList: list };
     }
 
@@ -55,10 +59,17 @@ export default function RecurringScreen() {
     const currentMonthList = recurringExpenses.map((e) => resolveStatus(e, currentYear, currentMonth));
     const nextMonthList = recurringExpenses.map((e) => resolveStatus(e, nextMonthYear, nextMonthVal));
 
-    const overdue = currentMonthList
+    const activeCurrent = currentMonthList.filter(
+      (e) => !isEndedOn(e.endYear, e.endMonth, currentYear, currentMonth)
+    );
+    const endedNow = currentMonthList
+      .filter((e) => isEndedOn(e.endYear, e.endMonth, currentYear, currentMonth))
+      .sort((a, b) => a.dueDay - b.dueDay);
+
+    const overdue = activeCurrent
       .filter((e) => e.status === "unpaid" && isOverdueOn(e.dueDay, currentYear, currentMonth))
       .sort((a, b) => a.dueDay - b.dueDay);
-    const upcoming = currentMonthList
+    const upcoming = activeCurrent
       .filter((e) => {
         const d = getDueDate(e.dueDay);
         return (
@@ -69,10 +80,12 @@ export default function RecurringScreen() {
       .sort((a, b) => a.dueDay - b.dueDay);
 
     const shownIds = new Set([...overdue, ...upcoming].map((e) => e.id));
-    const thisMonthExpenses = currentMonthList
+    const thisMonthExpenses = activeCurrent
       .filter((e) => !shownIds.has(e.id))
       .sort((a, b) => a.dueDay - b.dueDay);
-    const nextMonthExpenses = [...nextMonthList].sort((a, b) => a.dueDay - b.dueDay);
+    const nextMonthExpenses = nextMonthList
+      .filter((e) => !isEndedOn(e.endYear, e.endMonth, nextMonthYear, nextMonthVal))
+      .sort((a, b) => a.dueDay - b.dueDay);
 
     const result: Section[] = [];
     if (overdue.length > 0) {
@@ -86,6 +99,9 @@ export default function RecurringScreen() {
     }
     if (nextMonthExpenses.length > 0) {
       result.push({ title: "Next Month", data: nextMonthExpenses, referenceDate: nextMonthRef });
+    }
+    if (endedNow.length > 0) {
+      result.push({ title: "Ended", data: endedNow, referenceDate: currentMonthRef });
     }
     return { sections: result, flatList: [] };
   }, [recurringExpenses, getMonthStatus, selectedYear, selectedMonth, isCurrentMonth]);

@@ -42,6 +42,7 @@ export default function AddExpenseScreen() {
   const isRegular = isEditing ? editingExpense!.recurrence === "one-off" : type === "regular";
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const [showPaidPicker, setShowPaidPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   const {
     control,
@@ -61,10 +62,16 @@ export default function AddExpenseScreen() {
       notes: editingExpense?.notes ?? "",
       reminderDaysBefore: '',
       paidDate: editingExpense?.paidDate ?? new Date().toISOString(),
+      hasEndDate: editingExpense?.endYear != null,
+      endDate:
+        editingExpense?.endYear != null
+          ? new Date(editingExpense.endYear, editingExpense.endMonth ?? 0, 1).toISOString()
+          : new Date().toISOString(),
     },
   });
 
   const isVariableWatched = watch("isVariable");
+  const hasEndDateWatched = watch("hasEndDate");
 
   React.useEffect(() => {
     if (editingExpense) {
@@ -84,6 +91,11 @@ export default function AddExpenseScreen() {
         notes: editingExpense.notes ?? "",
         reminderDaysBefore: editingExpense.reminderDaysBefore != null ? editingExpense.reminderDaysBefore.toString() : '',
         paidDate: editingExpense.paidDate ?? new Date().toISOString(),
+        hasEndDate: editingExpense.endYear != null,
+        endDate:
+          editingExpense.endYear != null
+            ? new Date(editingExpense.endYear, editingExpense.endMonth ?? 0, 1).toISOString()
+            : new Date().toISOString(),
       });
     }
   }, [editingExpense?.id]);
@@ -91,6 +103,8 @@ export default function AddExpenseScreen() {
   const onSubmit = handleSubmit(async (data) => {
     const isVar = isRegular ? false : data.isVariable;
     const parsedAmount = data.amount.trim() !== "" ? parseFloat(data.amount) : null;
+    const endActive = !isRegular && data.hasEndDate;
+    const endParsed = endActive ? parseISO(data.endDate) : null;
 
     const fields = {
       name: data.name.trim(),
@@ -103,6 +117,8 @@ export default function AddExpenseScreen() {
       notes: data.notes.trim() || undefined,
       reminderDaysBefore: isRegular ? null : (data.reminderDaysBefore.trim() === '' ? null : parseInt(data.reminderDaysBefore, 10)),
       paidDate: isRegular ? data.paidDate : null,
+      endYear: endParsed ? endParsed.getFullYear() : null,
+      endMonth: endParsed ? endParsed.getMonth() : null,
     };
 
     try {
@@ -279,6 +295,71 @@ export default function AddExpenseScreen() {
               />
             )}
           />
+        )}
+
+        {/* End Month (recurring only) */}
+        {!isRegular && (
+          <>
+            <Controller
+              control={control}
+              name="hasEndDate"
+              render={({ field: { value, onChange } }) => (
+                <TouchableOpacity
+                  className="flex-row items-center gap-3 bg-surface border border-border rounded-xl px-3.5 py-3 mb-1 mt-1"
+                  onPress={() => onChange(!value)}
+                  accessibilityLabel="Toggle end month"
+                >
+                  <View
+                    className="w-5 h-5 rounded border-2 items-center justify-center"
+                    style={{
+                      borderColor: value ? colors.primary : "rgba(255,255,255,0.25)",
+                      backgroundColor: value ? colors.primary : "transparent",
+                    }}
+                  >
+                    {value && <Feather name="check" size={12} color="#FFFFFF" />}
+                  </View>
+                  <View className="flex-1">
+                    <AppText variant="body-medium" className="text-white text-sm">Set an end month</AppText>
+                    <AppText variant="caption" className="text-white/40 text-xs">Stops recurring after this month</AppText>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+            {hasEndDateWatched && (
+              <Controller
+                control={control}
+                name="endDate"
+                render={({ field: { value, onChange } }) => (
+                  <>
+                    <AppText variant="label" className="mb-1.5 mt-1">Ends</AppText>
+                    <TouchableOpacity
+                      className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
+                      onPress={() => setShowEndPicker(true)}
+                      accessibilityLabel="Select end month"
+                    >
+                      <AppText variant="body-medium" className="text-white text-base">
+                        {format(parseISO(value), "MMM yyyy")}
+                      </AppText>
+                      <Feather name="calendar" size={16} color="rgba(255,255,255,0.4)" />
+                    </TouchableOpacity>
+                    {showEndPicker && (
+                      <DateTimePicker
+                        value={parseISO(value)}
+                        mode="date"
+                        minimumDate={new Date(now.getFullYear(), now.getMonth(), 1)}
+                        onChange={(event, date) => {
+                          setShowEndPicker(false);
+                          if (event.type === "set" && date) {
+                            onChange(new Date(date.getFullYear(), date.getMonth(), 1).toISOString());
+                          }
+                        }}
+                      />
+                    )}
+                  </>
+                )}
+              />
+            )}
+          </>
         )}
 
         {/* Paid Date (one-off only) */}

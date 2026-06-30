@@ -197,6 +197,18 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
     );
   }
 
+  // Migration: add paid_at to expense_months (when a recurring month was marked paid)
+  const monthPaidAtMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_expense_months_paid_at_v1'"
+  );
+  if (!monthPaidAtMigrated) {
+    await db.execAsync(`ALTER TABLE expense_months ADD COLUMN paid_at TEXT`);
+    // Existing paid months have no recorded timestamp; leave NULL — the UI falls back to the month's due date.
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_expense_months_paid_at_v1', '1')"
+    );
+  }
+
   // Migration: add end_year / end_month to expenses (recurring end month)
   const endMigrated = await db.getFirstAsync<{ value: string }>(
     "SELECT value FROM prefs WHERE key = 'migrated_expense_end_v1'"
@@ -206,6 +218,23 @@ async function _init(): Promise<SQLite.SQLiteDatabase> {
     await db.execAsync(`ALTER TABLE expenses ADD COLUMN end_month INTEGER`);
     await db.runAsync(
       "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_expense_end_v1', '1')"
+    );
+  }
+
+  // Migration: add last_used_at to categories (recency-based picker sort).
+  // NULL = never used; backfilled from existing expense history (most recent use per category).
+  const catLastUsedMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_category_last_used_v1'"
+  );
+  if (!catLastUsedMigrated) {
+    await db.execAsync(`ALTER TABLE categories ADD COLUMN last_used_at TEXT`);
+    await db.runAsync(
+      `UPDATE categories SET last_used_at = (
+         SELECT MAX(createdAt) FROM expenses WHERE expenses.category = categories.name
+       )`
+    );
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_category_last_used_v1', '1')"
     );
   }
 

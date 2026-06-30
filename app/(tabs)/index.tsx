@@ -21,7 +21,7 @@ interface Section {
 }
 
 export default function HomeScreen() {
-  const { expenses, loading, userName, getMonthStatus } = useExpenses();
+  const { expenses, loading, userName, getMonthStatus, getMonthPaidAt } = useExpenses();
   const [windowDays, setWindowDays] = useState<DayWindow>(7);
   const today = startOfToday();
   const year = today.getFullYear();
@@ -47,6 +47,15 @@ export default function HomeScreen() {
 
     const lastN = addDays(today, -windowDays);
     const inWindow = (d: Date) => d >= lastN && d <= today;
+    // Paid date: one-offs use paidDate; recurring use the month's recorded paid_at,
+    // falling back to the due date when no timestamp exists (legacy paid months).
+    const paidDateOf = (e: Expense): Date => {
+      if (e.recurrence === "one-off") {
+        return e.paidDate ? parseISO(e.paidDate) : getDueDate(e.dueDay);
+      }
+      const pa = getMonthPaidAt(e.id, year, month);
+      return pa ? parseISO(pa) : getDueDate(e.dueDay);
+    };
     const recent: Expense[] = [];
     for (const e of expenses) {
       if (e.recurrence === "one-off") {
@@ -54,14 +63,12 @@ export default function HomeScreen() {
           recent.push(e);
         }
       } else {
-        if (getMonthStatus(e.id, year, month) === "paid" && inWindow(getDueDate(e.dueDay))) {
+        if (getMonthStatus(e.id, year, month) === "paid" && inWindow(paidDateOf(e))) {
           recent.push(e);
         }
       }
     }
-    const recentDate = (e: Expense): Date =>
-      e.recurrence === "one-off" && e.paidDate ? parseISO(e.paidDate) : getDueDate(e.dueDay);
-    recent.sort((a, b) => recentDate(b).getTime() - recentDate(a).getTime());
+    recent.sort((a, b) => paidDateOf(b).getTime() - paidDateOf(a).getTime());
 
     const result: Section[] = [];
     if (overdue.length > 0) {
@@ -77,7 +84,7 @@ export default function HomeScreen() {
       result.push({ title: "Recently Paid", data: recent, accent: colors.paid });
     }
     return result;
-  }, [expenses, getMonthStatus, year, month, windowDays]);
+  }, [expenses, getMonthStatus, getMonthPaidAt, year, month, windowDays]);
 
   if (loading) {
     return (

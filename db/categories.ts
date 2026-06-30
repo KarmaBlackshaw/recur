@@ -7,10 +7,14 @@ export interface Category {
   icon: FeatherIconName;
 }
 
+// Categories are ordered by recency: most-recently-used first, never-used last
+// (sort_order is the stable tiebreak for the never-used group → keeps preset order).
+const RECENCY_ORDER = "ORDER BY last_used_at IS NULL ASC, last_used_at DESC, sort_order ASC";
+
 export async function getAll(): Promise<string[]> {
   const db = await getDB();
   const rows = await db.getAllAsync<{ name: string }>(
-    "SELECT name FROM categories ORDER BY sort_order ASC"
+    `SELECT name FROM categories ${RECENCY_ORDER}`
   );
   return rows.map((r) => r.name);
 }
@@ -18,9 +22,18 @@ export async function getAll(): Promise<string[]> {
 export async function getAllWithIds(): Promise<Category[]> {
   const db = await getDB();
   const rows = await db.getAllAsync<{ id: string; name: string; icon: string }>(
-    "SELECT id, name, icon FROM categories ORDER BY sort_order ASC"
+    `SELECT id, name, icon FROM categories ${RECENCY_ORDER}`
   );
   return rows.map((r) => ({ ...r, icon: r.icon as FeatherIconName }));
+}
+
+// Bump a category's recency. Called whenever an expense is saved with this category.
+export async function touchCategory(
+  name: string,
+  at: string = new Date().toISOString()
+): Promise<void> {
+  const db = await getDB();
+  await db.runAsync("UPDATE categories SET last_used_at = ? WHERE name = ?", [at, name]);
 }
 
 export async function insertCategory(name: string, icon: FeatherIconName = "more-horizontal"): Promise<void> {
@@ -44,20 +57,6 @@ export async function renameCategory(id: string, newName: string): Promise<void>
 export async function deleteCategory(id: string): Promise<void> {
   const db = await getDB();
   await db.runAsync("DELETE FROM categories WHERE id = ?", [id]);
-}
-
-export async function updateOrder(ids: string[]): Promise<void> {
-  const db = await getDB();
-  await db.execAsync("BEGIN");
-  try {
-    for (let i = 0; i < ids.length; i++) {
-      await db.runAsync("UPDATE categories SET sort_order = ? WHERE id = ?", [i, ids[i]]);
-    }
-    await db.execAsync("COMMIT");
-  } catch (e) {
-    await db.execAsync("ROLLBACK");
-    throw e;
-  }
 }
 
 export async function updateIcon(id: string, icon: FeatherIconName): Promise<void> {

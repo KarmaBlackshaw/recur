@@ -2,16 +2,16 @@ import React, { useMemo, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { format, startOfToday } from "date-fns";
+import { format, startOfToday, parseISO } from "date-fns";
 import { useExpenses } from "../../context/ExpenseContext";
 import { ExpenseCard } from "../../components/ExpenseCard";
 import { MonthNavigator } from "../../components/MonthNavigator";
-import { formatAmount } from "../../utils/dateHelpers";
+import { formatAmount, getDueDateForMonth } from "../../utils/dateHelpers";
 import { colors } from "../../constants/theme";
 import type { Expense } from "../../types";
 
 export default function ExpensesScreen() {
-  const { expenses, loading, getMonthStatus, getMonthAmount } = useExpenses();
+  const { expenses, loading, getMonthStatus, getMonthAmount, getMonthPaidAt } = useExpenses();
   const today = startOfToday();
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
@@ -19,6 +19,16 @@ export default function ExpensesScreen() {
   const { paidList, total } = useMemo(() => {
     const resolveAmount = (e: Expense): number =>
       e.isVariable ? (getMonthAmount(e.id, selectedYear, selectedMonth) ?? 0) : (e.amount ?? 0);
+
+    // Paid date: one-offs use their stored paidDate; recurring use the month's recorded
+    // paid_at, falling back to the month's due date when no timestamp was recorded.
+    const paidTime = (e: Expense): number => {
+      if (e.recurrence === "one-off") {
+        return (e.paidDate ? parseISO(e.paidDate) : new Date(e.createdAt)).getTime();
+      }
+      const pa = getMonthPaidAt(e.id, selectedYear, selectedMonth);
+      return (pa ? parseISO(pa) : getDueDateForMonth(e.dueDay, selectedYear, selectedMonth)).getTime();
+    };
 
     const list = expenses
       .filter((e) => {
@@ -29,11 +39,11 @@ export default function ExpensesScreen() {
         }
         return getMonthStatus(e.id, selectedYear, selectedMonth) === "paid";
       })
-      .sort((a, b) => a.dueDay - b.dueDay);
+      .sort((a, b) => paidTime(b) - paidTime(a));
 
     const total = list.reduce((sum, e) => sum + resolveAmount(e), 0);
     return { paidList: list, total };
-  }, [expenses, getMonthStatus, getMonthAmount, selectedYear, selectedMonth]);
+  }, [expenses, getMonthStatus, getMonthAmount, getMonthPaidAt, selectedYear, selectedMonth]);
 
   const monthLabel = format(new Date(selectedYear, selectedMonth, 1), "MMMM");
 

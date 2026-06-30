@@ -2,6 +2,11 @@
 
 ## Entries
 
+### [paid-date-sort](./paid_date_sort.md)
+- **Type:** project
+- **Summary:** Paid lists (Expenses tab + Home Recently Paid) sort **desc by real paid date**; recurring months get a new `paid_at` timestamp column on `expense_months`
+- **Key fact:** migration `migrated_expense_months_paid_at_v1`; **both** `upsertStatus` and `upsertMonthlyAmount` INSERT OR REPLACE the full row, so each must COALESCE-preserve the other's columns or wipe them; `toggleMonthStatus` records `new Date().toISOString()` on paid; legacy NULL `paid_at` falls back to month due date; `getMonthPaidAt(id,y,m)` exposed on context
+
 ### [project-greeting-feature](./project_greeting_feature.md)
 - **Type:** project
 - **Summary:** Home screen greeting + date feature — what was built, key decisions, gotchas
@@ -46,3 +51,8 @@
 - **Type:** project
 - **Summary:** Home segmented pill `1 Day / 7 Days / 15 Days` (`DayWindowSelector`) under KpiRow; `windowDays` state (default 7) drives both Upcoming (+N) and Recently Paid (−N) windows
 - **Key fact:** Pure in-memory filter, no DB change; replaced hardcoded `in7`/`last7` with `addDays(today, ±windowDays)`; section titles are static `"Upcoming"` / `"Recently Paid"` (pill is the window indicator, not the header); `windowLabel(days)` still used in Upcoming empty hint; Overdue untouched; `windowDays` in `useMemo` deps
+
+### [category-recency-sort](./category_recency_sort.md)
+- **Type:** project
+- **Summary:** Categories sorted by most-recently-used (picker + settings); manual drag-reorder removed
+- **Key fact:** migration `migrated_category_last_used_v1` adds `last_used_at` (backfilled from MAX(createdAt)); `RECENCY_ORDER` = `last_used_at IS NULL ASC, last_used_at DESC, sort_order ASC`; `touchCategory()` bumped in expenses.ts insert/insertWithId/update; `updateOrder` deleted, `DraggableList` now orphaned

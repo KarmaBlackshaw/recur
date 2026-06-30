@@ -1,11 +1,10 @@
 import React, { useState, useCallback } from "react";
-import { View, TouchableOpacity, Alert } from "react-native";
+import { View, TouchableOpacity, Alert, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { AppText } from "../../../components/ui/AppText";
-import { DraggableList } from "../../../components/ui/DraggableList";
-import { Category, getAllWithIds, deleteCategory, updateOrder } from "../../../db/categories";
+import { Category, getAllWithIds, deleteCategory } from "../../../db/categories";
 import { colors } from "../../../constants/theme";
 import { useExpenses } from "../../../context/ExpenseContext";
 
@@ -34,19 +33,10 @@ export default function ManageCategoriesScreen() {
         style: "destructive",
         onPress: async () => {
           await deleteCategory(cat.id);
-          setCategories((prev) => {
-            const next = prev.filter((c) => c.id !== cat.id);
-            updateOrder(next.map((c) => c.id));
-            return next;
-          });
+          setCategories((prev) => prev.filter((c) => c.id !== cat.id));
         },
       },
     ]);
-  }
-
-  function handleReorder(reordered: Category[]) {
-    setCategories(reordered);
-    updateOrder(reordered.map((c) => c.id));
   }
 
   return (
@@ -63,13 +53,16 @@ export default function ManageCategoriesScreen() {
         </TouchableOpacity>
       </View>
 
-      <DraggableList
+      <FlatList
         data={categories}
         keyExtractor={(item) => item.id}
-        itemHeight={52}
-        onReorder={handleReorder}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
-        renderItem={(item) => (
+        ListHeaderComponent={
+          <AppText variant="body-medium" className="text-white/40 text-xs mb-2 px-1">
+            Sorted by most recently used
+          </AppText>
+        }
+        renderItem={({ item }) => (
           <View className="bg-surface border border-border rounded-xl px-3 py-3 mb-1 flex-row items-center gap-3">
             <TouchableOpacity className="p-1" onPress={() => handleDelete(item)}>
               <Feather name="trash-2" size={18} color={colors.overdue} />
@@ -90,7 +83,6 @@ export default function ManageCategoriesScreen() {
             <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: item.id, editName: item.name, editIcon: item.icon } })}>
               <Feather name="edit-2" size={16} color={colors.secondary} />
             </TouchableOpacity>
-            <Ionicons name="reorder-two-outline" size={20} color="rgba(255,255,255,0.4)" />
           </View>
         )}
       />

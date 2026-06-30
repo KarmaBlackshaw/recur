@@ -42,4 +42,5 @@ export interface MonthStatus {
   month: number;
   status: Status;
   amount?: number | null;
+  paidAt?: string | null;   // ISO timestamp — when this recurring month was marked paid. Null when unpaid/unknown.
 }

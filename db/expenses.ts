@@ -1,4 +1,5 @@
 import { getDB } from "./schema";
+import { touchCategory } from "./categories";
 import type { Expense, Status } from "../types";
 
 export async function getAll(): Promise<Expense[]> {
@@ -47,6 +48,7 @@ export async function insert(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, e.name, e.category, e.amount, e.dueDay, e.recurrence, status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, createdAt, paidDate, endYear, endMonth]
   );
+  await touchCategory(e.category, createdAt);
   return { ...e, id, createdAt, status, paidDate, endYear, endMonth };
 }
 
@@ -57,6 +59,7 @@ export async function insertWithId(e: Expense): Promise<void> {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [e.id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.createdAt, e.paidDate ?? null, e.endYear ?? null, e.endMonth ?? null]
   );
+  await touchCategory(e.category, e.createdAt);
 }
 
 export async function updateStatus(
@@ -76,6 +79,7 @@ export async function update(
     `UPDATE expenses SET name=?, category=?, amount=?, dueDay=?, recurrence=?, status=?, is_variable=?, reminder_days_before=?, notes=?, paid_date=?, end_year=?, end_month=? WHERE id=?`,
     [e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.recurrence === "one-off" ? (e.paidDate ?? null) : null, e.recurrence === "one-off" ? null : (e.endYear ?? null), e.recurrence === "one-off" ? null : (e.endMonth ?? null), id]
   );
+  await touchCategory(e.category);
 }
 
 export async function remove(id: string): Promise<void> {

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, SectionList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -7,6 +7,7 @@ import { addDays, startOfToday, parseISO } from "date-fns";
 import { useExpenses } from "../../context/ExpenseContext";
 import { KpiRow } from "../../components/kpi/KpiRow";
 import { ExpenseCard } from "../../components/ExpenseCard";
+import { DayWindowSelector, windowLabel, type DayWindow } from "../../components/DayWindowSelector";
 import { EmptyState } from "../../components/EmptyState";
 import { isOverdueOn, getDueDate, getGreeting, getFormattedDate } from "../../utils/dateHelpers";
 import { colors } from "../../constants/theme";
@@ -16,17 +17,19 @@ interface Section {
   title: string;
   data: Expense[];
   accent?: string;
+  emptyHint?: string;
 }
 
 export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus } = useExpenses();
+  const [windowDays, setWindowDays] = useState<DayWindow>(7);
   const today = startOfToday();
   const year = today.getFullYear();
   const month = today.getMonth();
   const monthRef = new Date(year, month, 1);
 
   const sections = useMemo<Section[]>(() => {
-    const in7 = addDays(today, 7);
+    const inN = addDays(today, windowDays);
     const overdue: Expense[] = [];
     const upcoming: Expense[] = [];
     for (const e of expenses) {
@@ -36,14 +39,14 @@ export default function HomeScreen() {
         overdue.push(e);
       } else {
         const d = getDueDate(e.dueDay);
-        if (d >= today && d <= in7) upcoming.push(e);
+        if (d >= today && d <= inN) upcoming.push(e);
       }
     }
     overdue.sort((a, b) => a.dueDay - b.dueDay);
     upcoming.sort((a, b) => a.dueDay - b.dueDay);
 
-    const last7 = addDays(today, -7);
-    const inWindow = (d: Date) => d >= last7 && d <= today;
+    const lastN = addDays(today, -windowDays);
+    const inWindow = (d: Date) => d >= lastN && d <= today;
     const recent: Expense[] = [];
     for (const e of expenses) {
       if (e.recurrence === "one-off") {
@@ -64,14 +67,17 @@ export default function HomeScreen() {
     if (overdue.length > 0) {
       result.push({ title: "Overdue", data: overdue, accent: colors.overdue });
     }
-    if (upcoming.length > 0) {
-      result.push({ title: "Upcoming — Next 7 Days", data: upcoming, accent: colors.secondary });
-    }
+    result.push({
+      title: "Upcoming",
+      data: upcoming,
+      accent: colors.secondary,
+      emptyHint: `Nothing due in the next ${windowLabel(windowDays).toLowerCase()}`,
+    });
     if (recent.length > 0) {
-      result.push({ title: "Recently Paid — Last 7 Days", data: recent, accent: colors.paid });
+      result.push({ title: "Recently Paid", data: recent, accent: colors.paid });
     }
     return result;
-  }, [expenses, getMonthStatus, year, month]);
+  }, [expenses, getMonthStatus, year, month, windowDays]);
 
   if (loading) {
     return (
@@ -120,6 +126,7 @@ export default function HomeScreen() {
                 This Month
               </Text>
               <KpiRow year={year} month={month} />
+              <DayWindowSelector value={windowDays} onChange={setWindowDays} />
             </View>
           }
           renderItem={({ item, index }) => (
@@ -143,17 +150,19 @@ export default function HomeScreen() {
               </Text>
             </View>
           )}
+          renderSectionFooter={({ section }) => {
+            const s = section as Section;
+            if (s.data.length > 0 || !s.emptyHint) return null;
+            return (
+              <View className="mx-5 mt-1 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-white/[0.07]">
+                <Feather name="check-circle" size={15} color={colors.paid} />
+                <Text className="text-white/60 text-[13px] font-['Quicksand_500Medium']">{s.emptyHint}</Text>
+              </View>
+            );
+          }}
           stickySectionHeadersEnabled={false}
           contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View className="mx-5 mt-3 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-white/[0.07]">
-              <Feather name="check-circle" size={15} color={colors.paid} />
-              <Text className="text-white/60 text-[13px] font-['Quicksand_500Medium']">
-                All clear — nothing overdue or due soon
-              </Text>
-            </View>
-          }
         />
       )}
     </SafeAreaView>

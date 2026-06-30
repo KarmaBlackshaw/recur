@@ -64,6 +64,7 @@ interface Props<T> {
   searchable?: boolean;
   getSearchKey?: (item: T) => string;
   action?: React.ReactNode;
+  onDismiss?: () => void;
 }
 
 export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
@@ -79,6 +80,7 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
     searchable = false,
     getSearchKey,
     action,
+    onDismiss,
   }: Props<T>,
   ref: React.Ref<AppSelectBottomSheetRef>
 ) {
@@ -132,6 +134,7 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
     <BottomSheetModal
       ref={sheetRef}
       snapPoints={snapPoints}
+      onDismiss={onDismiss}
       backgroundStyle={{ backgroundColor: "#1C1C1E" }}
       handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
       backdropComponent={renderBackdrop}

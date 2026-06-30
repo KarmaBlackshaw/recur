@@ -14,10 +14,11 @@ export interface CategoryBottomSheetRef {
 interface Props {
   value: string;
   onChange: (category: string) => void;
+  onDismiss?: () => void;
 }
 
 export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
-  function CategoryBottomSheet({ value, onChange }, ref) {
+  function CategoryBottomSheet({ value, onChange, onDismiss }, ref) {
     const sheetRef = useRef<AppSelectBottomSheetRef>(null);
     const [categories, setCategories] = React.useState<string[]>([]);
 
@@ -69,6 +70,7 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
         items={categories}
         value={value}
         onChange={onChange}
+        onDismiss={onDismiss}
         keyExtractor={(item) => item}
         renderItem={renderItem}
         action={action}

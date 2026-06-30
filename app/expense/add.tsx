@@ -4,6 +4,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -41,6 +42,9 @@ export default function AddExpenseScreen() {
   const isEditing = editingExpense !== null;
   const isRegular = isEditing ? editingExpense!.recurrence === "one-off" : type === "regular";
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
+  const amountRef = useRef<TextInput>(null);
+  const dueDayRef = useRef<TextInput>(null);
+  const pendingDueFocus = useRef(false);
   const [showPaidPicker, setShowPaidPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
@@ -180,6 +184,8 @@ export default function AddExpenseScreen() {
               onBlur={onBlur}
               placeholder="e.g. Netflix"
               returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => amountRef.current?.focus()}
             />
           )}
         />
@@ -227,13 +233,13 @@ export default function AddExpenseScreen() {
           }}
           render={({ field: { value, onChange, onBlur } }) => (
             <AppTextInput
+              ref={amountRef}
               label={isVariableWatched ? "This Month's Amount" : "Amount"}
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               placeholder="0.00"
               keyboardType="decimal-pad"
-              returnKeyType="next"
             />
           )}
         />
@@ -268,13 +274,13 @@ export default function AddExpenseScreen() {
             }}
             render={({ field: { value, onChange, onBlur } }) => (
               <AppTextInput
+                ref={dueDayRef}
                 label="Due Day (1–31) *"
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
                 placeholder="1"
                 keyboardType="number-pad"
-                returnKeyType="next"
                 maxLength={2}
               />
             )}
@@ -464,7 +470,16 @@ export default function AddExpenseScreen() {
           <CategoryBottomSheet
             ref={categorySheetRef}
             value={value}
-            onChange={onChange}
+            onChange={(c) => {
+              onChange(c);
+              if (!isRegular) pendingDueFocus.current = true;
+            }}
+            onDismiss={() => {
+              if (pendingDueFocus.current) {
+                pendingDueFocus.current = false;
+                dueDayRef.current?.focus();
+              }
+            }}
           />
         )}
       />

@@ -10,9 +10,34 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/obsidian-recall.sh\" SessionStart",
+            "statusMessage": "Loading Obsidian memory"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/obsidian-push.sh\"",
+            "statusMessage": "Saving to Obsidian"
+          }
+        ]
+      }
     ]
   },
   "permissions": {
-    "allow": ["WebSearch", "Bash(npx expo *)"]
+    "allow": [
+      "WebSearch",
+      "Bash(npx expo *)"
+    ]
   }
 }

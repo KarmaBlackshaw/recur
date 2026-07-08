@@ -3,3 +3,6 @@ dist
 .expo
 .superpowers
 android
+# Claude local memory pointer (machine-specific Obsidian paths)
+CLAUDE.local.md
+.claude/memory

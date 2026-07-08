@@ -22,7 +22,7 @@ function weekdayColor(date: Date): string {
   const d = getDay(date);
   if (d === 0) return colors.overdue;
   if (d === 6) return colors.secondary;
-  return "rgba(255,255,255,0.4)";
+  return colors.textMuted;
 }
 
 export default function ExpensesScreen() {
@@ -94,13 +94,10 @@ export default function ExpensesScreen() {
       />
 
       <View className="flex-row items-baseline justify-between px-5 pt-2 pb-1">
-        <Text
-          className="text-[11px] uppercase tracking-widest"
-          style={{ color: "rgba(255,255,255,0.4)", fontFamily: "Quicksand_700Bold" }}
-        >
+        <Text className="text-[11px] uppercase tracking-widest text-textMuted font-quicksand-bold">
           Paid this month
         </Text>
-        <Text className="text-[17px]" style={{ color: colors.paid, fontFamily: "Oswald_Medium" }}>
+        <Text className="text-[17px] text-paid font-oswald-medium">
           {formatAmount(total)}
         </Text>
       </View>
@@ -123,31 +120,31 @@ export default function ExpensesScreen() {
           return (
             <View className="flex-row items-center justify-between px-5 pt-3 pb-2">
               <View className="flex-row items-baseline gap-2">
-                <Text className="text-white text-[22px]" style={{ fontFamily: "Oswald_Medium" }}>
+                <Text className="text-white text-[22px] font-oswald-medium">
                   {format(s.date, "d")}
                 </Text>
                 <Text
-                  className="text-[11px] font-['Quicksand_700Bold'] uppercase tracking-wider"
+                  className="text-[11px] font-quicksand-bold uppercase tracking-wider"
                   style={{ color: weekdayColor(s.date) }}
                 >
                   {format(s.date, "EEE")}
                 </Text>
-                <Text className="text-white/30 text-[11px] font-['Quicksand_500Medium']">
+                <Text className="text-white/30 text-[11px] font-quicksand-medium">
                   {format(s.date, "MMM yyyy")}
                 </Text>
               </View>
-              <Text className="text-white/70 text-[13px]" style={{ fontFamily: "Oswald_Medium" }}>
+              <Text className="text-white/70 text-[13px] font-oswald-medium">
                 {formatAmount(s.dayTotal)}
               </Text>
             </View>
           );
         }}
         stickySectionHeadersEnabled={false}
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerClassName="pb-[140px]"
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View className="flex-1 items-center justify-center pt-20">
-            <Text className="text-white/30 text-sm font-['Quicksand_500Medium']">
+            <Text className="text-white/30 text-sm font-quicksand-medium">
               No expenses paid in {monthLabel}
             </Text>
           </View>

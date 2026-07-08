@@ -4,7 +4,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -42,9 +41,6 @@ export default function AddExpenseScreen() {
   const isEditing = editingExpense !== null;
   const isRegular = isEditing ? editingExpense!.recurrence === "one-off" : type === "regular";
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
-  const amountRef = useRef<TextInput>(null);
-  const dueDayRef = useRef<TextInput>(null);
-  const pendingDueFocus = useRef(false);
   const [showPaidPicker, setShowPaidPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
@@ -57,13 +53,12 @@ export default function AddExpenseScreen() {
   } = useForm<ExpenseFormValues>({
     mode: "onChange",
     defaultValues: {
-      name: editingExpense?.name ?? "",
       amount: editingExpense?.amount != null ? editingExpense.amount.toString() : "",
       category: editingExpense?.category ?? "Other",
       dueDay: editingExpense?.dueDay?.toString() ?? "1",
       recurrence: editingExpense?.recurrence ?? (type === "regular" ? "one-off" : "monthly"),
       isVariable: editingExpense?.isVariable ?? false,
-      notes: editingExpense?.notes ?? "",
+      notes: editingExpense?.notes || editingExpense?.name || "",
       reminderDaysBefore: '',
       paidDate: editingExpense?.paidDate ?? new Date().toISOString(),
       hasEndDate: editingExpense?.endYear != null,
@@ -83,7 +78,6 @@ export default function AddExpenseScreen() {
         ? getMonthAmount(editingExpense.id, currentYear, currentMonth)
         : null;
       reset({
-        name: editingExpense.name,
         amount: editingExpense.isVariable
           ? (existingMonthlyAmount != null ? existingMonthlyAmount.toString() : "")
           : (editingExpense.amount != null ? editingExpense.amount.toString() : ""),
@@ -92,7 +86,7 @@ export default function AddExpenseScreen() {
         recurrence: editingExpense.recurrence,
         isVariable: editingExpense.isVariable,
         monthlyAmount: "",
-        notes: editingExpense.notes ?? "",
+        notes: editingExpense.notes || editingExpense.name || "",
         reminderDaysBefore: editingExpense.reminderDaysBefore != null ? editingExpense.reminderDaysBefore.toString() : '',
         paidDate: editingExpense.paidDate ?? new Date().toISOString(),
         hasEndDate: editingExpense.endYear != null,
@@ -111,7 +105,7 @@ export default function AddExpenseScreen() {
     const endParsed = endActive ? parseISO(data.endDate) : null;
 
     const fields = {
-      name: data.name.trim(),
+      name: "",
       amount: isVar ? null : parsedAmount,
       category: data.category,
       dueDay: isRegular ? 1 : parseInt(data.dueDay, 10),
@@ -171,55 +165,67 @@ export default function AddExpenseScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Name */}
-        <Controller
-          control={control}
-          name="name"
-          rules={{ required: true, validate: (v) => v.trim().length >= 1 || "Required" }}
-          render={({ field: { value, onChange, onBlur } }) => (
-            <AppTextInput
-              label="Name *"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="e.g. Netflix"
-              returnKeyType="next"
-              submitBehavior="submit"
-              onSubmitEditing={() => amountRef.current?.focus()}
-            />
-          )}
-        />
-
-        {/* Variable checkbox */}
+        {/* Date — Paid Date (one-off) or Due Day (recurring). Prefilled, so Amount is focused first. */}
+        {isRegular && (
+          <Controller
+            control={control}
+            name="paidDate"
+            render={({ field: { value, onChange } }) => (
+              <>
+                <AppText variant="label" className="mb-1.5 mt-1">Paid Date</AppText>
+                <TouchableOpacity
+                  className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
+                  onPress={() => setShowPaidPicker(true)}
+                  accessibilityLabel="Select paid date"
+                >
+                  <AppText variant="body-medium" className="text-white text-base">
+                    {format(parseISO(value), "MMM d, yyyy")}
+                  </AppText>
+                  <Feather name="calendar" size={16} color="rgba(255,255,255,0.4)" />
+                </TouchableOpacity>
+                {showPaidPicker && (
+                  <DateTimePicker
+                    value={parseISO(value)}
+                    mode="date"
+                    maximumDate={new Date()}
+                    onChange={(event, date) => {
+                      setShowPaidPicker(false);
+                      if (event.type === "set" && date) {
+                        onChange(startOfDay(date).toISOString());
+                      }
+                    }}
+                  />
+                )}
+              </>
+            )}
+          />
+        )}
         {!isRegular && (
           <Controller
             control={control}
-            name="isVariable"
-            render={({ field: { value, onChange } }) => (
-              <TouchableOpacity
-                className="flex-row items-center gap-3 bg-surface border border-border rounded-xl px-3.5 py-3 mb-1 mt-1"
-                onPress={() => onChange(!value)}
-                accessibilityLabel="Toggle variable expense"
-              >
-                <View
-                  className="w-5 h-5 rounded border-2 items-center justify-center"
-                  style={{
-                    borderColor: value ? colors.primary : "rgba(255,255,255,0.25)",
-                    backgroundColor: value ? colors.primary : "transparent",
-                  }}
-                >
-                  {value && <Feather name="check" size={12} color="#FFFFFF" />}
-                </View>
-                <View className="flex-1">
-                  <AppText variant="body-medium" className="text-white text-sm">Variable amount</AppText>
-                  <AppText variant="caption" className="text-white/40 text-xs">Amount changes each month</AppText>
-                </View>
-              </TouchableOpacity>
+            name="dueDay"
+            rules={{
+              required: true,
+              validate: (v) => {
+                const n = parseInt(v, 10);
+                return (!isNaN(n) && n >= 1 && n <= 31) || "Must be 1–31";
+              },
+            }}
+            render={({ field: { value, onChange, onBlur } }) => (
+              <AppTextInput
+                label="Due Day (1–31) *"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="1"
+                keyboardType="number-pad"
+                maxLength={2}
+              />
             )}
           />
         )}
 
-        {/* Amount */}
+        {/* Amount — focused first (date is prefilled) */}
         <Controller
           control={control}
           name="amount"
@@ -233,7 +239,7 @@ export default function AddExpenseScreen() {
           }}
           render={({ field: { value, onChange, onBlur } }) => (
             <AppTextInput
-              ref={amountRef}
+              autoFocus
               label={isVariableWatched ? "This Month's Amount" : "Amount"}
               value={value}
               onChangeText={onChange}
@@ -260,52 +266,48 @@ export default function AddExpenseScreen() {
           )}
         />
 
-        {/* Due Day */}
-        {!isRegular && (
-          <Controller
-            control={control}
-            name="dueDay"
-            rules={{
-              required: true,
-              validate: (v) => {
-                const n = parseInt(v, 10);
-                return (!isNaN(n) && n >= 1 && n <= 31) || "Must be 1–31";
-              },
-            }}
-            render={({ field: { value, onChange, onBlur } }) => (
-              <AppTextInput
-                ref={dueDayRef}
-                label="Due Day (1–31) *"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                placeholder="1"
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-            )}
-          />
-        )}
-
-        {/* Recurrence */}
-        {!isRegular && (
-          <Controller
-            control={control}
-            name="recurrence"
-            render={({ field: { value, onChange } }) => (
-              <AppRadioGroup
-                label="Recurrence"
-                options={RECURRENCE_OPTIONS}
-                value={value}
-                onChange={onChange}
-              />
-            )}
-          />
-        )}
-
-        {/* End Month (recurring only) */}
+        {/* Recurring-only fields */}
         {!isRegular && (
           <>
+            <Controller
+              control={control}
+              name="recurrence"
+              render={({ field: { value, onChange } }) => (
+                <AppRadioGroup
+                  label="Recurrence"
+                  options={RECURRENCE_OPTIONS}
+                  value={value}
+                  onChange={onChange}
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="isVariable"
+              render={({ field: { value, onChange } }) => (
+                <TouchableOpacity
+                  className="flex-row items-center gap-3 bg-surface border border-border rounded-xl px-3.5 py-3 mb-1 mt-1"
+                  onPress={() => onChange(!value)}
+                  accessibilityLabel="Toggle variable expense"
+                >
+                  <View
+                    className="w-5 h-5 rounded border-2 items-center justify-center"
+                    style={{
+                      borderColor: value ? colors.primary : "rgba(255,255,255,0.25)",
+                      backgroundColor: value ? colors.primary : "transparent",
+                    }}
+                  >
+                    {value && <Feather name="check" size={12} color="#FFFFFF" />}
+                  </View>
+                  <View className="flex-1">
+                    <AppText variant="body-medium" className="text-white text-sm">Variable amount</AppText>
+                    <AppText variant="caption" className="text-white/40 text-xs">Amount changes each month</AppText>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+
             <Controller
               control={control}
               name="hasEndDate"
@@ -365,65 +367,7 @@ export default function AddExpenseScreen() {
                 )}
               />
             )}
-          </>
-        )}
 
-        {/* Paid Date (one-off only) */}
-        {isRegular && (
-          <Controller
-            control={control}
-            name="paidDate"
-            render={({ field: { value, onChange } }) => (
-              <>
-                <AppText variant="label" className="mb-1.5 mt-1">Paid Date</AppText>
-                <TouchableOpacity
-                  className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
-                  onPress={() => setShowPaidPicker(true)}
-                  accessibilityLabel="Select paid date"
-                >
-                  <AppText variant="body-medium" className="text-white text-base">
-                    {format(parseISO(value), "MMM d, yyyy")}
-                  </AppText>
-                  <Feather name="calendar" size={16} color="rgba(255,255,255,0.4)" />
-                </TouchableOpacity>
-                {showPaidPicker && (
-                  <DateTimePicker
-                    value={parseISO(value)}
-                    mode="date"
-                    maximumDate={new Date()}
-                    onChange={(event, date) => {
-                      setShowPaidPicker(false);
-                      if (event.type === "set" && date) {
-                        onChange(startOfDay(date).toISOString());
-                      }
-                    }}
-                  />
-                )}
-              </>
-            )}
-          />
-        )}
-
-        {/* Notes */}
-        <Controller
-          control={control}
-          name="notes"
-          render={({ field: { value, onChange, onBlur } }) => (
-            <AppTextInput
-              label="Notes"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="Optional note…"
-              multiline
-              maxLength={200}
-            />
-          )}
-        />
-
-        {/* Remind me */}
-        {!isRegular && (
-          <>
             <Controller
               control={control}
               name="reminderDaysBefore"
@@ -452,6 +396,23 @@ export default function AddExpenseScreen() {
           </>
         )}
 
+        {/* Notes — replaces the old Name field; serves as the expense title */}
+        <Controller
+          control={control}
+          name="notes"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <AppTextInput
+              label="Notes"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="e.g. Netflix"
+              multiline
+              maxLength={200}
+            />
+          )}
+        />
+
         {/* Save */}
         <AppButton
           label={isEditing ? "Save Changes" : "Save Expense"}
@@ -470,16 +431,7 @@ export default function AddExpenseScreen() {
           <CategoryBottomSheet
             ref={categorySheetRef}
             value={value}
-            onChange={(c) => {
-              onChange(c);
-              if (!isRegular) pendingDueFocus.current = true;
-            }}
-            onDismiss={() => {
-              if (pendingDueFocus.current) {
-                pendingDueFocus.current = false;
-                dueDayRef.current?.focus();
-              }
-            }}
+            onChange={onChange}
           />
         )}
       />

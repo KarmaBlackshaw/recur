@@ -20,6 +20,7 @@ import { StatusBadge } from "./StatusBadge";
 import { format } from "date-fns";
 import { formatDueDate, getDueDateForMonth, isOverdueOn, formatAmount, isEndedOn, formatEndMonth } from "../utils/dateHelpers";
 import { useExpenses } from "../context/ExpenseContext";
+import { expenseTitle } from "../utils/expenseHelpers";
 import { colors } from "../constants/theme";
 import type { Expense } from "../types";
 
@@ -62,7 +63,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
 
   function handleDelete() {
     swipeRef.current?.close();
-    Alert.alert("Delete expense", `Remove "${expense.name}"?`, [
+    Alert.alert("Delete expense", `Remove "${expenseTitle(expense)}"?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -132,7 +133,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
             className="text-white text-[15px] font-['Quicksand_700Bold'] mb-0.5"
             numberOfLines={1}
           >
-            {expense.name}
+            {expenseTitle(expense)}
           </Text>
           <View className="flex-row items-center gap-2">
             <Text className="text-white/40 text-[10px] font-['Quicksand_500Medium'] bg-white/[0.06] px-2 py-0.5 rounded-md">
@@ -153,14 +154,6 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
                   ? format(dueDate, "MMM d")
                   : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
           </Text>
-          {expense.notes ? (
-            <Text
-              className="text-white/30 text-[11px] font-['Quicksand_400Regular'] mt-1"
-              numberOfLines={1}
-            >
-              {expense.notes}
-            </Text>
-          ) : null}
         </View>
 
         {/* Amount + status */}

@@ -22,7 +22,6 @@ export interface Expense {
 }
 
 export interface ExpenseFormValues {
-  name: string;
   amount: string;
   category: string;
   dueDay: string;

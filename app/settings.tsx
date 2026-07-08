@@ -12,6 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { AppText } from "../components/ui/AppText";
 import { useExpenses } from "../context/ExpenseContext";
+import { expenseTitle } from "../utils/expenseHelpers";
 import { colors } from "../constants/theme";
 
 const version = Constants.expoConfig?.version ?? "—";
@@ -289,7 +290,7 @@ export default function SettingsScreen() {
                     if (expense.status !== 'unpaid') continue;
                     await Notifications.scheduleNotificationAsync({
                       content: {
-                        title: expense.name,
+                        title: expenseTitle(expense),
                         body: expense.amount != null
                           ? '₱' + expense.amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                           : 'TBD',

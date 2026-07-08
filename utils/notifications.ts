@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { subDays, setHours, setMinutes, isBefore } from 'date-fns';
 import { getDueDate, isEndedOn } from './dateHelpers';
+import { expenseTitle } from './expenseHelpers';
 import type { Expense } from '../types';
 
 export async function requestPermissions(): Promise<boolean> {
@@ -43,7 +44,7 @@ export async function scheduleAllNotifications(
           : 'TBD';
 
       await Notifications.scheduleNotificationAsync({
-        content: { title: expense.name, body: bodyAmount },
+        content: { title: expenseTitle(expense), body: bodyAmount },
         trigger: { type: SchedulableTriggerInputTypes.DATE, date: fireDate },
       });
     }

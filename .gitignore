@@ -6,3 +6,6 @@ android
 # Claude local memory pointer (machine-specific Obsidian paths)
 CLAUDE.local.md
 .claude/memory
+
+# local env (dev flags, e.g. EXPO_PUBLIC_SEED_DUMMY)
+.env

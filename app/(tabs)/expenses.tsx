@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, SectionList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { format, startOfToday, parseISO } from "date-fns";
+import { format, getDay, startOfToday, parseISO } from "date-fns";
 import { useExpenses } from "../../context/ExpenseContext";
 import { ExpenseCard } from "../../components/ExpenseCard";
 import { MonthNavigator } from "../../components/MonthNavigator";
@@ -10,24 +10,39 @@ import { formatAmount, getDueDateForMonth } from "../../utils/dateHelpers";
 import { colors } from "../../constants/theme";
 import type { Expense } from "../../types";
 
+interface DaySection {
+  key: string;
+  date: Date;
+  dayTotal: number;
+  data: Expense[];
+}
+
+// Weekend accent: Sun red, Sat indigo, weekdays muted (mirrors the reference ledger).
+function weekdayColor(date: Date): string {
+  const d = getDay(date);
+  if (d === 0) return colors.overdue;
+  if (d === 6) return colors.secondary;
+  return "rgba(255,255,255,0.4)";
+}
+
 export default function ExpensesScreen() {
   const { expenses, loading, getMonthStatus, getMonthAmount, getMonthPaidAt } = useExpenses();
   const today = startOfToday();
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
 
-  const { paidList, total } = useMemo(() => {
+  const { sections, total } = useMemo(() => {
     const resolveAmount = (e: Expense): number =>
       e.isVariable ? (getMonthAmount(e.id, selectedYear, selectedMonth) ?? 0) : (e.amount ?? 0);
 
     // Paid date: one-offs use their stored paidDate; recurring use the month's recorded
     // paid_at, falling back to the month's due date when no timestamp was recorded.
-    const paidTime = (e: Expense): number => {
+    const paidDate = (e: Expense): Date => {
       if (e.recurrence === "one-off") {
-        return (e.paidDate ? parseISO(e.paidDate) : new Date(e.createdAt)).getTime();
+        return e.paidDate ? parseISO(e.paidDate) : new Date(e.createdAt);
       }
       const pa = getMonthPaidAt(e.id, selectedYear, selectedMonth);
-      return (pa ? parseISO(pa) : getDueDateForMonth(e.dueDay, selectedYear, selectedMonth)).getTime();
+      return pa ? parseISO(pa) : getDueDateForMonth(e.dueDay, selectedYear, selectedMonth);
     };
 
     const list = expenses
@@ -39,10 +54,25 @@ export default function ExpensesScreen() {
         }
         return getMonthStatus(e.id, selectedYear, selectedMonth) === "paid";
       })
-      .sort((a, b) => paidTime(b) - paidTime(a));
+      .sort((a, b) => paidDate(b).getTime() - paidDate(a).getTime());
+
+    // Bucket into day groups. List is pre-sorted descending, so Map insertion order
+    // yields sections newest-day-first with no extra sort.
+    const groups = new Map<string, DaySection>();
+    for (const e of list) {
+      const d = paidDate(e);
+      const key = format(d, "yyyy-MM-dd");
+      let g = groups.get(key);
+      if (!g) {
+        g = { key, date: d, dayTotal: 0, data: [] };
+        groups.set(key, g);
+      }
+      g.data.push(e);
+      g.dayTotal += resolveAmount(e);
+    }
 
     const total = list.reduce((sum, e) => sum + resolveAmount(e), 0);
-    return { paidList: list, total };
+    return { sections: [...groups.values()], total };
   }, [expenses, getMonthStatus, getMonthAmount, getMonthPaidAt, selectedYear, selectedMonth]);
 
   const monthLabel = format(new Date(selectedYear, selectedMonth, 1), "MMMM");
@@ -76,17 +106,43 @@ export default function ExpensesScreen() {
       </View>
       <View className="mx-5 mt-2 mb-1 h-px bg-white/[0.06]" />
 
-      <FlatList
-        data={paidList}
+      <SectionList
+        sections={sections}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <ExpenseCard
             expense={item}
             index={index}
+            compact
             referenceDate={new Date(selectedYear, selectedMonth, 1)}
             onPress={() => router.push({ pathname: "/expense/add", params: { id: item.id, year: selectedYear, month: selectedMonth } })}
           />
         )}
+        renderSectionHeader={({ section }) => {
+          const s = section as DaySection;
+          return (
+            <View className="flex-row items-center justify-between px-5 pt-3 pb-2">
+              <View className="flex-row items-baseline gap-2">
+                <Text className="text-white text-[22px]" style={{ fontFamily: "Oswald_Medium" }}>
+                  {format(s.date, "d")}
+                </Text>
+                <Text
+                  className="text-[11px] font-['Quicksand_700Bold'] uppercase tracking-wider"
+                  style={{ color: weekdayColor(s.date) }}
+                >
+                  {format(s.date, "EEE")}
+                </Text>
+                <Text className="text-white/30 text-[11px] font-['Quicksand_500Medium']">
+                  {format(s.date, "MMM yyyy")}
+                </Text>
+              </View>
+              <Text className="text-white/70 text-[13px]" style={{ fontFamily: "Oswald_Medium" }}>
+                {formatAmount(s.dayTotal)}
+              </Text>
+            </View>
+          );
+        }}
+        stickySectionHeadersEnabled={false}
         contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={

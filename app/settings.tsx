@@ -12,6 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { AppText } from "../components/ui/AppText";
 import { useExpenses } from "../context/ExpenseContext";
+import { seedDummyData } from "../db/seed";
 import { expenseTitle } from "../utils/expenseHelpers";
 import { colors } from "../constants/theme";
 
@@ -314,6 +315,31 @@ export default function SettingsScreen() {
                 <AppText variant="caption" className="text-white/35">
                   {expenses.filter(e => e.status === 'unpaid').length} unpaid
                 </AppText>
+              </TouchableOpacity>
+              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <TouchableOpacity
+                className="flex-row items-center px-5 py-4"
+                onPress={async () => {
+                  try {
+                    await seedDummyData();
+                    await reloadAll();
+                    Alert.alert('Dev', 'Dummy data seeded.');
+                  } catch (e: unknown) {
+                    Alert.alert('Seed Failed', e instanceof Error ? e.message : 'An error occurred.');
+                  }
+                }}
+                accessibilityLabel="Seed dummy data"
+              >
+                <View
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+                  style={{ backgroundColor: colors.paid }}
+                >
+                  <Feather name="database" size={15} color="#FFFFFF" />
+                </View>
+                <AppText variant="body-medium" className="flex-1 text-white text-sm">
+                  Seed dummy data
+                </AppText>
+                <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
               </TouchableOpacity>
             </View>
           </>

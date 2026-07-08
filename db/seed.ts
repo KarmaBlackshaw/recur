@@ -1,5 +1,35 @@
 import { getDB } from "./schema";
+import { insertWithId } from "./expenses";
 import type { Expense } from "../types";
+
+// ponytail: dev-only dummy data. Triggered by the "Seed dummy data" button in
+// the __DEV__ Dev Tools section of app/settings.tsx (hidden in prod builds).
+// Remove this block + that button when you're done demoing.
+const DUMMY: Omit<Expense, "createdAt">[] = [
+  { id: "seed-01", name: "Rent", category: "Housing", amount: 1500, dueDay: 1, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-02", name: "Electricity", category: "Utilities", amount: 85, dueDay: 5, recurrence: "monthly", status: "unpaid", isVariable: true },
+  { id: "seed-03", name: "Netflix", category: "Subscriptions", amount: 15.99, dueDay: 12, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-04", name: "Spotify", category: "Subscriptions", amount: 9.99, dueDay: 8, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-05", name: "Car Insurance", category: "Insurance", amount: 120, dueDay: 15, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-06", name: "Gym", category: "Health", amount: 40, dueDay: 3, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-07", name: "Internet", category: "Utilities", amount: 60, dueDay: 20, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-08", name: "Phone", category: "Utilities", amount: 45, dueDay: 18, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-09", name: "Groceries", category: "Food", amount: 400, dueDay: 25, recurrence: "monthly", status: "unpaid", isVariable: true },
+  { id: "seed-10", name: "Student Loan", category: "Debt", amount: 250, dueDay: 28, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-11", name: "Amazon Prime", category: "Subscriptions", amount: 139, dueDay: 10, recurrence: "yearly", status: "unpaid", isVariable: false },
+  { id: "seed-12", name: "Coffee run", category: "Food", amount: 6, dueDay: 9, recurrence: "one-off", status: "paid", isVariable: false },
+  { id: "seed-13", name: "New headphones", category: "Other", amount: 199, dueDay: 2, recurrence: "one-off", status: "paid", isVariable: false },
+];
+
+// Insert dummy expenses + backfill paid month-history. Idempotent: insertWithId
+// is INSERT OR IGNORE on the fixed seed-NN ids, so re-running never duplicates.
+export async function seedDummyData(): Promise<void> {
+  const createdAt = new Date().toISOString();
+  const expenses: Expense[] = DUMMY.map((e) => ({ ...e, createdAt }));
+  for (const e of expenses) await insertWithId(e);
+  // Give recurring expenses a few months of paid history for KPI variety.
+  await seedTestData(expenses.filter((e) => e.recurrence !== "one-off"));
+}
 
 function randomAmount(): number {
   return Math.round((200 + Math.random() * 4800) * 100) / 100;

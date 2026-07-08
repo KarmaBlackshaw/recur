@@ -71,6 +71,7 @@ export default function RecurringScreen() {
       .sort((a, b) => a.dueDay - b.dueDay);
     const upcoming = activeCurrent
       .filter((e) => {
+        if (e.status !== "unpaid") return false;
         const d = getDueDate(e.dueDay);
         return (
           isWithinInterval(d, { start: today, end: in30 }) &&

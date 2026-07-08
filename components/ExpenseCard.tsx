@@ -29,9 +29,10 @@ interface Props {
   index?: number;
   referenceDate?: Date;
   onPress?: () => void;
+  compact?: boolean;   // day-grouped paid ledger: drop icon, date line, and status badge (all items are paid)
 }
 
-export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Props) {
+export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compact = false }: Props) {
   const { getMonthStatus, toggleMonthStatus, deleteExpense, categoryIconMap, getMonthAmount } = useExpenses();
   const swipeRef = useRef<SwipeableMethods>(null);
   const refDate = referenceDate ?? new Date();
@@ -116,16 +117,18 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
           ]}
         >
         {/* Category icon bubble */}
-        <View
-          className="w-11 h-11 rounded-xl items-center justify-center mr-3.5"
-          style={{ backgroundColor: overdueFlag ? "rgba(248,113,113,0.12)" : "rgba(99,102,241,0.12)" }}
-        >
-          <Feather
-            name={iconName}
-            size={22}
-            color={overdueFlag ? colors.overdue : colors.secondary}
-          />
-        </View>
+        {!compact && (
+          <View
+            className="w-11 h-11 rounded-xl items-center justify-center mr-3.5"
+            style={{ backgroundColor: overdueFlag ? "rgba(248,113,113,0.12)" : "rgba(99,102,241,0.12)" }}
+          >
+            <Feather
+              name={iconName}
+              size={22}
+              color={overdueFlag ? colors.overdue : colors.secondary}
+            />
+          </View>
+        )}
 
         {/* Name + meta */}
         <View className="flex-1">
@@ -143,17 +146,19 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
               <Feather name="bell" size={10} color={colors.secondary} style={{ marginTop: 2 }} />
             )}
           </View>
-          <Text
-            className={`text-[11px] font-['Quicksand_500Medium'] mt-0.5 ${overdueFlag ? "text-overdue" : "text-white/35"}`}
-          >
-            {ended
-              ? `Ended ${formatEndMonth(expense.endYear!, expense.endMonth!)}`
-              : isRegular
-                ? format(new Date(expense.createdAt), "MMM d")
-                : resolvedStatus === "paid"
-                  ? format(dueDate, "MMM d")
-                  : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
-          </Text>
+          {!compact && (
+            <Text
+              className={`text-[11px] font-['Quicksand_500Medium'] mt-0.5 ${overdueFlag ? "text-overdue" : "text-white/35"}`}
+            >
+              {ended
+                ? `Ended ${formatEndMonth(expense.endYear!, expense.endMonth!)}`
+                : isRegular
+                  ? format(new Date(expense.createdAt), "MMM d")
+                  : resolvedStatus === "paid"
+                    ? format(dueDate, "MMM d")
+                    : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
+            </Text>
+          )}
         </View>
 
         {/* Amount + status */}
@@ -161,7 +166,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress }: Prop
           <Text className="text-white text-[17px] leading-tight" style={{ fontFamily: "Oswald_Regular" }}>
             {displayAmount !== null ? formatAmount(displayAmount) : "TBD"}
           </Text>
-          {ended ? (
+          {compact ? null : ended ? (
             <View className="px-2 py-1 rounded-md bg-white/[0.06]">
               <Text className="text-white/40 text-[10px] font-['Quicksand_700Bold'] uppercase tracking-wider">Ended</Text>
             </View>

@@ -34,14 +34,14 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
       (item: string, selected: boolean, onSelect: () => void) => (
         <TouchableOpacity
           key={item}
-          className={`w-full py-5 px-2 items-center justify-center ${
-            selected ? "bg-primary" : ""
+          className={`w-full py-6 px-2 items-center justify-center ${
+            selected ? "bg-primary" : "bg-white/[0.04]"
           }`}
           onPress={onSelect}
         >
           <AppText
             variant={selected ? "body-bold" : "body-medium"}
-            className={`text-sm text-center ${selected ? "text-white" : "text-white/70"}`}
+            className={`text-base text-center ${selected ? "text-white" : "text-white/70"}`}
             numberOfLines={1}
           >
             {item}

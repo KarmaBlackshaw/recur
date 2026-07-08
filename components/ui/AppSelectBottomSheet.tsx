@@ -22,7 +22,7 @@ const GRID_BORDER_STYLE = {
   borderTopWidth: 1,
   borderColor: "rgba(255,255,255,0.07)",
   overflow: "hidden" as const,
-  marginBottom: 32,
+  marginBottom: 200,
 };
 
 const CELL_STYLE = {

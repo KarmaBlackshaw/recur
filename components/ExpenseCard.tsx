@@ -17,7 +17,7 @@ import Animated, {
   interpolate,
 } from "react-native-reanimated";
 import { StatusBadge } from "./StatusBadge";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { formatDueDate, getDueDateForMonth, isOverdueOn, formatAmount, isEndedOn, formatEndMonth } from "../utils/dateHelpers";
 import { useExpenses } from "../context/ExpenseContext";
 import { expenseTitle } from "../utils/expenseHelpers";
@@ -33,7 +33,7 @@ interface Props {
 }
 
 export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compact = false }: Props) {
-  const { getMonthStatus, toggleMonthStatus, deleteExpense, categoryIconMap, getMonthAmount } = useExpenses();
+  const { getMonthStatus, toggleMonthStatus, deleteExpense, getMonthAmount, getMonthPaidAt } = useExpenses();
   const swipeRef = useRef<SwipeableMethods>(null);
   const refDate = referenceDate ?? new Date();
   const year = refDate.getFullYear();
@@ -41,6 +41,9 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
   const isRegular = expense.recurrence === "one-off";
   const dueDate = getDueDateForMonth(expense.dueDay, year, month);
   const resolvedStatus = getMonthStatus(expense.id, year, month);
+  // Paid recurring shows when it was actually paid (paid_at), not its due date.
+  // Fall back to dueDate only for legacy rows recorded before paid_at existed.
+  const paidAt = !isRegular ? getMonthPaidAt(expense.id, year, month) : null;
   const ended = !isRegular && isEndedOn(expense.endYear, expense.endMonth, year, month);
   const overdueFlag = !isRegular && !ended && resolvedStatus === "unpaid" && isOverdueOn(expense.dueDay, year, month);
   const monthlyActual = getMonthAmount(expense.id, year, month);
@@ -86,8 +89,6 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
     );
   }
 
-  const iconName = categoryIconMap[expense.category] ?? "more-horizontal";
-
   return (
     <ReanimatedSwipeable
       ref={swipeRef}
@@ -116,20 +117,6 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
             ended ? { opacity: 0.5 } : null,
           ]}
         >
-        {/* Category icon bubble */}
-        {!compact && (
-          <View
-            className="w-11 h-11 rounded-xl items-center justify-center mr-3.5"
-            style={{ backgroundColor: overdueFlag ? "rgba(248,113,113,0.12)" : "rgba(99,102,241,0.12)" }}
-          >
-            <Feather
-              name={iconName}
-              size={22}
-              color={overdueFlag ? colors.overdue : colors.secondary}
-            />
-          </View>
-        )}
-
         {/* Name + meta */}
         <View className="flex-1">
           <Text
@@ -155,7 +142,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
                 : isRegular
                   ? format(new Date(expense.createdAt), "MMM d")
                   : resolvedStatus === "paid"
-                    ? format(dueDate, "MMM d")
+                    ? format(paidAt ? parseISO(paidAt) : dueDate, "MMM d")
                     : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
             </Text>
           )}

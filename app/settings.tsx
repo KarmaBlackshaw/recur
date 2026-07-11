@@ -12,7 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { AppText } from "../components/ui/AppText";
 import { useExpenses } from "../context/ExpenseContext";
-import { seedDummyData } from "../db/seed";
+import { seedRecurring, seedOneOff } from "../db/seed";
 import { expenseTitle } from "../utils/expenseHelpers";
 import { colors } from "../constants/theme";
 
@@ -321,23 +321,48 @@ export default function SettingsScreen() {
                 className="flex-row items-center px-5 py-4"
                 onPress={async () => {
                   try {
-                    await seedDummyData();
+                    await seedRecurring();
                     await reloadAll();
-                    Alert.alert('Dev', 'Dummy data seeded.');
+                    Alert.alert('Dev', 'Recurring expenses seeded.');
                   } catch (e: unknown) {
                     Alert.alert('Seed Failed', e instanceof Error ? e.message : 'An error occurred.');
                   }
                 }}
-                accessibilityLabel="Seed dummy data"
+                accessibilityLabel="Seed recurring expenses"
               >
                 <View
                   className="w-8 h-8 rounded-lg items-center justify-center mr-3"
                   style={{ backgroundColor: colors.paid }}
                 >
-                  <Feather name="database" size={15} color="#FFFFFF" />
+                  <Feather name="repeat" size={15} color="#FFFFFF" />
                 </View>
                 <AppText variant="body-medium" className="flex-1 text-white text-sm">
-                  Seed dummy data
+                  Seed recurring
+                </AppText>
+                <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
+              </TouchableOpacity>
+              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <TouchableOpacity
+                className="flex-row items-center px-5 py-4"
+                onPress={async () => {
+                  try {
+                    await seedOneOff();
+                    await reloadAll();
+                    Alert.alert('Dev', 'One-off expenses seeded.');
+                  } catch (e: unknown) {
+                    Alert.alert('Seed Failed', e instanceof Error ? e.message : 'An error occurred.');
+                  }
+                }}
+                accessibilityLabel="Seed one-off expenses"
+              >
+                <View
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+                  style={{ backgroundColor: colors.primary }}
+                >
+                  <Feather name="file-text" size={15} color="#FFFFFF" />
+                </View>
+                <AppText variant="body-medium" className="flex-1 text-white text-sm">
+                  Seed expenses
                 </AppText>
                 <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
               </TouchableOpacity>

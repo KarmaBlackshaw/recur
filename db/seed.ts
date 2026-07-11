@@ -23,12 +23,20 @@ const DUMMY: Omit<Expense, "createdAt">[] = [
 
 // Insert dummy expenses + backfill paid month-history. Idempotent: insertWithId
 // is INSERT OR IGNORE on the fixed seed-NN ids, so re-running never duplicates.
-export async function seedDummyData(): Promise<void> {
+async function seed(expenses: Omit<Expense, "createdAt">[]): Promise<void> {
   const createdAt = new Date().toISOString();
-  const expenses: Expense[] = DUMMY.map((e) => ({ ...e, createdAt }));
-  for (const e of expenses) await insertWithId(e);
+  const full: Expense[] = expenses.map((e) => ({ ...e, createdAt }));
+  for (const e of full) await insertWithId(e);
   // Give recurring expenses a few months of paid history for KPI variety.
-  await seedTestData(expenses.filter((e) => e.recurrence !== "one-off"));
+  await seedTestData(full.filter((e) => e.recurrence !== "one-off"));
+}
+
+export async function seedRecurring(): Promise<void> {
+  await seed(DUMMY.filter((e) => e.recurrence !== "one-off"));
+}
+
+export async function seedOneOff(): Promise<void> {
+  await seed(DUMMY.filter((e) => e.recurrence === "one-off"));
 }
 
 function randomAmount(): number {
@@ -37,6 +45,16 @@ function randomAmount(): number {
 
 function randomStatus(): "paid" | "unpaid" {
   return Math.random() > 0.4 ? "paid" : "unpaid";
+}
+
+// Fake "paid on" timestamp for dummy history: a random day within that month,
+// clamped to today for the current month (can't pay in the future). Dummy data only.
+function randomPaidAt(year: number, month: number): string {
+  const now = new Date();
+  const isCurrent = year === now.getFullYear() && month === now.getMonth();
+  const maxDay = isCurrent ? now.getDate() : 28;
+  const day = 1 + Math.floor(Math.random() * maxDay);
+  return new Date(year, month, day).toISOString();
 }
 
 export async function seedTestData(expenses: Expense[]): Promise<void> {
@@ -60,10 +78,11 @@ export async function seedTestData(expenses: Expense[]): Promise<void> {
       const { year, month } = months[i];
       const status = i === 0 ? randomStatus() : "paid";
       const amount = expense.isVariable ? randomAmount() : null;
+      const paidAt = status === "paid" ? randomPaidAt(year, month) : null;
       await db.runAsync(
-        `INSERT OR REPLACE INTO expense_months (expense_id, year, month, status, amount)
-         VALUES (?, ?, ?, ?, ?)`,
-        [expense.id, year, month, status, amount]
+        `INSERT OR REPLACE INTO expense_months (expense_id, year, month, status, amount, paid_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [expense.id, year, month, status, amount, paidAt]
       );
     }
   }

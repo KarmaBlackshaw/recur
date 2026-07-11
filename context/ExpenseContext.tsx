@@ -3,13 +3,14 @@ import React, {
   useContext,
   useReducer,
   useCallback,
+  useMemo,
 } from "react";
 import { useAsyncEffect } from "../utils/useAsyncEffect";
 import type { Expense, Status, MonthStatus, FeatherIconName } from "../types";
 import * as expensesDB from "../db/expenses";
 import * as preferencesDB from "../db/preferences";
 import * as monthsDB from "../db/expenseMonths";
-import { monthKey } from "../utils/monthKey";
+import { monthKey, parseMonthKey } from "../utils/monthKey";
 import { getAllWithIds } from "../db/categories";
 import { scheduleAllNotifications } from '../utils/notifications';
 
@@ -99,10 +100,18 @@ function reducer(state: State, action: Action): State {
   }
 }
 
+export interface PaidCycle {
+  expenseId: string;
+  year: number;
+  month: number;
+  paidAt: string | null;
+}
+
 interface ExpenseContextValue {
   expenses: Expense[];
   loading: boolean;
   userName: string | null;
+  paidCycles: PaidCycle[];
   addExpense: (e: Omit<Expense, "id" | "createdAt">, monthlyAmount?: { year: number; month: number; amount: number | null }) => Promise<void>;
   updateExpense: (
     id: string,
@@ -161,6 +170,19 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     const time = (await preferencesDB.getPreference('reminderTime')) ?? '09:00';
     await scheduleAllNotifications(expenses, time);
   }
+
+  // Every paid recurring cycle, derived from the month maps. The ledger keys off
+  // these (by pay-date) rather than an expense's current-month status, so an
+  // advance payment surfaces in the month it was actually paid.
+  const paidCycles = useMemo<PaidCycle[]>(() => {
+    const out: PaidCycle[] = [];
+    for (const [k, status] of Object.entries(state.monthStatuses)) {
+      if (status !== "paid") continue;
+      const { id, year, month } = parseMonthKey(k);
+      out.push({ expenseId: id, year, month, paidAt: state.monthPaidAts[k] ?? null });
+    }
+    return out;
+  }, [state.monthStatuses, state.monthPaidAts]);
 
   const setUserName = useCallback((name: string | null) => {
     dispatch({ type: "SET_USER_NAME", payload: name });
@@ -286,6 +308,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         expenses: state.expenses,
         loading: state.loading,
         userName: state.userName,
+        paidCycles,
         addExpense,
         updateExpense,
         deleteExpense,

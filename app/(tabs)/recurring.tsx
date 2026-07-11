@@ -20,6 +20,10 @@ interface Section {
   referenceDate?: Date;
 }
 
+// Paid sinks below unpaid; caller adds dueDay as the final tiebreaker.
+const paidLast = (a: Expense, b: Expense) =>
+  (a.status === "paid" ? 1 : 0) - (b.status === "paid" ? 1 : 0);
+
 export default function RecurringScreen() {
   const { expenses, loading, getMonthStatus } = useExpenses();
   const today = dayjs().startOf("day").toDate();
@@ -43,7 +47,7 @@ export default function RecurringScreen() {
         .sort((a, b) => {
           const ae = isEndedOn(a.endYear, a.endMonth, selectedYear, selectedMonth) ? 1 : 0;
           const be = isEndedOn(b.endYear, b.endMonth, selectedYear, selectedMonth) ? 1 : 0;
-          return ae !== be ? ae - be : a.dueDay - b.dueDay;
+          return (ae - be) || paidLast(a, b) || (a.dueDay - b.dueDay);
         });
       return { sections: [], flatList: list };
     }
@@ -83,10 +87,10 @@ export default function RecurringScreen() {
     const shownIds = new Set([...overdue, ...upcoming].map((e) => e.id));
     const thisMonthExpenses = activeCurrent
       .filter((e) => !shownIds.has(e.id))
-      .sort((a, b) => a.dueDay - b.dueDay);
+      .sort((a, b) => paidLast(a, b) || (a.dueDay - b.dueDay));
     const nextMonthExpenses = nextMonthList
       .filter((e) => !isEndedOn(e.endYear, e.endMonth, nextMonthYear, nextMonthVal))
-      .sort((a, b) => a.dueDay - b.dueDay);
+      .sort((a, b) => paidLast(a, b) || (a.dueDay - b.dueDay));
 
     const result: Section[] = [];
     if (overdue.length > 0) {

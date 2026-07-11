@@ -18,6 +18,19 @@ export function getDueDateForMonth(
   return new Date(year, month, clampedDay);
 }
 
+// The date a paid recurring cycle "counts" on: the real pay timestamp when one
+// was recorded, else the cycle's due date (legacy rows saved before paid_at).
+// Advance payments therefore land in the calendar month they were paid, not the
+// cycle's due month.
+export function effectivePaidDate(
+  paidAt: string | null | undefined,
+  dueDay: number,
+  dueYear: number,
+  dueMonth: number
+): Date {
+  return paidAt ? dayjs(paidAt).toDate() : getDueDateForMonth(dueDay, dueYear, dueMonth);
+}
+
 export function isOverdue(dueDay: number): boolean {
   const d = dayjs(getDueDate(dueDay)).startOf("day");
   return d.isBefore(dayjs()) && !d.isSame(dayjs(), "day");

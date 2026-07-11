@@ -10,25 +10,38 @@ import { ExpenseCard } from "../../components/ExpenseCard";
 import { DayWindowSelector, windowLabel, type DayWindow } from "../../components/DayWindowSelector";
 import { EmptyState } from "../../components/EmptyState";
 import { isOverdueOn, getDueDate, getGreeting, getFormattedDate } from "../../utils/dateHelpers";
+import { usePaidLedger } from "../../utils/usePaidLedger";
 import { colors } from "../../constants/theme";
 import type { Expense } from "../../types";
 
+// A rendered row: the expense plus the cycle month its card resolves against.
+// Overdue/Upcoming point at the current month; Recently Paid points at the paid
+// cycle's own month (so an advance payment edits/prices the right cycle).
+interface Row {
+  key: string;
+  expense: Expense;
+  refDate: Date;
+}
+
 interface Section {
   title: string;
-  data: Expense[];
+  data: Row[];
   accent?: string;
   emptyHint?: string;
 }
 
 export default function HomeScreen() {
-  const { expenses, loading, userName, getMonthStatus, getMonthPaidAt } = useExpenses();
+  const { expenses, loading, userName, getMonthStatus } = useExpenses();
+  const ledger = usePaidLedger();
   const [windowDays, setWindowDays] = useState<DayWindow>(7);
   const today = dayjs().startOf("day").toDate();
   const year = today.getFullYear();
   const month = today.getMonth();
-  const monthRef = new Date(year, month, 1);
 
   const sections = useMemo<Section[]>(() => {
+    const monthRef = new Date(year, month, 1);
+    const toRow = (e: Expense): Row => ({ key: e.id, expense: e, refDate: monthRef });
+
     const inN = dayjs(today).add(windowDays, "day").toDate();
     const overdue: Expense[] = [];
     const upcoming: Expense[] = [];
@@ -45,41 +58,20 @@ export default function HomeScreen() {
     overdue.sort((a, b) => a.dueDay - b.dueDay);
     upcoming.sort((a, b) => a.dueDay - b.dueDay);
 
+    // Recently Paid: any paid entry (recurring cycle or one-off) whose pay-date
+    // lands in the rolling last-N-day window. Upper bound is end-of-today because
+    // pay timestamps carry a time-of-day; the ledger is already sorted newest-first.
     const lastN = dayjs(today).subtract(windowDays, "day").toDate();
-    // Upper bound is end-of-today: paid_at / paidDate carry a time-of-day, so a
-    // midnight `today` bound would drop everything paid later today.
     const endToday = dayjs().endOf("day").toDate();
-    const inWindow = (d: Date) => d >= lastN && d <= endToday;
-    // Paid date: one-offs use paidDate; recurring use the month's recorded paid_at,
-    // falling back to the due date when no timestamp exists (legacy paid months).
-    const paidDateOf = (e: Expense): Date => {
-      if (e.recurrence === "one-off") {
-        return e.paidDate ? dayjs(e.paidDate).toDate() : getDueDate(e.dueDay);
-      }
-      const pa = getMonthPaidAt(e.id, year, month);
-      return pa ? dayjs(pa).toDate() : getDueDate(e.dueDay);
-    };
-    const recent: Expense[] = [];
-    for (const e of expenses) {
-      if (e.recurrence === "one-off") {
-        if (e.status === "paid" && e.paidDate && inWindow(dayjs(e.paidDate).toDate())) {
-          recent.push(e);
-        }
-      } else {
-        if (getMonthStatus(e.id, year, month) === "paid" && inWindow(paidDateOf(e))) {
-          recent.push(e);
-        }
-      }
-    }
-    recent.sort((a, b) => paidDateOf(b).getTime() - paidDateOf(a).getTime());
+    const recent = ledger.filter((it) => it.effDate >= lastN && it.effDate <= endToday);
 
     const result: Section[] = [];
     if (overdue.length > 0) {
-      result.push({ title: "Overdue", data: overdue, accent: colors.overdue });
+      result.push({ title: "Overdue", data: overdue.map(toRow), accent: colors.overdue });
     }
     result.push({
       title: "Upcoming",
-      data: upcoming,
+      data: upcoming.map(toRow),
       accent: colors.secondary,
       emptyHint: `Nothing due in the next ${windowLabel(windowDays).toLowerCase()}`,
     });
@@ -87,7 +79,7 @@ export default function HomeScreen() {
       result.push({ title: "Recently Paid", data: recent, accent: colors.paid });
     }
     return result;
-  }, [expenses, getMonthStatus, getMonthPaidAt, year, month, windowDays]);
+  }, [expenses, getMonthStatus, ledger, year, month, windowDays]);
 
   if (loading) {
     return (
@@ -126,7 +118,7 @@ export default function HomeScreen() {
       ) : (
         <SectionList
           sections={sections}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.key}
           ListHeaderComponent={
             <View>
               <Text
@@ -141,10 +133,10 @@ export default function HomeScreen() {
           }
           renderItem={({ item, index }) => (
             <ExpenseCard
-              expense={item}
+              expense={item.expense}
               index={index}
-              referenceDate={monthRef}
-              onPress={() => router.push({ pathname: "/expense/add", params: { id: item.id, year, month } })}
+              referenceDate={item.refDate}
+              onPress={() => router.push({ pathname: "/expense/add", params: { id: item.expense.id, year: item.refDate.getFullYear(), month: item.refDate.getMonth() } })}
             />
           )}
           renderSectionHeader={({ section }) => (

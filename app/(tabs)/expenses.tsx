@@ -6,15 +6,15 @@ import dayjs from "dayjs";
 import { useExpenses } from "../../context/ExpenseContext";
 import { ExpenseCard } from "../../components/ExpenseCard";
 import { MonthNavigator } from "../../components/MonthNavigator";
-import { formatAmount, getDueDateForMonth } from "../../utils/dateHelpers";
+import { formatAmount } from "../../utils/dateHelpers";
+import { usePaidLedger, type PaidEntry } from "../../utils/usePaidLedger";
 import { colors } from "../../constants/theme";
-import type { Expense } from "../../types";
 
 interface DaySection {
   key: string;
   date: Date;
   dayTotal: number;
-  data: Expense[];
+  data: PaidEntry[];
 }
 
 // Weekend accent: Sun red, Sat indigo, weekdays muted (mirrors the reference ledger).
@@ -26,54 +26,34 @@ function weekdayColor(date: Date): string {
 }
 
 export default function ExpensesScreen() {
-  const { expenses, loading, getMonthStatus, getMonthAmount, getMonthPaidAt } = useExpenses();
+  const { loading } = useExpenses();
+  const ledger = usePaidLedger();
   const today = dayjs().startOf("day").toDate();
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
 
   const { sections, total } = useMemo(() => {
-    const resolveAmount = (e: Expense): number =>
-      e.isVariable ? (getMonthAmount(e.id, selectedYear, selectedMonth) ?? 0) : (e.amount ?? 0);
+    const items = ledger.filter(
+      (it) => it.effDate.getFullYear() === selectedYear && it.effDate.getMonth() === selectedMonth
+    );
 
-    // Paid date: one-offs use their stored paidDate; recurring use the month's recorded
-    // paid_at, falling back to the month's due date when no timestamp was recorded.
-    const paidDate = (e: Expense): Date => {
-      if (e.recurrence === "one-off") {
-        return e.paidDate ? dayjs(e.paidDate).toDate() : new Date(e.createdAt);
-      }
-      const pa = getMonthPaidAt(e.id, selectedYear, selectedMonth);
-      return pa ? dayjs(pa).toDate() : getDueDateForMonth(e.dueDay, selectedYear, selectedMonth);
-    };
-
-    const list = expenses
-      .filter((e) => {
-        if (e.recurrence === "one-off") {
-          if (e.status !== "paid") return false;
-          const c = new Date(e.createdAt);
-          return c.getFullYear() === selectedYear && c.getMonth() === selectedMonth;
-        }
-        return getMonthStatus(e.id, selectedYear, selectedMonth) === "paid";
-      })
-      .sort((a, b) => paidDate(b).getTime() - paidDate(a).getTime());
-
-    // Bucket into day groups. List is pre-sorted descending, so Map insertion order
-    // yields sections newest-day-first with no extra sort.
+    // Bucket into day groups. The ledger is pre-sorted descending by pay-date, so
+    // Map insertion order yields sections newest-day-first with no extra sort.
     const groups = new Map<string, DaySection>();
-    for (const e of list) {
-      const d = paidDate(e);
-      const key = dayjs(d).format("YYYY-MM-DD");
+    for (const it of items) {
+      const key = dayjs(it.effDate).format("YYYY-MM-DD");
       let g = groups.get(key);
       if (!g) {
-        g = { key, date: d, dayTotal: 0, data: [] };
+        g = { key, date: it.effDate, dayTotal: 0, data: [] };
         groups.set(key, g);
       }
-      g.data.push(e);
-      g.dayTotal += resolveAmount(e);
+      g.data.push(it);
+      g.dayTotal += it.amount;
     }
 
-    const total = list.reduce((sum, e) => sum + resolveAmount(e), 0);
+    const total = items.reduce((sum, it) => sum + it.amount, 0);
     return { sections: [...groups.values()], total };
-  }, [expenses, getMonthStatus, getMonthAmount, getMonthPaidAt, selectedYear, selectedMonth]);
+  }, [ledger, selectedYear, selectedMonth]);
 
   const monthLabel = dayjs(new Date(selectedYear, selectedMonth, 1)).format("MMMM");
 
@@ -105,14 +85,14 @@ export default function ExpensesScreen() {
 
       <SectionList
         sections={sections}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.key}
         renderItem={({ item, index }) => (
           <ExpenseCard
-            expense={item}
+            expense={item.expense}
             index={index}
             compact
-            referenceDate={new Date(selectedYear, selectedMonth, 1)}
-            onPress={() => router.push({ pathname: "/expense/add", params: { id: item.id, year: selectedYear, month: selectedMonth } })}
+            referenceDate={item.refDate}
+            onPress={() => router.push({ pathname: "/expense/add", params: { id: item.expense.id, year: item.refDate.getFullYear(), month: item.refDate.getMonth() } })}
           />
         )}
         renderSectionHeader={({ section }) => {

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { format, startOfToday } from "date-fns";
+import dayjs from "dayjs";
 import { colors } from "../constants/theme";
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function MonthNavigator({ year, month, onChange }: Props) {
-  const today = startOfToday();
+  const today = dayjs().startOf("day").toDate();
   const isCurrentMonth =
     year === today.getFullYear() && month === today.getMonth();
 
@@ -37,7 +37,7 @@ export function MonthNavigator({ year, month, onChange }: Props) {
     }
   }
 
-  const label = format(new Date(year, month, 1), "MMMM yyyy");
+  const label = dayjs(new Date(year, month, 1)).format("MMMM YYYY");
 
   return (
     <View className="flex-row items-center px-4 py-2 gap-4">

@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
-import { subDays, setHours, setMinutes, isBefore } from 'date-fns';
+import dayjs from 'dayjs';
 import { getDueDate, isEndedOn } from './dateHelpers';
 import { expenseTitle } from './expenseHelpers';
 import type { Expense } from '../types';
@@ -32,11 +32,9 @@ export async function scheduleAllNotifications(
       const daysBefore = expense.reminderDaysBefore ?? 1;
       const dueDate = getDueDate(expense.dueDay);
       if (isEndedOn(expense.endYear, expense.endMonth, dueDate.getFullYear(), dueDate.getMonth())) continue;
-      let fireDate = subDays(dueDate, daysBefore);
-      fireDate = setHours(fireDate, hours);
-      fireDate = setMinutes(fireDate, minutes);
+      const fireDate = dayjs(dueDate).subtract(daysBefore, 'day').hour(hours).minute(minutes).toDate();
 
-      if (isBefore(fireDate, now)) continue;
+      if (dayjs(fireDate).isBefore(now)) continue;
 
       const bodyAmount =
         expense.amount != null

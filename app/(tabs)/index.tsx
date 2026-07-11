@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, SectionList } from "re
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { addDays, startOfToday, parseISO } from "date-fns";
+import dayjs from "dayjs";
 import { useExpenses } from "../../context/ExpenseContext";
 import { KpiRow } from "../../components/kpi/KpiRow";
 import { ExpenseCard } from "../../components/ExpenseCard";
@@ -23,13 +23,13 @@ interface Section {
 export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus, getMonthPaidAt } = useExpenses();
   const [windowDays, setWindowDays] = useState<DayWindow>(7);
-  const today = startOfToday();
+  const today = dayjs().startOf("day").toDate();
   const year = today.getFullYear();
   const month = today.getMonth();
   const monthRef = new Date(year, month, 1);
 
   const sections = useMemo<Section[]>(() => {
-    const inN = addDays(today, windowDays);
+    const inN = dayjs(today).add(windowDays, "day").toDate();
     const overdue: Expense[] = [];
     const upcoming: Expense[] = [];
     for (const e of expenses) {
@@ -45,21 +45,24 @@ export default function HomeScreen() {
     overdue.sort((a, b) => a.dueDay - b.dueDay);
     upcoming.sort((a, b) => a.dueDay - b.dueDay);
 
-    const lastN = addDays(today, -windowDays);
-    const inWindow = (d: Date) => d >= lastN && d <= today;
+    const lastN = dayjs(today).subtract(windowDays, "day").toDate();
+    // Upper bound is end-of-today: paid_at / paidDate carry a time-of-day, so a
+    // midnight `today` bound would drop everything paid later today.
+    const endToday = dayjs().endOf("day").toDate();
+    const inWindow = (d: Date) => d >= lastN && d <= endToday;
     // Paid date: one-offs use paidDate; recurring use the month's recorded paid_at,
     // falling back to the due date when no timestamp exists (legacy paid months).
     const paidDateOf = (e: Expense): Date => {
       if (e.recurrence === "one-off") {
-        return e.paidDate ? parseISO(e.paidDate) : getDueDate(e.dueDay);
+        return e.paidDate ? dayjs(e.paidDate).toDate() : getDueDate(e.dueDay);
       }
       const pa = getMonthPaidAt(e.id, year, month);
-      return pa ? parseISO(pa) : getDueDate(e.dueDay);
+      return pa ? dayjs(pa).toDate() : getDueDate(e.dueDay);
     };
     const recent: Expense[] = [];
     for (const e of expenses) {
       if (e.recurrence === "one-off") {
-        if (e.status === "paid" && e.paidDate && inWindow(parseISO(e.paidDate))) {
+        if (e.status === "paid" && e.paidDate && inWindow(dayjs(e.paidDate).toDate())) {
           recent.push(e);
         }
       } else {

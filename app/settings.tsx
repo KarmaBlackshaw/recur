@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, TouchableOpacity, Alert, Switch } from "react-native";
+import { View, TouchableOpacity, Alert, Switch, ScrollView } from "react-native";
 import * as Notifications from 'expo-notifications';
 import { getPreference, setPreference } from '../db/preferences';
 import { scheduleAllNotifications, cancelAllNotifications } from '../utils/notifications';
@@ -12,7 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { AppText } from "../components/ui/AppText";
 import { useExpenses } from "../context/ExpenseContext";
-import { seedRecurring, seedOneOff } from "../db/seed";
+import { seedRecurring, seedOneOff, clearRecurring, clearOneOff } from "../db/seed";
 import { expenseTitle } from "../utils/expenseHelpers";
 import { colors } from "../constants/theme";
 
@@ -76,6 +76,25 @@ export default function SettingsScreen() {
     }
   };
 
+  const confirmClear = (label: string, fn: () => Promise<void>) => {
+    Alert.alert(`Clear ${label}?`, "This cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await fn();
+            await reloadAll();
+            Alert.alert("Dev", `${label} cleared.`);
+          } catch (e: unknown) {
+            Alert.alert("Clear Failed", e instanceof Error ? e.message : "An error occurred.");
+          }
+        },
+      },
+    ]);
+  };
+
   const handleImport = async () => {
     setImporting(true);
     try {
@@ -103,7 +122,11 @@ export default function SettingsScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <View className="px-4 pt-2">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="px-4 pt-2 pb-8"
+        showsVerticalScrollIndicator={false}
+      >
         {/* PROFILE section */}
         <AppText variant="label" className="text-white/40 mb-2 pl-1">
           Profile
@@ -366,11 +389,45 @@ export default function SettingsScreen() {
                 </AppText>
                 <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
               </TouchableOpacity>
+              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <TouchableOpacity
+                className="flex-row items-center px-5 py-4"
+                onPress={() => confirmClear('recurring', clearRecurring)}
+                accessibilityLabel="Clear recurring expenses"
+              >
+                <View
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+                  style={{ backgroundColor: colors.overdue }}
+                >
+                  <Feather name="trash-2" size={15} color="#FFFFFF" />
+                </View>
+                <AppText variant="body-medium" className="flex-1 text-white text-sm">
+                  Clear recurring
+                </AppText>
+                <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
+              </TouchableOpacity>
+              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <TouchableOpacity
+                className="flex-row items-center px-5 py-4"
+                onPress={() => confirmClear('expenses', clearOneOff)}
+                accessibilityLabel="Clear one-off expenses"
+              >
+                <View
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+                  style={{ backgroundColor: colors.overdue }}
+                >
+                  <Feather name="trash-2" size={15} color="#FFFFFF" />
+                </View>
+                <AppText variant="body-medium" className="flex-1 text-white text-sm">
+                  Clear expenses
+                </AppText>
+                <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
+              </TouchableOpacity>
             </View>
           </>
         )}
 
-      </View>
+      </ScrollView>
 
       <AppSelectBottomSheet
         ref={timeSheetRef}

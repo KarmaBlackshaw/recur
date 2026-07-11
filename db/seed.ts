@@ -94,3 +94,22 @@ export async function clearAllData(): Promise<void> {
   await db.runAsync("DELETE FROM expenses");
   await db.runAsync("DELETE FROM categories WHERE id NOT LIKE 'preset-%'");
 }
+
+// oneOff=false clears every recurring row; oneOff=true clears one-off rows.
+// Mirrors the seedRecurring/seedOneOff split. Also drops orphaned expense_months.
+async function clearByRecurrence(oneOff: boolean): Promise<void> {
+  const db = await getDB();
+  const op = oneOff ? "=" : "!=";
+  await db.runAsync(
+    `DELETE FROM expense_months WHERE expense_id IN (SELECT id FROM expenses WHERE recurrence ${op} 'one-off')`
+  );
+  await db.runAsync(`DELETE FROM expenses WHERE recurrence ${op} 'one-off'`);
+}
+
+export async function clearRecurring(): Promise<void> {
+  await clearByRecurrence(false);
+}
+
+export async function clearOneOff(): Promise<void> {
+  await clearByRecurrence(true);
+}

@@ -3,7 +3,7 @@ import { View, Text, SectionList, FlatList, ActivityIndicator } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { isWithinInterval, addDays, startOfToday } from "date-fns";
+import dayjs from "dayjs";
 import { useExpenses } from "../../context/ExpenseContext";
 import { ExpenseCard } from "../../components/ExpenseCard";
 import { KpiRow } from "../../components/kpi/KpiRow";
@@ -22,7 +22,7 @@ interface Section {
 
 export default function RecurringScreen() {
   const { expenses, loading, getMonthStatus } = useExpenses();
-  const today = startOfToday();
+  const today = dayjs().startOf("day").toDate();
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
   const isCurrentMonth =
@@ -48,7 +48,7 @@ export default function RecurringScreen() {
       return { sections: [], flatList: list };
     }
 
-    const in30 = addDays(today, 30);
+    const in30 = dayjs(today).add(30, "day").toDate();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     const nextMonthYear = currentMonth === 11 ? currentYear + 1 : currentYear;
@@ -74,7 +74,7 @@ export default function RecurringScreen() {
         if (e.status !== "unpaid") return false;
         const d = getDueDate(e.dueDay);
         return (
-          isWithinInterval(d, { start: today, end: in30 }) &&
+          d >= today && d <= in30 &&
           !isOverdueOn(e.dueDay, currentYear, currentMonth)
         );
       })

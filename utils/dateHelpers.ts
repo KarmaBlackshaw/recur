@@ -1,17 +1,9 @@
-import {
-  isPast,
-  startOfDay,
-  isToday,
-  isTomorrow,
-  differenceInCalendarDays,
-  getDaysInMonth,
-  format,
-} from "date-fns";
+import dayjs from "dayjs";
 import type { Recurrence } from "../types";
 
 export function getDueDate(dueDay: number): Date {
   const now = new Date();
-  const maxDay = getDaysInMonth(now);
+  const maxDay = dayjs(now).daysInMonth();
   const clampedDay = Math.min(dueDay, maxDay);
   return new Date(now.getFullYear(), now.getMonth(), clampedDay);
 }
@@ -21,14 +13,14 @@ export function getDueDateForMonth(
   year: number,
   month: number  // 0-indexed, e.g. January = 0
 ): Date {
-  const maxDay = getDaysInMonth(new Date(year, month));
+  const maxDay = dayjs(new Date(year, month)).daysInMonth();
   const clampedDay = Math.min(dueDay, maxDay);
   return new Date(year, month, clampedDay);
 }
 
 export function isOverdue(dueDay: number): boolean {
-  const d = startOfDay(getDueDate(dueDay));
-  return isPast(d) && !isToday(d);
+  const d = dayjs(getDueDate(dueDay)).startOf("day");
+  return d.isBefore(dayjs()) && !d.isSame(dayjs(), "day");
 }
 
 export function nextDueDay(dueDay: number, recurrence: Recurrence): number {
@@ -41,11 +33,11 @@ export function formatDue(dueDay: number): string {
 }
 
 export function formatDueDate(d: Date): string {
-  if (isToday(d)) return "Today";
-  if (isTomorrow(d)) return "Tomorrow";
-  const diff = differenceInCalendarDays(d, new Date());
+  if (dayjs(d).isSame(dayjs(), "day")) return "Today";
+  if (dayjs(d).isSame(dayjs().add(1, "day"), "day")) return "Tomorrow";
+  const diff = dayjs(d).startOf("day").diff(dayjs().startOf("day"), "day");
   if (diff > 0) return `${diff} days`;
-  return format(d, "MMM d");
+  return dayjs(d).format("MMM D");
 }
 
 export function getGreeting(name?: string | null): string {
@@ -58,7 +50,7 @@ export function getGreeting(name?: string | null): string {
 }
 
 export function getFormattedDate(): string {
-  return format(new Date(), "EEEE, MMM d");
+  return dayjs().format("dddd, MMM D");
 }
 
 export function formatAmount(amount: number): string {
@@ -66,8 +58,8 @@ export function formatAmount(amount: number): string {
 }
 
 export function isOverdueOn(dueDay: number, year: number, month: number): boolean {
-  const d = startOfDay(getDueDateForMonth(dueDay, year, month));
-  return isPast(d) && !isToday(d);
+  const d = dayjs(getDueDateForMonth(dueDay, year, month)).startOf("day");
+  return d.isBefore(dayjs()) && !d.isSame(dayjs(), "day");
 }
 
 export function isEndedOn(
@@ -81,5 +73,5 @@ export function isEndedOn(
 }
 
 export function formatEndMonth(endYear: number, endMonth: number): string {
-  return format(new Date(endYear, endMonth, 1), "MMM yyyy");
+  return dayjs(new Date(endYear, endMonth, 1)).format("MMM YYYY");
 }

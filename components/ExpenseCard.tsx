@@ -17,7 +17,7 @@ import Animated, {
   interpolate,
 } from "react-native-reanimated";
 import { StatusBadge } from "./StatusBadge";
-import { format, parseISO } from "date-fns";
+import dayjs from "dayjs";
 import { formatDueDate, getDueDateForMonth, isOverdueOn, formatAmount, isEndedOn, formatEndMonth } from "../utils/dateHelpers";
 import { useExpenses } from "../context/ExpenseContext";
 import { expenseTitle } from "../utils/expenseHelpers";
@@ -140,9 +140,9 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
               {ended
                 ? `Ended ${formatEndMonth(expense.endYear!, expense.endMonth!)}`
                 : isRegular
-                  ? format(new Date(expense.createdAt), "MMM d")
+                  ? dayjs(expense.createdAt).format("MMM D")
                   : resolvedStatus === "paid"
-                    ? format(paidAt ? parseISO(paidAt) : dueDate, "MMM d")
+                    ? dayjs(paidAt ?? dueDate).format("MMM D")
                     : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
             </Text>
           )}

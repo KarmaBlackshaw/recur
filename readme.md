@@ -25,7 +25,7 @@ A recurring expenses tracker built with React Native and Expo. Track monthly bil
 | Forms | react-hook-form |
 | Animations | react-native-reanimated v4 |
 | Bottom sheets | @gorhom/bottom-sheet v5 |
-| Date logic | date-fns v4 |
+| Date logic | dayjs |
 | Icons | @expo/vector-icons (Ionicons / Feather) |
 | Fonts | Caveat (headings) + Quicksand (body) |
 

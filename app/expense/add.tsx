@@ -18,7 +18,7 @@ import { AppRadioGroup } from "../../components/ui/AppRadioGroup";
 import { colors } from "../../constants/theme";
 import type { Recurrence, ExpenseFormValues } from "../../types";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { format, parseISO, startOfDay } from "date-fns";
+import dayjs from "dayjs";
 
 const RECURRENCE_OPTIONS: { label: string; value: Recurrence }[] = [
   { label: "Weekly", value: "weekly" },
@@ -102,7 +102,7 @@ export default function AddExpenseScreen() {
     const isVar = isRegular ? false : data.isVariable;
     const parsedAmount = data.amount.trim() !== "" ? parseFloat(data.amount) : null;
     const endActive = !isRegular && data.hasEndDate;
-    const endParsed = endActive ? parseISO(data.endDate) : null;
+    const endParsed = endActive ? dayjs(data.endDate).toDate() : null;
 
     const fields = {
       name: "",
@@ -179,19 +179,19 @@ export default function AddExpenseScreen() {
                   accessibilityLabel="Select paid date"
                 >
                   <AppText variant="body-medium" className="text-white text-base">
-                    {format(parseISO(value), "MMM d, yyyy")}
+                    {dayjs(value).format("MMM D, YYYY")}
                   </AppText>
                   <Feather name="calendar" size={16} color="rgba(255,255,255,0.4)" />
                 </TouchableOpacity>
                 {showPaidPicker && (
                   <DateTimePicker
-                    value={parseISO(value)}
+                    value={dayjs(value).toDate()}
                     mode="date"
                     maximumDate={new Date()}
                     onChange={(event, date) => {
                       setShowPaidPicker(false);
                       if (event.type === "set" && date) {
-                        onChange(startOfDay(date).toISOString());
+                        onChange(dayjs(date).startOf("day").toISOString());
                       }
                     }}
                   />
@@ -346,13 +346,13 @@ export default function AddExpenseScreen() {
                       accessibilityLabel="Select end month"
                     >
                       <AppText variant="body-medium" className="text-white text-base">
-                        {format(parseISO(value), "MMM yyyy")}
+                        {dayjs(value).format("MMM YYYY")}
                       </AppText>
                       <Feather name="calendar" size={16} color="rgba(255,255,255,0.4)" />
                     </TouchableOpacity>
                     {showEndPicker && (
                       <DateTimePicker
-                        value={parseISO(value)}
+                        value={dayjs(value).toDate()}
                         mode="date"
                         minimumDate={new Date(now.getFullYear(), now.getMonth(), 1)}
                         onChange={(event, date) => {

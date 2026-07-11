@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { View, Text, SectionList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { format, getDay, startOfToday, parseISO } from "date-fns";
+import dayjs from "dayjs";
 import { useExpenses } from "../../context/ExpenseContext";
 import { ExpenseCard } from "../../components/ExpenseCard";
 import { MonthNavigator } from "../../components/MonthNavigator";
@@ -19,7 +19,7 @@ interface DaySection {
 
 // Weekend accent: Sun red, Sat indigo, weekdays muted (mirrors the reference ledger).
 function weekdayColor(date: Date): string {
-  const d = getDay(date);
+  const d = dayjs(date).day();
   if (d === 0) return colors.overdue;
   if (d === 6) return colors.secondary;
   return colors.textMuted;
@@ -27,7 +27,7 @@ function weekdayColor(date: Date): string {
 
 export default function ExpensesScreen() {
   const { expenses, loading, getMonthStatus, getMonthAmount, getMonthPaidAt } = useExpenses();
-  const today = startOfToday();
+  const today = dayjs().startOf("day").toDate();
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
 
@@ -39,10 +39,10 @@ export default function ExpensesScreen() {
     // paid_at, falling back to the month's due date when no timestamp was recorded.
     const paidDate = (e: Expense): Date => {
       if (e.recurrence === "one-off") {
-        return e.paidDate ? parseISO(e.paidDate) : new Date(e.createdAt);
+        return e.paidDate ? dayjs(e.paidDate).toDate() : new Date(e.createdAt);
       }
       const pa = getMonthPaidAt(e.id, selectedYear, selectedMonth);
-      return pa ? parseISO(pa) : getDueDateForMonth(e.dueDay, selectedYear, selectedMonth);
+      return pa ? dayjs(pa).toDate() : getDueDateForMonth(e.dueDay, selectedYear, selectedMonth);
     };
 
     const list = expenses
@@ -61,7 +61,7 @@ export default function ExpensesScreen() {
     const groups = new Map<string, DaySection>();
     for (const e of list) {
       const d = paidDate(e);
-      const key = format(d, "yyyy-MM-dd");
+      const key = dayjs(d).format("YYYY-MM-DD");
       let g = groups.get(key);
       if (!g) {
         g = { key, date: d, dayTotal: 0, data: [] };
@@ -75,7 +75,7 @@ export default function ExpensesScreen() {
     return { sections: [...groups.values()], total };
   }, [expenses, getMonthStatus, getMonthAmount, getMonthPaidAt, selectedYear, selectedMonth]);
 
-  const monthLabel = format(new Date(selectedYear, selectedMonth, 1), "MMMM");
+  const monthLabel = dayjs(new Date(selectedYear, selectedMonth, 1)).format("MMMM");
 
   if (loading) {
     return (
@@ -121,16 +121,16 @@ export default function ExpensesScreen() {
             <View className="flex-row items-center justify-between px-5 pt-3 pb-2">
               <View className="flex-row items-baseline gap-2">
                 <Text className="text-white text-[22px] font-oswald-medium">
-                  {format(s.date, "d")}
+                  {dayjs(s.date).format("D")}
                 </Text>
                 <Text
                   className="text-[11px] font-quicksand-bold uppercase tracking-wider"
                   style={{ color: weekdayColor(s.date) }}
                 >
-                  {format(s.date, "EEE")}
+                  {dayjs(s.date).format("ddd")}
                 </Text>
                 <Text className="text-white/30 text-[11px] font-quicksand-medium">
-                  {format(s.date, "MMM yyyy")}
+                  {dayjs(s.date).format("MMM YYYY")}
                 </Text>
               </View>
               <Text className="text-white/70 text-[13px] font-oswald-medium">

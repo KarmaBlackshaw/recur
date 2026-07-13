@@ -1,10 +1,9 @@
 import React, { useMemo } from "react";
-import { View, Text, SectionList } from "react-native";
+import { SectionList } from "react-native";
 import { router } from "expo-router";
 import dayjs from "dayjs";
 import { ExpenseCard } from "./ExpenseCard";
-import { formatAmount } from "../utils/dateHelpers";
-import { colors } from "../constants/theme";
+import { DayHeaderRow } from "./DayHeaderRow";
 import type { Expense } from "../types";
 
 // A single row in a day-grouped list. `effDate` decides which day bucket it lands
@@ -27,24 +26,22 @@ interface DaySection {
   data: DayEntry[];
 }
 
-// Weekend accent: Sun red, Sat indigo, weekdays muted (mirrors the reference ledger).
-function weekdayColor(date: Date): string {
-  const d = dayjs(date).day();
-  if (d === 0) return colors.overdue;
-  if (d === 6) return colors.secondary;
-  return colors.textMuted;
-}
-
 interface Props {
   // Pre-sorted by the caller; section order = first-seen day order (Map insertion),
   // so pass entries newest-first or soonest-first to control direction.
   entries: DayEntry[];
+  // false → skip the per-day headers/subtotals and render one flat list; each card
+  // shows its own date instead (recurring tab). Default true (paid ledger).
+  grouped?: boolean;
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
 }
 
-export function DayGroupedExpenseList({ entries, ListHeaderComponent, ListEmptyComponent }: Props) {
+export function DayGroupedExpenseList({ entries, grouped = true, ListHeaderComponent, ListEmptyComponent }: Props) {
   const sections = useMemo(() => {
+    if (!grouped) {
+      return [{ key: "all", date: entries[0]?.effDate ?? new Date(), dayTotal: 0, data: entries }];
+    }
     const groups = new Map<string, DaySection>();
     for (const it of entries) {
       const key = dayjs(it.effDate).format("YYYY-MM-DD");
@@ -57,7 +54,7 @@ export function DayGroupedExpenseList({ entries, ListHeaderComponent, ListEmptyC
       g.dayTotal += it.amount;
     }
     return [...groups.values()];
-  }, [entries]);
+  }, [entries, grouped]);
 
   return (
     <SectionList
@@ -84,30 +81,14 @@ export function DayGroupedExpenseList({ entries, ListHeaderComponent, ListEmptyC
           }
         />
       )}
-      renderSectionHeader={({ section }) => {
-        const s = section as unknown as DaySection;
-        return (
-          <View className="flex-row items-center justify-between px-5 pt-3 pb-2">
-            <View className="flex-row items-baseline gap-2">
-              <Text className="text-white text-[22px] font-oswald-medium">
-                {dayjs(s.date).format("D")}
-              </Text>
-              <Text
-                className="text-[11px] font-quicksand-bold uppercase tracking-wider"
-                style={{ color: weekdayColor(s.date) }}
-              >
-                {dayjs(s.date).format("ddd")}
-              </Text>
-              <Text className="text-white/30 text-[11px] font-quicksand-medium">
-                {dayjs(s.date).format("MMM YYYY")}
-              </Text>
-            </View>
-            <Text className="text-white/70 text-[13px] font-oswald-medium">
-              {formatAmount(s.dayTotal)}
-            </Text>
-          </View>
-        );
-      }}
+      renderSectionHeader={
+        grouped
+          ? ({ section }) => {
+              const s = section as unknown as DaySection;
+              return <DayHeaderRow date={s.date} total={s.dayTotal} />;
+            }
+          : undefined
+      }
       stickySectionHeadersEnabled={false}
       contentContainerClassName="pb-[140px]"
       showsVerticalScrollIndicator={false}

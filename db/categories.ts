@@ -1,10 +1,8 @@
 import { getDB } from "./schema";
-import type { FeatherIconName } from "../types";
 
 export interface Category {
-  id: string;
+  id: number; // SQLite rowid — unique integer per row, not derived from the name
   name: string;
-  icon: FeatherIconName;
 }
 
 // Categories are ordered by recency: most-recently-used first, never-used last
@@ -21,10 +19,9 @@ export async function getAll(): Promise<string[]> {
 
 export async function getAllWithIds(): Promise<Category[]> {
   const db = await getDB();
-  const rows = await db.getAllAsync<{ id: string; name: string; icon: string }>(
-    `SELECT id, name, icon FROM categories ${RECENCY_ORDER}`
+  return db.getAllAsync<Category>(
+    `SELECT rowid AS id, name FROM categories ${RECENCY_ORDER}`
   );
-  return rows.map((r) => ({ ...r, icon: r.icon as FeatherIconName }));
 }
 
 // Bump a category's recency. Called whenever an expense is saved with this category.
@@ -36,7 +33,7 @@ export async function touchCategory(
   await db.runAsync("UPDATE categories SET last_used_at = ? WHERE name = ?", [at, name]);
 }
 
-export async function insertCategory(name: string, icon: FeatherIconName = "more-horizontal"): Promise<void> {
+export async function insertCategory(name: string): Promise<void> {
   const db = await getDB();
   const row = await db.getFirstAsync<{ max_order: number }>(
     "SELECT MAX(sort_order) as max_order FROM categories"
@@ -44,22 +41,17 @@ export async function insertCategory(name: string, icon: FeatherIconName = "more
   const nextOrder = (row?.max_order ?? -1) + 1;
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   await db.runAsync(
-    "INSERT OR IGNORE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)",
-    [id, name, icon, nextOrder]
+    "INSERT OR IGNORE INTO categories (id, name, sort_order) VALUES (?, ?, ?)",
+    [id, name, nextOrder]
   );
 }
 
-export async function renameCategory(id: string, newName: string): Promise<void> {
+export async function renameCategory(id: number, newName: string): Promise<void> {
   const db = await getDB();
-  await db.runAsync("UPDATE categories SET name = ? WHERE id = ?", [newName, id]);
+  await db.runAsync("UPDATE categories SET name = ? WHERE rowid = ?", [newName, id]);
 }
 
-export async function deleteCategory(id: string): Promise<void> {
+export async function deleteCategory(id: number): Promise<void> {
   const db = await getDB();
-  await db.runAsync("DELETE FROM categories WHERE id = ?", [id]);
-}
-
-export async function updateIcon(id: string, icon: FeatherIconName): Promise<void> {
-  const db = await getDB();
-  await db.runAsync("UPDATE categories SET icon = ? WHERE id = ?", [icon, id]);
+  await db.runAsync("DELETE FROM categories WHERE rowid = ?", [id]);
 }

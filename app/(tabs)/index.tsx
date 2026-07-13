@@ -6,7 +6,8 @@ import { Feather } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import { useExpenses } from "../../context/ExpenseContext";
 import { KpiRow } from "../../components/kpi/KpiRow";
-import { DayGroupedExpenseList, type DayEntry } from "../../components/DayGroupedExpenseList";
+import { type DayEntry } from "../../components/DayGroupedExpenseList";
+import { HomeExpenseSections } from "../../components/HomeExpenseSections";
 import { DayWindowSelector, windowLabel, type DayWindow } from "../../components/DayWindowSelector";
 import { EmptyState } from "../../components/EmptyState";
 import { isOverdueOn, getDueDate, getDueDateForMonth, getGreeting, getFormattedDate } from "../../utils/dateHelpers";
@@ -21,39 +22,51 @@ export default function HomeScreen() {
   const year = today.getFullYear();
   const month = today.getMonth();
 
-  const entries = useMemo<DayEntry[]>(() => {
-    const refDate = new Date(year, month, 1);
+  // Unpaid recurring cycles, split by urgency. Overdue always shows (window-agnostic);
+  // Upcoming is gated to the rolling [today, today+window] range.
+  const dueEntry = (e: (typeof expenses)[number]): DayEntry => ({
+    key: e.id,
+    expense: e,
+    effDate: getDueDateForMonth(e.dueDay, year, month),
+    refDate: new Date(year, month, 1),
+    amount: e.isVariable ? (getMonthAmount(e.id, year, month) ?? 0) : (e.amount ?? 0),
+  });
+
+  const overdue = useMemo<DayEntry[]>(() => {
+    return expenses
+      .filter(
+        (e) =>
+          e.recurrence !== "one-off" &&
+          getMonthStatus(e.id, year, month) === "unpaid" &&
+          isOverdueOn(e.dueDay, year, month)
+      )
+      .map(dueEntry)
+      .sort((a, b) => a.effDate.getTime() - b.effDate.getTime());
+  }, [expenses, getMonthStatus, getMonthAmount, year, month]);
+
+  const upcoming = useMemo<DayEntry[]>(() => {
     const inN = dayjs(today).add(windowDays, "day").toDate();
-
-    const dues: DayEntry[] = [];
-    for (const e of expenses) {
-      if (e.recurrence === "one-off") continue;
-      if (getMonthStatus(e.id, year, month) !== "unpaid") continue;
-      const overdue = isOverdueOn(e.dueDay, year, month);
-      if (!overdue) {
+    return expenses
+      .filter((e) => {
+        if (e.recurrence === "one-off") return false;
+        if (getMonthStatus(e.id, year, month) !== "unpaid") return false;
+        if (isOverdueOn(e.dueDay, year, month)) return false;
         const d = getDueDate(e.dueDay);
-        if (!(d >= today && d <= inN)) continue;
-      }
-      dues.push({
-        key: e.id,
-        expense: e,
-        effDate: getDueDateForMonth(e.dueDay, year, month),
-        refDate,
-        amount: e.isVariable ? (getMonthAmount(e.id, year, month) ?? 0) : (e.amount ?? 0),
-        compact: false,
-        hideDate: true,
-      });
-    }
+        return d >= today && d <= inN;
+      })
+      .map(dueEntry)
+      .sort((a, b) => a.effDate.getTime() - b.effDate.getTime());
+  }, [expenses, getMonthStatus, getMonthAmount, year, month, windowDays]);
 
-    // Recently Paid: any paid entry whose pay-date lands in the rolling window.
+  // Recently Paid: any paid entry whose pay-date lands in the rolling window.
+  const recentlyPaid = useMemo<DayEntry[]>(() => {
     const lastN = dayjs(today).subtract(windowDays, "day").toDate();
     const endToday = dayjs().endOf("day").toDate();
-    const recent: DayEntry[] = ledger
+    return ledger
       .filter((it) => it.effDate >= lastN && it.effDate <= endToday)
-      .map((it) => ({ ...it, compact: false, hideDate: true }));
-
-    return [...dues, ...recent].sort((a, b) => a.effDate.getTime() - b.effDate.getTime());
-  }, [expenses, getMonthStatus, getMonthAmount, ledger, year, month, windowDays]);
+      .sort((a, b) => b.effDate.getTime() - a.effDate.getTime())
+      .map((it) => ({ ...it, compact: true }));
+  }, [ledger, windowDays]);
 
   if (loading) {
     return (
@@ -90,8 +103,10 @@ export default function HomeScreen() {
       {expenses.length === 0 ? (
         <EmptyState onAdd={() => router.push("/expense/add?type=regular")} />
       ) : (
-        <DayGroupedExpenseList
-          entries={entries}
+        <HomeExpenseSections
+          overdue={overdue}
+          upcoming={upcoming}
+          recentlyPaid={recentlyPaid}
           ListHeaderComponent={
             <View>
               <Text

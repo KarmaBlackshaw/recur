@@ -8,7 +8,7 @@ import { KpiRow } from "../../components/kpi/KpiRow";
 import { MonthNavigator } from "../../components/MonthNavigator";
 import { EmptyState } from "../../components/EmptyState";
 import { DayGroupedExpenseList, type DayEntry } from "../../components/DayGroupedExpenseList";
-import { effectivePaidDate } from "../../utils/dateHelpers";
+import { effectivePaidDate, isOverdueOn } from "../../utils/dateHelpers";
 import { colors } from "../../constants/theme";
 
 export default function RecurringScreen() {
@@ -23,23 +23,22 @@ export default function RecurringScreen() {
   );
 
   const entries = useMemo(() => {
-    const list: DayEntry[] = recurringExpenses.map((e) => {
+    const ranked = recurringExpenses.map((e) => {
       const paidAt = getMonthPaidAt(e.id, selectedYear, selectedMonth);
       const effDate = effectivePaidDate(paidAt, e.dueDay, selectedYear, selectedMonth);
       const refDate = new Date(selectedYear, selectedMonth, 1);
       const amount = e.isVariable ? (getMonthAmount(e.id, selectedYear, selectedMonth) ?? 0) : e.amount ?? 0;
 
-      return {
-        key: e.id,
-        expense: e,
-        effDate,
-        refDate,
-        amount,
-        compact: false,
-        hideDate: true
-      };
+      const status = getMonthStatus(e.id, selectedYear, selectedMonth);
+      const overdue = status === "unpaid" && isOverdueOn(e.dueDay, selectedYear, selectedMonth);
+      // overdue → unpaid → paid
+      const rank = overdue ? 0 : status === "unpaid" ? 1 : 2;
+
+      const entry: DayEntry = { key: e.id, expense: e, effDate, refDate, amount };
+      return { entry, rank };
     });
-    return list.sort((a, b) => a.effDate.getTime() - b.effDate.getTime());
+    ranked.sort((a, b) => a.rank - b.rank || b.entry.effDate.getTime() - a.entry.effDate.getTime());
+    return ranked.map((r) => r.entry);
   }, [recurringExpenses, getMonthStatus, getMonthAmount, getMonthPaidAt, selectedYear, selectedMonth]);
 
   if (loading) {
@@ -63,6 +62,7 @@ export default function RecurringScreen() {
       ) : (
         <DayGroupedExpenseList
           entries={entries}
+          grouped={false}
           ListHeaderComponent={
             <>
               <KpiRow year={selectedYear} month={selectedMonth} recurringOnly />

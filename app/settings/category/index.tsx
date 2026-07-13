@@ -6,11 +6,9 @@ import { Feather } from "@expo/vector-icons";
 import { AppText } from "../../../components/ui/AppText";
 import { Category, getAllWithIds, deleteCategory } from "../../../db/categories";
 import { colors } from "../../../constants/theme";
-import { useExpenses } from "../../../context/ExpenseContext";
 
 export default function ManageCategoriesScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const { reloadCategoryIcons } = useExpenses();
 
   useFocusEffect(
     useCallback(() => {
@@ -20,9 +18,8 @@ export default function ManageCategoriesScreen() {
         if (active) setCategories(cats);
       }
       load();
-      reloadCategoryIcons();
       return () => { active = false; };
-    }, [reloadCategoryIcons])
+    }, [])
   );
 
   function handleDelete(cat: Category) {
@@ -55,7 +52,7 @@ export default function ManageCategoriesScreen() {
 
       <FlatList
         data={categories}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         ListHeaderComponent={
           <AppText variant="body-medium" className="text-white/40 text-xs mb-2 px-1">
@@ -67,20 +64,8 @@ export default function ManageCategoriesScreen() {
             <TouchableOpacity className="p-1" onPress={() => handleDelete(item)}>
               <Feather name="trash-2" size={18} color={colors.overdue} />
             </TouchableOpacity>
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                backgroundColor: "rgba(99,102,241,0.12)",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Feather name={item.icon} size={16} color={colors.secondary} />
-            </View>
             <AppText variant="body-medium" className="flex-1 text-white text-sm">{item.name}</AppText>
-            <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: item.id, editName: item.name, editIcon: item.icon } })}>
+            <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: String(item.id), editName: item.name } })}>
               <Feather name="edit-2" size={16} color={colors.secondary} />
             </TouchableOpacity>
           </View>

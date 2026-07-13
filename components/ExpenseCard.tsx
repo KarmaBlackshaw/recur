@@ -30,9 +30,10 @@ interface Props {
   referenceDate?: Date;
   onPress?: () => void;
   compact?: boolean;   // day-grouped paid ledger: drop icon, date line, and status badge (all items are paid)
+  hideDate?: boolean;  // drop the date/due line only, keep status badge (recurring tab)
 }
 
-export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compact = false }: Props) {
+export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compact = false, hideDate = false }: Props) {
   const { getMonthStatus, toggleMonthStatus, deleteExpense, getMonthAmount, getMonthPaidAt } = useExpenses();
   const swipeRef = useRef<SwipeableMethods>(null);
   const refDate = referenceDate ?? new Date();
@@ -133,7 +134,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
               <Feather name="bell" size={10} color={colors.secondary} style={{ marginTop: 2 }} />
             )}
           </View>
-          {!compact && (
+          {!compact && !hideDate && (
             <Text
               className={`text-[11px] font-['Quicksand_500Medium'] mt-0.5 ${overdueFlag ? "text-overdue" : "text-white/35"}`}
             >

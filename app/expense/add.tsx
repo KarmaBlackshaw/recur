@@ -40,6 +40,10 @@ export default function AddExpenseScreen() {
   const editingExpense = id ? expenses.find((e) => e.id === id) ?? null : null;
   const isEditing = editingExpense !== null;
   const isRegular = isEditing ? editingExpense!.recurrence === "one-off" : type === "regular";
+  const lastUsedCategory =
+    (expenses.length
+      ? expenses.reduce((a, e) => (e.createdAt > a.createdAt ? e : a)).category
+      : null) ?? "Other";
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const [showPaidPicker, setShowPaidPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
@@ -54,7 +58,7 @@ export default function AddExpenseScreen() {
     mode: "onChange",
     defaultValues: {
       amount: editingExpense?.amount != null ? editingExpense.amount.toString() : "",
-      category: editingExpense?.category ?? "Other",
+      category: editingExpense?.category ?? lastUsedCategory,
       dueDay: editingExpense?.dueDay?.toString() ?? "1",
       recurrence: editingExpense?.recurrence ?? (type === "regular" ? "one-off" : "monthly"),
       isVariable: editingExpense?.isVariable ?? false,

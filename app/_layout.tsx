@@ -10,6 +10,7 @@ import {
   Quicksand_700Bold,
 } from "@expo-google-fonts/quicksand";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import * as Notifications from "expo-notifications";
 import { ExpenseProvider } from "../context/ExpenseContext";
 import { colors } from "../constants/theme";
 import { requestPermissions } from "../utils/notifications";
@@ -17,6 +18,15 @@ import { getPreference, setPreference } from "../db/preferences";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({

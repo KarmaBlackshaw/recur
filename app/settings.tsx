@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, TouchableOpacity, Alert, Switch, ScrollView } from "react-native";
 import * as Notifications from 'expo-notifications';
 import { getPreference, setPreference } from '../db/preferences';
-import { scheduleAllNotifications, cancelAllNotifications } from '../utils/notifications';
+import { scheduleAllNotifications, cancelAllNotifications, buildSummaryContent } from '../utils/notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { AppSelectBottomSheet, type AppSelectBottomSheetRef } from '../components/ui/AppSelectBottomSheet';
 import { exportBackup, importBackup } from "../utils/backup";
@@ -13,7 +13,6 @@ import Constants from "expo-constants";
 import { AppText } from "../components/ui/AppText";
 import { useExpenses } from "../context/ExpenseContext";
 import { seedRecurring, seedOneOff, clearRecurring, clearOneOff } from "../db/seed";
-import { expenseTitle } from "../utils/expenseHelpers";
 import { colors } from "../constants/theme";
 
 const version = Constants.expoConfig?.version ?? "—";
@@ -310,19 +309,12 @@ export default function SettingsScreen() {
                 className="flex-row items-center px-5 py-4"
                 onPress={async () => {
                   await Notifications.cancelAllScheduledNotificationsAsync();
-                  for (const expense of expenses) {
-                    if (expense.status !== 'unpaid') continue;
-                    await Notifications.scheduleNotificationAsync({
-                      content: {
-                        title: expenseTitle(expense),
-                        body: expense.amount != null
-                          ? '₱' + expense.amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : 'TBD',
-                      },
-                      trigger: { type: SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 5, repeats: false },
-                    });
-                  }
-                  Alert.alert('Dev', `Scheduled ${expenses.filter(e => e.status === 'unpaid').length} notification(s) — firing in 5s`);
+                  const unpaid = expenses.filter((e) => e.status === 'unpaid');
+                  await Notifications.scheduleNotificationAsync({
+                    content: buildSummaryContent(unpaid, 'soon'),
+                    trigger: { type: SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 5, repeats: false },
+                  });
+                  Alert.alert('Dev', `Summary for ${unpaid.length} unpaid — firing in 5s`);
                 }}
                 accessibilityLabel="Test notifications"
               >

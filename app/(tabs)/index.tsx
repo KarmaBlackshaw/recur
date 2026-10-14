@@ -113,10 +113,8 @@ export default function HomeScreen() {
                 This Month
               </AppText>
               <KpiRow year={year} month={month} />
-              <View className="flex-row items-center gap-3 mx-5 mt-3 mb-1">
-                <AppText variant="meta" className="shrink">
-                  Upcoming & paid within
-                </AppText>
+              <View className="gap-2 mx-5 mt-3 mb-1">
+                <AppText variant="meta">Upcoming & paid within</AppText>
                 <DayWindowSelector value={windowDays} onChange={setWindowDays} />
               </View>
             </View>

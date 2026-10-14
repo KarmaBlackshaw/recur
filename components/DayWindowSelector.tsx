@@ -14,7 +14,7 @@ interface Props {
 export function DayWindowSelector({ value, onChange }: Props) {
   return (
     <View
-      className="flex-row flex-1 bg-surface rounded-full p-1 border border-border"
+      className="flex-row bg-surface rounded-full p-1 border border-border"
       accessibilityRole="radiogroup"
     >
       {DAY_WINDOWS.map((days) => {

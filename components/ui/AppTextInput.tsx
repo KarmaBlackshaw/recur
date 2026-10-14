@@ -3,14 +3,16 @@ import { TextInput, TextInputProps, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { AppText } from "./AppText";
 import { colors } from "../../constants/theme";
+import { formatAmount, sanitizeAmount } from "../../utils/amountInput";
 
 interface AppTextInputProps extends TextInputProps {
   label?: string;
   error?: string;
+  isAmount?: boolean;
 }
 
 export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
-  function AppTextInput({ label, error, multiline, className = "", ...props }, ref) {
+  function AppTextInput({ label, error, multiline, isAmount, value, onChangeText, className = "", ...props }, ref) {
     return (
       <View>
         {label && (
@@ -26,7 +28,10 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
           textAlignVertical={multiline ? "top" : undefined}
           accessibilityLabel={label}
           accessibilityHint={error}
+          keyboardType={isAmount ? "decimal-pad" : undefined}
           {...props}
+          value={isAmount && value != null ? formatAmount(value) : value}
+          onChangeText={isAmount ? (text) => onChangeText?.(sanitizeAmount(text)) : onChangeText}
         />
         {error && (
           <View className="flex-row items-center gap-1.5 mb-1" accessibilityLiveRegion="polite">

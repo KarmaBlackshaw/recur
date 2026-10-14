@@ -257,13 +257,12 @@ export default function AddExpenseScreen() {
             <AppTextInput
               autoFocus
               label={isVariableWatched ? "This Month's Amount (₱)" : "Amount (₱)"}
+              isAmount
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               placeholder="0.00"
-              keyboardType="decimal-pad"
               error={fieldState.error?.message}
-              className="!text-[36px] !font-oswald-medium text-center"
             />
           )}
         />

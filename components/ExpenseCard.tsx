@@ -53,7 +53,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
       : isPaid
         ? dayjs(paidAt ?? dueDate).format("MMM D")
         : overdueFlag
-          ? `${daysOverdue} ${daysOverdue === 1 ? "day" : "days"} overdue`
+          ? `${daysOverdue} ${daysOverdue === 1 ? "day" : "days"} late`
           : formatDueDate(dueDate);
   const statusLabel = ended ? "Ended" : isPaid ? "Paid" : overdueFlag ? "Overdue" : "Unpaid";
   const canToggle = !compact && !ended;
@@ -120,41 +120,36 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
           }`}
         >
           <View className="flex-1">
-            <View className="flex-row items-center justify-between gap-3">
-              <AppText
-                variant="body-bold"
-                className={`flex-1 text-[15px] ${ended ? "text-textMuted" : ""}`}
-                numberOfLines={1}
-              >
-                {title}
-              </AppText>
-              <AppText variant="amount">{amountText}</AppText>
-            </View>
+            <AppText
+              variant="body-bold"
+              className={`text-[15px] ${ended ? "text-textMuted" : ""}`}
+              numberOfLines={1}
+            >
+              {title}
+            </AppText>
             <View className="flex-row items-center gap-2 mt-1">
               <AppText variant="meta">{expense.category}</AppText>
               {expense.reminderDaysBefore != null && (
                 <Feather name="bell" size={12} color={colors.secondary} />
               )}
               {!compact && !hideDate && (
-                <View className="flex-row items-center gap-1">
-                  {overdueFlag && <Feather name="alert-triangle" size={12} color={colors.overdue} />}
-                  <AppText variant="meta" className={overdueFlag ? "text-overdue" : ended ? "text-textMuted" : ""}>
-                    {dateText}
-                  </AppText>
-                </View>
+                <AppText variant="meta" className={overdueFlag ? "text-overdue" : ended ? "text-textMuted" : ""}>
+                  {dateText}
+                </AppText>
               )}
             </View>
           </View>
 
-          {compact ? null : ended ? (
-            <View className="ml-3 px-2 py-1 rounded-md bg-white/[0.06]">
-              <AppText variant="caption" className="uppercase tracking-wider">Ended</AppText>
-            </View>
-          ) : (
-            <View className="ml-3">
+          <View className="ml-3 items-end gap-1.5">
+            <AppText variant="amount" numberOfLines={1}>{amountText}</AppText>
+            {compact ? null : ended ? (
+              <View className="px-2 py-0.5 rounded-md bg-white/[0.06]">
+                <AppText variant="caption" className="uppercase tracking-wider">Ended</AppText>
+              </View>
+            ) : (
               <StatusBadge status={resolvedStatus} overdue={overdueFlag} onToggle={handleToggle} />
-            </View>
-          )}
+            )}
+          </View>
         </Animated.View>
       </TouchableOpacity>
     </ReanimatedSwipeable>

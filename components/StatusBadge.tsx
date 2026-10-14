@@ -52,15 +52,15 @@ export function StatusBadge({ status, overdue, onToggle }: Props) {
       onPress={onToggle}
       disabled={!onToggle}
       activeOpacity={0.7}
-      className={`flex-row items-center gap-1.5 rounded-full border px-3 py-1.5 min-h-[32px] ${tone.containerClass}`}
-      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+      className={`flex-row items-center gap-1 rounded-full border px-2 py-0.5 ${tone.containerClass}`}
+      hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
       accessibilityRole={onToggle ? "button" : "text"}
       accessibilityLabel={onToggle ? (isPaid ? "Mark as unpaid" : "Mark as paid") : tone.label}
       accessibilityHint={onToggle ? `Currently ${tone.label.toLowerCase()}` : undefined}
       accessibilityState={onToggle ? { checked: isPaid } : undefined}
     >
-      <Feather name={tone.icon} size={12} color={tone.color} />
-      <AppText variant="body-bold" className={`text-xs tracking-[0.5px] ${tone.textClass}`}>
+      <Feather name={tone.icon} size={10} color={tone.color} />
+      <AppText variant="body-bold" className={`text-[11px] tracking-[0.5px] ${tone.textClass}`}>
         {tone.label}
       </AppText>
     </TouchableOpacity>

@@ -1,0 +1,44 @@
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    name: Type-check + JS bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx expo export --platform android --platform ios --output-dir dist
+
+  android:
+    name: Android debug build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+      - run: npm ci
+      - run: npx expo prebuild --clean --platform android --no-install
+      - uses: gradle/actions/setup-gradle@v4
+      # ponytail: single ABI keeps CI ~3x faster; drop the flag to build all ABIs
+      - run: ./gradlew assembleDebug -PreactNativeArchitectures=x86_64 --no-daemon
+        working-directory: android

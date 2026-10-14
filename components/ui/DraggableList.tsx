@@ -3,6 +3,7 @@ import { ScrollView, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -20,7 +21,7 @@ interface DraggableListProps<T> {
 const SPRING = { damping: 22, stiffness: 220, mass: 0.4 };
 
 // Registry so parent can drive each item's offsetY shared value
-type OffsetRegistry = Map<string, Animated.SharedValue<number>>;
+type OffsetRegistry = Map<string, SharedValue<number>>;
 
 export function DraggableList<T>({
   data,
@@ -120,9 +121,9 @@ export function DraggableList<T>({
 interface ItemProps {
   itemKey: string;
   visualIndex: number;
-  activeVisualIndex: Animated.SharedValue<number>;
-  fingerY: Animated.SharedValue<number>;
-  listTop: Animated.SharedValue<number>;
+  activeVisualIndex: SharedValue<number>;
+  fingerY: SharedValue<number>;
+  listTop: SharedValue<number>;
   registry: OffsetRegistry;
   itemHeight: number;
   totalItems: number;

@@ -11,36 +11,13 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { AppText } from "./AppText";
 import { AppTextInput } from "./AppTextInput";
-
-const GRID_CONTENT_STYLE = {
-  flexDirection: "row" as const,
-  flexWrap: "wrap" as const,
-  alignItems: "flex-start" as const,
-};
-
-const GRID_BORDER_STYLE = {
-  borderTopWidth: 1,
-  borderColor: "rgba(255,255,255,0.07)",
-  overflow: "hidden" as const,
-  marginBottom: 200,
-};
-
-const CELL_STYLE = {
-  borderRightWidth: 1,
-  borderBottomWidth: 1,
-  borderColor: "rgba(255,255,255,0.07)",
-};
-
-const CELL_STYLE_SPACER = {
-  borderRightWidth: 1,
-  borderColor: "rgba(255,255,255,0.07)",
-};
+import { colors } from "../../constants/theme";
 
 function EmptyItems({ searching }: { searching: boolean }) {
   return (
     <View className="flex-1 items-center justify-center py-12 gap-2">
       <Feather name={searching ? "search" : "inbox"} size={36} color="rgba(255,255,255,0.15)" />
-      <AppText variant="body-medium" className="text-white/40 text-sm text-center">
+      <AppText variant="body-medium" className="text-textMuted text-sm text-center">
         {searching ? "No results" : "Nothing here yet"}
       </AppText>
     </View>
@@ -135,17 +112,22 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
       ref={sheetRef}
       snapPoints={snapPoints}
       onDismiss={onDismiss}
-      backgroundStyle={{ backgroundColor: "#1C1C1E" }}
+      backgroundStyle={{ backgroundColor: colors.surface }}
       handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
       backdropComponent={renderBackdrop}
     >
       <BottomSheetView className="flex-1">
         <View className="flex-row items-center justify-between mb-3 px-4">
-          <AppText variant="heading" className="text-white text-lg">{title}</AppText>
+          <AppText variant="title" accessibilityRole="header">{title}</AppText>
           <View className="flex-row gap-1">
             {action}
-            <TouchableOpacity className="p-1" onPress={() => sheetRef.current?.dismiss()}>
-              <Feather name="x" size={20} color="rgba(255,255,255,0.5)" />
+            <TouchableOpacity
+              className="w-11 h-11 items-center justify-center"
+              onPress={() => sheetRef.current?.dismiss()}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Feather name="x" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -165,19 +147,28 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
           <EmptyItems searching={searchable && search.trim().length > 0} />
         ) : (
           <BottomSheetScrollView keyboardShouldPersistTaps="handled">
-            <View style={GRID_BORDER_STYLE}>
-              <View style={GRID_CONTENT_STYLE}>
-                {filtered.map((item) => (
-                  <View key={keyExtractor(item)} style={[itemStyle, CELL_STYLE]}>
-                    {renderItem(
-                      item,
-                      keyExtractor(item) === selectedKey,
-                      () => handleSelect(item)
-                    )}
-                  </View>
-                ))}
+            <View className="border-t border-border overflow-hidden pb-[200px]">
+              <View className="flex-row flex-wrap items-start">
+                {filtered.map((item) => {
+                  const isSelected = keyExtractor(item) === selectedKey;
+                  return (
+                    <View
+                      key={keyExtractor(item)}
+                      className="border-r border-b border-border"
+                      style={itemStyle}
+                      accessibilityState={{ selected: isSelected }}
+                    >
+                      {renderItem(item, isSelected, () => handleSelect(item))}
+                      {isSelected && (
+                        <View pointerEvents="none" className="absolute top-1.5 right-1.5">
+                          <Feather name="check" size={14} color={colors.text} />
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
                 {Array.from({ length: (columns - (filtered.length % columns)) % columns }).map((_, i) => (
-                  <View key={`__spacer_${i}`} style={[itemStyle, CELL_STYLE_SPACER]} />
+                  <View key={`__spacer_${i}`} className="border-r border-border" style={itemStyle} />
                 ))}
               </View>
             </View>

@@ -5,6 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { AppSelectBottomSheet, AppSelectBottomSheetRef } from "./ui/AppSelectBottomSheet";
 import { AppText } from "./ui/AppText";
+import { colors } from "../constants/theme";
 import { getAll } from "../db/categories";
 
 export interface CategoryBottomSheetRef {
@@ -38,10 +39,13 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
             selected ? "bg-primary" : "bg-white/[0.04]"
           }`}
           onPress={onSelect}
+          accessibilityRole="button"
+          accessibilityLabel={item}
+          accessibilityState={{ selected }}
         >
           <AppText
             variant={selected ? "body-bold" : "body-medium"}
-            className={`text-base text-center ${selected ? "text-white" : "text-white/70"}`}
+            className={`text-base text-center ${selected ? "text-white" : "text-textSecondary"}`}
             numberOfLines={1}
           >
             {item}
@@ -53,13 +57,15 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
 
     const action = (
       <TouchableOpacity
-        className="p-1"
+        className="w-11 h-11 items-center justify-center"
         onPress={() => {
           sheetRef.current?.dismiss();
           router.push("/settings/category");
         }}
+        accessibilityRole="button"
+        accessibilityLabel="Manage categories"
       >
-        <Feather name="edit-2" size={18} color="rgba(255,255,255,0.5)" />
+        <Feather name="edit-2" size={18} color={colors.textMuted} />
       </TouchableOpacity>
     );
 

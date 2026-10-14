@@ -1,6 +1,8 @@
 import React from "react";
-import { View, TouchableOpacity, Text } from "react-native";
+import { View, TouchableOpacity } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { AppText } from "./AppText";
+import { colors } from "../../constants/theme";
 
 interface Option<T extends string> {
   label: string;
@@ -29,26 +31,34 @@ export function AppRadioGroup<T extends string>({
           {label}
         </AppText>
       )}
-      <View className="flex-row bg-surface rounded-[10px] border border-border mb-1 overflow-hidden h-[52px]">
-        {options.map((opt) => (
-          <TouchableOpacity
-            key={opt.value}
-            className={`flex-1 items-center justify-center ${
-              value === opt.value ? "bg-primary" : ""
-            }`}
-            onPress={() => onChange(opt.value)}
-          >
-            <Text
-              className={`text-xs ${
-                value === opt.value
-                  ? "text-white font-quicksand-bold"
-                  : "text-white/50 font-quicksand-medium"
+      <View
+        className="flex-row bg-surface rounded-xl border border-border mb-1 overflow-hidden min-h-[52px]"
+        accessibilityRole="radiogroup"
+        accessibilityLabel={label}
+      >
+        {options.map((opt) => {
+          const isSelected = value === opt.value;
+          return (
+            <TouchableOpacity
+              key={opt.value}
+              className={`flex-1 flex-row items-center justify-center gap-1 min-h-[52px] px-1 ${
+                isSelected ? "bg-primary" : ""
               }`}
+              onPress={() => onChange(opt.value)}
+              accessibilityRole="radio"
+              accessibilityLabel={opt.label}
+              accessibilityState={{ selected: isSelected, checked: isSelected }}
             >
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              {isSelected && <Feather name="check" size={12} color={colors.text} />}
+              <AppText
+                variant={isSelected ? "body-bold" : "body-medium"}
+                className={`text-xs ${isSelected ? "text-white" : "text-textSecondary"}`}
+              >
+                {opt.label}
+              </AppText>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );

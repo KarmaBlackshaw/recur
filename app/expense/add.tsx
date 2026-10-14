@@ -15,6 +15,7 @@ import { AppButton } from "../../components/ui/AppButton";
 import { AppText } from "../../components/ui/AppText";
 import { AppTextInput } from "../../components/ui/AppTextInput";
 import { AppRadioGroup } from "../../components/ui/AppRadioGroup";
+import { AppCheckRow } from "../../components/ui/AppCheckRow";
 import { colors } from "../../constants/theme";
 import type { Recurrence, ExpenseFormValues } from "../../types";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -53,7 +54,7 @@ export default function AddExpenseScreen() {
     handleSubmit,
     reset,
     watch,
-    formState: { isValid },
+    formState: { isValid, errors },
   } = useForm<ExpenseFormValues>({
     mode: "onChange",
     defaultValues: {
@@ -144,6 +145,10 @@ export default function AddExpenseScreen() {
     }
   });
 
+  const saveHint = Object.keys(errors).length
+    ? "Fix the highlighted fields to save"
+    : "Fill in the required fields to save";
+
   function handleCancel() {
     reset();
     router.back();
@@ -153,15 +158,20 @@ export default function AddExpenseScreen() {
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
       <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity onPress={handleCancel} className="p-1">
+        <TouchableOpacity
+          onPress={handleCancel}
+          className="w-11 h-11 items-center justify-center"
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <Feather name="chevron-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
-        <AppText variant="heading" className="flex-1 text-center text-[22px]">
+        <AppText variant="title" className="flex-1 text-center" numberOfLines={1} adjustsFontSizeToFit>
           {isRegular
             ? (isEditing ? "Edit Expense" : "Add Expense")
             : (isEditing ? "Edit Recurring Expense" : "Add Recurring Expense")}
         </AppText>
-        <View className="w-8" />
+        <View className="w-11" />
       </View>
 
       <ScrollView
@@ -180,12 +190,13 @@ export default function AddExpenseScreen() {
                 <TouchableOpacity
                   className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
                   onPress={() => setShowPaidPicker(true)}
-                  accessibilityLabel="Select paid date"
+                  accessibilityRole="button"
+                  accessibilityLabel={`Paid date, ${dayjs(value).format("MMM D, YYYY")}`}
                 >
                   <AppText variant="body-medium" className="text-white text-base">
                     {dayjs(value).format("MMM D, YYYY")}
                   </AppText>
-                  <Feather name="calendar" size={16} color="rgba(255,255,255,0.4)" />
+                  <Feather name="calendar" size={16} color={colors.textMuted} />
                 </TouchableOpacity>
                 {showPaidPicker && (
                   <DateTimePicker
@@ -215,9 +226,10 @@ export default function AddExpenseScreen() {
                 return (!isNaN(n) && n >= 1 && n <= 31) || "Must be 1–31";
               },
             }}
-            render={({ field: { value, onChange, onBlur } }) => (
+            render={({ field: { value, onChange, onBlur }, fieldState }) => (
               <AppTextInput
-                label="Due Day (1–31) *"
+                label="Due Day (1–31)"
+                error={fieldState.error?.message}
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
@@ -241,15 +253,17 @@ export default function AddExpenseScreen() {
               return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
             },
           }}
-          render={({ field: { value, onChange, onBlur } }) => (
+          render={({ field: { value, onChange, onBlur }, fieldState }) => (
             <AppTextInput
               autoFocus
-              label={isVariableWatched ? "This Month's Amount" : "Amount"}
+              label={isVariableWatched ? "This Month's Amount (₱)" : "Amount (₱)"}
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               placeholder="0.00"
               keyboardType="decimal-pad"
+              error={fieldState.error?.message}
+              className="!text-[36px] !font-oswald-medium text-center"
             />
           )}
         />
@@ -263,9 +277,11 @@ export default function AddExpenseScreen() {
             <TouchableOpacity
               className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
               onPress={() => categorySheetRef.current?.present()}
+              accessibilityRole="button"
+              accessibilityLabel={`Category, ${value}`}
             >
               <AppText variant="body-medium" className="text-white text-base">{value}</AppText>
-              <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.4)" />
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         />
@@ -290,25 +306,12 @@ export default function AddExpenseScreen() {
               control={control}
               name="isVariable"
               render={({ field: { value, onChange } }) => (
-                <TouchableOpacity
-                  className="flex-row items-center gap-3 bg-surface border border-border rounded-xl px-3.5 py-3 mb-1 mt-1"
-                  onPress={() => onChange(!value)}
-                  accessibilityLabel="Toggle variable expense"
-                >
-                  <View
-                    className="w-5 h-5 rounded border-2 items-center justify-center"
-                    style={{
-                      borderColor: value ? colors.primary : "rgba(255,255,255,0.25)",
-                      backgroundColor: value ? colors.primary : "transparent",
-                    }}
-                  >
-                    {value && <Feather name="check" size={12} color="#FFFFFF" />}
-                  </View>
-                  <View className="flex-1">
-                    <AppText variant="body-medium" className="text-white text-sm">Variable amount</AppText>
-                    <AppText variant="caption" className="text-white/40 text-xs">Amount changes each month</AppText>
-                  </View>
-                </TouchableOpacity>
+                <AppCheckRow
+                  label="Variable amount"
+                  description="Amount changes each month"
+                  checked={value}
+                  onToggle={onChange}
+                />
               )}
             />
 
@@ -316,25 +319,12 @@ export default function AddExpenseScreen() {
               control={control}
               name="hasEndDate"
               render={({ field: { value, onChange } }) => (
-                <TouchableOpacity
-                  className="flex-row items-center gap-3 bg-surface border border-border rounded-xl px-3.5 py-3 mb-1 mt-1"
-                  onPress={() => onChange(!value)}
-                  accessibilityLabel="Toggle end month"
-                >
-                  <View
-                    className="w-5 h-5 rounded border-2 items-center justify-center"
-                    style={{
-                      borderColor: value ? colors.primary : "rgba(255,255,255,0.25)",
-                      backgroundColor: value ? colors.primary : "transparent",
-                    }}
-                  >
-                    {value && <Feather name="check" size={12} color="#FFFFFF" />}
-                  </View>
-                  <View className="flex-1">
-                    <AppText variant="body-medium" className="text-white text-sm">Set an end month</AppText>
-                    <AppText variant="caption" className="text-white/40 text-xs">Stops recurring after this month</AppText>
-                  </View>
-                </TouchableOpacity>
+                <AppCheckRow
+                  label="Set an end month"
+                  description="Stops recurring after this month"
+                  checked={value}
+                  onToggle={onChange}
+                />
               )}
             />
             {hasEndDateWatched && (
@@ -347,12 +337,13 @@ export default function AddExpenseScreen() {
                     <TouchableOpacity
                       className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
                       onPress={() => setShowEndPicker(true)}
-                      accessibilityLabel="Select end month"
+                      accessibilityRole="button"
+                      accessibilityLabel={`Ends, ${dayjs(value).format("MMM YYYY")}`}
                     >
                       <AppText variant="body-medium" className="text-white text-base">
                         {dayjs(value).format("MMM YYYY")}
                       </AppText>
-                      <Feather name="calendar" size={16} color="rgba(255,255,255,0.4)" />
+                      <Feather name="calendar" size={16} color={colors.textMuted} />
                     </TouchableOpacity>
                     {showEndPicker && (
                       <DateTimePicker
@@ -382,9 +373,10 @@ export default function AddExpenseScreen() {
                   return (!isNaN(n) && n >= 1 && n <= 14) || 'Must be 1–14';
                 },
               }}
-              render={({ field: { value, onChange, onBlur } }) => (
+              render={({ field: { value, onChange, onBlur }, fieldState }) => (
                 <AppTextInput
                   label="Remind me (days before)"
+                  error={fieldState.error?.message}
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
@@ -394,7 +386,7 @@ export default function AddExpenseScreen() {
                 />
               )}
             />
-            <AppText variant="caption" className="text-white/40 text-xs px-1 mb-3">
+            <AppText variant="caption" className="px-1 mb-3">
               Leave blank for default (1 day before due)
             </AppText>
           </>
@@ -422,8 +414,12 @@ export default function AddExpenseScreen() {
           label={isEditing ? "Save Changes" : "Save Expense"}
           onPress={onSubmit}
           disabled={!isValid}
+          accessibilityHint={isValid ? undefined : saveHint}
           className="mt-4"
         />
+        {!isValid && (
+          <AppText variant="meta" className="text-center mt-2">{saveHint}</AppText>
+        )}
 
         <View className="h-8" />
       </ScrollView>

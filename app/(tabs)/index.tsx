@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -10,6 +10,8 @@ import { type DayEntry } from "../../components/DayGroupedExpenseList";
 import { HomeExpenseSections } from "../../components/HomeExpenseSections";
 import { DayWindowSelector, windowLabel, type DayWindow } from "../../components/DayWindowSelector";
 import { EmptyState } from "../../components/EmptyState";
+import { LoadingState } from "../../components/ui/LoadingState";
+import { AppText } from "../../components/ui/AppText";
 import { isOverdueOn, getDueDate, getDueDateForMonth, getGreeting, getFormattedDate } from "../../utils/dateHelpers";
 import { usePaidLedger } from "../../utils/usePaidLedger";
 import { colors } from "../../constants/theme";
@@ -70,8 +72,8 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color={colors.secondary} size="large" />
+      <SafeAreaView className="flex-1 bg-background">
+        <LoadingState />
       </SafeAreaView>
     );
   }
@@ -81,22 +83,20 @@ export default function HomeScreen() {
       {/* Header */}
       <View className="flex-row justify-between items-start px-5 pt-2 pb-3">
         <View>
-          <Text
-            className="text-[11px] tracking-widest uppercase"
-            style={{ color: "rgba(255,255,255,0.45)", fontFamily: "Quicksand_700Bold" }}
-          >
+          <AppText variant="overline">
             {getFormattedDate().toUpperCase()}
-          </Text>
-          <Text className="text-white text-[28px] tracking-wide" style={{ fontFamily: "Oswald_Medium" }}>
+          </AppText>
+          <AppText variant="display" className="tracking-wide">
             {getGreeting(userName)}
-          </Text>
+          </AppText>
         </View>
         <TouchableOpacity
-          className="w-10 h-10 rounded-full bg-white/[0.07] items-center justify-center mt-1"
+          className="w-11 h-11 rounded-full bg-white/[0.07] items-center justify-center"
+          accessibilityRole="button"
           accessibilityLabel="Settings"
           onPress={() => router.push("/settings")}
         >
-          <Feather name="settings" size={18} color="rgba(255,255,255,0.6)" />
+          <Feather name="settings" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -109,22 +109,24 @@ export default function HomeScreen() {
           recentlyPaid={recentlyPaid}
           ListHeaderComponent={
             <View>
-              <Text
-                className="px-5 pt-2 pb-1 text-[11px] uppercase tracking-widest"
-                style={{ color: "rgba(255,255,255,0.4)", fontFamily: "Quicksand_700Bold" }}
-              >
+              <AppText variant="overline" className="px-5 pt-2 pb-1">
                 This Month
-              </Text>
+              </AppText>
               <KpiRow year={year} month={month} />
-              <DayWindowSelector value={windowDays} onChange={setWindowDays} />
+              <View className="flex-row items-center gap-3 mx-5 mt-3 mb-1">
+                <AppText variant="meta" className="shrink">
+                  Upcoming & paid within
+                </AppText>
+                <DayWindowSelector value={windowDays} onChange={setWindowDays} />
+              </View>
             </View>
           }
           ListEmptyComponent={
-            <View className="mx-5 mt-1 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-white/[0.07]">
-              <Feather name="check-circle" size={15} color={colors.paid} />
-              <Text className="text-white/60 text-[13px] font-['Quicksand_500Medium']">
+            <View className="mx-5 mt-1 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-border">
+              <Feather name="inbox" size={15} color={colors.textMuted} />
+              <AppText variant="meta" className="shrink">
                 Nothing due or paid in the last/next {windowLabel(windowDays).toLowerCase()}
-              </Text>
+              </AppText>
             </View>
           }
         />

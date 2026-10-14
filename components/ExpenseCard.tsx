@@ -1,22 +1,11 @@
 import React, { useRef } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
+import { View, TouchableOpacity, Alert, type AccessibilityActionEvent } from "react-native";
 import { router } from "expo-router";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { Feather } from "@expo/vector-icons";
-import Animated, {
-  FadeInDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-  interpolate,
-} from "react-native-reanimated";
+import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 import { StatusBadge } from "./StatusBadge";
+import { AppText } from "./ui/AppText";
 import dayjs from "dayjs";
 import { formatDueDate, getDueDateForMonth, isOverdueOn, formatAmount, isEndedOn, formatEndMonth } from "../utils/dateHelpers";
 import { useExpenses } from "../context/ExpenseContext";
@@ -36,12 +25,14 @@ interface Props {
 export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compact = false, hideDate = false }: Props) {
   const { getMonthStatus, toggleMonthStatus, deleteExpense, getMonthAmount, getMonthPaidAt } = useExpenses();
   const swipeRef = useRef<SwipeableMethods>(null);
+  const isReducedMotion = useReducedMotion();
   const refDate = referenceDate ?? new Date();
   const year = refDate.getFullYear();
   const month = refDate.getMonth();
   const isRegular = expense.recurrence === "one-off";
   const dueDate = getDueDateForMonth(expense.dueDay, year, month);
   const resolvedStatus = getMonthStatus(expense.id, year, month);
+  const isPaid = resolvedStatus === "paid";
   // Paid recurring shows when it was actually paid (paid_at), not its due date.
   // Fall back to dueDate only for legacy rows recorded before paid_at existed.
   const paidAt = !isRegular ? getMonthPaidAt(expense.id, year, month) : null;
@@ -52,23 +43,28 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
     ? (monthlyActual !== null ? monthlyActual : null)
     : expense.amount;
 
-  const pulse = useSharedValue(0);
-  React.useEffect(() => {
-    if (overdueFlag) {
-      pulse.value = withRepeat(withTiming(1, { duration: 1200 }), -1, true);
-    } else {
-      pulse.value = 0;
-    }
-  }, [overdueFlag]);
+  const title = expenseTitle(expense);
+  const amountText = displayAmount !== null ? formatAmount(displayAmount) : "TBD";
+  const daysOverdue = dayjs().startOf("day").diff(dayjs(dueDate).startOf("day"), "day");
+  const dateText = ended
+    ? `Ended ${formatEndMonth(expense.endYear!, expense.endMonth!)}`
+    : isRegular
+      ? dayjs(expense.createdAt).format("MMM D")
+      : isPaid
+        ? dayjs(paidAt ?? dueDate).format("MMM D")
+        : overdueFlag
+          ? `${daysOverdue} ${daysOverdue === 1 ? "day" : "days"} overdue`
+          : formatDueDate(dueDate);
+  const statusLabel = ended ? "Ended" : isPaid ? "Paid" : overdueFlag ? "Overdue" : "Unpaid";
+  const canToggle = !compact && !ended;
 
-  const glowStyle = useAnimatedStyle(() => ({
-    shadowOpacity: interpolate(pulse.value, [0, 1], [0.1, 0.45]),
-    shadowRadius: interpolate(pulse.value, [0, 1], [4, 14]),
-  }));
+  function handleToggle() {
+    toggleMonthStatus(expense.id, year, month);
+  }
 
   function handleDelete() {
     swipeRef.current?.close();
-    Alert.alert("Delete expense", `Remove "${expenseTitle(expense)}"?`, [
+    Alert.alert("Delete expense", `Remove "${title}"?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -78,14 +74,26 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
     ]);
   }
 
+  function handleAccessibilityAction({ nativeEvent }: AccessibilityActionEvent) {
+    if (nativeEvent.actionName === "toggle") handleToggle();
+    if (nativeEvent.actionName === "delete") handleDelete();
+  }
+
+  const accessibilityActions = [
+    ...(canToggle ? [{ name: "toggle", label: isPaid ? "Mark unpaid" : "Mark paid" }] : []),
+    { name: "delete", label: "Delete" },
+  ];
+
   function renderRightActions() {
     return (
       <TouchableOpacity
-        className="justify-center items-center w-16 my-1.5 mr-4"
+        className="justify-center items-center gap-1 w-20 my-1.5 mr-5 rounded-2xl bg-overdue/15"
         onPress={handleDelete}
-        accessibilityLabel="Delete expense"
+        accessibilityRole="button"
+        accessibilityLabel="Delete"
       >
         <Feather name="trash-2" size={20} color={colors.overdue} />
+        <AppText variant="meta" className="text-overdue">Delete</AppText>
       </TouchableOpacity>
     );
   }
@@ -99,74 +107,55 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={onPress ?? (() => router.push({ pathname: "/expense/add", params: { id: expense.id } }))}
-        accessibilityLabel="Edit expense"
+        accessibilityRole="button"
+        accessibilityLabel={`${title}, ${expense.category}, ${amountText}, ${statusLabel}, ${dateText}`}
+        accessibilityHint="Opens editor"
+        accessibilityActions={accessibilityActions}
+        onAccessibilityAction={handleAccessibilityAction}
       >
         <Animated.View
-          entering={FadeInDown.delay(index * 60).duration(300)}
-          className="flex-row items-center bg-surface rounded-2xl mx-4 my-1.5 px-4 py-3.5 border border-white/[0.07]"
-          style={[
-            {
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.18,
-              shadowRadius: 6,
-              elevation: 3,
-            },
-            overdueFlag ? { shadowColor: "#F87171" } : null,
-            overdueFlag ? { borderLeftWidth: 3, borderLeftColor: colors.overdue } : null,
-            overdueFlag ? glowStyle : null,
-            ended ? { opacity: 0.5 } : null,
-          ]}
+          entering={isReducedMotion ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}
+          className={`flex-row items-center rounded-2xl mx-5 my-1.5 px-4 py-3.5 border border-white/[0.07] ${
+            overdueFlag ? "bg-overdue/[0.06] border-l-[3px] border-l-overdue" : "bg-surface"
+          }`}
         >
-        {/* Name + meta */}
-        <View className="flex-1">
-          <Text
-            className="text-white text-[15px] font-['Quicksand_700Bold'] mb-0.5"
-            numberOfLines={1}
-          >
-            {expenseTitle(expense)}
-          </Text>
-          <View className="flex-row items-center gap-2">
-            <Text className="text-white/40 text-[10px] font-['Quicksand_500Medium'] bg-white/[0.06] px-2 py-0.5 rounded-md">
-              {expense.category}
-            </Text>
-            {expense.reminderDaysBefore != null && (
-              <Feather name="bell" size={10} color={colors.secondary} style={{ marginTop: 2 }} />
-            )}
+          <View className="flex-1">
+            <View className="flex-row items-center justify-between gap-3">
+              <AppText
+                variant="body-bold"
+                className={`flex-1 text-[15px] ${ended ? "text-textMuted" : ""}`}
+                numberOfLines={1}
+              >
+                {title}
+              </AppText>
+              <AppText variant="amount">{amountText}</AppText>
+            </View>
+            <View className="flex-row items-center gap-2 mt-1">
+              <AppText variant="meta">{expense.category}</AppText>
+              {expense.reminderDaysBefore != null && (
+                <Feather name="bell" size={12} color={colors.secondary} />
+              )}
+              {!compact && !hideDate && (
+                <View className="flex-row items-center gap-1">
+                  {overdueFlag && <Feather name="alert-triangle" size={12} color={colors.overdue} />}
+                  <AppText variant="meta" className={overdueFlag ? "text-overdue" : ended ? "text-textMuted" : ""}>
+                    {dateText}
+                  </AppText>
+                </View>
+              )}
+            </View>
           </View>
-          {!compact && !hideDate && (
-            <Text
-              className={`text-[11px] font-['Quicksand_500Medium'] mt-0.5 ${overdueFlag ? "text-overdue" : "text-white/35"}`}
-            >
-              {ended
-                ? `Ended ${formatEndMonth(expense.endYear!, expense.endMonth!)}`
-                : isRegular
-                  ? dayjs(expense.createdAt).format("MMM D")
-                  : resolvedStatus === "paid"
-                    ? dayjs(paidAt ?? dueDate).format("MMM D")
-                    : `${overdueFlag ? "⚠ " : ""}${formatDueDate(dueDate)}`}
-            </Text>
-          )}
-        </View>
 
-        {/* Amount + status */}
-        <View className="items-end gap-2 ml-3">
-          <Text className="text-white text-[17px] leading-tight" style={{ fontFamily: "Oswald_Regular" }}>
-            {displayAmount !== null ? formatAmount(displayAmount) : "TBD"}
-          </Text>
           {compact ? null : ended ? (
-            <View className="px-2 py-1 rounded-md bg-white/[0.06]">
-              <Text className="text-white/40 text-[10px] font-['Quicksand_700Bold'] uppercase tracking-wider">Ended</Text>
+            <View className="ml-3 px-2 py-1 rounded-md bg-white/[0.06]">
+              <AppText variant="caption" className="uppercase tracking-wider">Ended</AppText>
             </View>
           ) : (
-            <StatusBadge
-              status={resolvedStatus}
-              overdue={overdueFlag}
-              onToggle={() => toggleMonthStatus(expense.id, year, month)}
-            />
+            <View className="ml-3">
+              <StatusBadge status={resolvedStatus} overdue={overdueFlag} onToggle={handleToggle} />
+            </View>
           )}
-        </View>
-      </Animated.View>
+        </Animated.View>
       </TouchableOpacity>
     </ReanimatedSwipeable>
   );

@@ -7,7 +7,7 @@ import { useFonts } from "expo-font";
 import {
   Quicksand_400Regular,
   Quicksand_500Medium,
-    Quicksand_600SemiBold,
+  Quicksand_600SemiBold,
   Quicksand_700Bold,
 } from "@expo-google-fonts/quicksand";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";

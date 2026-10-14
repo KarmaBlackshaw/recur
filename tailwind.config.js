@@ -13,7 +13,8 @@ module.exports = {
         overdue: "#F87171",
         border: "rgba(255,255,255,0.07)",
         textPrimary: "#FFFFFF",
-        textMuted: "rgba(255,255,255,0.4)",
+        textMuted: "rgba(255,255,255,0.5)",
+        textSecondary: "rgba(255,255,255,0.65)",
       },
       fontFamily: {
         oswald: ["Oswald_Regular"],

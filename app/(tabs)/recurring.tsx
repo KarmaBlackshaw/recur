@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, SectionList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import dayjs from "dayjs";
@@ -7,9 +7,29 @@ import { useExpenses } from "../../context/ExpenseContext";
 import { KpiRow } from "../../components/kpi/KpiRow";
 import { MonthNavigator } from "../../components/MonthNavigator";
 import { EmptyState } from "../../components/EmptyState";
-import { DayGroupedExpenseList, type DayEntry } from "../../components/DayGroupedExpenseList";
+import { type DayEntry } from "../../components/DayGroupedExpenseList";
+import { ExpenseCard } from "../../components/ExpenseCard";
+import { BandHeader } from "../../components/BandHeader";
+import { LoadingState } from "../../components/ui/LoadingState";
+import { AppText } from "../../components/ui/AppText";
 import { effectivePaidDate, isOverdueOn } from "../../utils/dateHelpers";
 import { colors } from "../../constants/theme";
+import type { FeatherIconName } from "../../types";
+
+interface Band {
+  key: string;
+  label: string;
+  icon: FeatherIconName;
+  accent: string;
+  total: number;
+  data: DayEntry[];
+}
+
+const BANDS: Omit<Band, "total" | "data">[] = [
+  { key: "overdue", label: "Overdue", icon: "alert-triangle", accent: colors.overdue },
+  { key: "unpaid", label: "Unpaid", icon: "circle", accent: colors.secondary },
+  { key: "paid", label: "Paid", icon: "check-circle", accent: colors.paid },
+];
 
 export default function RecurringScreen() {
   const { expenses, loading, getMonthStatus, getMonthAmount, getMonthPaidAt } = useExpenses();
@@ -22,7 +42,7 @@ export default function RecurringScreen() {
     [expenses]
   );
 
-  const entries = useMemo(() => {
+  const bands = useMemo<Band[]>(() => {
     const ranked = recurringExpenses.map((e) => {
       const paidAt = getMonthPaidAt(e.id, selectedYear, selectedMonth);
       const effDate = effectivePaidDate(paidAt, e.dueDay, selectedYear, selectedMonth);
@@ -38,44 +58,70 @@ export default function RecurringScreen() {
       return { entry, rank };
     });
     ranked.sort((a, b) => a.rank - b.rank || a.entry.effDate.getTime() - b.entry.effDate.getTime());
-    return ranked.map((r) => r.entry);
+    return BANDS.map((band, rank) => {
+      const data = ranked.filter((r) => r.rank === rank).map((r) => r.entry);
+      return { ...band, data, total: data.reduce((t, e) => t + e.amount, 0) };
+    }).filter((band) => band.data.length > 0);
   }, [recurringExpenses, getMonthStatus, getMonthAmount, getMonthPaidAt, selectedYear, selectedMonth]);
+
+  const monthLabel = dayjs(new Date(selectedYear, selectedMonth, 1)).format("MMMM YYYY");
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color={colors.secondary} size="large" />
+      <SafeAreaView className="flex-1 bg-background">
+        <LoadingState />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <MonthNavigator
-        year={selectedYear}
-        month={selectedMonth}
-        onChange={(y, m) => { setSelectedYear(y); setSelectedMonth(m); }}
-      />
+      <View className="flex-row items-center justify-between pl-5 pr-2 pt-2 pb-1">
+        <AppText variant="display">Recurring</AppText>
+        <MonthNavigator
+          year={selectedYear}
+          month={selectedMonth}
+          onChange={(y, m) => { setSelectedYear(y); setSelectedMonth(m); }}
+        />
+      </View>
 
       {recurringExpenses.length === 0 ? (
         <EmptyState onAdd={() => router.push("/expense/add?type=recurring")} />
       ) : (
-        <DayGroupedExpenseList
-          entries={entries}
-          grouped={false}
-          ListHeaderComponent={
-            <>
-              <KpiRow year={selectedYear} month={selectedMonth} recurringOnly />
-              <View className="mx-5 mt-3 mb-1 h-px bg-white/[0.06]" />
-            </>
-          }
-          ListEmptyComponent={
-            <View className="flex-1 items-center justify-center pt-20">
-              <Text className="text-white/30 text-sm font-['Quicksand_500Medium']">
-                No recurring expenses for this month
-              </Text>
-            </View>
-          }
+        <SectionList<DayEntry, Band>
+          sections={bands}
+          keyExtractor={(item) => item.key}
+          ListHeaderComponent={<KpiRow year={selectedYear} month={selectedMonth} recurringOnly />}
+          ListEmptyComponent={<EmptyState title="Nothing this month" icon="calendar" message={`No recurring expenses for ${monthLabel}`} />}
+          renderSectionHeader={({ section }) => (
+            <BandHeader
+              label={section.label}
+              icon={section.icon}
+              accent={section.accent}
+              total={section.total}
+              count={section.data.length}
+            />
+          )}
+          renderItem={({ item, index }) => (
+            <ExpenseCard
+              expense={item.expense}
+              index={index}
+              referenceDate={item.refDate}
+              onPress={() =>
+                router.push({
+                  pathname: "/expense/add",
+                  params: {
+                    id: item.expense.id,
+                    year: item.refDate.getFullYear(),
+                    month: item.refDate.getMonth(),
+                  },
+                })
+              }
+            />
+          )}
+          stickySectionHeadersEnabled={false}
+          contentContainerClassName="pb-[140px]"
+          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>

@@ -58,7 +58,7 @@ text:     #FFFFFF
 border:   rgba(255,255,255,0.07)
 ```
 
-Fonts: Caveat (headings) + Quicksand (body) via `@expo-google-fonts`.
+Fonts: Oswald (headings, bundled TTFs in `assets/fonts/oswald`) + Quicksand (body) via `@expo-google-fonts`.
 
 ## Folder Structure
 

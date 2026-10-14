@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View } from "react-native";
+import { AppText } from "./ui/AppText";
 import dayjs from "dayjs";
 import { formatAmount } from "../utils/dateHelpers";
 import { colors } from "../constants/theme";
@@ -18,22 +19,19 @@ export function DayHeaderRow({ date, total }: { date: Date; total: number }) {
   return (
     <View className="flex-row items-center justify-between px-5 pt-3 pb-2">
       <View className="flex-row items-baseline gap-2">
-        <Text className="text-white text-[22px] font-oswald-medium">
-          {dayjs(date).format("D")}
-        </Text>
-        <Text
-          className="text-[11px] font-quicksand-bold uppercase tracking-wider"
+        <AppText variant="title">{dayjs(date).format("D")}</AppText>
+        <AppText
+          variant="overline"
+          className="tracking-wider"
           style={{ color: weekdayColor(date) }}
         >
           {dayjs(date).format("ddd")}
-        </Text>
-        <Text className="text-white/30 text-[11px] font-quicksand-medium">
+        </AppText>
+        <AppText variant="meta" className="text-textMuted">
           {dayjs(date).format("MMM YYYY")}
-        </Text>
+        </AppText>
       </View>
-      <Text className="text-white/70 text-[13px] font-oswald-medium">
-        {formatAmount(total)}
-      </Text>
+      <AppText variant="amount-sm">{formatAmount(total)}</AppText>
     </View>
   );
 }

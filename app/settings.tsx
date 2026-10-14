@@ -112,7 +112,12 @@ export default function SettingsScreen() {
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
       <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity className="p-1" onPress={() => router.back()}>
+        <TouchableOpacity
+          className="w-11 h-11 items-center justify-center"
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <Feather name="chevron-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
         <AppText variant="heading" className="flex-1 text-center text-white text-xl">
@@ -127,7 +132,7 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* PROFILE section */}
-        <AppText variant="label" className="text-white/40 mb-2 pl-1">
+        <AppText variant="label" className="text-textMuted mb-2 pl-1">
           Profile
         </AppText>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
@@ -145,7 +150,7 @@ export default function SettingsScreen() {
             <AppText variant="body-medium" className="flex-1 text-white text-sm">
               Your Name
             </AppText>
-            <AppText variant="caption" className="text-white/35 mr-2">
+            <AppText variant="caption" className="text-textMuted mr-2">
               {userName ?? "Not set"}
             </AppText>
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
@@ -153,7 +158,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* APP section */}
-        <AppText variant="label" className="text-white/40 mb-2 pl-1">
+        <AppText variant="label" className="text-textMuted mb-2 pl-1">
           App
         </AppText>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
@@ -176,7 +181,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* DATA section */}
-        <AppText variant="label" className="text-white/40 mb-2 pl-1">
+        <AppText variant="label" className="text-textMuted mb-2 pl-1">
           Data
         </AppText>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
@@ -213,7 +218,7 @@ export default function SettingsScreen() {
               Import Data
             </AppText>
             {importing ? (
-              <AppText variant="caption" className="text-white/35 mr-2">...</AppText>
+              <AppText variant="caption" className="text-textMuted mr-2">...</AppText>
             ) : (
               <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
             )}
@@ -221,7 +226,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* NOTIFICATIONS section */}
-        <AppText variant="label" className="text-white/40 mb-2 pl-1">
+        <AppText variant="label" className="text-textMuted mb-2 pl-1">
           Notifications
         </AppText>
 
@@ -252,7 +257,7 @@ export default function SettingsScreen() {
             <AppText variant="body-medium" className="flex-1 text-white text-sm">
               Reminder time
             </AppText>
-            <AppText variant="caption" className="text-white/35 mr-2">
+            <AppText variant="caption" className="text-textMuted mr-2">
               {reminderTime}
             </AppText>
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
@@ -279,7 +284,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* ABOUT section */}
-        <AppText variant="label" className="text-white/40 mb-2 pl-1">
+        <AppText variant="label" className="text-textMuted mb-2 pl-1">
           About
         </AppText>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
@@ -293,7 +298,7 @@ export default function SettingsScreen() {
             <AppText variant="body-medium" className="flex-1 text-white text-sm">
               Version
             </AppText>
-            <AppText variant="caption" className="text-white/35">
+            <AppText variant="caption" className="text-textMuted">
               {version}
             </AppText>
           </View>
@@ -301,7 +306,7 @@ export default function SettingsScreen() {
 
         {__DEV__ && (
           <>
-            <AppText variant="label" className="text-white/40 mb-2 pl-1">
+            <AppText variant="label" className="text-textMuted mb-2 pl-1">
               Dev Tools
             </AppText>
             <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
@@ -319,15 +324,14 @@ export default function SettingsScreen() {
                 accessibilityLabel="Test notifications"
               >
                 <View
-                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-                  style={{ backgroundColor: '#F59E0B' }}
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-secondary"
                 >
                   <Feather name="zap" size={15} color="#FFFFFF" />
                 </View>
                 <AppText variant="body-medium" className="flex-1 text-white text-sm">
                   Fire notifications in 5s
                 </AppText>
-                <AppText variant="caption" className="text-white/35">
+                <AppText variant="caption" className="text-textMuted">
                   {expenses.filter(e => e.status === 'unpaid').length} unpaid
                 </AppText>
               </TouchableOpacity>

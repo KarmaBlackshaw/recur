@@ -55,7 +55,7 @@ export default function ManageCategoriesScreen() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         ListHeaderComponent={
-          <AppText variant="body-medium" className="text-white/40 text-xs mb-2 px-1">
+          <AppText variant="body-medium" className="text-textMuted text-xs mb-2 px-1">
             Sorted by most recently used
           </AppText>
         }

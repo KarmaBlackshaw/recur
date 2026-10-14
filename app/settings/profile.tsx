@@ -58,12 +58,12 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <AppText variant="label" className="text-white/40 mb-2 pl-1">
+        <AppText variant="label" className="text-textMuted mb-2 pl-1">
           Profile
         </AppText>
 
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6 px-4 py-4">
-          <AppText variant="label" className="text-white/40 mb-2">
+          <AppText variant="label" className="text-textMuted mb-2">
             Your Name
           </AppText>
 

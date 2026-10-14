@@ -40,19 +40,29 @@ export function MonthNavigator({ year, month, onChange }: Props) {
   const label = dayjs(new Date(year, month, 1)).format("MMMM YYYY");
 
   return (
-    <View className="flex-row items-center px-4 py-2 gap-4">
+    <View className="flex-row items-center justify-between">
       <TouchableOpacity
         onPress={prevMonth}
-        className="w-8 h-8 items-center justify-center"
+        className="w-11 h-11 items-center justify-center"
+        accessibilityRole="button"
         accessibilityLabel="Previous month"
       >
-        <Feather name="chevron-left" size={20} color="rgba(255,255,255,0.5)" />
+        <Feather name="chevron-left" size={20} color={colors.textSecondary} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={resetToToday} disabled={isCurrentMonth}>
+      <TouchableOpacity
+        onPress={resetToToday}
+        className="min-h-[44px] justify-center px-2"
+        disabled={isCurrentMonth}
+        accessibilityRole="button"
+        accessibilityLabel="Jump to current month"
+        accessibilityState={{ disabled: isCurrentMonth }}
+        accessibilityValue={{ text: label }}
+      >
         <Text
-          className="text-[15px] tracking-wide font-['Quicksand_600SemiBold']"
-          style={{ color: isCurrentMonth ? colors.secondary : "rgba(255,255,255,0.55)" }}
+          className={`text-[15px] tracking-wide font-['Quicksand_600SemiBold'] ${
+            isCurrentMonth ? "text-secondary" : "text-textSecondary"
+          }`}
         >
           {label}
         </Text>
@@ -60,10 +70,11 @@ export function MonthNavigator({ year, month, onChange }: Props) {
 
       <TouchableOpacity
         onPress={nextMonth}
-        className="w-8 h-8 items-center justify-center"
+        className="w-11 h-11 items-center justify-center"
+        accessibilityRole="button"
         accessibilityLabel="Next month"
       >
-        <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.5)" />
+        <Feather name="chevron-right" size={20} color={colors.textSecondary} />
       </TouchableOpacity>
     </View>
   );

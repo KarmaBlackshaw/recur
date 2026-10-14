@@ -9,3 +9,6 @@ CLAUDE.local.md
 
 # local env (dev flags, e.g. EXPO_PUBLIC_SEED_DUMMY)
 .env
+
+# local planning/run artifacts
+docs/

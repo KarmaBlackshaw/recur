@@ -1,5 +1,6 @@
 import React from "react";
 import { View } from "react-native";
+import dayjs from "dayjs";
 import { formatAmount, isEndedOn } from "../../utils/dateHelpers";
 import { useExpenses } from "../../context/ExpenseContext";
 import { KpiCard } from "./KpiCard";
@@ -13,10 +14,13 @@ interface Props {
 
 export function KpiRow({ year, month, recurringOnly = false }: Props) {
   const { expenses, getMonthAmount, getMonthStatus } = useExpenses();
-  const source = (recurringOnly
-    ? expenses.filter((e) => e.recurrence !== "one-off")
-    : expenses
-  ).filter((e) => !isEndedOn(e.endYear, e.endMonth, year, month));
+  const isInMonth = (e: Expense) => {
+    if (e.recurrence !== "one-off") return !isEndedOn(e.endYear, e.endMonth, year, month);
+    if (recurringOnly) return false;
+    const d = dayjs(e.paidDate ?? e.createdAt);
+    return d.year() === year && d.month() === month;
+  };
+  const source = expenses.filter(isInMonth);
 
   function resolveAmount(e: Expense): number {
     if (e.isVariable) return getMonthAmount(e.id, year, month) ?? 0;

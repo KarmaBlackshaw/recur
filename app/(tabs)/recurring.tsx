@@ -37,7 +37,7 @@ export default function RecurringScreen() {
       const entry: DayEntry = { key: e.id, expense: e, effDate, refDate, amount };
       return { entry, rank };
     });
-    ranked.sort((a, b) => a.rank - b.rank || b.entry.effDate.getTime() - a.entry.effDate.getTime());
+    ranked.sort((a, b) => a.rank - b.rank || a.entry.effDate.getTime() - b.entry.effDate.getTime());
     return ranked.map((r) => r.entry);
   }, [recurringExpenses, getMonthStatus, getMonthAmount, getMonthPaidAt, selectedYear, selectedMonth]);
 

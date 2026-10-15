@@ -1,4 +1,6 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
+import useBoolean from "ahooks/es/useBoolean";
+import maxBy from "lodash/maxBy";
 import {
   View,
   TouchableOpacity,
@@ -41,13 +43,10 @@ export default function AddExpenseScreen() {
   const editingExpense = id ? expenses.find((e) => e.id === id) ?? null : null;
   const isEditing = editingExpense !== null;
   const isRegular = isEditing ? editingExpense!.recurrence === "one-off" : type === "regular";
-  const lastUsedCategory =
-    (expenses.length
-      ? expenses.reduce((a, e) => (e.createdAt > a.createdAt ? e : a)).category
-      : null) ?? "Other";
+  const lastUsedCategory = maxBy(expenses, "createdAt")?.category ?? "Other";
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
-  const [showPaidPicker, setShowPaidPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [isPaidPickerOpen, paidPicker] = useBoolean();
+  const [isEndPickerOpen, endPicker] = useBoolean();
 
   const {
     control,
@@ -189,7 +188,7 @@ export default function AddExpenseScreen() {
                 <AppText variant="label" className="mb-1.5 mt-1">Paid Date</AppText>
                 <TouchableOpacity
                   className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
-                  onPress={() => setShowPaidPicker(true)}
+                  onPress={paidPicker.setTrue}
                   accessibilityRole="button"
                   accessibilityLabel={`Paid date, ${dayjs(value).format("MMM D, YYYY")}`}
                 >
@@ -198,13 +197,13 @@ export default function AddExpenseScreen() {
                   </AppText>
                   <Feather name="calendar" size={16} color={colors.textMuted} />
                 </TouchableOpacity>
-                {showPaidPicker && (
+                {isPaidPickerOpen && (
                   <DateTimePicker
                     value={dayjs(value).toDate()}
                     mode="date"
                     maximumDate={new Date()}
                     onChange={(event, date) => {
-                      setShowPaidPicker(false);
+                      paidPicker.setFalse();
                       if (event.type === "set" && date) {
                         onChange(dayjs(date).startOf("day").toISOString());
                       }
@@ -335,7 +334,7 @@ export default function AddExpenseScreen() {
                     <AppText variant="label" className="mb-1.5 mt-1">Ends</AppText>
                     <TouchableOpacity
                       className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
-                      onPress={() => setShowEndPicker(true)}
+                      onPress={endPicker.setTrue}
                       accessibilityRole="button"
                       accessibilityLabel={`Ends, ${dayjs(value).format("MMM YYYY")}`}
                     >
@@ -344,13 +343,13 @@ export default function AddExpenseScreen() {
                       </AppText>
                       <Feather name="calendar" size={16} color={colors.textMuted} />
                     </TouchableOpacity>
-                    {showEndPicker && (
+                    {isEndPickerOpen && (
                       <DateTimePicker
                         value={dayjs(value).toDate()}
                         mode="date"
                         minimumDate={new Date(now.getFullYear(), now.getMonth(), 1)}
                         onChange={(event, date) => {
-                          setShowEndPicker(false);
+                          endPicker.setFalse();
                           if (event.type === "set" && date) {
                             onChange(new Date(date.getFullYear(), date.getMonth(), 1).toISOString());
                           }

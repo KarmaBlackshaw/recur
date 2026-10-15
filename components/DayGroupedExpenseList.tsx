@@ -1,9 +1,9 @@
 import React, { useMemo } from "react";
 import { SectionList } from "react-native";
 import { router } from "expo-router";
-import dayjs from "dayjs";
 import { ExpenseCard } from "./ExpenseCard";
 import { DayHeaderRow } from "./DayHeaderRow";
+import { groupEntriesByDay } from "../utils/groupEntriesByDay";
 import type { Expense } from "../types";
 
 // A single row in a day-grouped list. `effDate` decides which day bucket it lands
@@ -22,12 +22,12 @@ export interface DayEntry {
 interface DaySection {
   key: string;
   date: Date;
-  dayTotal: number;
+  total: number;
   data: DayEntry[];
 }
 
 interface Props {
-  // Pre-sorted by the caller; section order = first-seen day order (Map insertion),
+  // Pre-sorted by the caller; section order = first-seen day order (insertion order),
   // so pass entries newest-first or soonest-first to control direction.
   entries: DayEntry[];
   // false → skip the per-day headers/subtotals and render one flat list; each card
@@ -40,20 +40,9 @@ interface Props {
 export function DayGroupedExpenseList({ entries, grouped = true, ListHeaderComponent, ListEmptyComponent }: Props) {
   const sections = useMemo(() => {
     if (!grouped) {
-      return [{ key: "all", date: entries[0]?.effDate ?? new Date(), dayTotal: 0, data: entries }];
+      return [{ key: "all", date: entries[0]?.effDate ?? new Date(), total: 0, data: entries }];
     }
-    const groups = new Map<string, DaySection>();
-    for (const it of entries) {
-      const key = dayjs(it.effDate).format("YYYY-MM-DD");
-      let g = groups.get(key);
-      if (!g) {
-        g = { key, date: it.effDate, dayTotal: 0, data: [] };
-        groups.set(key, g);
-      }
-      g.data.push(it);
-      g.dayTotal += it.amount;
-    }
-    return [...groups.values()];
+    return groupEntriesByDay(entries);
   }, [entries, grouped]);
 
   return (
@@ -85,7 +74,7 @@ export function DayGroupedExpenseList({ entries, grouped = true, ListHeaderCompo
         grouped
           ? ({ section }) => {
               const s = section as unknown as DaySection;
-              return <DayHeaderRow date={s.date} total={s.dayTotal} />;
+              return <DayHeaderRow date={s.date} total={s.total} />;
             }
           : undefined
       }

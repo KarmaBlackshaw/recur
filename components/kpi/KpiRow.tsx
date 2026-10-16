@@ -16,8 +16,12 @@ interface Props {
 export function KpiRow({ year, month, recurringOnly = false }: Props) {
   const { expenses, resolveAmount, getMonthStatus } = useExpenses();
   const isInMonth = (e: Expense) => {
-    if (e.recurrence !== "one-off") return !isEndedOn(e.endYear, e.endMonth, year, month);
-    if (recurringOnly) return false;
+    if (e.recurrence !== "one-off") {
+      return !isEndedOn(e.endYear, e.endMonth, year, month);
+    }
+    if (recurringOnly) {
+      return false;
+    }
     const d = dayjs(e.paidDate ?? e.createdAt);
     return d.year() === year && d.month() === month;
   };

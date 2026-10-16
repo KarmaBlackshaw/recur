@@ -50,13 +50,19 @@ export default function RootLayout() {
 
   useMount(async () => {
     const asked = await getPreference('notificationsPermissionAsked');
-    if (asked !== null) return;
+    if (asked !== null) {
+      return;
+    }
     const granted = await requestPermissions();
-    if (!granted) await setPreference('notificationsEnabled', 'false');
+    if (!granted) {
+      await setPreference('notificationsEnabled', 'false');
+    }
     await setPreference('notificationsPermissionAsked', 'true');
   });
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

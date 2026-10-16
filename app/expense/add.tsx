@@ -246,8 +246,12 @@ export default function AddExpenseScreen() {
           name="amount"
           rules={{
             validate: (v) => {
-              if (isVariableWatched) return true;
-              if (v === "" || v === undefined) return true;
+              if (isVariableWatched) {
+                return true;
+              }
+              if (v === "" || v === undefined) {
+                return true;
+              }
               const n = parseFloat(v);
               return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
             },
@@ -366,7 +370,9 @@ export default function AddExpenseScreen() {
               name="reminderDaysBefore"
               rules={{
                 validate: (v) => {
-                  if (!v || v.trim() === '') return true;
+                  if (!v || v.trim() === '') {
+                    return true;
+                  }
                   const n = parseInt(v, 10);
                   return (!isNaN(n) && n >= 1 && n <= 14) || 'Must be 1–14';
                 },

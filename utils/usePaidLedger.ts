@@ -29,7 +29,9 @@ export function usePaidLedger(): PaidEntry[] {
 
     // One-offs: paid, dated by paidDate (fallback createdAt for legacy rows).
     for (const e of expenses) {
-      if (e.recurrence !== "one-off" || e.status !== "paid") continue;
+      if (e.recurrence !== "one-off" || e.status !== "paid") {
+        continue;
+      }
       const created = new Date(e.createdAt);
       items.push({
         key: e.id,
@@ -44,7 +46,9 @@ export function usePaidLedger(): PaidEntry[] {
     // payment surfaces in the month it was paid, not the due month.
     for (const c of paidCycles) {
       const e = byId[c.expenseId];
-      if (!e || e.recurrence === "one-off") continue;
+      if (!e || e.recurrence === "one-off") {
+        continue;
+      }
       items.push({
         key: monthKey(e.id, c.year, c.month),
         expense: e,

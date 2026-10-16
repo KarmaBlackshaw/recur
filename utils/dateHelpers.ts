@@ -46,19 +46,29 @@ export function formatDue(dueDay: number): string {
 }
 
 export function formatDueDate(d: Date): string {
-  if (dayjs(d).isSame(dayjs(), "day")) return "Today";
-  if (dayjs(d).isSame(dayjs().add(1, "day"), "day")) return "Tomorrow";
+  if (dayjs(d).isSame(dayjs(), "day")) {
+    return "Today";
+  }
+  if (dayjs(d).isSame(dayjs().add(1, "day"), "day")) {
+    return "Tomorrow";
+  }
   const diff = dayjs(d).startOf("day").diff(dayjs().startOf("day"), "day");
-  if (diff > 0) return `${diff} days`;
+  if (diff > 0) {
+    return `${diff} days`;
+  }
   return dayjs(d).format("MMM D");
 }
 
 export function getGreeting(name?: string | null): string {
   const hour = new Date().getHours();
   let salutation: string;
-  if (hour >= 5 && hour < 12) salutation = "Good Morning";
-  else if (hour >= 12 && hour < 18) salutation = "Good Afternoon";
-  else salutation = "Good Evening";
+  if (hour >= 5 && hour < 12) {
+    salutation = "Good Morning";
+  } else if (hour >= 12 && hour < 18) {
+    salutation = "Good Afternoon";
+  } else {
+    salutation = "Good Evening";
+  }
   return name ? `${salutation}, ${name}` : salutation;
 }
 
@@ -81,7 +91,9 @@ export function isEndedOn(
   year: number,
   month: number
 ): boolean {
-  if (endYear == null || endMonth == null) return false;
+  if (endYear == null || endMonth == null) {
+    return false;
+  }
   return year > endYear || (year === endYear && month > endMonth);
 }
 

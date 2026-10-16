@@ -18,14 +18,20 @@ export async function cancelAllNotifications(): Promise<void> {
 
 function pesoTotal(group: Expense[]): string | undefined {
   const withAmount = group.filter((e) => e.amount != null);
-  if (withAmount.length === 0) return undefined;
+  if (withAmount.length === 0) {
+    return undefined;
+  }
   const total = sumBy(withAmount, 'amount');
   return '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' total';
 }
 
 function dueLabel(daysBefore: number): string {
-  if (daysBefore <= 0) return 'today';
-  if (daysBefore === 1) return 'tomorrow';
+  if (daysBefore <= 0) {
+    return 'today';
+  }
+  if (daysBefore === 1) {
+    return 'tomorrow';
+  }
   return `in ${daysBefore} days`;
 }
 
@@ -53,15 +59,23 @@ export async function scheduleAllNotifications(
     const eligible: { expense: Expense; daysBefore: number; fireTime: number }[] = [];
 
     for (const expense of expenses) {
-      if (expense.status !== 'unpaid') continue;
-      if (expense.reminderDaysBefore === 0) continue;
+      if (expense.status !== 'unpaid') {
+        continue;
+      }
+      if (expense.reminderDaysBefore === 0) {
+        continue;
+      }
 
       const daysBefore = expense.reminderDaysBefore ?? 1;
       const dueDate = getDueDate(expense.dueDay);
-      if (isEndedOn(expense.endYear, expense.endMonth, dueDate.getFullYear(), dueDate.getMonth())) continue;
+      if (isEndedOn(expense.endYear, expense.endMonth, dueDate.getFullYear(), dueDate.getMonth())) {
+        continue;
+      }
       const fireDate = dayjs(dueDate).subtract(daysBefore, 'day').hour(hours).minute(minutes).toDate();
 
-      if (dayjs(fireDate).isBefore(now)) continue;
+      if (dayjs(fireDate).isBefore(now)) {
+        continue;
+      }
 
       eligible.push({ expense, daysBefore, fireTime: fireDate.getTime() });
     }

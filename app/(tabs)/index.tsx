@@ -51,9 +51,15 @@ export default function HomeScreen() {
     const inN = dayjs(today).add(windowDays, "day").toDate();
     const entries = expenses
       .filter((e) => {
-        if (e.recurrence === "one-off") return false;
-        if (getMonthStatus(e.id, year, month) !== "unpaid") return false;
-        if (isOverdueOn(e.dueDay, year, month)) return false;
+        if (e.recurrence === "one-off") {
+          return false;
+        }
+        if (getMonthStatus(e.id, year, month) !== "unpaid") {
+          return false;
+        }
+        if (isOverdueOn(e.dueDay, year, month)) {
+          return false;
+        }
         const d = getDueDate(e.dueDay);
         return d >= today && d <= inN;
       })

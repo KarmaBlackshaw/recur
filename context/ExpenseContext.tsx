@@ -156,7 +156,9 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
   async function rescheduleNotifications(expenses: Expense[]) {
     const enabled = await preferencesDB.getPreference('notificationsEnabled');
-    if (enabled === 'false') return;
+    if (enabled === 'false') {
+      return;
+    }
     const time = (await preferencesDB.getPreference('reminderTime')) ?? '09:00';
     await scheduleAllNotifications(expenses, time);
   }
@@ -167,7 +169,9 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   const paidCycles = useMemo<PaidCycle[]>(() => {
     const out: PaidCycle[] = [];
     for (const [k, status] of Object.entries(state.monthStatuses)) {
-      if (status !== "paid") continue;
+      if (status !== "paid") {
+        continue;
+      }
       const { id, year, month } = parseMonthKey(k);
       out.push({ expenseId: id, year, month, paidAt: state.monthPaidAts[k] ?? null });
     }
@@ -200,7 +204,9 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       monthlyAmount?: { year: number; month: number; amount: number | null }
     ) => {
       const existing = state.expenses.find((e) => e.id === id);
-      if (!existing) return;
+      if (!existing) {
+        return;
+      }
       await expensesDB.update(id, fields);
       dispatch({ type: "UPDATE", payload: { ...existing, ...fields } });
       if (fields.isVariable && monthlyAmount !== undefined) {
@@ -222,8 +228,12 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   const getMonthStatus = useCallback(
     (id: string, year: number, month: number): Status => {
       const expense = state.expenses.find((e) => e.id === id);
-      if (!expense) return "unpaid";
-      if (expense.recurrence === "one-off") return expense.status;
+      if (!expense) {
+        return "unpaid";
+      }
+      if (expense.recurrence === "one-off") {
+        return expense.status;
+      }
       return state.monthStatuses[monthKey(id, year, month)] ?? "unpaid";
     },
     [state.expenses, state.monthStatuses]
@@ -252,7 +262,9 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   const toggleMonthStatus = useMemoizedFn(
     async (id: string, year: number, month: number): Promise<void> => {
       const expense = state.expenses.find((e) => e.id === id);
-      if (!expense) return;
+      if (!expense) {
+        return;
+      }
 
       if (expense.recurrence === "one-off") {
         const next: Status = expense.status === "unpaid" ? "paid" : "unpaid";
@@ -310,6 +322,8 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
 export function useExpenses() {
   const ctx = useContext(ExpenseContext);
-  if (!ctx) throw new Error("useExpenses must be used within ExpenseProvider");
+  if (!ctx) {
+    throw new Error("useExpenses must be used within ExpenseProvider");
+  }
   return ctx;
 }

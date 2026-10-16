@@ -18,7 +18,9 @@ export default function AddCategoryScreen() {
 
   async function handleSave() {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
     if (isEdit) {
       if (trimmed === editName) {
         router.back();

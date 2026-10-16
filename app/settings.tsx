@@ -35,9 +35,13 @@ export default function SettingsScreen() {
 
   useMount(async () => {
     const time = await getPreference('reminderTime');
-    if (time) setReminderTime(time);
+    if (time) {
+      setReminderTime(time);
+    }
     const enabled = await getPreference('notificationsEnabled');
-    if (enabled === 'false') setNotificationsEnabled(false);
+    if (enabled === 'false') {
+      setNotificationsEnabled(false);
+    }
     const { status } = await Notifications.getPermissionsAsync();
     setPermissionDenied(status !== 'granted');
   });
@@ -46,7 +50,9 @@ export default function SettingsScreen() {
     setReminderTime(val);
     await setPreference('reminderTime', val);
     const enabled = await getPreference('notificationsEnabled');
-    if (enabled !== 'false') await scheduleAllNotifications(expenses, val);
+    if (enabled !== 'false') {
+      await scheduleAllNotifications(expenses, val);
+    }
   }
 
   async function handleToggleNotifications(val: boolean) {
@@ -91,7 +97,9 @@ export default function SettingsScreen() {
     setImporting(true);
     try {
       const result = await importBackup();
-      if (result === null) return;
+      if (result === null) {
+        return;
+      }
       await reloadAll();
       Alert.alert("Import Complete", `${result.added} added, ${result.skipped} skipped (already exist).`);
     } catch (e: unknown) {

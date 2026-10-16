@@ -8,8 +8,12 @@ import { colors } from "../constants/theme";
 // Weekend accent: Sun red, Sat indigo, weekdays muted (mirrors the reference ledger).
 export function weekdayColor(date: Date): string {
   const d = dayjs(date).day();
-  if (d === 0) return colors.overdue;
-  if (d === 6) return colors.secondary;
+  if (d === 0) {
+    return colors.overdue;
+  }
+  if (d === 6) {
+    return colors.secondary;
+  }
   return colors.textMuted;
 }
 

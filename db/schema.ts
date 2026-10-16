@@ -4,8 +4,12 @@ let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export function getDB(): Promise<SQLite.SQLiteDatabase> {
-  if (db) return Promise.resolve(db);
-  if (initPromise) return initPromise;
+  if (db) {
+    return Promise.resolve(db);
+  }
+  if (initPromise) {
+    return initPromise;
+  }
   initPromise = openDatabase();
   return initPromise;
 }

@@ -44,6 +44,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
     : expense.amount;
 
   const title = expenseTitle(expense);
+  const isCategoryTitle = title === expense.category;
   const amountText = displayAmount !== null ? formatAmount(displayAmount) : "TBD";
   const daysOverdue = dayjs().startOf("day").diff(dayjs(dueDate).startOf("day"), "day");
   const dateText = ended
@@ -108,7 +109,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
         activeOpacity={0.85}
         onPress={onPress ?? (() => router.push({ pathname: "/expense/add", params: { id: expense.id } }))}
         accessibilityRole="button"
-        accessibilityLabel={`${title}, ${expense.category}, ${amountText}, ${statusLabel}, ${dateText}`}
+        accessibilityLabel={`${isCategoryTitle ? title : `${title}, ${expense.category}`}, ${amountText}, ${statusLabel}, ${dateText}`}
         accessibilityHint="Opens editor"
         accessibilityActions={accessibilityActions}
         onAccessibilityAction={handleAccessibilityAction}
@@ -128,7 +129,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
               {title}
             </AppText>
             <View className="flex-row items-center gap-2 mt-1">
-              <AppText variant="meta">{expense.category}</AppText>
+              {!isCategoryTitle && <AppText variant="meta">{expense.category}</AppText>}
               {expense.reminderDaysBefore != null && (
                 <Feather name="bell" size={12} color={colors.secondary} />
               )}

@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { FloatingTabBar } from "../../components/FloatingTabBar";
+import { FloatingTabBar } from "@/components/FloatingTabBar";
 
 export default function TabsLayout() {
   return (
@@ -10,6 +10,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="expenses" options={{ title: "Expenses" }} />
       <Tabs.Screen name="recurring" options={{ title: "Recurring" }} />
+      <Tabs.Screen name="accounts" options={{ title: "Accounts" }} />
     </Tabs>
   );
 }

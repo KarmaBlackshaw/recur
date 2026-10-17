@@ -9,9 +9,9 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { Feather } from "@expo/vector-icons";
-import { AppText } from "./AppText";
-import { AppTextInput } from "./AppTextInput";
-import { colors } from "../../constants/theme";
+import { AppText } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
+import { colors } from "@/constants/theme";
 
 function EmptyItems({ searching }: { searching: boolean }) {
   return (
@@ -163,11 +163,6 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
                       accessibilityState={{ selected: isSelected }}
                     >
                       {renderItem(item, isSelected, () => handleSelect(item))}
-                      {isSelected && (
-                        <View pointerEvents="none" className="absolute top-1.5 right-1.5">
-                          <Feather name="check" size={14} color={colors.text} />
-                        </View>
-                      )}
                     </View>
                   );
                 })}

@@ -1,9 +1,9 @@
 import React, { forwardRef } from "react";
 import { TextInput, TextInputProps, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { AppText } from "./AppText";
-import { colors } from "../../constants/theme";
-import { formatAmount, sanitizeAmount } from "../../utils/amountInput";
+import { AppText } from "@/components/ui/AppText";
+import { colors } from "@/constants/theme";
+import { formatAmount, sanitizeAmount } from "@/utils/amountInput";
 
 interface AppTextInputProps extends TextInputProps {
   label?: string;

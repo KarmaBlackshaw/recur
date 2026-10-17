@@ -13,11 +13,12 @@ import {
 } from "@expo-google-fonts/quicksand";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import * as Notifications from "expo-notifications";
-import { ExpenseProvider } from "../context/ExpenseContext";
-import { colors } from "../constants/theme";
-import { requestPermissions } from "../utils/notifications";
-import { getPreference, setPreference } from "../db/preferences";
-import "../global.css";
+import { ExpenseProvider } from "@/context/ExpenseContext";
+import { AccountProvider } from "@/context/AccountContext";
+import { colors } from "@/constants/theme";
+import { requestPermissions } from "@/utils/notifications";
+import { getPreference, setPreference } from "@/db/preferences";
+import "@/global.css";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -32,10 +33,10 @@ Notifications.setNotificationHandler({
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Oswald_Regular: require("../assets/fonts/oswald/Oswald-Regular.ttf"),
-    Oswald_Medium: require("../assets/fonts/oswald/Oswald-Medium.ttf"),
-    Oswald_SemiBold: require("../assets/fonts/oswald/Oswald-SemiBold.ttf"),
-    Oswald_Bold: require("../assets/fonts/oswald/Oswald-Bold.ttf"),
+    Oswald_Regular: require("@/assets/fonts/oswald/Oswald-Regular.ttf"),
+    Oswald_Medium: require("@/assets/fonts/oswald/Oswald-Medium.ttf"),
+    Oswald_SemiBold: require("@/assets/fonts/oswald/Oswald-SemiBold.ttf"),
+    Oswald_Bold: require("@/assets/fonts/oswald/Oswald-Bold.ttf"),
     Quicksand_400Regular,
     Quicksand_500Medium,
     Quicksand_600SemiBold,
@@ -67,16 +68,18 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ExpenseProvider>
-          <BottomSheetModalProvider>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors.background },
-              }}
-            />
-          </BottomSheetModalProvider>
-        </ExpenseProvider>
+        <AccountProvider>
+          <ExpenseProvider>
+            <BottomSheetModalProvider>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: colors.background },
+                }}
+              />
+            </BottomSheetModalProvider>
+          </ExpenseProvider>
+        </AccountProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

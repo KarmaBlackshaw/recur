@@ -1,4 +1,5 @@
 import * as SQLite from "expo-sqlite";
+import dayjs from "dayjs";
 
 let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -18,6 +19,7 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   db = await SQLite.openDatabaseAsync("recur.db");
   await db.execAsync(`PRAGMA journal_mode = WAL;`);
   await db.execAsync(`PRAGMA foreign_keys = ON;`);
+  await db.execAsync("PRAGMA busy_timeout = 5000;");
 
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS expenses (
@@ -220,6 +222,80 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
     );
     await db.runAsync(
       "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_category_last_used_v1', '1')"
+    );
+  }
+
+  const accountsMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM prefs WHERE key = 'migrated_accounts_v2'"
+  );
+  if (!accountsMigrated) {
+    const oldCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(accounts)");
+    if (oldCols.length > 0 && !oldCols.some((c) => c.name === "interest_rate")) {
+      await db.execAsync("ALTER TABLE accounts RENAME TO accounts_v1");
+    }
+  }
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS accounts (
+      id                TEXT PRIMARY KEY NOT NULL,
+      name              TEXT NOT NULL,
+      type              TEXT NOT NULL,
+      sort_order        INTEGER NOT NULL DEFAULT 0,
+      interest_rate     REAL,
+      interest_period   TEXT,
+      tax_rate          REAL,
+      interest_accrued_through TEXT,
+      credit_limit      REAL,
+      statement_day     INTEGER,
+      due_day           INTEGER,
+      created_at        TEXT NOT NULL
+    );
+  `);
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS account_transactions (
+      id           TEXT PRIMARY KEY NOT NULL,
+      account_id   TEXT NOT NULL,
+      kind         TEXT NOT NULL,
+      amount       REAL NOT NULL,
+      expense_id   TEXT,
+      cycle_year   INTEGER,
+      cycle_month  INTEGER,
+      transfer_id  TEXT,
+      note         TEXT,
+      created_at   TEXT NOT NULL,
+      FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+    );
+  `);
+  await db.execAsync(
+    "CREATE INDEX IF NOT EXISTS idx_txn_account ON account_transactions(account_id)"
+  );
+  await db.execAsync(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_txn_payment
+     ON account_transactions(expense_id, IFNULL(cycle_year, -1), IFNULL(cycle_month, -1)) WHERE kind = 'payment'`
+  );
+  if (!accountsMigrated) {
+    const v1Table = await db.getFirstAsync<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'accounts_v1'"
+    );
+    if (v1Table) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO accounts (id, name, type, sort_order, credit_limit, statement_day, due_day, created_at, interest_accrued_through)
+         SELECT id, name, CASE type WHEN 'bank' THEN 'debit' ELSE type END, sort_order, credit_limit, bill_day, due_day, created_at,
+                CASE type WHEN 'bank' THEN ? ELSE NULL END
+         FROM accounts_v1`,
+        [dayjs().format("YYYY-MM-DD")]
+      );
+      await db.execAsync("DROP TABLE accounts_v1");
+    }
+    await db.execAsync("DROP TABLE IF EXISTS account_statements");
+    const expenseCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(expenses)");
+    if (!expenseCols.some((c) => c.name === "account_id")) {
+      await db.execAsync("ALTER TABLE expenses ADD COLUMN account_id TEXT");
+    }
+    if (v1Table) {
+      await db.runAsync("UPDATE expenses SET account_id = NULL WHERE account_id = 'account-cash-default'");
+    }
+    await db.runAsync(
+      "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_accounts_v2', '1')"
     );
   }
 

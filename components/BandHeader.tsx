@@ -1,9 +1,9 @@
 import React from "react";
 import { View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { AppText } from "./ui/AppText";
-import { formatAmount } from "../utils/dateHelpers";
-import type { FeatherIconName } from "../types";
+import { AppText } from "@/components/ui/AppText";
+import { formatAmount } from "@/utils/dateHelpers";
+import type { FeatherIconName } from "@/types";
 
 interface Props {
   label: string;

@@ -2,10 +2,10 @@ import React from "react";
 import { View } from "react-native";
 import dayjs from "dayjs";
 import sumBy from "lodash/sumBy";
-import { formatAmount, isEndedOn } from "../../utils/dateHelpers";
-import { useExpenses } from "../../context/ExpenseContext";
-import { KpiCard } from "./KpiCard";
-import type { Expense } from "../../types";
+import { formatAmount, isEndedOn } from "@/utils/dateHelpers";
+import { useExpenses } from "@/context/ExpenseContext";
+import { KpiCard } from "@/components/kpi/KpiCard";
+import type { Expense } from "@/types";
 
 interface Props {
   year: number;

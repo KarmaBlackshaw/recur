@@ -1,5 +1,5 @@
-import { getDB } from "./schema";
-import type { MonthStatus, Status } from "../types";
+import { getDB } from "@/db/schema";
+import type { MonthStatus, Status } from "@/types";
 
 export async function getAll(): Promise<MonthStatus[]> {
   const db = await getDB();

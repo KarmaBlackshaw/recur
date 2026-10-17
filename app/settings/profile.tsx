@@ -4,10 +4,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useForm, Controller } from "react-hook-form";
-import { AppText } from "../../components/ui/AppText";
-import { useExpenses } from "../../context/ExpenseContext";
-import * as preferencesDB from "../../db/preferences";
-import { colors } from "../../constants/theme";
+import { AppText } from "@/components/ui/AppText";
+import { useExpenses } from "@/context/ExpenseContext";
+import * as preferencesDB from "@/db/preferences";
+import { colors } from "@/constants/theme";
 
 interface FormValues {
   name: string;

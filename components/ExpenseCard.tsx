@@ -4,14 +4,15 @@ import { router } from "expo-router";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
-import { StatusBadge } from "./StatusBadge";
-import { AppText } from "./ui/AppText";
+import { StatusBadge } from "@/components/StatusBadge";
+import { AppText } from "@/components/ui/AppText";
 import dayjs from "dayjs";
-import { formatDueDate, getDueDateForMonth, isOverdueOn, formatAmount, isEndedOn, formatEndMonth } from "../utils/dateHelpers";
-import { useExpenses } from "../context/ExpenseContext";
-import { expenseTitle } from "../utils/expenseHelpers";
-import { colors } from "../constants/theme";
-import type { Expense } from "../types";
+import { formatDueDate, getDueDateForMonth, isOverdueOn, formatAmount, isEndedOn, formatEndMonth } from "@/utils/dateHelpers";
+import { useAccounts } from "@/context/AccountContext";
+import { useExpenses } from "@/context/ExpenseContext";
+import { expenseTitle } from "@/utils/expenseHelpers";
+import { colors } from "@/constants/theme";
+import type { Expense } from "@/types";
 
 interface Props {
   expense: Expense;
@@ -24,6 +25,8 @@ interface Props {
 
 export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compact = false, hideDate = false }: Props) {
   const { getMonthStatus, toggleMonthStatus, deleteExpense, getMonthAmount, getMonthPaidAt } = useExpenses();
+  const { accounts } = useAccounts();
+  const accountName = accounts.find((a) => a.id === expense.accountId)?.name;
   const swipeRef = useRef<SwipeableMethods>(null);
   const isReducedMotion = useReducedMotion();
   const refDate = referenceDate ?? new Date();
@@ -137,6 +140,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
               {expense.reminderDaysBefore != null && (
                 <Feather name="bell" size={12} color={colors.secondary} />
               )}
+              {accountName != null && <AppText variant="meta" numberOfLines={1}>{accountName}</AppText>}
               {!compact && !hideDate && (
                 <AppText variant="meta" className={overdueFlag ? "text-overdue" : ended ? "text-textMuted" : ""}>
                   {dateText}

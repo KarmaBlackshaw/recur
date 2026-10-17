@@ -1,4 +1,4 @@
-import { getDB } from "./schema";
+import { getDB } from "@/db/schema";
 
 export async function getPreference(key: string): Promise<string | null> {
   const db = await getDB();

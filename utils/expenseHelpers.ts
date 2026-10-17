@@ -1,4 +1,4 @@
-import type { Expense } from "../types";
+import type { Expense } from "@/types";
 
 /**
  * Display title for an expense. Notes replaced the old `name` field, so notes is

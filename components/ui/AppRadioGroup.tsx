@@ -1,8 +1,6 @@
 import React from "react";
 import { View, TouchableOpacity } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import { AppText } from "./AppText";
-import { colors } from "../../constants/theme";
+import { AppText } from "@/components/ui/AppText";
 
 interface Option<T extends string> {
   label: string;
@@ -41,7 +39,7 @@ export function AppRadioGroup<T extends string>({
           return (
             <TouchableOpacity
               key={opt.value}
-              className={`flex-1 flex-row items-center justify-center gap-1 min-h-[52px] px-1 ${
+              className={`flex-1 items-center justify-center min-h-[52px] px-1 ${
                 isSelected ? "bg-primary" : ""
               }`}
               onPress={() => onChange(opt.value)}
@@ -49,7 +47,6 @@ export function AppRadioGroup<T extends string>({
               accessibilityLabel={opt.label}
               accessibilityState={{ selected: isSelected, checked: isSelected }}
             >
-              {isSelected && <Feather name="check" size={12} color={colors.text} />}
               <AppText
                 variant={isSelected ? "body-bold" : "body-medium"}
                 className={`text-xs ${isSelected ? "text-white" : "text-textSecondary"}`}

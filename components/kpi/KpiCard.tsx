@@ -1,8 +1,8 @@
 import React from "react";
 import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { AppText } from "../ui/AppText";
-import { colors } from "../../constants/theme";
+import { AppText } from "@/components/ui/AppText";
+import { colors } from "@/constants/theme";
 
 export type KpiTone = "primary" | "paid" | "overdue" | "neutral";
 

@@ -1,6 +1,6 @@
-import { getDB } from "./schema";
-import { touchCategory } from "./categories";
-import type { Expense, Status } from "../types";
+import { getDB } from "@/db/schema";
+import { touchCategory } from "@/db/categories";
+import type { Expense, Status } from "@/types";
 
 export async function getAll(): Promise<Expense[]> {
   const db = await getDB();
@@ -9,8 +9,9 @@ export async function getAll(): Promise<Expense[]> {
     dueDay: number; recurrence: string; status: string; is_variable: number;
     reminder_days_before: number | null; notes: string | null; createdAt: string;
     paid_date: string | null; end_year: number | null; end_month: number | null;
+    account_id: string | null;
   }>(
-    "SELECT id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date, end_year, end_month FROM expenses ORDER BY dueDay ASC"
+    "SELECT id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date, end_year, end_month, account_id FROM expenses ORDER BY dueDay ASC"
   );
   return rows.map((r) => ({
     id: r.id,
@@ -27,6 +28,7 @@ export async function getAll(): Promise<Expense[]> {
     paidDate: r.paid_date ?? null,
     endYear: r.end_year ?? null,
     endMonth: r.end_month ?? null,
+    accountId: r.account_id ?? null,
   }));
 }
 
@@ -44,20 +46,20 @@ export async function insert(
   const endYear = e.recurrence === "one-off" ? null : (e.endYear ?? null);
   const endMonth = e.recurrence === "one-off" ? null : (e.endMonth ?? null);
   await db.runAsync(
-    `INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date, end_year, end_month)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, e.name, e.category, e.amount, e.dueDay, e.recurrence, status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, createdAt, paidDate, endYear, endMonth]
+    `INSERT INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date, end_year, end_month, account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, e.name, e.category, e.amount, e.dueDay, e.recurrence, status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, createdAt, paidDate, endYear, endMonth, e.accountId ?? null]
   );
   await touchCategory(e.category, createdAt);
-  return { ...e, id, createdAt, status, paidDate, endYear, endMonth };
+  return { ...e, id, createdAt, status, paidDate, endYear, endMonth, accountId: e.accountId ?? null };
 }
 
 export async function insertWithId(e: Expense): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    `INSERT OR IGNORE INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date, end_year, end_month)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [e.id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.createdAt, e.paidDate ?? null, e.endYear ?? null, e.endMonth ?? null]
+    `INSERT OR IGNORE INTO expenses (id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date, end_year, end_month, account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [e.id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.createdAt, e.paidDate ?? null, e.endYear ?? null, e.endMonth ?? null, e.accountId ?? null]
   );
   await touchCategory(e.category, e.createdAt);
 }
@@ -76,8 +78,8 @@ export async function update(
 ): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    `UPDATE expenses SET name=?, category=?, amount=?, dueDay=?, recurrence=?, status=?, is_variable=?, reminder_days_before=?, notes=?, paid_date=?, end_year=?, end_month=? WHERE id=?`,
-    [e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.recurrence === "one-off" ? (e.paidDate ?? null) : null, e.recurrence === "one-off" ? null : (e.endYear ?? null), e.recurrence === "one-off" ? null : (e.endMonth ?? null), id]
+    `UPDATE expenses SET name=?, category=?, amount=?, dueDay=?, recurrence=?, status=?, is_variable=?, reminder_days_before=?, notes=?, paid_date=?, end_year=?, end_month=?, account_id=? WHERE id=?`,
+    [e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.recurrence === "one-off" ? (e.paidDate ?? null) : null, e.recurrence === "one-off" ? null : (e.endYear ?? null), e.recurrence === "one-off" ? null : (e.endMonth ?? null), e.accountId ?? null, id]
   );
   await touchCategory(e.category);
 }

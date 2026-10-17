@@ -2,13 +2,13 @@ import React, { useMemo } from "react";
 import { View, SectionList } from "react-native";
 import { router } from "expo-router";
 import sumBy from "lodash/sumBy";
-import { ExpenseCard } from "./ExpenseCard";
-import { DayHeaderRow } from "./DayHeaderRow";
-import { BandHeader } from "./BandHeader";
-import { colors } from "../constants/theme";
-import { groupEntriesByDay } from "../utils/groupEntriesByDay";
-import type { DayEntry } from "./DayGroupedExpenseList";
-import type { FeatherIconName } from "../types";
+import { ExpenseCard } from "@/components/ExpenseCard";
+import { DayHeaderRow } from "@/components/DayHeaderRow";
+import { BandHeader } from "@/components/BandHeader";
+import { colors } from "@/constants/theme";
+import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
+import type { DayEntry } from "@/components/DayGroupedExpenseList";
+import type { FeatherIconName } from "@/types";
 
 // Home has three bands. Overdue + Upcoming are flat (each card shows its own date);
 // Recently Paid mirrors the Expenses ledger — day-grouped (DayHeaderRow + subtotals),

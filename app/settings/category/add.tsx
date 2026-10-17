@@ -3,10 +3,10 @@ import { View, TextInput, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { AppText } from "../../../components/ui/AppText";
-import { AppButton } from "../../../components/ui/AppButton";
-import { getAll, insertCategory, renameCategory } from "../../../db/categories";
-import { colors } from "../../../constants/theme";
+import { AppText } from "@/components/ui/AppText";
+import { AppButton } from "@/components/ui/AppButton";
+import { getAll, insertCategory, renameCategory } from "@/db/categories";
+import { colors } from "@/constants/theme";
 
 export default function AddCategoryScreen() {
   const { editId, editName } = useLocalSearchParams<{

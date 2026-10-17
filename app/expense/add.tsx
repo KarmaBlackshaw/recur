@@ -11,15 +11,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { Feather } from "@expo/vector-icons";
-import { useExpenses } from "../../context/ExpenseContext";
-import { CategoryBottomSheet, CategoryBottomSheetRef } from "../../components/CategoryBottomSheet";
-import { AppButton } from "../../components/ui/AppButton";
-import { AppText } from "../../components/ui/AppText";
-import { AppTextInput } from "../../components/ui/AppTextInput";
-import { AppRadioGroup } from "../../components/ui/AppRadioGroup";
-import { AppCheckRow } from "../../components/ui/AppCheckRow";
-import { colors } from "../../constants/theme";
-import type { Recurrence, ExpenseFormValues } from "../../types";
+import { useExpenses } from "@/context/ExpenseContext";
+import { CategoryBottomSheet, CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
+import { AccountPickerSheet, AccountPickerSheetRef } from "@/components/AccountPickerSheet";
+import { useAccounts } from "@/context/AccountContext";
+import { AppButton } from "@/components/ui/AppButton";
+import { AppText } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
+import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
+import { AppCheckRow } from "@/components/ui/AppCheckRow";
+import { colors } from "@/constants/theme";
+import type { Recurrence, ExpenseFormValues } from "@/types";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
 
@@ -44,7 +46,11 @@ export default function AddExpenseScreen() {
   const isEditing = editingExpense !== null;
   const isRegular = isEditing ? editingExpense!.recurrence === "one-off" : type === "regular";
   const lastUsedCategory = maxBy(expenses, "createdAt")?.category ?? "Other";
+  const lastUsedAccountId = maxBy(expenses.filter((e) => e.accountId), "createdAt")?.accountId;
+  const initialAccountId = editingExpense ? editingExpense.accountId : lastUsedAccountId;
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
+  const accountSheetRef = useRef<AccountPickerSheetRef>(null);
+  const { accounts, isLoading: isAccountsLoading } = useAccounts();
   const [isPaidPickerOpen, paidPicker] = useBoolean();
   const [isEndPickerOpen, endPicker] = useBoolean();
 
@@ -52,6 +58,8 @@ export default function AddExpenseScreen() {
     control,
     handleSubmit,
     reset,
+    setValue,
+    getValues,
     watch,
     formState: { isValid, errors },
   } = useForm<ExpenseFormValues>({
@@ -70,11 +78,23 @@ export default function AddExpenseScreen() {
         editingExpense?.endYear != null
           ? new Date(editingExpense.endYear, editingExpense.endMonth ?? 0, 1).toISOString()
           : new Date().toISOString(),
+      accountId: accounts.some((a) => a.id === initialAccountId) ? (initialAccountId ?? "") : "",
     },
   });
 
   const isVariableWatched = watch("isVariable");
   const hasEndDateWatched = watch("hasEndDate");
+
+  React.useEffect(() => {
+    if (
+      !isAccountsLoading &&
+      initialAccountId &&
+      getValues("accountId") === "" &&
+      accounts.some((a) => a.id === initialAccountId)
+    ) {
+      setValue("accountId", initialAccountId);
+    }
+  }, [isAccountsLoading]);
 
   React.useEffect(() => {
     if (editingExpense) {
@@ -98,6 +118,7 @@ export default function AddExpenseScreen() {
           editingExpense.endYear != null
             ? new Date(editingExpense.endYear, editingExpense.endMonth ?? 0, 1).toISOString()
             : new Date().toISOString(),
+        accountId: accounts.some((a) => a.id === editingExpense.accountId) ? (editingExpense.accountId ?? "") : "",
       });
     }
   }, [editingExpense?.id]);
@@ -121,6 +142,7 @@ export default function AddExpenseScreen() {
       paidDate: isRegular ? data.paidDate : null,
       endYear: endParsed ? endParsed.getFullYear() : null,
       endMonth: endParsed ? endParsed.getMonth() : null,
+      accountId: data.accountId === "" ? null : data.accountId,
     };
 
     try {
@@ -288,6 +310,26 @@ export default function AddExpenseScreen() {
           )}
         />
 
+        <AppText variant="label" className="mb-1.5 mt-1">Pay from</AppText>
+        <Controller
+          control={control}
+          name="accountId"
+          render={({ field: { value } }) => {
+            const accountName = accounts.find((a) => a.id === value)?.name ?? "None";
+            return (
+              <TouchableOpacity
+                className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
+                onPress={() => accountSheetRef.current?.present()}
+                accessibilityRole="button"
+                accessibilityLabel={`Pay from, ${accountName}`}
+              >
+                <AppText variant="body-medium" className="text-white text-base">{accountName}</AppText>
+                <Feather name="chevron-right" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            );
+          }}
+        />
+
         {/* Recurring-only fields */}
         {!isRegular && (
           <>
@@ -417,7 +459,7 @@ export default function AddExpenseScreen() {
         <AppButton
           label={isEditing ? "Save Changes" : "Save Expense"}
           onPress={onSubmit}
-          disabled={!isValid}
+          disabled={!isValid || isAccountsLoading}
           accessibilityHint={isValid ? undefined : saveHint}
           className="mt-4"
         />
@@ -437,6 +479,13 @@ export default function AddExpenseScreen() {
             value={value}
             onChange={onChange}
           />
+        )}
+      />
+      <Controller
+        control={control}
+        name="accountId"
+        render={({ field: { value, onChange } }) => (
+          <AccountPickerSheet ref={accountSheetRef} value={value} onChange={onChange} />
         )}
       />
     </SafeAreaView>

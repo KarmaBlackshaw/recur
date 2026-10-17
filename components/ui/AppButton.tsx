@@ -1,7 +1,7 @@
 import React from "react";
 import { ActivityIndicator, TouchableOpacity, TouchableOpacityProps } from "react-native";
-import { AppText } from "./AppText";
-import { colors } from "../../constants/theme";
+import { AppText } from "@/components/ui/AppText";
+import { colors } from "@/constants/theme";
 
 type Variant = "primary" | "tonal" | "ghost" | "destructive";
 

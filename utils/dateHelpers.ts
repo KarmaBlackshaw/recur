@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import type { Recurrence } from "../types";
+import type { Recurrence } from "@/types";
 
 export function getDueDate(dueDay: number): Date {
   const now = new Date();
@@ -16,6 +16,15 @@ export function getDueDateForMonth(
   const maxDay = dayjs(new Date(year, month)).daysInMonth();
   const clampedDay = Math.min(dueDay, maxDay);
   return new Date(year, month, clampedDay);
+}
+
+export function nextOccurrence(day: number): Date {
+  const thisMonth = getDueDate(day);
+  if (!dayjs(thisMonth).isBefore(dayjs(), "day")) {
+    return thisMonth;
+  }
+  const next = dayjs().add(1, "month");
+  return getDueDateForMonth(day, next.year(), next.month());
 }
 
 // The date a paid recurring cycle "counts" on: the real pay timestamp when one

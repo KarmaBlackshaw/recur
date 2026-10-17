@@ -1,9 +1,9 @@
 import React from "react";
 import { View } from "react-native";
-import { AppText } from "./ui/AppText";
+import { AppText } from "@/components/ui/AppText";
 import dayjs from "dayjs";
-import { formatAmount } from "../utils/dateHelpers";
-import { colors } from "../constants/theme";
+import { formatAmount } from "@/utils/dateHelpers";
+import { colors } from "@/constants/theme";
 
 // Weekend accent: Sun red, Sat indigo, weekdays muted (mirrors the reference ledger).
 export function weekdayColor(date: Date): string {

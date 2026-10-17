@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import dayjs from "dayjs";
 import keyBy from "lodash/keyBy";
 import orderBy from "lodash/orderBy";
-import { useExpenses } from "../context/ExpenseContext";
-import { effectivePaidDate } from "./dateHelpers";
-import { monthKey } from "./monthKey";
-import type { Expense } from "../types";
+import { useExpenses } from "@/context/ExpenseContext";
+import { effectivePaidDate } from "@/utils/dateHelpers";
+import { monthKey } from "@/utils/monthKey";
+import type { Expense } from "@/types";
 
 export interface PaidEntry {
   key: string;

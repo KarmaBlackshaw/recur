@@ -8,12 +8,14 @@ import React, {
 import useAsyncEffect from "ahooks/es/useAsyncEffect";
 import useMemoizedFn from "ahooks/es/useMemoizedFn";
 import sortBy from "lodash/sortBy";
-import type { Expense, Status, MonthStatus } from "../types";
-import * as expensesDB from "../db/expenses";
-import * as preferencesDB from "../db/preferences";
-import * as monthsDB from "../db/expenseMonths";
-import { monthKey, parseMonthKey } from "../utils/monthKey";
-import { scheduleAllNotifications } from '../utils/notifications';
+import dayjs from "dayjs";
+import type { Expense, Status, MonthStatus } from "@/types";
+import * as expensesDB from "@/db/expenses";
+import * as preferencesDB from "@/db/preferences";
+import * as monthsDB from "@/db/expenseMonths";
+import { monthKey, parseMonthKey } from "@/utils/monthKey";
+import { scheduleAllNotifications } from '@/utils/notifications';
+import { useAccounts } from "@/context/AccountContext";
 
 interface State {
   expenses: Expense[];
@@ -126,7 +128,16 @@ interface ExpenseContextValue {
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
 
+function paidDateTimestamp(expense: Pick<Expense, "paidDate">): string | undefined {
+  return expense.paidDate ? dayjs(expense.paidDate).endOf("day").toISOString() : undefined;
+}
+
+function paymentNote(expense: Pick<Expense, "name" | "category">): string {
+  return expense.name || expense.category;
+}
+
 export function ExpenseProvider({ children }: { children: React.ReactNode }) {
+  const accounts = useAccounts();
   const [state, dispatch] = useReducer(reducer, {
     expenses: [],
     loading: true,
@@ -186,6 +197,24 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     async (e: Omit<Expense, "id" | "createdAt">, monthlyAmount?: { year: number; month: number; amount: number | null }) => {
       const saved = await expensesDB.insert(e);
       dispatch({ type: "ADD", payload: saved });
+      if (saved.recurrence === "one-off") {
+        try {
+          await accounts.syncPayment({
+            expenseId: saved.id,
+            accountId: saved.accountId,
+            cycleYear: null,
+            cycleMonth: null,
+            amount: saved.amount,
+            note: paymentNote(saved),
+            createdAt: paidDateTimestamp(saved),
+          });
+        } catch (err) {
+          console.error("Failed to sync one-off payment, removing expense", err);
+          await expensesDB.remove(saved.id);
+          dispatch({ type: "REMOVE", payload: saved.id });
+          throw err;
+        }
+      }
       if (e.isVariable && monthlyAmount !== undefined) {
         await monthsDB.upsertMonthlyAmount(saved.id, monthlyAmount.year, monthlyAmount.month, monthlyAmount.amount);
         dispatch({
@@ -215,6 +244,42 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           type: "SET_MONTH_AMOUNT",
           payload: { expenseId: id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
         });
+        const { year, month } = monthlyAmount;
+        if (fields.recurrence !== "one-off" && state.monthStatuses[monthKey(id, year, month)] === "paid") {
+          const paidTxn = accounts.transactions.find(
+            (t) => t.kind === "payment" && t.expenseId === id && t.cycleYear === year && t.cycleMonth === month
+          );
+          if (paidTxn) {
+            await accounts.syncPayment({
+              expenseId: id,
+              accountId: paidTxn.accountId,
+              cycleYear: year,
+              cycleMonth: month,
+              amount: monthlyAmount.amount,
+              note: paymentNote(fields),
+            });
+          }
+        }
+      }
+      try {
+        if (fields.recurrence === "one-off" && fields.status === "paid") {
+          await accounts.syncPayment({
+            expenseId: id,
+            accountId: fields.accountId,
+            cycleYear: null,
+            cycleMonth: null,
+            amount: fields.amount,
+            note: paymentNote(fields),
+            createdAt: paidDateTimestamp(fields),
+          });
+        } else if (existing.recurrence === "one-off") {
+          await accounts.removePayment(id, null, null);
+        }
+      } catch (err) {
+        console.error("Failed to sync one-off payment, reverting expense", err);
+        await expensesDB.update(id, existing);
+        dispatch({ type: "UPDATE", payload: existing });
+        return;
       }
       await rescheduleNotifications(
         sortBy(
@@ -270,18 +335,62 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         const next: Status = expense.status === "unpaid" ? "paid" : "unpaid";
         await expensesDB.updateStatus(id, next);
         dispatch({ type: "UPDATE", payload: { ...expense, status: next } });
+        try {
+          if (next === "paid") {
+            await accounts.syncPayment({
+              expenseId: id,
+              accountId: expense.accountId,
+              cycleYear: null,
+              cycleMonth: null,
+              amount: expense.amount,
+              note: paymentNote(expense),
+              createdAt: paidDateTimestamp(expense),
+            });
+          } else {
+            await accounts.removePayment(id, null, null);
+          }
+        } catch (err) {
+          console.error("Failed to sync payment, reverting status", err);
+          await expensesDB.updateStatus(id, expense.status);
+          dispatch({ type: "UPDATE", payload: expense });
+          return;
+        }
       } else {
         const current = state.monthStatuses[monthKey(id, year, month)] ?? "unpaid";
         const next: Status = current === "unpaid" ? "paid" : "unpaid";
         const paidAt = next === "paid" ? new Date().toISOString() : null;
         await monthsDB.upsertStatus(id, year, month, next, paidAt);
         dispatch({ type: "SET_MONTH_STATUS", payload: { expenseId: id, year, month, status: next, paidAt } });
+        try {
+          if (next === "paid") {
+            await accounts.syncPayment({
+              expenseId: id,
+              accountId: expense.accountId,
+              cycleYear: year,
+              cycleMonth: month,
+              amount: expense.isVariable ? getMonthAmount(id, year, month) : expense.amount,
+              note: paymentNote(expense),
+            });
+          } else {
+            await accounts.removePayment(id, year, month);
+          }
+        } catch (err) {
+          console.error("Failed to sync payment, reverting status", err);
+          const previousPaidAt = getMonthPaidAt(id, year, month);
+          await monthsDB.upsertStatus(id, year, month, current, previousPaidAt);
+          dispatch({ type: "SET_MONTH_STATUS", payload: { expenseId: id, year, month, status: current, paidAt: previousPaidAt } });
+          return;
+        }
       }
       await rescheduleNotifications(state.expenses);
     }
   );
 
   const deleteExpense = useMemoizedFn(async (id: string) => {
+    const expense = state.expenses.find((e) => e.id === id);
+    if (expense?.recurrence === "one-off") {
+      await accounts.removePayment(id, null, null);
+    }
     await expensesDB.remove(id);
     dispatch({ type: "REMOVE", payload: id });
     await rescheduleNotifications(state.expenses.filter((e) => e.id !== id));

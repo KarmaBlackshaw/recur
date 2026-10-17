@@ -4,19 +4,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "expo-router/tabs";
-import { colors } from "../constants/theme";
-import type { FeatherIconName } from "../types";
+import { colors } from "@/constants/theme";
+import type { FeatherIconName } from "@/types";
 
 const TAB_META: Record<string, { label: string; icon: FeatherIconName }> = {
   index: { label: "Home", icon: "home" },
   expenses: { label: "Expenses", icon: "check-circle" },
   recurring: { label: "Recurring", icon: "repeat" },
+  accounts: { label: "Accounts", icon: "credit-card" },
 };
 
 const FAB_TYPE: Record<string, "regular" | "recurring"> = {
   index: "regular",
   expenses: "regular",
   recurring: "recurring",
+  accounts: "regular",
 };
 
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
@@ -78,6 +80,8 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               <Feather name={meta.icon} size={19} color={color} />
               <Text
                 className="text-xs mt-0.5 tracking-wide"
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.3}
                 style={{ color, fontFamily: "Quicksand_700Bold" }}
               >
                 {meta.label}

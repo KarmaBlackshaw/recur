@@ -4,8 +4,8 @@ import dayjs from 'dayjs';
 import groupBy from 'lodash/groupBy';
 import sumBy from 'lodash/sumBy';
 import uniq from 'lodash/uniq';
-import { getDueDate, isEndedOn } from './dateHelpers';
-import type { Expense } from '../types';
+import { getDueDate, isEndedOn } from '@/utils/dateHelpers';
+import type { Expense } from '@/types';
 
 export async function requestPermissions(): Promise<boolean> {
   const { status } = await Notifications.requestPermissionsAsync();

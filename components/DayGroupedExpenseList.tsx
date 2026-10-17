@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { SectionList } from "react-native";
 import { router } from "expo-router";
-import { ExpenseCard } from "./ExpenseCard";
-import { DayHeaderRow } from "./DayHeaderRow";
-import { groupEntriesByDay } from "../utils/groupEntriesByDay";
-import type { Expense } from "../types";
+import { ExpenseCard } from "@/components/ExpenseCard";
+import { DayHeaderRow } from "@/components/DayHeaderRow";
+import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
+import type { Expense } from "@/types";
 
 // A single row in a day-grouped list. `effDate` decides which day bucket it lands
 // in (pay-date if paid, due-date if unpaid); `refDate` is the cycle month the card

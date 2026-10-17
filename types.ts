@@ -1,6 +1,7 @@
-import type { Feather } from "@expo/vector-icons";
+import type { Feather, Ionicons } from "@expo/vector-icons";
 
 export type FeatherIconName = keyof typeof Feather.glyphMap;
+export type IoniconName = keyof typeof Ionicons.glyphMap;
 export type Recurrence = 'weekly' | 'monthly' | 'yearly' | 'one-off';
 export type Status = 'unpaid' | 'paid';
 
@@ -19,6 +20,7 @@ export interface Expense {
   paidDate?: string | null;   // ISO date — when a one-off was paid (default today on insert). Null for recurring.
   endYear?: number | null;   // recurring end anchor — year. NULL = open-ended. Always null for one-off.
   endMonth?: number | null;  // 0-based month. NULL = open-ended.
+  accountId?: string | null;
 }
 
 export interface ExpenseFormValues {
@@ -33,6 +35,7 @@ export interface ExpenseFormValues {
   paidDate: string;   // ISO date string (one-off only)
   hasEndDate: boolean;
   endDate: string;   // ISO date string, first-of-end-month (recurring only)
+  accountId: string;   // '' = none
 }
 
 export interface MonthStatus {
@@ -42,4 +45,52 @@ export interface MonthStatus {
   status: Status;
   amount?: number | null;
   paidAt?: string | null;   // ISO timestamp — when this recurring month was marked paid. Null when unpaid/unknown.
+}
+
+export type AccountType = 'debit' | 'credit' | 'cash';
+export type InterestPeriod = 'daily' | 'monthly' | 'yearly';
+export type TransactionKind = 'payment' | 'interest' | 'tax' | 'transfer' | 'adjust';
+
+export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
+  debit: 'Debit account',
+  credit: 'Credit card',
+  cash: 'Cash',
+};
+
+export const TRANSACTION_KIND_LABEL: Record<TransactionKind, string> = {
+  payment: 'Payment',
+  interest: 'Interest',
+  tax: 'Tax withheld',
+  transfer: 'Transfer',
+  adjust: 'Adjustment',
+};
+
+export interface Account {
+  id: string;
+  name: string;
+  type: AccountType;
+  sortOrder: number;
+  interestRate: number | null;
+  interestPeriod: InterestPeriod | null;
+  taxRate: number | null;
+  interestAccruedThrough: string | null;   // YYYY-MM-DD
+  creditLimit: number | null;
+  statementDay: number | null;
+  dueDay: number | null;
+  createdAt: string;
+}
+
+export type AccountInput = Omit<Account, 'id' | 'createdAt' | 'sortOrder' | 'interestAccruedThrough'>;
+
+export interface AccountTransaction {
+  id: string;
+  accountId: string;
+  kind: TransactionKind;
+  amount: number;
+  expenseId: string | null;
+  cycleYear: number | null;
+  cycleMonth: number | null;
+  transferId: string | null;
+  note: string | null;
+  createdAt: string;
 }

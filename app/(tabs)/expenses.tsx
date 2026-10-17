@@ -4,14 +4,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import dayjs from "dayjs";
 import sumBy from "lodash/sumBy";
 import useSetState from "ahooks/es/useSetState";
-import { useExpenses } from "../../context/ExpenseContext";
-import { MonthNavigator } from "../../components/MonthNavigator";
-import { DayGroupedExpenseList, type DayEntry } from "../../components/DayGroupedExpenseList";
-import { formatAmount } from "../../utils/dateHelpers";
-import { usePaidLedger } from "../../utils/usePaidLedger";
-import { EmptyState } from "../../components/EmptyState";
-import { LoadingState } from "../../components/ui/LoadingState";
-import { AppText } from "../../components/ui/AppText";
+import { useExpenses } from "@/context/ExpenseContext";
+import { MonthNavigator } from "@/components/MonthNavigator";
+import { DayGroupedExpenseList, type DayEntry } from "@/components/DayGroupedExpenseList";
+import { formatAmount } from "@/utils/dateHelpers";
+import { usePaidLedger } from "@/utils/usePaidLedger";
+import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { AppText } from "@/components/ui/AppText";
 
 export default function ExpensesScreen() {
   const { loading } = useExpenses();

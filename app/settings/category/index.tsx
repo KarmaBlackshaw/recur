@@ -3,9 +3,9 @@ import { View, TouchableOpacity, Alert, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { AppText } from "../../../components/ui/AppText";
-import { Category, getAllWithIds, deleteCategory } from "../../../db/categories";
-import { colors } from "../../../constants/theme";
+import { AppText } from "@/components/ui/AppText";
+import { Category, getAllWithIds, deleteCategory } from "@/db/categories";
+import { colors } from "@/constants/theme";
 
 export default function ManageCategoriesScreen() {
   const [categories, setCategories] = useState<Category[]>([]);

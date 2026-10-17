@@ -5,17 +5,17 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import sortBy from "lodash/sortBy";
-import { useExpenses } from "../../context/ExpenseContext";
-import { KpiRow } from "../../components/kpi/KpiRow";
-import { type DayEntry } from "../../components/DayGroupedExpenseList";
-import { HomeExpenseSections } from "../../components/HomeExpenseSections";
-import { DayWindowSelector, windowLabel, type DayWindow } from "../../components/DayWindowSelector";
-import { EmptyState } from "../../components/EmptyState";
-import { LoadingState } from "../../components/ui/LoadingState";
-import { AppText } from "../../components/ui/AppText";
-import { isOverdueOn, getDueDate, getDueDateForMonth, getGreeting, getFormattedDate } from "../../utils/dateHelpers";
-import { usePaidLedger } from "../../utils/usePaidLedger";
-import { colors } from "../../constants/theme";
+import { useExpenses } from "@/context/ExpenseContext";
+import { KpiRow } from "@/components/kpi/KpiRow";
+import { type DayEntry } from "@/components/DayGroupedExpenseList";
+import { HomeExpenseSections } from "@/components/HomeExpenseSections";
+import { DayWindowSelector, windowLabel, type DayWindow } from "@/components/DayWindowSelector";
+import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { AppText } from "@/components/ui/AppText";
+import { isOverdueOn, getDueDate, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
+import { usePaidLedger } from "@/utils/usePaidLedger";
+import { colors } from "@/constants/theme";
 
 export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus, resolveAmount } = useExpenses();

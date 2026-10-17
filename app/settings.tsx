@@ -3,19 +3,20 @@ import useMount from "ahooks/es/useMount";
 import range from "lodash/range";
 import { View, TouchableOpacity, Alert, Switch, ScrollView } from "react-native";
 import * as Notifications from 'expo-notifications';
-import { getPreference, setPreference } from '../db/preferences';
-import { scheduleAllNotifications, cancelAllNotifications, buildSummaryContent } from '../utils/notifications';
+import { getPreference, setPreference } from '@/db/preferences';
+import { scheduleAllNotifications, cancelAllNotifications, buildSummaryContent } from '@/utils/notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
-import { AppSelectBottomSheet, type AppSelectBottomSheetRef } from '../components/ui/AppSelectBottomSheet';
-import { exportBackup, importBackup } from "../utils/backup";
+import { AppSelectBottomSheet, type AppSelectBottomSheetRef } from '@/components/ui/AppSelectBottomSheet';
+import { exportBackup, importBackup } from "@/utils/backup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
-import { AppText } from "../components/ui/AppText";
-import { useExpenses } from "../context/ExpenseContext";
-import { seedRecurring, seedOneOff, clearRecurring, clearOneOff } from "../db/seed";
-import { colors } from "../constants/theme";
+import { AppText } from "@/components/ui/AppText";
+import { useExpenses } from "@/context/ExpenseContext";
+import { useAccounts } from "@/context/AccountContext";
+import { seedRecurring, seedOneOff, clearRecurring, clearOneOff } from "@/db/seed";
+import { colors } from "@/constants/theme";
 
 const version = Constants.expoConfig?.version ?? "—";
 
@@ -26,6 +27,7 @@ const TIME_OPTIONS = [
 
 export default function SettingsScreen() {
   const { userName, reloadAll, expenses } = useExpenses();
+  const accounts = useAccounts();
   const unpaidExpenses = expenses.filter((e) => e.status === 'unpaid');
   const [importing, setImporting] = useState(false);
   const [reminderTime, setReminderTime] = useState('09:00');
@@ -101,6 +103,7 @@ export default function SettingsScreen() {
         return;
       }
       await reloadAll();
+      await accounts.reload();
       Alert.alert("Import Complete", `${result.added} added, ${result.skipped} skipped (already exist).`);
     } catch (e: unknown) {
       Alert.alert("Import Failed", e instanceof Error ? e.message : "An error occurred.");
@@ -443,6 +446,11 @@ export default function SettingsScreen() {
             >
               {item.label}
             </AppText>
+            {selected && (
+              <View pointerEvents="none" className="absolute top-1.5 right-1.5">
+                <Feather name="check" size={14} color={colors.text} />
+              </View>
+            )}
           </TouchableOpacity>
         )}
         columns={3}

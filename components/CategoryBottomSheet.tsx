@@ -3,10 +3,10 @@ import React, { forwardRef, useCallback, useRef } from "react";
 import { TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { AppSelectBottomSheet, AppSelectBottomSheetRef } from "./ui/AppSelectBottomSheet";
-import { AppText } from "./ui/AppText";
-import { colors } from "../constants/theme";
-import { getAll } from "../db/categories";
+import { AppSelectBottomSheet, AppSelectBottomSheetRef } from "@/components/ui/AppSelectBottomSheet";
+import { AppText } from "@/components/ui/AppText";
+import { colors } from "@/constants/theme";
+import { getAll } from "@/db/categories";
 
 export interface CategoryBottomSheetRef {
   present: () => void;

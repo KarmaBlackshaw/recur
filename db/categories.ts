@@ -1,4 +1,4 @@
-import { getDB } from "./schema";
+import { getDB } from "@/db/schema";
 
 export interface Category {
   id: number; // SQLite rowid — unique integer per row, not derived from the name

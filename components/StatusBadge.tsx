@@ -1,9 +1,9 @@
 import React from "react";
 import { TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import type { FeatherIconName, Status } from "../types";
-import { colors } from "../constants/theme";
-import { AppText } from "./ui/AppText";
+import type { FeatherIconName, Status } from "@/types";
+import { colors } from "@/constants/theme";
+import { AppText } from "@/components/ui/AppText";
 
 interface Props {
   status: Status;

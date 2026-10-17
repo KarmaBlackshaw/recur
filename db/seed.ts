@@ -1,6 +1,6 @@
-import { getDB } from "./schema";
-import { insertWithId } from "./expenses";
-import type { Expense } from "../types";
+import { getDB } from "@/db/schema";
+import { insertWithId } from "@/db/expenses";
+import type { Expense } from "@/types";
 
 // ponytail: dev-only dummy data. Triggered by the "Seed dummy data" button in
 // the __DEV__ Dev Tools section of app/settings.tsx (hidden in prod builds).

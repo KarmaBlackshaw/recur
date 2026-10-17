@@ -1,8 +1,8 @@
 import React from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { AppText } from "./AppText";
-import { colors } from "../../constants/theme";
+import { AppText } from "@/components/ui/AppText";
+import { colors } from "@/constants/theme";
 
 interface Props {
   label: string;

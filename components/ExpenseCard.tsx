@@ -76,8 +76,12 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
   }
 
   function handleAccessibilityAction({ nativeEvent }: AccessibilityActionEvent) {
-    if (nativeEvent.actionName === "toggle") handleToggle();
-    if (nativeEvent.actionName === "delete") handleDelete();
+    if (nativeEvent.actionName === "toggle") {
+      handleToggle();
+    }
+    if (nativeEvent.actionName === "delete") {
+      handleDelete();
+    }
   }
 
   const accessibilityActions = [

@@ -68,14 +68,18 @@ export const AppSelectBottomSheet = forwardRef(function AppSelectBottomSheet<T>(
   React.useImperativeHandle(ref, () => ({
     present: () => {
       Keyboard.dismiss();
-      if (searchable) setSearch("");
+      if (searchable) {
+        setSearch("");
+      }
       sheetRef.current?.present();
     },
     dismiss: () => sheetRef.current?.dismiss(),
   }));
 
   const filtered = useMemo(() => {
-    if (!searchable || !search.trim()) return items;
+    if (!searchable || !search.trim()) {
+      return items;
+    }
     const q = search.trim().toLowerCase();
     const getKey = getSearchKey ?? keyExtractor;
     return items.filter((item) => getKey(item).toLowerCase().includes(q));

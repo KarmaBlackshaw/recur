@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import dayjs from "dayjs";
+import sortBy from "lodash/sortBy";
 import { useExpenses } from "../../context/ExpenseContext";
 import { KpiRow } from "../../components/kpi/KpiRow";
 import { type DayEntry } from "../../components/DayGroupedExpenseList";
@@ -17,7 +18,7 @@ import { usePaidLedger } from "../../utils/usePaidLedger";
 import { colors } from "../../constants/theme";
 
 export default function HomeScreen() {
-  const { expenses, loading, userName, getMonthStatus, getMonthAmount } = useExpenses();
+  const { expenses, loading, userName, getMonthStatus, resolveAmount } = useExpenses();
   const ledger = usePaidLedger();
   const [windowDays, setWindowDays] = useState<DayWindow>(7);
   const today = dayjs().startOf("day").toDate();
@@ -31,34 +32,40 @@ export default function HomeScreen() {
     expense: e,
     effDate: getDueDateForMonth(e.dueDay, year, month),
     refDate: new Date(year, month, 1),
-    amount: e.isVariable ? (getMonthAmount(e.id, year, month) ?? 0) : (e.amount ?? 0),
+    amount: resolveAmount(e, year, month),
   });
 
   const overdue = useMemo<DayEntry[]>(() => {
-    return expenses
+    const entries = expenses
       .filter(
         (e) =>
           e.recurrence !== "one-off" &&
           getMonthStatus(e.id, year, month) === "unpaid" &&
           isOverdueOn(e.dueDay, year, month)
       )
-      .map(dueEntry)
-      .sort((a, b) => a.effDate.getTime() - b.effDate.getTime());
-  }, [expenses, getMonthStatus, getMonthAmount, year, month]);
+      .map(dueEntry);
+    return sortBy(entries, "effDate");
+  }, [expenses, getMonthStatus, resolveAmount, year, month]);
 
   const upcoming = useMemo<DayEntry[]>(() => {
     const inN = dayjs(today).add(windowDays, "day").toDate();
-    return expenses
+    const entries = expenses
       .filter((e) => {
-        if (e.recurrence === "one-off") return false;
-        if (getMonthStatus(e.id, year, month) !== "unpaid") return false;
-        if (isOverdueOn(e.dueDay, year, month)) return false;
+        if (e.recurrence === "one-off") {
+          return false;
+        }
+        if (getMonthStatus(e.id, year, month) !== "unpaid") {
+          return false;
+        }
+        if (isOverdueOn(e.dueDay, year, month)) {
+          return false;
+        }
         const d = getDueDate(e.dueDay);
         return d >= today && d <= inN;
       })
-      .map(dueEntry)
-      .sort((a, b) => a.effDate.getTime() - b.effDate.getTime());
-  }, [expenses, getMonthStatus, getMonthAmount, year, month, windowDays]);
+      .map(dueEntry);
+    return sortBy(entries, "effDate");
+  }, [expenses, getMonthStatus, resolveAmount, year, month, windowDays]);
 
   // Recently Paid: any paid entry whose pay-date lands in the rolling window.
   const recentlyPaid = useMemo<DayEntry[]>(() => {
@@ -66,7 +73,6 @@ export default function HomeScreen() {
     const endToday = dayjs().endOf("day").toDate();
     return ledger
       .filter((it) => it.effDate >= lastN && it.effDate <= endToday)
-      .sort((a, b) => b.effDate.getTime() - a.effDate.getTime())
       .map((it) => ({ ...it, compact: true }));
   }, [ledger, windowDays]);
 

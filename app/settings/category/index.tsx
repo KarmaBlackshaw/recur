@@ -15,7 +15,9 @@ export default function ManageCategoriesScreen() {
       let active = true;
       async function load() {
         const cats = await getAllWithIds();
-        if (active) setCategories(cats);
+        if (active) {
+          setCategories(cats);
+        }
       }
       load();
       return () => { active = false; };

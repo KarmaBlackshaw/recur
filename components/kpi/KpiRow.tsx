@@ -1,6 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import dayjs from "dayjs";
+import sumBy from "lodash/sumBy";
 import { formatAmount, isEndedOn } from "../../utils/dateHelpers";
 import { useExpenses } from "../../context/ExpenseContext";
 import { KpiCard } from "./KpiCard";
@@ -13,32 +14,28 @@ interface Props {
 }
 
 export function KpiRow({ year, month, recurringOnly = false }: Props) {
-  const { expenses, getMonthAmount, getMonthStatus } = useExpenses();
+  const { expenses, resolveAmount, getMonthStatus } = useExpenses();
   const isInMonth = (e: Expense) => {
-    if (e.recurrence !== "one-off") return !isEndedOn(e.endYear, e.endMonth, year, month);
-    if (recurringOnly) return false;
+    if (e.recurrence !== "one-off") {
+      return !isEndedOn(e.endYear, e.endMonth, year, month);
+    }
+    if (recurringOnly) {
+      return false;
+    }
     const d = dayjs(e.paidDate ?? e.createdAt);
     return d.year() === year && d.month() === month;
   };
   const source = expenses.filter(isInMonth);
-
-  function resolveAmount(e: Expense): number {
-    if (e.isVariable) return getMonthAmount(e.id, year, month) ?? 0;
-    return e.amount ?? 0;
-  }
 
   const resolvedExpenses = source.map((e) => ({
     ...e,
     status: getMonthStatus(e.id, year, month),
   }));
 
-  const total = resolvedExpenses.reduce((sum, e) => sum + resolveAmount(e), 0);
-  const paid = resolvedExpenses
-    .filter((e) => e.status === "paid")
-    .reduce((sum, e) => sum + resolveAmount(e), 0);
-  const unpaid = resolvedExpenses
-    .filter((e) => e.status === "unpaid")
-    .reduce((sum, e) => sum + resolveAmount(e), 0);
+  const amountOf = (e: Expense) => resolveAmount(e, year, month);
+  const total = sumBy(resolvedExpenses, amountOf);
+  const paid = sumBy(resolvedExpenses.filter((e) => e.status === "paid"), amountOf);
+  const unpaid = sumBy(resolvedExpenses.filter((e) => e.status === "unpaid"), amountOf);
 
   return (
     <View className="flex-row px-5 gap-2.5 py-2">

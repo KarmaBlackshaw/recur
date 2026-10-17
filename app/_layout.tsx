@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import useMount from "ahooks/es/useMount";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -47,17 +48,21 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  useEffect(() => {
-    (async () => {
-      const asked = await getPreference('notificationsPermissionAsked');
-      if (asked !== null) return;
-      const granted = await requestPermissions();
-      if (!granted) await setPreference('notificationsEnabled', 'false');
-      await setPreference('notificationsPermissionAsked', 'true');
-    })();
-  }, []);
+  useMount(async () => {
+    const asked = await getPreference('notificationsPermissionAsked');
+    if (asked !== null) {
+      return;
+    }
+    const granted = await requestPermissions();
+    if (!granted) {
+      await setPreference('notificationsEnabled', 'false');
+    }
+    await setPreference('notificationsPermissionAsked', 'true');
+  });
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

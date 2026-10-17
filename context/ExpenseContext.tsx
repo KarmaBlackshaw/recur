@@ -5,7 +5,9 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { useAsyncEffect } from "../utils/useAsyncEffect";
+import useAsyncEffect from "ahooks/es/useAsyncEffect";
+import useMemoizedFn from "ahooks/es/useMemoizedFn";
+import sortBy from "lodash/sortBy";
 import type { Expense, Status, MonthStatus } from "../types";
 import * as expensesDB from "../db/expenses";
 import * as preferencesDB from "../db/preferences";
@@ -39,16 +41,15 @@ function reducer(state: State, action: Action): State {
     case "ADD":
       return {
         ...state,
-        expenses: [...state.expenses, action.payload].sort(
-          (a, b) => a.dueDay - b.dueDay
-        ),
+        expenses: sortBy([...state.expenses, action.payload], "dueDay"),
       };
     case "UPDATE":
       return {
         ...state,
-        expenses: state.expenses
-          .map((e) => (e.id === action.payload.id ? action.payload : e))
-          .sort((a, b) => a.dueDay - b.dueDay),
+        expenses: sortBy(
+          state.expenses.map((e) => (e.id === action.payload.id ? action.payload : e)),
+          "dueDay"
+        ),
       };
     case "REMOVE":
       return {
@@ -117,6 +118,7 @@ interface ExpenseContextValue {
   setUserName: (name: string | null) => void;
   getMonthStatus: (id: string, year: number, month: number) => Status;
   getMonthAmount: (id: string, year: number, month: number) => number | null;
+  resolveAmount: (expense: Expense, year: number, month: number) => number;
   getMonthPaidAt: (id: string, year: number, month: number) => string | null;
   toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
   reloadAll: () => Promise<void>;
@@ -134,27 +136,29 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     monthPaidAts: {},
   });
 
-  useAsyncEffect(async (active) => {
+  useAsyncEffect(async function* () {
     try {
       const [rows, name, months] = await Promise.all([
         expensesDB.getAll(),
         preferencesDB.getPreference("user_name"),
         monthsDB.getAll(),
       ]);
-      if (!active()) return;
+      yield;
       dispatch({ type: "LOAD", payload: rows });
       dispatch({ type: "SET_USER_NAME", payload: name });
       dispatch({ type: "LOAD_MONTHS", payload: months });
     } catch {
-      if (!active()) return;
+      yield;
       dispatch({ type: "LOAD", payload: [] });
       dispatch({ type: "LOAD_MONTHS", payload: [] });
     }
   }, []);
 
-  async function _reschedule(expenses: Expense[]) {
+  async function rescheduleNotifications(expenses: Expense[]) {
     const enabled = await preferencesDB.getPreference('notificationsEnabled');
-    if (enabled === 'false') return;
+    if (enabled === 'false') {
+      return;
+    }
     const time = (await preferencesDB.getPreference('reminderTime')) ?? '09:00';
     await scheduleAllNotifications(expenses, time);
   }
@@ -165,18 +169,20 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   const paidCycles = useMemo<PaidCycle[]>(() => {
     const out: PaidCycle[] = [];
     for (const [k, status] of Object.entries(state.monthStatuses)) {
-      if (status !== "paid") continue;
+      if (status !== "paid") {
+        continue;
+      }
       const { id, year, month } = parseMonthKey(k);
       out.push({ expenseId: id, year, month, paidAt: state.monthPaidAts[k] ?? null });
     }
     return out;
   }, [state.monthStatuses, state.monthPaidAts]);
 
-  const setUserName = useCallback((name: string | null) => {
+  const setUserName = useMemoizedFn((name: string | null) => {
     dispatch({ type: "SET_USER_NAME", payload: name });
-  }, []);
+  });
 
-  const addExpense = useCallback(
+  const addExpense = useMemoizedFn(
     async (e: Omit<Expense, "id" | "createdAt">, monthlyAmount?: { year: number; month: number; amount: number | null }) => {
       const saved = await expensesDB.insert(e);
       dispatch({ type: "ADD", payload: saved });
@@ -187,20 +193,20 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           payload: { expenseId: saved.id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
         });
       }
-      const updatedExpenses = [...state.expenses, saved].sort((a, b) => a.dueDay - b.dueDay);
-      await _reschedule(updatedExpenses);
-    },
-    [state.expenses]
+      await rescheduleNotifications(sortBy([...state.expenses, saved], "dueDay"));
+    }
   );
 
-  const updateExpense = useCallback(
+  const updateExpense = useMemoizedFn(
     async (
       id: string,
       fields: Omit<Expense, "id" | "createdAt">,
       monthlyAmount?: { year: number; month: number; amount: number | null }
     ) => {
       const existing = state.expenses.find((e) => e.id === id);
-      if (!existing) return;
+      if (!existing) {
+        return;
+      }
       await expensesDB.update(id, fields);
       dispatch({ type: "UPDATE", payload: { ...existing, ...fields } });
       if (fields.isVariable && monthlyAmount !== undefined) {
@@ -210,19 +216,24 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           payload: { expenseId: id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
         });
       }
-      const updatedExpenses = state.expenses
-        .map((e) => (e.id === id ? { ...existing, ...fields } : e))
-        .sort((a, b) => a.dueDay - b.dueDay);
-      await _reschedule(updatedExpenses);
-    },
-    [state.expenses]
+      await rescheduleNotifications(
+        sortBy(
+          state.expenses.map((e) => (e.id === id ? { ...existing, ...fields } : e)),
+          "dueDay"
+        )
+      );
+    }
   );
 
   const getMonthStatus = useCallback(
     (id: string, year: number, month: number): Status => {
       const expense = state.expenses.find((e) => e.id === id);
-      if (!expense) return "unpaid";
-      if (expense.recurrence === "one-off") return expense.status;
+      if (!expense) {
+        return "unpaid";
+      }
+      if (expense.recurrence === "one-off") {
+        return expense.status;
+      }
       return state.monthStatuses[monthKey(id, year, month)] ?? "unpaid";
     },
     [state.expenses, state.monthStatuses]
@@ -235,6 +246,12 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     [state.monthAmounts]
   );
 
+  const resolveAmount = useCallback(
+    (expense: Expense, year: number, month: number): number =>
+      expense.isVariable ? (getMonthAmount(expense.id, year, month) ?? 0) : (expense.amount ?? 0),
+    [getMonthAmount]
+  );
+
   const getMonthPaidAt = useCallback(
     (id: string, year: number, month: number): string | null => {
       return state.monthPaidAts[monthKey(id, year, month)] ?? null;
@@ -242,10 +259,12 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     [state.monthPaidAts]
   );
 
-  const toggleMonthStatus = useCallback(
+  const toggleMonthStatus = useMemoizedFn(
     async (id: string, year: number, month: number): Promise<void> => {
       const expense = state.expenses.find((e) => e.id === id);
-      if (!expense) return;
+      if (!expense) {
+        return;
+      }
 
       if (expense.recurrence === "one-off") {
         const next: Status = expense.status === "unpaid" ? "paid" : "unpaid";
@@ -258,26 +277,24 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         await monthsDB.upsertStatus(id, year, month, next, paidAt);
         dispatch({ type: "SET_MONTH_STATUS", payload: { expenseId: id, year, month, status: next, paidAt } });
       }
-      await _reschedule(state.expenses);
-    },
-    [state.expenses, state.monthStatuses]
+      await rescheduleNotifications(state.expenses);
+    }
   );
 
-  const deleteExpense = useCallback(async (id: string) => {
+  const deleteExpense = useMemoizedFn(async (id: string) => {
     await expensesDB.remove(id);
     dispatch({ type: "REMOVE", payload: id });
-    const updatedExpenses = state.expenses.filter((e) => e.id !== id);
-    await _reschedule(updatedExpenses);
-  }, [state.expenses]);
+    await rescheduleNotifications(state.expenses.filter((e) => e.id !== id));
+  });
 
-  const reloadAll = useCallback(async () => {
+  const reloadAll = useMemoizedFn(async () => {
     const [rows, months] = await Promise.all([
       expensesDB.getAll(),
       monthsDB.getAll(),
     ]);
     dispatch({ type: "LOAD", payload: rows });
     dispatch({ type: "LOAD_MONTHS", payload: months });
-  }, []);
+  });
 
   return (
     <ExpenseContext.Provider
@@ -292,6 +309,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         setUserName,
         getMonthStatus,
         getMonthAmount,
+        resolveAmount,
         getMonthPaidAt,
         toggleMonthStatus,
         reloadAll,
@@ -304,6 +322,8 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
 export function useExpenses() {
   const ctx = useContext(ExpenseContext);
-  if (!ctx) throw new Error("useExpenses must be used within ExpenseProvider");
+  if (!ctx) {
+    throw new Error("useExpenses must be used within ExpenseProvider");
+  }
   return ctx;
 }

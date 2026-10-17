@@ -93,7 +93,9 @@ export function DraggableList<T>({
       <ScrollView contentContainerStyle={contentContainerStyle} scrollEnabled>
         {order.map((dataIndex, visualIndex) => {
           const item = data[dataIndex];
-          if (!item) return null;
+          if (!item) {
+            return null;
+          }
           const key = keyExtractor(item);
           return (
             <DraggableItem
@@ -157,7 +159,9 @@ function DraggableItem({
       fingerY.value = e.absoluteY;
     })
     .onUpdate((e) => {
-      if (activeVisualIndex.value !== visualIndex) return;
+      if (activeVisualIndex.value !== visualIndex) {
+        return;
+      }
       fingerY.value = e.absoluteY;
 
       const relY = e.absoluteY - listTop.value;

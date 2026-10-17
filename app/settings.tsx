@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
+import useMount from "ahooks/es/useMount";
+import range from "lodash/range";
 import { View, TouchableOpacity, Alert, Switch, ScrollView } from "react-native";
 import * as Notifications from 'expo-notifications';
 import { getPreference, setPreference } from '../db/preferences';
@@ -17,43 +19,40 @@ import { colors } from "../constants/theme";
 
 const version = Constants.expoConfig?.version ?? "—";
 
-const TIME_OPTIONS = (() => {
-  const opts: { label: string; value: string }[] = [];
-  for (let h = 6; h <= 22; h++) {
-    for (const m of [0, 30]) {
-      if (h === 22 && m === 30) break;
-      const hh = h.toString().padStart(2, '0');
-      const mm = m.toString().padStart(2, '0');
-      opts.push({ label: `${hh}:${mm}`, value: `${hh}:${mm}` });
-    }
-  }
-  return opts;
-})();
+const TIME_OPTIONS = [
+  ...range(6, 22).flatMap((h) => [0, 30].map((m) => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`)),
+  "22:00",
+].map((time) => ({ label: time, value: time }));
 
 export default function SettingsScreen() {
   const { userName, reloadAll, expenses } = useExpenses();
+  const unpaidExpenses = expenses.filter((e) => e.status === 'unpaid');
   const [importing, setImporting] = useState(false);
   const [reminderTime, setReminderTime] = useState('09:00');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const timeSheetRef = useRef<AppSelectBottomSheetRef>(null);
 
-  useEffect(() => {
-    (async () => {
-      const time = await getPreference('reminderTime');
-      if (time) setReminderTime(time);
-      const enabled = await getPreference('notificationsEnabled');
-      if (enabled === 'false') setNotificationsEnabled(false);
-      const { status } = await Notifications.getPermissionsAsync();
-      setPermissionDenied(status !== 'granted');
-    })();
-  }, []);
+  useMount(async () => {
+    const time = await getPreference('reminderTime');
+    if (time) {
+      setReminderTime(time);
+    }
+    const enabled = await getPreference('notificationsEnabled');
+    if (enabled === 'false') {
+      setNotificationsEnabled(false);
+    }
+    const { status } = await Notifications.getPermissionsAsync();
+    setPermissionDenied(status !== 'granted');
+  });
 
   async function handleTimeChange(val: string) {
     setReminderTime(val);
     await setPreference('reminderTime', val);
     const enabled = await getPreference('notificationsEnabled');
-    if (enabled !== 'false') await scheduleAllNotifications(expenses, val);
+    if (enabled !== 'false') {
+      await scheduleAllNotifications(expenses, val);
+    }
   }
 
   async function handleToggleNotifications(val: boolean) {
@@ -98,7 +97,9 @@ export default function SettingsScreen() {
     setImporting(true);
     try {
       const result = await importBackup();
-      if (result === null) return;
+      if (result === null) {
+        return;
+      }
       await reloadAll();
       Alert.alert("Import Complete", `${result.added} added, ${result.skipped} skipped (already exist).`);
     } catch (e: unknown) {
@@ -314,12 +315,11 @@ export default function SettingsScreen() {
                 className="flex-row items-center px-5 py-4"
                 onPress={async () => {
                   await Notifications.cancelAllScheduledNotificationsAsync();
-                  const unpaid = expenses.filter((e) => e.status === 'unpaid');
                   await Notifications.scheduleNotificationAsync({
-                    content: buildSummaryContent(unpaid, 'soon'),
+                    content: buildSummaryContent(unpaidExpenses, 'soon'),
                     trigger: { type: SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 5, repeats: false },
                   });
-                  Alert.alert('Dev', `Summary for ${unpaid.length} unpaid — firing in 5s`);
+                  Alert.alert('Dev', `Summary for ${unpaidExpenses.length} unpaid — firing in 5s`);
                 }}
                 accessibilityLabel="Test notifications"
               >
@@ -332,7 +332,7 @@ export default function SettingsScreen() {
                   Fire notifications in 5s
                 </AppText>
                 <AppText variant="caption" className="text-textMuted">
-                  {expenses.filter(e => e.status === 'unpaid').length} unpaid
+                  {unpaidExpenses.length} unpaid
                 </AppText>
               </TouchableOpacity>
               <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />

@@ -48,7 +48,9 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       >
         {state.routes.map((route, index) => {
           const meta = TAB_META[route.name];
-          if (!meta) return null;
+          if (!meta) {
+            return null;
+          }
           const focused = state.index === index;
           const color = focused ? colors.secondary : colors.textSecondary;
 

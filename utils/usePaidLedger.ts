@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import dayjs from "dayjs";
+import keyBy from "lodash/keyBy";
+import orderBy from "lodash/orderBy";
 import { useExpenses } from "../context/ExpenseContext";
 import { effectivePaidDate } from "./dateHelpers";
 import { monthKey } from "./monthKey";
@@ -19,15 +21,17 @@ export interface PaidEntry {
 // resolve identically on every screen. Callers apply their own filter (Home = a
 // rolling last-N-day window; Expenses = the whole selected month) over `effDate`.
 export function usePaidLedger(): PaidEntry[] {
-  const { expenses, paidCycles, getMonthAmount } = useExpenses();
+  const { expenses, paidCycles, resolveAmount } = useExpenses();
 
   return useMemo(() => {
-    const byId = new Map(expenses.map((e) => [e.id, e]));
+    const byId = keyBy(expenses, "id");
     const items: PaidEntry[] = [];
 
     // One-offs: paid, dated by paidDate (fallback createdAt for legacy rows).
     for (const e of expenses) {
-      if (e.recurrence !== "one-off" || e.status !== "paid") continue;
+      if (e.recurrence !== "one-off" || e.status !== "paid") {
+        continue;
+      }
       const created = new Date(e.createdAt);
       items.push({
         key: e.id,
@@ -41,18 +45,19 @@ export function usePaidLedger(): PaidEntry[] {
     // Recurring: every paid cycle, dated by its effective pay-date so an advance
     // payment surfaces in the month it was paid, not the due month.
     for (const c of paidCycles) {
-      const e = byId.get(c.expenseId);
-      if (!e || e.recurrence === "one-off") continue;
+      const e = byId[c.expenseId];
+      if (!e || e.recurrence === "one-off") {
+        continue;
+      }
       items.push({
         key: monthKey(e.id, c.year, c.month),
         expense: e,
         refDate: new Date(c.year, c.month, 1),
         effDate: effectivePaidDate(c.paidAt, e.dueDay, c.year, c.month),
-        amount: e.isVariable ? (getMonthAmount(e.id, c.year, c.month) ?? 0) : (e.amount ?? 0),
+        amount: resolveAmount(e, c.year, c.month),
       });
     }
 
-    items.sort((a, b) => b.effDate.getTime() - a.effDate.getTime());
-    return items;
-  }, [expenses, paidCycles, getMonthAmount]);
+    return orderBy(items, "effDate", "desc");
+  }, [expenses, paidCycles, resolveAmount]);
 }

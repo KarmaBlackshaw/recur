@@ -1,11 +1,12 @@
 import React, { useMemo } from "react";
 import { View, SectionList } from "react-native";
 import { router } from "expo-router";
-import dayjs from "dayjs";
+import sumBy from "lodash/sumBy";
 import { ExpenseCard } from "./ExpenseCard";
 import { DayHeaderRow } from "./DayHeaderRow";
 import { BandHeader } from "./BandHeader";
 import { colors } from "../constants/theme";
+import { groupEntriesByDay } from "../utils/groupEntriesByDay";
 import type { DayEntry } from "./DayGroupedExpenseList";
 import type { FeatherIconName } from "../types";
 
@@ -35,8 +36,6 @@ type DaySection = {
 };
 type HomeSection = FlatSection | DaySection;
 
-const sum = (arr: DayEntry[]) => arr.reduce((t, e) => t + e.amount, 0);
-
 interface Props {
   overdue: DayEntry[];
   upcoming: DayEntry[];
@@ -62,7 +61,7 @@ export function HomeExpenseSections({
         band: "Overdue",
         icon: "alert-triangle",
         accent: colors.overdue,
-        total: sum(overdue),
+        total: sumBy(overdue, "amount"),
         data: overdue,
       });
     }
@@ -74,26 +73,15 @@ export function HomeExpenseSections({
         band: "Upcoming",
         icon: "arrow-up-circle",
         accent: colors.secondary,
-        total: sum(upcoming),
+        total: sumBy(upcoming, "amount"),
         data: upcoming,
       });
     }
 
     if (recentlyPaid.length) {
-      const groups = new Map<string, DaySection>();
-      for (const it of recentlyPaid) {
-        const k = dayjs(it.effDate).format("YYYY-MM-DD");
-        let g = groups.get(k);
-        if (!g) {
-          g = { kind: "day", key: k, date: it.effDate, total: 0, data: [] };
-          groups.set(k, g);
-        }
-        g.data.push(it);
-        g.total += it.amount;
-      }
-      const days = [...groups.values()];
+      const days: DaySection[] = groupEntriesByDay(recentlyPaid).map((g) => ({ kind: "day", ...g }));
       days[0].band = "Recently Paid";
-      days[0].bandTotal = sum(recentlyPaid);
+      days[0].bandTotal = sumBy(recentlyPaid, "amount");
       days[0].bandCount = recentlyPaid.length;
       days[0].icon = "check-circle";
       days[0].accent = colors.paid;

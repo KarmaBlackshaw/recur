@@ -4,13 +4,17 @@ let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export function getDB(): Promise<SQLite.SQLiteDatabase> {
-  if (db) return Promise.resolve(db);
-  if (initPromise) return initPromise;
-  initPromise = _init();
+  if (db) {
+    return Promise.resolve(db);
+  }
+  if (initPromise) {
+    return initPromise;
+  }
+  initPromise = openDatabase();
   return initPromise;
 }
 
-async function _init(): Promise<SQLite.SQLiteDatabase> {
+async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   db = await SQLite.openDatabaseAsync("recur.db");
   await db.execAsync(`PRAGMA journal_mode = WAL;`);
   await db.execAsync(`PRAGMA foreign_keys = ON;`);

@@ -443,6 +443,11 @@ export default function SettingsScreen() {
             >
               {item.label}
             </AppText>
+            {selected && (
+              <View pointerEvents="none" className="absolute top-1.5 right-1.5">
+                <Feather name="check" size={14} color={colors.text} />
+              </View>
+            )}
           </TouchableOpacity>
         )}
         columns={3}

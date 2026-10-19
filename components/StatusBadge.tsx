@@ -8,6 +8,8 @@ import { AppText } from "@/components/ui/AppText";
 interface Props {
   status: Status;
   overdue?: boolean;
+  charged?: boolean;
+  label?: string;
   onToggle?: () => void;
 }
 
@@ -27,6 +29,14 @@ const PAID: Tone = {
   textClass: "text-paid",
 };
 
+const CHARGED: Tone = {
+  label: "Charged",
+  icon: "credit-card",
+  color: colors.secondary,
+  containerClass: "bg-secondary/15 border-secondary/30",
+  textClass: "text-secondary",
+};
+
 const OVERDUE: Tone = {
   label: "Overdue",
   icon: "alert-triangle",
@@ -43,9 +53,10 @@ const UNPAID: Tone = {
   textClass: "text-textSecondary",
 };
 
-export function StatusBadge({ status, overdue, onToggle }: Props) {
+export function StatusBadge({ status, overdue, charged, label, onToggle }: Props) {
   const isPaid = status === "paid";
-  const tone = isPaid ? PAID : overdue ? OVERDUE : UNPAID;
+  const tone = isPaid ? (charged ? CHARGED : PAID) : overdue ? OVERDUE : UNPAID;
+  const text = label ?? tone.label;
 
   return (
     <TouchableOpacity
@@ -55,13 +66,13 @@ export function StatusBadge({ status, overdue, onToggle }: Props) {
       className={`flex-row items-center gap-1 rounded-full border px-2 py-0.5 ${tone.containerClass}`}
       hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
       accessibilityRole={onToggle ? "button" : "text"}
-      accessibilityLabel={onToggle ? (isPaid ? "Mark as unpaid" : "Mark as paid") : tone.label}
+      accessibilityLabel={onToggle ? (isPaid ? "Mark as unpaid" : "Mark as paid") : text}
       accessibilityHint={onToggle ? `Currently ${tone.label.toLowerCase()}` : undefined}
       accessibilityState={onToggle ? { checked: isPaid } : undefined}
     >
       <Feather name={tone.icon} size={10} color={tone.color} />
       <AppText variant="body-bold" className={`text-[11px] tracking-[0.5px] ${tone.textClass}`}>
-        {tone.label}
+        {text}
       </AppText>
     </TouchableOpacity>
   );

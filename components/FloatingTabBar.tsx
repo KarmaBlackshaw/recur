@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -9,7 +9,7 @@ import type { FeatherIconName } from "@/types";
 
 const TAB_META: Record<string, { label: string; icon: FeatherIconName }> = {
   index: { label: "Home", icon: "home" },
-  expenses: { label: "Expenses", icon: "check-circle" },
+  expenses: { label: "Activity", icon: "check-circle" },
   recurring: { label: "Recurring", icon: "repeat" },
   accounts: { label: "Accounts", icon: "credit-card" },
 };
@@ -23,11 +23,20 @@ const FAB_TYPE: Record<string, "regular" | "recurring"> = {
 
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const activeName = state.routes[state.index]?.name ?? "index";
+  const [tabHeight, setTabHeight] = useState(56);
+  const activeRoute = state.routes[state.index];
+  const activeName = activeRoute?.name ?? "index";
+  const params = activeRoute?.params;
+  const isIncomeSegment =
+    activeName === "expenses" && params != null && "segment" in params && params.segment === "income";
 
   const fabType = FAB_TYPE[activeName] ?? "regular";
 
   function handleAdd() {
+    if (isIncomeSegment) {
+      router.push("/income/add");
+      return;
+    }
     router.push(`/expense/add?type=${fabType}`);
   }
 
@@ -38,7 +47,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       pointerEvents="box-none"
     >
       <View
-        className="flex-1 flex-row items-center bg-surface rounded-full py-1.5 px-1.5 border border-border"
+        className="flex-1 flex-row items-center bg-surface rounded-3xl py-1.5 px-1.5 border border-border"
         accessibilityRole="tablist"
         style={{
           shadowColor: "#000",
@@ -72,14 +81,15 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               key={route.key}
               onPress={onPress}
               activeOpacity={0.7}
-              className={`flex-1 items-center py-1.5 rounded-full ${focused ? "bg-primary/15" : ""}`}
+              className={`flex-1 items-center py-2.5 rounded-[18px] ${focused ? "bg-primary/15" : ""}`}
               accessibilityRole="tab"
+              onLayout={focused ? (e) => setTabHeight(e.nativeEvent.layout.height) : undefined}
               accessibilityState={{ selected: focused }}
               accessibilityLabel={meta.label}
             >
               <Feather name={meta.icon} size={19} color={color} />
               <Text
-                className="text-xs mt-0.5 tracking-wide"
+                className="text-[10px] mt-1 tracking-wide"
                 numberOfLines={1}
                 maxFontSizeMultiplier={1.3}
                 style={{ color, fontFamily: "Quicksand_700Bold" }}
@@ -94,10 +104,12 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       <TouchableOpacity
         onPress={handleAdd}
         activeOpacity={0.85}
-        className="size-14 rounded-full bg-primary items-center justify-center"
+        className="rounded-[18px] bg-primary items-center justify-center"
         accessibilityRole="button"
-        accessibilityLabel={fabType === "recurring" ? "Add recurring expense" : "Add expense"}
+        accessibilityLabel={isIncomeSegment ? "Add income" : fabType === "recurring" ? "Add recurring expense" : "Add expense"}
         style={{
+          width: tabHeight,
+          height: tabHeight,
           shadowColor: colors.secondary,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.5,

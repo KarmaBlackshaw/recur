@@ -3,7 +3,9 @@ import { SectionList } from "react-native";
 import { router } from "expo-router";
 import { ExpenseCard } from "@/components/ExpenseCard";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
+import { BillPaymentRow } from "@/components/accounts/BillPaymentRow";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
+import type { BillPaymentEntry } from "@/utils/usePaidLedger";
 import type { Expense } from "@/types";
 
 // A single row in a day-grouped list. `effDate` decides which day bucket it lands
@@ -19,17 +21,19 @@ export interface DayEntry {
   hideDate?: boolean;
 }
 
+export type LedgerEntry = DayEntry | BillPaymentEntry;
+
 interface DaySection {
   key: string;
   date: Date;
   total: number;
-  data: DayEntry[];
+  data: LedgerEntry[];
 }
 
 interface Props {
   // Pre-sorted by the caller; section order = first-seen day order (insertion order),
   // so pass entries newest-first or soonest-first to control direction.
-  entries: DayEntry[];
+  entries: LedgerEntry[];
   // false → skip the per-day headers/subtotals and render one flat list; each card
   // shows its own date instead (recurring tab). Default true (paid ledger).
   grouped?: boolean;
@@ -51,25 +55,29 @@ export function DayGroupedExpenseList({ entries, grouped = true, ListHeaderCompo
       keyExtractor={(item) => item.key}
       ListHeaderComponent={ListHeaderComponent}
       ListEmptyComponent={ListEmptyComponent}
-      renderItem={({ item, index }) => (
-        <ExpenseCard
-          expense={item.expense}
-          index={index}
-          compact={item.compact}
-          hideDate={item.hideDate}
-          referenceDate={item.refDate}
-          onPress={() =>
-            router.push({
-              pathname: "/expense/add",
-              params: {
-                id: item.expense.id,
-                year: item.refDate.getFullYear(),
-                month: item.refDate.getMonth(),
-              },
-            })
-          }
-        />
-      )}
+      renderItem={({ item, index }) =>
+        "expense" in item ? (
+          <ExpenseCard
+            expense={item.expense}
+            index={index}
+            compact={item.compact}
+            hideDate={item.hideDate}
+            referenceDate={item.refDate}
+            onPress={() =>
+              router.push({
+                pathname: "/expense/add",
+                params: {
+                  id: item.expense.id,
+                  year: item.refDate.getFullYear(),
+                  month: item.refDate.getMonth(),
+                },
+              })
+            }
+          />
+        ) : (
+          <BillPaymentRow entry={item} />
+        )
+      }
       renderSectionHeader={
         grouped
           ? ({ section }) => {

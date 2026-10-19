@@ -11,13 +11,14 @@ import { Controller, useForm } from "react-hook-form";
 import { useAccounts } from "@/context/AccountContext";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
+import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
 import type { Account } from "@/types";
 
 export interface TransferSheetRef {
-  present: () => void;
+  present: (opts?: { amount?: number }) => void;
 }
 
 interface TransferFormValues {
@@ -38,7 +39,7 @@ interface ChipsProps {
 function AccountChips({ label, options, value, onChange, getBalance }: ChipsProps) {
   return (
     <View className="mb-2">
-      <AppText variant="label" className="mb-1.5 mt-1">{label}</AppText>
+      <AppLabel>{label}</AppLabel>
       <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup" accessibilityLabel={label}>
         {options.map((option) => {
           const isSelected = option.id === value;
@@ -89,11 +90,12 @@ export const TransferSheet = forwardRef<TransferSheetRef, { account: Account }>(
     const destinations = accounts.accounts.filter((a) => a.id !== fromId);
 
     useImperativeHandle(ref, () => ({
-      present: () => {
+      present: (opts) => {
         const isSource = account.type !== "credit";
         const from = isSource ? account.id : sources[0]?.id ?? "";
         const to = isSource ? accounts.accounts.find((a) => a.id !== account.id)?.id ?? "" : account.id;
-        reset({ fromId: from, toId: to, amount: "", note: "" }, { keepDefaultValues: true });
+        const amount = opts?.amount != null ? opts.amount.toFixed(2) : "";
+        reset({ fromId: from, toId: to, amount, note: "" }, { keepDefaultValues: true });
         sheetRef.current?.present();
       },
     }));
@@ -217,7 +219,7 @@ export const TransferSheet = forwardRef<TransferSheetRef, { account: Account }>(
             <AppButton
               label="Transfer"
               onPress={onSubmit}
-              disabled={!isValid}
+              disabled={!isValid || sources.length === 0}
               loading={isSubmitting}
               className="mt-4"
             />

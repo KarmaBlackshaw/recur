@@ -1,4 +1,5 @@
 import type { Feather, Ionicons } from "@expo/vector-icons";
+import type { BillSummary } from "@/utils/cardBills";
 
 export type FeatherIconName = keyof typeof Feather.glyphMap;
 export type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -35,7 +36,7 @@ export interface ExpenseFormValues {
   paidDate: string;   // ISO date string (one-off only)
   hasEndDate: boolean;
   endDate: string;   // ISO date string, first-of-end-month (recurring only)
-  accountId: string;   // '' = none
+  accountId: string;
 }
 
 export interface MonthStatus {
@@ -49,7 +50,7 @@ export interface MonthStatus {
 
 export type AccountType = 'debit' | 'credit' | 'cash';
 export type InterestPeriod = 'daily' | 'monthly' | 'yearly';
-export type TransactionKind = 'payment' | 'interest' | 'tax' | 'transfer' | 'adjust';
+export type TransactionKind = 'payment' | 'interest' | 'tax' | 'transfer' | 'adjust' | 'income';
 
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   debit: 'Debit account',
@@ -63,6 +64,7 @@ export const TRANSACTION_KIND_LABEL: Record<TransactionKind, string> = {
   tax: 'Tax withheld',
   transfer: 'Transfer',
   adjust: 'Adjustment',
+  income: 'Income',
 };
 
 export interface Account {
@@ -77,10 +79,22 @@ export interface Account {
   creditLimit: number | null;
   statementDay: number | null;
   dueDay: number | null;
+  color: string | null;
+  icon: IoniconName | null;
+  logoUri: string | null;
   createdAt: string;
 }
 
 export type AccountInput = Omit<Account, 'id' | 'createdAt' | 'sortOrder' | 'interestAccruedThrough'>;
+
+export interface CardBillOverride {
+  accountId: string;
+  year: number;
+  month: number;
+  amount: number;
+}
+
+export type CardBill = BillSummary & { account: Account; year: number; month: number };
 
 export interface AccountTransaction {
   id: string;
@@ -92,5 +106,16 @@ export interface AccountTransaction {
   cycleMonth: number | null;
   transferId: string | null;
   note: string | null;
+  category: string | null;
   createdAt: string;
+}
+
+export type CategoryKind = 'expense' | 'income';
+
+export interface IncomeInput {
+  accountId: string;
+  amount: number;
+  category: string;
+  note: string | null;
+  receivedAt: string;
 }

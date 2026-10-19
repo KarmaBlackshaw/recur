@@ -5,21 +5,25 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import sortBy from "lodash/sortBy";
+import orderBy from "lodash/orderBy";
 import { useExpenses } from "@/context/ExpenseContext";
+import { useAccounts } from "@/context/AccountContext";
 import { KpiRow } from "@/components/kpi/KpiRow";
-import { type DayEntry } from "@/components/DayGroupedExpenseList";
-import { HomeExpenseSections } from "@/components/HomeExpenseSections";
+import { type DayEntry, type LedgerEntry } from "@/components/DayGroupedExpenseList";
+import { HomeExpenseSections, type HomeEntry } from "@/components/HomeExpenseSections";
 import { DayWindowSelector, windowLabel, type DayWindow } from "@/components/DayWindowSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { isOverdueOn, getDueDate, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
-import { usePaidLedger } from "@/utils/usePaidLedger";
+import { usePaidLedger, useBillPayments } from "@/utils/usePaidLedger";
 import { colors } from "@/constants/theme";
 
 export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus, resolveAmount } = useExpenses();
+  const accounts = useAccounts();
   const ledger = usePaidLedger();
+  const billPayments = useBillPayments();
   const [windowDays, setWindowDays] = useState<DayWindow>(7);
   const today = dayjs().startOf("day").toDate();
   const year = today.getFullYear();
@@ -35,7 +39,20 @@ export default function HomeScreen() {
     amount: resolveAmount(e, year, month),
   });
 
-  const overdue = useMemo<DayEntry[]>(() => {
+  // Next month too: a new card's first bill is due next month.
+  const openBills = useMemo(() => {
+    const next = dayjs(new Date(year, month, 1)).add(1, "month");
+    return [...accounts.getCardBills(year, month), ...accounts.getCardBills(next.year(), next.month())]
+      .filter((b) => !b.isPaid)
+      .map((b) => ({
+        key: `bill-${b.account.id}-${b.year}-${b.month}`,
+        bill: b,
+        effDate: b.dueDate,
+        amount: b.remaining,
+      }));
+  }, [accounts.getCardBills, year, month]);
+
+  const overdue = useMemo<HomeEntry[]>(() => {
     const entries = expenses
       .filter(
         (e) =>
@@ -44,10 +61,11 @@ export default function HomeScreen() {
           isOverdueOn(e.dueDay, year, month)
       )
       .map(dueEntry);
-    return sortBy(entries, "effDate");
-  }, [expenses, getMonthStatus, resolveAmount, year, month]);
+    const bills = openBills.filter((b) => b.effDate < today);
+    return sortBy([...entries, ...bills], "effDate");
+  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills]);
 
-  const upcoming = useMemo<DayEntry[]>(() => {
+  const upcoming = useMemo<HomeEntry[]>(() => {
     const inN = dayjs(today).add(windowDays, "day").toDate();
     const entries = expenses
       .filter((e) => {
@@ -64,17 +82,18 @@ export default function HomeScreen() {
         return d >= today && d <= inN;
       })
       .map(dueEntry);
-    return sortBy(entries, "effDate");
-  }, [expenses, getMonthStatus, resolveAmount, year, month, windowDays]);
+    const bills = openBills.filter((b) => b.effDate >= today && b.effDate <= inN);
+    return sortBy([...entries, ...bills], "effDate");
+  }, [expenses, getMonthStatus, resolveAmount, year, month, windowDays, openBills]);
 
   // Recently Paid: any paid entry whose pay-date lands in the rolling window.
-  const recentlyPaid = useMemo<DayEntry[]>(() => {
+  const recentlyPaid = useMemo<LedgerEntry[]>(() => {
     const lastN = dayjs(today).subtract(windowDays, "day").toDate();
     const endToday = dayjs().endOf("day").toDate();
-    return ledger
-      .filter((it) => it.effDate >= lastN && it.effDate <= endToday)
-      .map((it) => ({ ...it, compact: true }));
-  }, [ledger, windowDays]);
+    const isInWindow = ({ effDate }: { effDate: Date }) => effDate >= lastN && effDate <= endToday;
+    const expensesPaid = ledger.filter((it) => !it.isCard && isInWindow(it)).map((it) => ({ ...it, compact: true }));
+    return orderBy([...expensesPaid, ...billPayments.filter(isInWindow)], "effDate", "desc");
+  }, [ledger, billPayments, windowDays]);
 
   if (loading) {
     return (

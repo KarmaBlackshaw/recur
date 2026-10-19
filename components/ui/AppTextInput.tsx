@@ -2,6 +2,7 @@ import React, { forwardRef } from "react";
 import { TextInput, TextInputProps, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { AppText } from "@/components/ui/AppText";
+import { AppLabel } from "@/components/ui/AppLabel";
 import { colors } from "@/constants/theme";
 import { formatAmount, sanitizeAmount } from "@/utils/amountInput";
 
@@ -16,9 +17,9 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
     return (
       <View>
         {label && (
-          <AppText variant="label" className="mb-1.5 mt-1">
+          <AppLabel>
             {label}
-          </AppText>
+          </AppLabel>
         )}
         <TextInput
           ref={ref}

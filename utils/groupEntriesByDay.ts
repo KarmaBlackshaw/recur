@@ -1,9 +1,8 @@
 import dayjs from "dayjs";
 import groupBy from "lodash/groupBy";
 import sumBy from "lodash/sumBy";
-import type { DayEntry } from "@/components/DayGroupedExpenseList";
 
-export function groupEntriesByDay(entries: DayEntry[]) {
+export function groupEntriesByDay<T extends { effDate: Date; amount: number }>(entries: T[]) {
   const groups = groupBy(entries, (it) => dayjs(it.effDate).format("YYYY-MM-DD"));
   return Object.entries(groups).map(([key, data]) => ({
     key,

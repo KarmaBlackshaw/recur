@@ -1,6 +1,7 @@
 import React from "react";
 import { View, TouchableOpacity } from "react-native";
 import { AppText } from "@/components/ui/AppText";
+import { AppLabel } from "@/components/ui/AppLabel";
 
 interface Option<T extends string> {
   label: string;
@@ -25,12 +26,12 @@ export function AppRadioGroup<T extends string>({
   return (
     <View className={className}>
       {label && (
-        <AppText variant="label" className="mb-1.5 mt-1">
+        <AppLabel>
           {label}
-        </AppText>
+        </AppLabel>
       )}
       <View
-        className="flex-row bg-surface rounded-xl border border-border mb-1 overflow-hidden min-h-[52px]"
+        className="flex-row flex-wrap gap-2 mb-1"
         accessibilityRole="radiogroup"
         accessibilityLabel={label}
       >
@@ -39,8 +40,8 @@ export function AppRadioGroup<T extends string>({
           return (
             <TouchableOpacity
               key={opt.value}
-              className={`flex-1 items-center justify-center min-h-[52px] px-1 ${
-                isSelected ? "bg-primary" : ""
+              className={`items-center justify-center min-h-[44px] px-6 rounded-2xl border ${
+                isSelected ? "bg-primary/15 border-primary" : "bg-surface border-border"
               }`}
               onPress={() => onChange(opt.value)}
               accessibilityRole="radio"
@@ -48,8 +49,8 @@ export function AppRadioGroup<T extends string>({
               accessibilityState={{ selected: isSelected, checked: isSelected }}
             >
               <AppText
-                variant={isSelected ? "body-bold" : "body-medium"}
-                className={`text-xs ${isSelected ? "text-white" : "text-textSecondary"}`}
+                variant="body-bold"
+                className={`text-sm ${isSelected ? "text-secondary" : "text-textPrimary"}`}
               >
                 {opt.label}
               </AppText>

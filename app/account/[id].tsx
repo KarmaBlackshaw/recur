@@ -8,9 +8,11 @@ import groupBy from "lodash/groupBy";
 import orderBy from "lodash/orderBy";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
+import { AppLabel } from "@/components/ui/AppLabel";
 import { TransactionRow } from "@/components/accounts/TransactionRow";
 import { AdjustBalanceSheet, type AdjustBalanceSheetRef } from "@/components/accounts/AdjustBalanceSheet";
 import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
+import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
@@ -93,7 +95,7 @@ function BalanceHeader({ account, balance, interestPerMonth }: {
             />
           )}
           {account.statementDay != null && (
-            <DetailRow label="Next statement" value={dayjs(nextOccurrence(account.statementDay)).format("MMM D")} />
+            <DetailRow label="Next cut-off" value={dayjs(nextOccurrence(account.statementDay)).format("MMM D")} />
           )}
           {account.dueDay != null && (
             <DetailRow label="Payment due" value={dayjs(nextOccurrence(account.dueDay)).format("MMM D")} />
@@ -203,13 +205,15 @@ export default function AccountDetailScreen() {
                 onPress={() => transferRef.current?.present()}
                 disabled={!canTransfer}
               />
-              <ActionButton
-                icon="edit-2"
-                label="Edit"
-                onPress={() => router.push({ pathname: "/account/edit", params: { id: account.id } })}
-              />
+              {account.id !== CASH_ACCOUNT_ID && (
+                <ActionButton
+                  icon="edit-2"
+                  label="Edit"
+                  onPress={() => router.push({ pathname: "/account/edit", params: { id: account.id } })}
+                />
+              )}
             </View>
-            <AppText variant="label" className="px-5 mb-1">Transactions</AppText>
+            <AppLabel className="px-5">Transactions</AppLabel>
           </>
         }
         renderSectionHeader={({ section }) => (

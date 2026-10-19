@@ -4,8 +4,14 @@ import dayjs from 'dayjs';
 import groupBy from 'lodash/groupBy';
 import sumBy from 'lodash/sumBy';
 import uniq from 'lodash/uniq';
-import { getDueDate, isEndedOn } from '@/utils/dateHelpers';
-import type { Expense } from '@/types';
+import { getDueDateForMonth, isEndedOn } from '@/utils/dateHelpers';
+import type { CardBill, Expense, Status } from '@/types';
+
+export interface Reminder {
+  amount: number | null;
+  dueDate: Date;
+  daysBefore: number;
+}
 
 export async function requestPermissions(): Promise<boolean> {
   const { status } = await Notifications.requestPermissionsAsync();
@@ -16,7 +22,7 @@ export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
-function pesoTotal(group: Expense[]): string | undefined {
+function pesoTotal(group: { amount: number | null }[]): string | undefined {
   const withAmount = group.filter((e) => e.amount != null);
   if (withAmount.length === 0) {
     return undefined;
@@ -37,7 +43,7 @@ function dueLabel(daysBefore: number): string {
 
 // Grouped summary content for a set of expenses that all fire together.
 // `label` is the caller-computed "due …" phrase (dev test passes 'soon').
-export function buildSummaryContent(group: Expense[], label: string): { title: string; body?: string } {
+export function buildSummaryContent(group: { amount: number | null }[], label: string): { title: string; body?: string } {
   const count = group.length;
   return {
     title: `${count} payment${count === 1 ? '' : 's'} due ${label}`,
@@ -45,10 +51,50 @@ export function buildSummaryContent(group: Expense[], label: string): { title: s
   };
 }
 
-export async function scheduleAllNotifications(
+export function getExpenseReminders(
   expenses: Expense[],
-  reminderTime: string
-): Promise<void> {
+  getMonthStatus: (id: string, year: number, month: number) => Status,
+  now: Date
+): Reminder[] {
+  const current = dayjs(now);
+  const next = current.add(1, 'month');
+  const reminders: Reminder[] = [];
+  for (const expense of expenses) {
+    if (expense.reminderDaysBefore === 0) {
+      continue;
+    }
+    const daysBefore = expense.reminderDaysBefore ?? 1;
+    const cycles = expense.recurrence === 'one-off' ? [current] : [current, next];
+    for (const cycle of cycles) {
+      const year = cycle.year();
+      const month = cycle.month();
+      if (isEndedOn(expense.endYear, expense.endMonth, year, month)) {
+        continue;
+      }
+      if (getMonthStatus(expense.id, year, month) !== 'unpaid') {
+        continue;
+      }
+      reminders.push({ amount: expense.amount, dueDate: getDueDateForMonth(expense.dueDay, year, month), daysBefore });
+    }
+  }
+  return reminders;
+}
+
+export function getUnpaidBillReminders(
+  getCardBills: (year: number, month: number) => CardBill[],
+  now: Date
+): Reminder[] {
+  const current = dayjs(now);
+  const next = current.add(1, 'month');
+  return [
+    ...getCardBills(current.year(), current.month()),
+    ...getCardBills(next.year(), next.month()),
+  ]
+    .filter((bill) => !bill.isPaid && bill.remaining > 0)
+    .map((bill) => ({ amount: bill.remaining, dueDate: bill.dueDate, daysBefore: 1 }));
+}
+
+export async function scheduleAllNotifications(reminders: Reminder[], reminderTime: string): Promise<void> {
   try {
     await cancelAllNotifications();
     const [hoursStr, minutesStr] = reminderTime.split(':');
@@ -56,35 +102,20 @@ export async function scheduleAllNotifications(
     const minutes = parseInt(minutesStr, 10);
     const now = new Date();
 
-    const eligible: { expense: Expense; daysBefore: number; fireTime: number }[] = [];
-
-    for (const expense of expenses) {
-      if (expense.status !== 'unpaid') {
-        continue;
-      }
-      if (expense.reminderDaysBefore === 0) {
-        continue;
-      }
-
-      const daysBefore = expense.reminderDaysBefore ?? 1;
-      const dueDate = getDueDate(expense.dueDay);
-      if (isEndedOn(expense.endYear, expense.endMonth, dueDate.getFullYear(), dueDate.getMonth())) {
-        continue;
-      }
-      const fireDate = dayjs(dueDate).subtract(daysBefore, 'day').hour(hours).minute(minutes).toDate();
-
+    const eligible: { reminder: Reminder; fireTime: number }[] = [];
+    for (const reminder of reminders) {
+      const fireDate = dayjs(reminder.dueDate).subtract(reminder.daysBefore, 'day').hour(hours).minute(minutes).toDate();
       if (dayjs(fireDate).isBefore(now)) {
         continue;
       }
-
-      eligible.push({ expense, daysBefore, fireTime: fireDate.getTime() });
+      eligible.push({ reminder, fireTime: fireDate.getTime() });
     }
 
     for (const [fireTime, group] of Object.entries(groupBy(eligible, 'fireTime'))) {
-      const leads = uniq(group.map((g) => g.daysBefore));
+      const leads = uniq(group.map((g) => g.reminder.daysBefore));
       const label = leads.length === 1 ? dueLabel(leads[0]) : 'soon';
       await Notifications.scheduleNotificationAsync({
-        content: buildSummaryContent(group.map((g) => g.expense), label),
+        content: buildSummaryContent(group.map((g) => g.reminder), label),
         trigger: { type: SchedulableTriggerInputTypes.DATE, date: new Date(Number(fireTime)) },
       });
     }

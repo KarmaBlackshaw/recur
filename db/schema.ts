@@ -1,13 +1,12 @@
 import * as SQLite from "expo-sqlite";
 import dayjs from "dayjs";
+import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { withWriteTransaction } from "@/db/withWriteTransaction";
 
 let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export function getDB(): Promise<SQLite.SQLiteDatabase> {
-  if (db) {
-    return Promise.resolve(db);
-  }
   if (initPromise) {
     return initPromise;
   }
@@ -104,27 +103,6 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       await db.runAsync("UPDATE categories SET sort_order = ? WHERE name = ?", [i, existing[i].name]);
     }
   }
-
-  // Enforce one row per category name. Older installs never had this enforced, so the
-  // INSERT OR IGNORE preset seed below re-added presets every launch and they accumulated
-  // (e.g. two 'Utilities' rows) → duplicate keys in the category list. Dedup once (keep the
-  // lowest rowid per name), then add a UNIQUE index so the seed/inserts can't dup again.
-  // Must run BEFORE the seed so its OR IGNORE has the index to conflict on.
-  await db.runAsync(
-    "DELETE FROM categories WHERE rowid NOT IN (SELECT MIN(rowid) FROM categories GROUP BY name)"
-  );
-  await db.execAsync("CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_name ON categories(name)");
-
-  // Seed presets — id uses the name slug as a stable value for presets
-  await db.execAsync(`
-    INSERT OR IGNORE INTO categories (id, name, sort_order) VALUES
-      ('preset-housing','Housing',0),('preset-utilities','Utilities',1),
-      ('preset-insurance','Insurance',2),('preset-subscriptions','Subscriptions',3),
-      ('preset-transport','Transport',4),('preset-food','Food',5),
-      ('preset-health','Health',6),('preset-entertainment','Entertainment',7),
-      ('preset-education','Education',8),('preset-savings','Savings',9),
-      ('preset-debt','Debt',10),('preset-other','Other',11);
-  `);
 
   // Legacy: dueDate column was removed. All queries in db/expenses.ts enumerate columns explicitly so a residual column is inert.
   const dueDateMigrated = await db.getFirstAsync<{ value: string }>(
@@ -225,6 +203,54 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
     );
   }
 
+  const catKindCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(categories)");
+  if (!catKindCols.some((c) => c.name === "kind")) {
+    await withWriteTransaction(db, async (txn) => {
+      await txn.execAsync(`
+        CREATE TABLE categories_v2 (
+          name          TEXT NOT NULL,
+          id            TEXT NOT NULL DEFAULT '',
+          sort_order    INTEGER NOT NULL DEFAULT 0,
+          last_used_at  TEXT,
+          kind          TEXT NOT NULL DEFAULT 'expense'
+        );
+        INSERT INTO categories_v2 (rowid, name, id, sort_order, last_used_at)
+          SELECT rowid, name, id, sort_order, last_used_at FROM categories;
+        DROP TABLE categories;
+        ALTER TABLE categories_v2 RENAME TO categories;
+      `);
+    });
+  }
+
+  // Enforce one row per (kind, name). Older installs never had this enforced, so the
+  // INSERT OR IGNORE preset seed below re-added presets every launch and they accumulated
+  // (e.g. two 'Utilities' rows) → duplicate keys in the category list. Dedup once (keep the
+  // lowest rowid per kind+name), then add a UNIQUE index so the seed/inserts can't dup again.
+  // Must run BEFORE the seed so its OR IGNORE has the index to conflict on.
+  await db.runAsync(
+    "DELETE FROM categories WHERE rowid NOT IN (SELECT MIN(rowid) FROM categories GROUP BY kind, name)"
+  );
+  await db.execAsync("DROP INDEX IF EXISTS idx_categories_name");
+  await db.execAsync("CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_kind_name ON categories(kind, name)");
+
+  // Seed presets — id uses the name slug as a stable value for presets
+  await db.execAsync(`
+    INSERT OR IGNORE INTO categories (id, name, sort_order, kind) VALUES
+      ('preset-housing','Housing',0,'expense'),('preset-utilities','Utilities',1,'expense'),
+      ('preset-insurance','Insurance',2,'expense'),('preset-subscriptions','Subscriptions',3,'expense'),
+      ('preset-transport','Transport',4,'expense'),('preset-food','Food',5,'expense'),
+      ('preset-health','Health',6,'expense'),('preset-entertainment','Entertainment',7,'expense'),
+      ('preset-education','Education',8,'expense'),('preset-savings','Savings',9,'expense'),
+      ('preset-debt','Debt',10,'expense'),('preset-other','Other',11,'expense');
+  `);
+  await db.execAsync(`
+    INSERT OR IGNORE INTO categories (id, name, sort_order, kind) VALUES
+      ('preset-income-salary','Salary',0,'income'),('preset-income-freelance','Freelance',1,'income'),
+      ('preset-income-business','Business',2,'income'),('preset-income-gift','Gift',3,'income'),
+      ('preset-income-refund','Refund',4,'income'),('preset-income-interest','Interest',5,'income'),
+      ('preset-income-other','Other',6,'income');
+  `);
+
   const accountsMigrated = await db.getFirstAsync<{ value: string }>(
     "SELECT value FROM prefs WHERE key = 'migrated_accounts_v2'"
   );
@@ -247,9 +273,18 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       credit_limit      REAL,
       statement_day     INTEGER,
       due_day           INTEGER,
-      created_at        TEXT NOT NULL
+      created_at        TEXT NOT NULL,
+      color             TEXT,
+      icon              TEXT,
+      logo_uri          TEXT
     );
   `);
+  const accountCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(accounts)");
+  if (!accountCols.some((c) => c.name === "color")) {
+    await db.execAsync("ALTER TABLE accounts ADD COLUMN color TEXT");
+    await db.execAsync("ALTER TABLE accounts ADD COLUMN icon TEXT");
+    await db.execAsync("ALTER TABLE accounts ADD COLUMN logo_uri TEXT");
+  }
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS account_transactions (
       id           TEXT PRIMARY KEY NOT NULL,
@@ -261,10 +296,15 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       cycle_month  INTEGER,
       transfer_id  TEXT,
       note         TEXT,
+      category     TEXT,
       created_at   TEXT NOT NULL,
       FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
     );
   `);
+  const txnCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(account_transactions)");
+  if (!txnCols.some((c) => c.name === "category")) {
+    await db.execAsync("ALTER TABLE account_transactions ADD COLUMN category TEXT");
+  }
   await db.execAsync(
     "CREATE INDEX IF NOT EXISTS idx_txn_account ON account_transactions(account_id)"
   );
@@ -272,6 +312,15 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_txn_payment
      ON account_transactions(expense_id, IFNULL(cycle_year, -1), IFNULL(cycle_month, -1)) WHERE kind = 'payment'`
   );
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS card_bills (
+      account_id  TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      year        INTEGER NOT NULL,
+      month       INTEGER NOT NULL,
+      amount      REAL NOT NULL,
+      PRIMARY KEY (account_id, year, month)
+    );
+  `);
   if (!accountsMigrated) {
     const v1Table = await db.getFirstAsync<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'accounts_v1'"
@@ -281,7 +330,7 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
         `INSERT OR IGNORE INTO accounts (id, name, type, sort_order, credit_limit, statement_day, due_day, created_at, interest_accrued_through)
          SELECT id, name, CASE type WHEN 'bank' THEN 'debit' ELSE type END, sort_order, credit_limit, bill_day, due_day, created_at,
                 CASE type WHEN 'bank' THEN ? ELSE NULL END
-         FROM accounts_v1`,
+         FROM accounts_v1 WHERE id != 'account-cash-default'`,
         [dayjs().format("YYYY-MM-DD")]
       );
       await db.execAsync("DROP TABLE accounts_v1");
@@ -298,6 +347,17 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_accounts_v2', '1')"
     );
   }
+  await db.runAsync(
+    "INSERT OR IGNORE INTO accounts (id, name, type, sort_order, created_at) VALUES (?, 'Cash', 'cash', -1, ?)",
+    [CASH_ACCOUNT_ID, new Date().toISOString()]
+  );
+  await db.runAsync(
+    `DELETE FROM accounts WHERE id = 'account-cash-default'
+       AND NOT EXISTS (SELECT 1 FROM account_transactions WHERE account_id = 'account-cash-default')
+       AND NOT EXISTS (SELECT 1 FROM expenses WHERE account_id = 'account-cash-default')`
+  );
+  await db.runAsync("DELETE FROM account_transactions WHERE account_id NOT IN (SELECT id FROM accounts)");
+  await db.runAsync("DELETE FROM card_bills WHERE account_id NOT IN (SELECT id FROM accounts)");
 
   return db;
 }

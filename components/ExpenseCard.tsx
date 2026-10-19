@@ -19,13 +19,13 @@ interface Props {
   index?: number;
   referenceDate?: Date;
   onPress?: () => void;
-  compact?: boolean;   // day-grouped paid ledger: drop icon, date line, and status badge (all items are paid)
+  compact?: boolean;   // day-grouped paid ledger: drop date line and toggle; badge only on card expenses (Charged/Paid)
   hideDate?: boolean;  // drop the date/due line only, keep status badge (recurring tab)
 }
 
 export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compact = false, hideDate = false }: Props) {
   const { getMonthStatus, toggleMonthStatus, deleteExpense, getMonthAmount, getMonthPaidAt } = useExpenses();
-  const { accounts } = useAccounts();
+  const { accounts, isCharged, isCardAccount } = useAccounts();
   const accountName = accounts.find((a) => a.id === expense.accountId)?.name;
   const swipeRef = useRef<SwipeableMethods>(null);
   const isReducedMotion = useReducedMotion();
@@ -36,6 +36,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
   const dueDate = getDueDateForMonth(expense.dueDay, year, month);
   const resolvedStatus = getMonthStatus(expense.id, year, month);
   const isPaid = resolvedStatus === "paid";
+  const isChargedNow = isPaid && isCharged(expense.id, isRegular ? null : year, isRegular ? null : month);
   // Paid recurring shows when it was actually paid (paid_at), not its due date.
   // Fall back to dueDate only for legacy rows recorded before paid_at existed.
   const paidAt = !isRegular ? getMonthPaidAt(expense.id, year, month) : null;
@@ -59,7 +60,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
         : overdueFlag
           ? `${daysOverdue} ${daysOverdue === 1 ? "day" : "days"} late`
           : formatDueDate(dueDate);
-  const statusLabel = ended ? "Ended" : isPaid ? "Paid" : overdueFlag ? "Overdue" : "Unpaid";
+  const statusLabel = ended ? "Ended" : isChargedNow ? "Charged" : isPaid ? "Paid" : overdueFlag ? "Overdue" : "Unpaid";
   const canToggle = !compact && !ended;
 
   function handleToggle() {
@@ -116,48 +117,54 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
         activeOpacity={0.85}
         onPress={onPress ?? (() => router.push({ pathname: "/expense/add", params: { id: expense.id } }))}
         accessibilityRole="button"
-        accessibilityLabel={`${isCategoryTitle ? title : `${title}, ${expense.category}`}, ${amountText}, ${statusLabel}, ${dateText}`}
+        accessibilityLabel={`${isCategoryTitle ? title : `${title}, ${expense.category}`}${accountName != null ? `, from ${accountName}` : ""}, ${amountText}, ${statusLabel}, ${dateText}`}
         accessibilityHint="Opens editor"
         accessibilityActions={accessibilityActions}
         onAccessibilityAction={handleAccessibilityAction}
       >
-        <Animated.View
-          entering={isReducedMotion ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}
-          className={`flex-row items-center rounded-2xl mx-5 my-1.5 px-4 py-3.5 border border-white/[0.07] ${
-            overdueFlag ? "bg-overdue/[0.06] border-l-[3px] border-l-overdue" : "bg-surface"
-          }`}
-        >
-          <View className="flex-1">
-            <AppText
-              variant="body-bold"
-              className={`text-[15px] ${ended ? "text-textMuted" : ""}`}
-              numberOfLines={1}
-            >
-              {title}
-            </AppText>
-            <View className="flex-row items-center gap-2 mt-1">
-              {!isCategoryTitle && <AppText variant="meta">{expense.category}</AppText>}
-              {expense.reminderDaysBefore != null && (
-                <Feather name="bell" size={12} color={colors.secondary} />
-              )}
-              {accountName != null && <AppText variant="meta" numberOfLines={1}>{accountName}</AppText>}
-              {!compact && !hideDate && (
-                <AppText variant="meta" className={overdueFlag ? "text-overdue" : ended ? "text-textMuted" : ""}>
-                  {dateText}
-                </AppText>
+        <Animated.View entering={isReducedMotion ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}>
+          <View
+            className={`flex-row items-center rounded-2xl mx-5 my-1.5 px-4 py-3.5 border border-white/[0.07] ${
+              overdueFlag ? "bg-overdue/[0.06] border-l-[3px] border-l-overdue" : "bg-surface"
+            }`}
+          >
+            <View className="flex-1">
+              <AppText
+                variant="body-bold"
+                className={`text-[15px] ${ended ? "text-textMuted" : ""}`}
+                numberOfLines={1}
+              >
+                {title}
+              </AppText>
+              <View className="flex-row items-center gap-2 mt-1">
+                {!isCategoryTitle && <AppText variant="meta">{expense.category}</AppText>}
+                {expense.reminderDaysBefore != null && (
+                  <Feather name="bell" size={12} color={colors.secondary} />
+                )}
+                {!isCategoryTitle && accountName != null && <AppText variant="meta">·</AppText>}
+                {accountName != null && (
+                  <AppText variant="meta" numberOfLines={1} className="shrink">
+                    {accountName}
+                  </AppText>
+                )}
+                {!compact && !hideDate && (
+                  <AppText variant="meta" className={overdueFlag ? "text-overdue" : ended ? "text-textMuted" : ""}>
+                    {dateText}
+                  </AppText>
+                )}
+              </View>
+            </View>
+
+            <View className="ml-3 items-end gap-1.5">
+              <AppText variant="amount" numberOfLines={1}>{amountText}</AppText>
+              {compact && !isCardAccount(expense.accountId) ? null : ended ? (
+                <View className="px-2 py-0.5 rounded-md bg-white/[0.06]">
+                  <AppText variant="caption" className="uppercase tracking-wider">Ended</AppText>
+                </View>
+              ) : (
+                <StatusBadge status={resolvedStatus} overdue={overdueFlag} charged={isChargedNow} onToggle={canToggle ? handleToggle : undefined} />
               )}
             </View>
-          </View>
-
-          <View className="ml-3 items-end gap-1.5">
-            <AppText variant="amount" numberOfLines={1}>{amountText}</AppText>
-            {compact ? null : ended ? (
-              <View className="px-2 py-0.5 rounded-md bg-white/[0.06]">
-                <AppText variant="caption" className="uppercase tracking-wider">Ended</AppText>
-              </View>
-            ) : (
-              <StatusBadge status={resolvedStatus} overdue={overdueFlag} onToggle={handleToggle} />
-            )}
           </View>
         </Animated.View>
       </TouchableOpacity>

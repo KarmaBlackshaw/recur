@@ -18,7 +18,9 @@ const KIND_ICON: Record<TransactionKind, FeatherIconName> = {
   interest: "trending-up",
   tax: "percent",
   transfer: "repeat",
+  fee: "scissors",
   adjust: "sliders",
+  income: "arrow-down-left",
 };
 
 interface Props {
@@ -33,7 +35,7 @@ export function TransactionRow({ transaction, accountType, onPress }: Props) {
   const isMoneyIn = accountType === "credit" ? transaction.amount < 0 : transaction.amount > 0;
   const signed = `${transaction.amount < 0 ? "−" : "+"}${formatAmount(Math.abs(transaction.amount))}`;
   const time = dayjs(transaction.createdAt).format("h:mm A");
-  const subtitle = transaction.note ? `${transaction.note} · ${time}` : time;
+  const subtitle = [transaction.category, transaction.note, time].filter(Boolean).join(" · ");
 
   return (
     <TouchableOpacity

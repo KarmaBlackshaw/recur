@@ -17,9 +17,11 @@ import { AccountPickerSheet, AccountPickerSheetRef } from "@/components/AccountP
 import { useAccounts } from "@/context/AccountContext";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
+import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppCheckRow } from "@/components/ui/AppCheckRow";
+import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import type { Recurrence, ExpenseFormValues } from "@/types";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -51,6 +53,10 @@ export default function AddExpenseScreen() {
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const { accounts, isLoading: isAccountsLoading } = useAccounts();
+
+  function toKnownAccountId(accountId?: string | null) {
+    return accountId && accounts.some((a) => a.id === accountId) ? accountId : CASH_ACCOUNT_ID;
+  }
   const [isPaidPickerOpen, paidPicker] = useBoolean();
   const [isEndPickerOpen, endPicker] = useBoolean();
 
@@ -61,7 +67,7 @@ export default function AddExpenseScreen() {
     setValue,
     getValues,
     watch,
-    formState: { isValid, errors },
+    formState: { isValid, isSubmitting, errors },
   } = useForm<ExpenseFormValues>({
     mode: "onChange",
     defaultValues: {
@@ -78,7 +84,7 @@ export default function AddExpenseScreen() {
         editingExpense?.endYear != null
           ? new Date(editingExpense.endYear, editingExpense.endMonth ?? 0, 1).toISOString()
           : new Date().toISOString(),
-      accountId: accounts.some((a) => a.id === initialAccountId) ? (initialAccountId ?? "") : "",
+      accountId: toKnownAccountId(initialAccountId),
     },
   });
 
@@ -88,11 +94,9 @@ export default function AddExpenseScreen() {
   React.useEffect(() => {
     if (
       !isAccountsLoading &&
-      initialAccountId &&
-      getValues("accountId") === "" &&
-      accounts.some((a) => a.id === initialAccountId)
+      getValues("accountId") === CASH_ACCOUNT_ID
     ) {
-      setValue("accountId", initialAccountId);
+      setValue("accountId", toKnownAccountId(initialAccountId));
     }
   }, [isAccountsLoading]);
 
@@ -118,7 +122,7 @@ export default function AddExpenseScreen() {
           editingExpense.endYear != null
             ? new Date(editingExpense.endYear, editingExpense.endMonth ?? 0, 1).toISOString()
             : new Date().toISOString(),
-        accountId: accounts.some((a) => a.id === editingExpense.accountId) ? (editingExpense.accountId ?? "") : "",
+        accountId: toKnownAccountId(editingExpense.accountId),
       });
     }
   }, [editingExpense?.id]);
@@ -142,7 +146,7 @@ export default function AddExpenseScreen() {
       paidDate: isRegular ? data.paidDate : null,
       endYear: endParsed ? endParsed.getFullYear() : null,
       endMonth: endParsed ? endParsed.getMonth() : null,
-      accountId: data.accountId === "" ? null : data.accountId,
+      accountId: data.accountId,
     };
 
     try {
@@ -207,7 +211,7 @@ export default function AddExpenseScreen() {
             name="paidDate"
             render={({ field: { value, onChange } }) => (
               <>
-                <AppText variant="label" className="mb-1.5 mt-1">Paid Date</AppText>
+                <AppLabel>Paid Date</AppLabel>
                 <TouchableOpacity
                   className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
                   onPress={paidPicker.setTrue}
@@ -293,7 +297,7 @@ export default function AddExpenseScreen() {
         />
 
         {/* Category */}
-        <AppText variant="label" className="mb-1.5 mt-1">Category</AppText>
+        <AppLabel>Category</AppLabel>
         <Controller
           control={control}
           name="category"
@@ -310,12 +314,12 @@ export default function AddExpenseScreen() {
           )}
         />
 
-        <AppText variant="label" className="mb-1.5 mt-1">Pay from</AppText>
+        <AppLabel>Pay from</AppLabel>
         <Controller
           control={control}
           name="accountId"
           render={({ field: { value } }) => {
-            const accountName = accounts.find((a) => a.id === value)?.name ?? "None";
+            const accountName = accounts.find((a) => a.id === value)?.name ?? "Cash";
             return (
               <TouchableOpacity
                 className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
@@ -377,7 +381,7 @@ export default function AddExpenseScreen() {
                 name="endDate"
                 render={({ field: { value, onChange } }) => (
                   <>
-                    <AppText variant="label" className="mb-1.5 mt-1">Ends</AppText>
+                    <AppLabel>Ends</AppLabel>
                     <TouchableOpacity
                       className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
                       onPress={endPicker.setTrue}
@@ -460,6 +464,7 @@ export default function AddExpenseScreen() {
           label={isEditing ? "Save Changes" : "Save Expense"}
           onPress={onSubmit}
           disabled={!isValid || isAccountsLoading}
+          loading={isSubmitting}
           accessibilityHint={isValid ? undefined : saveHint}
           className="mt-4"
         />

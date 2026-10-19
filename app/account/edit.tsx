@@ -10,8 +10,11 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
+import { AccountCard } from "@/components/accounts/AccountCard";
+import { CardColorPicker, CardIconPicker, CardLogoPicker } from "@/components/accounts/CardStylePickers";
+import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
 import { colors } from "@/constants/theme";
-import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod } from "@/types";
+import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod, type IoniconName } from "@/types";
 
 interface AccountFormValues {
   name: string;
@@ -23,7 +26,16 @@ interface AccountFormValues {
   creditLimit: string;
   statementDay: string;
   dueDay: string;
+  color: string;
+  icon: IoniconName;
+  logoUri: string | null;
 }
+
+const DEFAULT_ICON: Record<AccountType, IoniconName> = {
+  debit: "wallet-outline",
+  credit: "card-outline",
+  cash: "cash-outline",
+};
 
 const TYPE_OPTIONS = (["debit", "credit", "cash"] as const).map((value) => ({
   label: ACCOUNT_TYPE_LABEL[value],
@@ -64,6 +76,13 @@ function validateDay(v: string) {
   return (!isNaN(n) && n >= 1 && n <= 31) || "Must be 1–31";
 }
 
+function validateRequiredDay(v: string): true | string {
+  if (v.trim() === "") {
+    return "Required";
+  }
+  return validateDay(v);
+}
+
 function toFormValues(account: Account | undefined): AccountFormValues {
   return {
     name: account?.name ?? "",
@@ -75,6 +94,9 @@ function toFormValues(account: Account | undefined): AccountFormValues {
     creditLimit: toText(account?.creditLimit),
     statementDay: toText(account?.statementDay),
     dueDay: toText(account?.dueDay),
+    color: account?.color ?? DEFAULT_CARD_COLOR,
+    icon: account?.icon ?? DEFAULT_ICON[account?.type ?? "debit"],
+    logoUri: account?.logoUri ?? null,
   };
 }
 
@@ -89,10 +111,41 @@ export default function EditAccountScreen() {
     control,
     handleSubmit,
     watch,
+    setValue,
+    getFieldState,
     formState: { isValid, isSubmitting },
   } = useForm<AccountFormValues>({ mode: "onChange", defaultValues: toFormValues(editingAccount) });
 
   const type = watch("type");
+  const values = watch();
+  const openingBalance = toNumber(values.openingBalance);
+  const previewAccount: Account = {
+    id: editingAccount?.id ?? "preview",
+    name: values.name.trim() || "Account name",
+    type,
+    sortOrder: 0,
+    interestRate: type === "debit" ? toNumber(values.interestRate) : null,
+    interestPeriod: values.interestPeriod,
+    taxRate: null,
+    interestAccruedThrough: null,
+    creditLimit: type === "credit" ? toNumber(values.creditLimit) : null,
+    statementDay: null,
+    dueDay: type === "credit" ? toNumber(values.dueDay) : null,
+    color: values.color,
+    icon: values.icon,
+    logoUri: values.logoUri,
+    createdAt: "",
+  };
+  const previewBalance = editingAccount
+    ? accounts.getBalance(editingAccount.id)
+    : openingBalance != null && !isNaN(openingBalance) ? openingBalance : 0;
+
+  function changeType(next: AccountType, onChange: (value: AccountType) => void) {
+    onChange(next);
+    if (!getFieldState("icon").isDirty) {
+      setValue("icon", DEFAULT_ICON[next]);
+    }
+  }
 
   const onSubmit = handleSubmit(async (data) => {
     const isDebit = data.type === "debit";
@@ -106,6 +159,9 @@ export default function EditAccountScreen() {
       creditLimit: isCredit ? toNumber(data.creditLimit) : null,
       statementDay: isCredit ? toNumber(data.statementDay) : null,
       dueDay: isCredit ? toNumber(data.dueDay) : null,
+      color: data.color,
+      icon: data.icon,
+      logoUri: data.logoUri,
     };
     try {
       if (editingAccount) {
@@ -169,6 +225,10 @@ export default function EditAccountScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <View className="flex-row px-10 mb-5">
+          <AccountCard account={previewAccount} previewBalance={previewBalance} />
+        </View>
+
         <Controller
           control={control}
           name="name"
@@ -196,7 +256,7 @@ export default function EditAccountScreen() {
             control={control}
             name="type"
             render={({ field: { value, onChange } }) => (
-              <AppRadioGroup label="Type" options={TYPE_OPTIONS} value={value} onChange={onChange} />
+              <AppRadioGroup label="Type" options={TYPE_OPTIONS} value={value} onChange={(next) => changeType(next, onChange)} />
             )}
           />
         )}
@@ -285,10 +345,10 @@ export default function EditAccountScreen() {
             <Controller
               control={control}
               name="statementDay"
-              rules={{ validate: validateDay }}
+              rules={{ validate: validateRequiredDay }}
               render={({ field: { value, onChange, onBlur }, fieldState }) => (
                 <AppTextInput
-                  label="Statement day (1–31)"
+                  label="Cut-off day (1–31)"
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
@@ -302,7 +362,7 @@ export default function EditAccountScreen() {
             <Controller
               control={control}
               name="dueDay"
-              rules={{ validate: validateDay }}
+              rules={{ validate: validateRequiredDay }}
               render={({ field: { value, onChange, onBlur }, fieldState }) => (
                 <AppTextInput
                   label="Due day (1–31)"
@@ -319,6 +379,22 @@ export default function EditAccountScreen() {
           </>
         )}
 
+        <Controller
+          control={control}
+          name="color"
+          render={({ field: { value, onChange } }) => <CardColorPicker value={value} onChange={onChange} />}
+        />
+        <Controller
+          control={control}
+          name="icon"
+          render={({ field: { value, onChange } }) => <CardIconPicker value={value} onChange={onChange} />}
+        />
+        <Controller
+          control={control}
+          name="logoUri"
+          render={({ field: { value, onChange } }) => <CardLogoPicker value={value} onChange={onChange} />}
+        />
+
         <AppButton
           label={isEditing ? "Save Changes" : "Save Account"}
           onPress={onSubmit}
@@ -331,7 +407,7 @@ export default function EditAccountScreen() {
         )}
 
         {isEditing && (
-          <AppButton label="Delete Account" variant="destructive" onPress={confirmDelete} className="mt-8" />
+          <AppButton label="Delete Account" variant="destructive" onPress={confirmDelete} className="mt-3" />
         )}
 
         <View className="h-8" />

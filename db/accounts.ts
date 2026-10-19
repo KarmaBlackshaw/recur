@@ -1,16 +1,18 @@
 import dayjs from "dayjs";
 import { getDB } from "@/db/schema";
-import type { Account, AccountInput, AccountType, InterestPeriod } from "@/types";
+import { withWriteTransaction } from "@/db/withWriteTransaction";
+import type { Account, AccountInput, AccountType, InterestPeriod, IoniconName } from "@/types";
 
 interface AccountRow {
   id: string; name: string; type: string; sort_order: number;
   interest_rate: number | null; interest_period: string | null; tax_rate: number | null;
   interest_accrued_through: string | null; credit_limit: number | null;
   statement_day: number | null; due_day: number | null; created_at: string;
+  color: string | null; icon: string | null; logo_uri: string | null;
 }
 
 const COLUMNS =
-  "id, name, type, sort_order, interest_rate, interest_period, tax_rate, interest_accrued_through, credit_limit, statement_day, due_day, created_at";
+  "id, name, type, sort_order, interest_rate, interest_period, tax_rate, interest_accrued_through, credit_limit, statement_day, due_day, created_at, color, icon, logo_uri";
 
 function toAccount(r: AccountRow): Account {
   return {
@@ -26,6 +28,9 @@ function toAccount(r: AccountRow): Account {
     statementDay: r.statement_day,
     dueDay: r.due_day,
     createdAt: r.created_at,
+    color: r.color,
+    icon: r.icon as IoniconName | null,
+    logoUri: r.logo_uri,
   };
 }
 
@@ -47,8 +52,8 @@ export async function insert(input: AccountInput): Promise<Account> {
   const sortOrder = (row?.max_order ?? -1) + 1;
   const interestAccruedThrough = input.type === "debit" ? dayjs().format("YYYY-MM-DD") : null;
   await db.runAsync(
-    `INSERT INTO accounts (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, input.name, input.type, sortOrder, input.interestRate, input.interestPeriod, input.taxRate, interestAccruedThrough, input.creditLimit, input.statementDay, input.dueDay, createdAt]
+    `INSERT INTO accounts (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.name, input.type, sortOrder, input.interestRate, input.interestPeriod, input.taxRate, interestAccruedThrough, input.creditLimit, input.statementDay, input.dueDay, createdAt, input.color, input.icon, input.logoUri]
   );
   return { ...input, id, sortOrder, interestAccruedThrough, createdAt };
 }
@@ -63,14 +68,14 @@ export async function update(id: string, input: AccountInput): Promise<void> {
   const db = await getDB();
   const today = dayjs().format("YYYY-MM-DD");
   await db.runAsync(
-    `UPDATE accounts SET name=?, type=?, interest_rate=?, interest_period=?, tax_rate=?, credit_limit=?, statement_day=?, due_day=?,
+    `UPDATE accounts SET name=?, type=?, interest_rate=?, interest_period=?, tax_rate=?, credit_limit=?, statement_day=?, due_day=?, color=?, icon=?, logo_uri=?,
      interest_accrued_through = CASE
        WHEN ? != 'debit' THEN interest_accrued_through
        WHEN IFNULL(interest_rate, 0) <= 0 AND IFNULL(?, 0) > 0 THEN ?
        ELSE COALESCE(interest_accrued_through, ?)
      END
      WHERE id=?`,
-    [input.name, input.type, input.interestRate, input.interestPeriod, input.taxRate, input.creditLimit, input.statementDay, input.dueDay, input.type, input.interestRate, today, today, id]
+    [input.name, input.type, input.interestRate, input.interestPeriod, input.taxRate, input.creditLimit, input.statementDay, input.dueDay, input.color, input.icon, input.logoUri, input.type, input.interestRate, today, today, id]
   );
 }
 
@@ -78,7 +83,7 @@ export async function remove(id: string): Promise<void> {
   const db = await getDB();
   const row = await db.getFirstAsync<{ name: string }>("SELECT name FROM accounts WHERE id = ?", [id]);
   const note = `Transfer with ${row?.name ?? ""}`;
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await withWriteTransaction(db, async (txn) => {
     await txn.runAsync("UPDATE expenses SET account_id = NULL WHERE account_id = ?", [id]);
     await txn.runAsync(
       `UPDATE account_transactions SET note = ?
@@ -86,6 +91,8 @@ export async function remove(id: string): Promise<void> {
          AND transfer_id IN (SELECT transfer_id FROM account_transactions WHERE account_id = ? AND kind = 'transfer')`,
       [note, id, id]
     );
+    await txn.runAsync("DELETE FROM card_bills WHERE account_id = ?", [id]);
+    await txn.runAsync("DELETE FROM account_transactions WHERE account_id = ?", [id]);
     await txn.runAsync("DELETE FROM accounts WHERE id = ?", [id]);
   });
 }
@@ -93,7 +100,7 @@ export async function remove(id: string): Promise<void> {
 export async function insertWithId(a: Account): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    `INSERT OR IGNORE INTO accounts (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [a.id, a.name, a.type, a.sortOrder, a.interestRate, a.interestPeriod, a.taxRate, a.interestAccruedThrough, a.creditLimit, a.statementDay, a.dueDay, a.createdAt]
+    `INSERT OR IGNORE INTO accounts (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [a.id, a.name, a.type, a.sortOrder, a.interestRate, a.interestPeriod, a.taxRate, a.interestAccruedThrough, a.creditLimit, a.statementDay, a.dueDay, a.createdAt, a.color ?? null, a.icon ?? null, a.logoUri ?? null]
   );
 }

@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useForm, Controller } from "react-hook-form";
 import { AppText } from "@/components/ui/AppText";
+import { AppLabel } from "@/components/ui/AppLabel";
 import { useExpenses } from "@/context/ExpenseContext";
 import * as preferencesDB from "@/db/preferences";
 import { colors } from "@/constants/theme";
@@ -58,14 +59,14 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <AppText variant="label" className="text-textMuted mb-2 pl-1">
+        <AppLabel className="pl-1">
           Profile
-        </AppText>
+        </AppLabel>
 
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6 px-4 py-4">
-          <AppText variant="label" className="text-textMuted mb-2">
+          <AppLabel>
             Your Name
-          </AppText>
+          </AppLabel>
 
           <Controller
             control={control}

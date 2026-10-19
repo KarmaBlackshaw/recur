@@ -56,3 +56,11 @@ export async function removeForExpense(expenseId: string): Promise<void> {
   const db = await getDB();
   await db.runAsync("DELETE FROM expense_months WHERE expense_id = ?", [expenseId]);
 }
+
+export async function insertOrIgnore(m: MonthStatus): Promise<void> {
+  const db = await getDB();
+  await db.runAsync(
+    "INSERT OR IGNORE INTO expense_months (expense_id, year, month, status, amount, paid_at) VALUES (?, ?, ?, ?, ?, ?)",
+    [m.expenseId, m.year, m.month, m.status, m.amount ?? null, m.paidAt ?? null]
+  );
+}

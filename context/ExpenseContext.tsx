@@ -1,7 +1,10 @@
+import { AppState } from "react-native";
 import React, {
   createContext,
   useContext,
   useReducer,
+  useEffect,
+  useRef,
   useCallback,
   useMemo,
 } from "react";
@@ -14,7 +17,7 @@ import * as expensesDB from "@/db/expenses";
 import * as preferencesDB from "@/db/preferences";
 import * as monthsDB from "@/db/expenseMonths";
 import { monthKey, parseMonthKey } from "@/utils/monthKey";
-import { scheduleAllNotifications } from '@/utils/notifications';
+import { scheduleAllNotifications, cancelAllNotifications, getExpenseReminders, getUnpaidBillReminders } from '@/utils/notifications';
 import { useAccounts } from "@/context/AccountContext";
 
 interface State {
@@ -124,6 +127,7 @@ interface ExpenseContextValue {
   getMonthPaidAt: (id: string, year: number, month: number) => string | null;
   toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
   reloadAll: () => Promise<void>;
+  rescheduleNotifications: () => void;
 }
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
@@ -164,15 +168,6 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: "LOAD_MONTHS", payload: [] });
     }
   }, []);
-
-  async function rescheduleNotifications(expenses: Expense[]) {
-    const enabled = await preferencesDB.getPreference('notificationsEnabled');
-    if (enabled === 'false') {
-      return;
-    }
-    const time = (await preferencesDB.getPreference('reminderTime')) ?? '09:00';
-    await scheduleAllNotifications(expenses, time);
-  }
 
   // Every paid recurring cycle, derived from the month maps. The ledger keys off
   // these (by pay-date) rather than an expense's current-month status, so an
@@ -222,7 +217,6 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           payload: { expenseId: saved.id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
         });
       }
-      await rescheduleNotifications(sortBy([...state.expenses, saved], "dueDay"));
     }
   );
 
@@ -281,12 +275,6 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: "UPDATE", payload: existing });
         return;
       }
-      await rescheduleNotifications(
-        sortBy(
-          state.expenses.map((e) => (e.id === id ? { ...existing, ...fields } : e)),
-          "dueDay"
-        )
-      );
     }
   );
 
@@ -303,6 +291,56 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     },
     [state.expenses, state.monthStatuses]
   );
+
+  const rescheduleGeneration = useRef(0);
+  const rescheduleQueue = useRef<Promise<void>>(Promise.resolve());
+
+  const rescheduleNotifications = useMemoizedFn(() => {
+    if (state.loading || accounts.isLoading) {
+      return;
+    }
+    rescheduleGeneration.current += 1;
+    const generation = rescheduleGeneration.current;
+    const previous = rescheduleQueue.current;
+    const run = (async () => {
+      await previous;
+      try {
+        const enabled = await preferencesDB.getPreference('notificationsEnabled');
+        if (generation !== rescheduleGeneration.current) {
+          return;
+        }
+        if (enabled === 'false') {
+          await cancelAllNotifications();
+          return;
+        }
+        const time = (await preferencesDB.getPreference('reminderTime')) ?? '09:00';
+        if (generation !== rescheduleGeneration.current) {
+          return;
+        }
+        const now = new Date();
+        await scheduleAllNotifications(
+          [...getExpenseReminders(state.expenses, getMonthStatus, now), ...getUnpaidBillReminders(accounts.getCardBills, now)],
+          time
+        );
+      } catch (err) {
+        console.error('[notifications] reschedule error:', err);
+      }
+    })();
+    rescheduleQueue.current = run;
+  });
+
+  useEffect(() => {
+    rescheduleNotifications();
+  }, [state.expenses, state.monthStatuses, state.loading, accounts.isLoading, accounts.transactions, accounts.billOverrides, accounts.accounts]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (status) => {
+      if (status === "active") {
+        rescheduleNotifications();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   const getMonthAmount = useCallback(
     (id: string, year: number, month: number): number | null => {
@@ -382,7 +420,6 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       }
-      await rescheduleNotifications(state.expenses);
     }
   );
 
@@ -393,7 +430,6 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     }
     await expensesDB.remove(id);
     dispatch({ type: "REMOVE", payload: id });
-    await rescheduleNotifications(state.expenses.filter((e) => e.id !== id));
   });
 
   const reloadAll = useMemoizedFn(async () => {
@@ -422,6 +458,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         getMonthPaidAt,
         toggleMonthStatus,
         reloadAll,
+        rescheduleNotifications,
       }}
     >
       {children}

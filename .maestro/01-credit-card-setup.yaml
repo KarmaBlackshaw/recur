@@ -1,0 +1,78 @@
+appId: com.erniejeash.recur
+name: Credit card setup — cut-off/due required, 30/31 accepted
+---
+- runFlow: subflows/launch-fresh.yaml
+- runFlow: subflows/tab-accounts.yaml
+- tapOn: "Add account"
+- extendedWaitUntil:
+    visible: "Opening balance.*"
+    timeout: 5000
+- tapOn:
+    text: "Name"
+    index: 1
+- eraseText: 40
+- inputText: "BDO Visa"
+- hideKeyboard
+- tapOn: "Credit card"
+- scrollUntilVisible:
+    element: "Due day.*"
+    direction: DOWN
+# No days yet → Save disabled
+- scrollUntilVisible:
+    element: "Save Account"
+    direction: DOWN
+- assertVisible:
+    text: "Save Account"
+    enabled: false
+- assertVisible: "Fill in the required fields to save"
+# Cut-off only → still disabled
+- scrollUntilVisible:
+    element: "Cut-off day.*"
+    direction: UP
+- tapOn:
+    text: "Cut-off day.*"
+    index: 1
+- inputText: "25"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Save Account"
+    direction: DOWN
+- assertVisible:
+    text: "Save Account"
+    enabled: false
+# Out-of-range due day rejected
+- scrollUntilVisible:
+    element: "Due day.*"
+    direction: UP
+- tapOn:
+    text: "Due day.*"
+    index: 1
+- inputText: "32"
+- hideKeyboard
+- assertVisible: "Must be 1–31"
+- tapOn:
+    text: "Due day.*"
+    index: 1
+- eraseText: 2
+- inputText: "15"
+- hideKeyboard
+- assertNotVisible: "Must be 1–31"
+- scrollUntilVisible:
+    element: "Save Account"
+    direction: DOWN
+- assertVisible:
+    text: "Save Account"
+    enabled: true
+- tapOn: "Save Account"
+- extendedWaitUntil:
+    visible: "NET WORTH"
+    timeout: 10000
+- assertVisible: "BDO Visa, credit card.*due .* 15"
+# 30 / 31 is accepted
+- runFlow:
+    file: subflows/add-credit-card.yaml
+    env:
+      NAME: "Metro Card"
+      CUTOFF: "30"
+      DUE: "31"
+- assertVisible: "Metro Card, credit card.*due .* 31"

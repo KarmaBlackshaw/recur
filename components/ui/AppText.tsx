@@ -29,7 +29,7 @@ const VARIANT_STYLE: Record<Variant, { className: string; fontFamily: string }> 
   body:          { className: "text-white",                                fontFamily: "Quicksand_400Regular" },
   "body-medium": { className: "text-white",                                fontFamily: "Quicksand_500Medium" },
   "body-bold":   { className: "text-white",                                fontFamily: "Quicksand_700Bold" },
-  label:         { className: "text-xs uppercase tracking-widest text-textSecondary", fontFamily: "Quicksand_700Bold" },
+  label:         { className: "text-[11px] text-textMuted opacity-80",   fontFamily: "Quicksand_700Bold" },
   overline:      { className: "text-xs uppercase tracking-widest text-textSecondary", fontFamily: "Quicksand_700Bold" },
   meta:          { className: "text-xs text-textSecondary",               fontFamily: "Quicksand_500Medium" },
   caption:       { className: "text-xs text-textMuted",                   fontFamily: "Quicksand_400Regular" },

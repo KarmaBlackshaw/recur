@@ -9,10 +9,12 @@ import { getAll, insertCategory, renameCategory } from "@/db/categories";
 import { colors } from "@/constants/theme";
 
 export default function AddCategoryScreen() {
-  const { editId, editName } = useLocalSearchParams<{
+  const { editId, editName, kind: kindParam } = useLocalSearchParams<{
     editId?: string;
     editName?: string;
+    kind?: string;
   }>();
+  const kind = kindParam === "income" ? "income" : "expense";
   const isEdit = !!editId;
   const [name, setName] = useState(editName ?? "");
 
@@ -26,7 +28,7 @@ export default function AddCategoryScreen() {
         router.back();
         return;
       }
-      const existing = await getAll();
+      const existing = await getAll(kind);
       if (existing.includes(trimmed)) {
         Alert.alert("Already exists");
         return;
@@ -35,12 +37,12 @@ export default function AddCategoryScreen() {
       router.back();
       return;
     }
-    const existing = await getAll();
+    const existing = await getAll(kind);
     if (existing.includes(trimmed)) {
       Alert.alert("Already exists");
       return;
     }
-    await insertCategory(trimmed);
+    await insertCategory(trimmed, kind);
     router.back();
   }
 

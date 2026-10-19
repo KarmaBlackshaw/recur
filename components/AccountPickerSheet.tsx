@@ -1,8 +1,10 @@
-import React, { forwardRef, useCallback, useMemo, useRef } from "react";
-import { TouchableOpacity } from "react-native";
-import { AppSelectBottomSheet, AppSelectBottomSheetRef } from "@/components/ui/AppSelectBottomSheet";
-import { AppText } from "@/components/ui/AppText";
+import React, { forwardRef, useRef } from "react";
+import { View, useWindowDimensions } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
+import { AccountCard } from "@/components/accounts/AccountCard";
 import { useAccounts } from "@/context/AccountContext";
+import type { Account } from "@/types";
 
 export interface AccountPickerSheetRef {
   present: () => void;
@@ -12,64 +14,42 @@ interface Props {
   value: string;
   onChange: (accountId: string) => void;
   onDismiss?: () => void;
+  title?: string;
+  options?: Account[];
 }
-
-interface Option {
-  id: string;
-  name: string;
-}
-
-const NONE: Option = { id: "", name: "None" };
 
 export const AccountPickerSheet = forwardRef<AccountPickerSheetRef, Props>(
-  function AccountPickerSheet({ value, onChange, onDismiss }, ref) {
-    const sheetRef = useRef<AppSelectBottomSheetRef>(null);
+  function AccountPickerSheet({ value, onChange, onDismiss, title = "Pay from", options }, ref) {
+    const sheetRef = useRef<AppBottomSheetRef>(null);
     const { accounts } = useAccounts();
-    const options = useMemo<Option[]>(
-      () => [NONE, ...accounts.map(({ id, name }) => ({ id, name }))],
-      [accounts]
-    );
-    const selected = options.find((o) => o.id === value) ?? NONE;
+    const pickable = options ?? accounts;
+    const { fontScale } = useWindowDimensions();
+    const cardWidth = fontScale > 1.3 ? "100%" : "50%";
 
     React.useImperativeHandle(ref, () => ({
       present: () => sheetRef.current?.present(),
     }));
 
-    const renderItem = useCallback(
-      (item: Option, isSelected: boolean, onSelect: () => void) => (
-        <TouchableOpacity
-          className={`w-full py-6 px-2 items-center justify-center ${
-            isSelected ? "bg-primary" : "bg-white/[0.04]"
-          }`}
-          onPress={onSelect}
-          accessibilityRole="button"
-          accessibilityLabel={item.name}
-          accessibilityState={{ selected: isSelected }}
-        >
-          <AppText
-            variant={isSelected ? "body-bold" : "body-medium"}
-            className={`text-base text-center ${isSelected ? "text-white" : "text-textSecondary"}`}
-            numberOfLines={1}
-          >
-            {item.name}
-          </AppText>
-        </TouchableOpacity>
-      ),
-      []
-    );
+    function handleSelect(accountId: string) {
+      onChange(accountId);
+      sheetRef.current?.dismiss();
+    }
 
     return (
-      <AppSelectBottomSheet
-        ref={sheetRef}
-        title="Pay from"
-        items={options}
-        value={selected}
-        onChange={(item) => onChange(item.id)}
-        onDismiss={onDismiss}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        columns={2}
-      />
+      <AppBottomSheet ref={sheetRef} title={title} onDismiss={onDismiss}>
+        <BottomSheetScrollView contentContainerClassName="flex-row flex-wrap px-4 pb-[200px]">
+          {pickable.map((account) => (
+            <View
+              key={account.id}
+              className="p-1.5"
+              style={{ width: cardWidth }}
+              accessibilityState={{ selected: account.id === value }}
+            >
+              <AccountCard account={account} onPress={() => handleSelect(account.id)} isCompact />
+            </View>
+          ))}
+        </BottomSheetScrollView>
+      </AppBottomSheet>
     );
   }
 );

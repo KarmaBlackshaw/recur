@@ -1,14 +1,20 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { View, SectionList } from "react-native";
 import { router } from "expo-router";
 import sumBy from "lodash/sumBy";
 import { ExpenseCard } from "@/components/ExpenseCard";
+import { CardBillRow } from "@/components/accounts/CardBillRow";
+import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
+import { BillPaymentRow } from "@/components/accounts/BillPaymentRow";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BandHeader } from "@/components/BandHeader";
 import { colors } from "@/constants/theme";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
-import type { DayEntry } from "@/components/DayGroupedExpenseList";
-import type { FeatherIconName } from "@/types";
+import type { LedgerEntry } from "@/components/DayGroupedExpenseList";
+import type { CardBill, FeatherIconName } from "@/types";
+
+export type BillEntry = { key: string; bill: CardBill; effDate: Date; amount: number };
+export type HomeEntry = LedgerEntry | BillEntry;
 
 // Home has three bands. Overdue + Upcoming are flat (each card shows its own date);
 // Recently Paid mirrors the Expenses ledger — day-grouped (DayHeaderRow + subtotals),
@@ -20,7 +26,7 @@ type FlatSection = {
   icon: FeatherIconName;
   accent: string;
   total: number;
-  data: DayEntry[];
+  data: HomeEntry[];
 };
 type DaySection = {
   kind: "day";
@@ -32,14 +38,14 @@ type DaySection = {
   accent?: string;
   date: Date;
   total: number;
-  data: DayEntry[];
+  data: LedgerEntry[];
 };
 type HomeSection = FlatSection | DaySection;
 
 interface Props {
-  overdue: DayEntry[];
-  upcoming: DayEntry[];
-  recentlyPaid: DayEntry[];
+  overdue: HomeEntry[];
+  upcoming: HomeEntry[];
+  recentlyPaid: LedgerEntry[];
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
 }
@@ -51,6 +57,7 @@ export function HomeExpenseSections({
   ListHeaderComponent,
   ListEmptyComponent,
 }: Props) {
+  const billSheetRef = useRef<CardBillSheetRef>(null);
   const sections = useMemo<HomeSection[]>(() => {
     const out: HomeSection[] = [];
 
@@ -92,53 +99,62 @@ export function HomeExpenseSections({
   }, [overdue, upcoming, recentlyPaid]);
 
   return (
-    <SectionList
-      sections={sections}
-      keyExtractor={(item) => item.key}
-      ListHeaderComponent={ListHeaderComponent}
-      ListEmptyComponent={ListEmptyComponent}
-      renderItem={({ item, index }) => (
-        <ExpenseCard
-          expense={item.expense}
-          index={index}
-          compact={item.compact}
-          hideDate={item.hideDate}
-          referenceDate={item.refDate}
-          onPress={() =>
-            router.push({
-              pathname: "/expense/add",
-              params: {
-                id: item.expense.id,
-                year: item.refDate.getFullYear(),
-                month: item.refDate.getMonth(),
-              },
-            })
-          }
-        />
-      )}
-      renderSectionHeader={({ section }) => {
-        const s = section as unknown as HomeSection;
-        if (s.kind === "flat") {
-          return <BandHeader label={s.band} icon={s.icon} accent={s.accent} total={s.total} count={s.data.length} />;
+    <>
+      <SectionList<HomeEntry, HomeSection>
+        sections={sections}
+        keyExtractor={(item) => item.key}
+        ListHeaderComponent={ListHeaderComponent}
+        ListEmptyComponent={ListEmptyComponent}
+        renderItem={({ item, index }) =>
+          "bill" in item ? (
+            <CardBillRow bill={item.bill} onPress={() => billSheetRef.current?.present(item.bill)} />
+          ) : "payment" in item ? (
+            <BillPaymentRow entry={item} />
+          ) : (
+            <ExpenseCard
+              expense={item.expense}
+              index={index}
+              compact={item.compact}
+              hideDate={item.hideDate}
+              referenceDate={item.refDate}
+              onPress={() =>
+                router.push({
+                  pathname: "/expense/add",
+                  params: {
+                    id: item.expense.id,
+                    year: item.refDate.getFullYear(),
+                    month: item.refDate.getMonth(),
+                  },
+                })
+              }
+            />
+          )
         }
-        return (
-          <View>
-            {s.band ? (
-              <BandHeader
-                label={s.band}
-                icon={s.icon ?? "check-circle"}
-                accent={s.accent ?? colors.paid}
-                total={s.bandTotal ?? 0}
-                count={s.bandCount}
-              />
-            ) : null}
-            <DayHeaderRow date={s.date} total={s.total} />
-          </View>
-        );
-      }}
-      stickySectionHeadersEnabled={false}
-      contentContainerClassName="pb-[140px]"
-      showsVerticalScrollIndicator={false}
-    />
+        renderSectionHeader={({ section }) => {
+          const s = section as unknown as HomeSection;
+          if (s.kind === "flat") {
+            return <BandHeader label={s.band} icon={s.icon} accent={s.accent} total={s.total} count={s.data.length} />;
+          }
+          return (
+            <View>
+              {s.band ? (
+                <BandHeader
+                  label={s.band}
+                  icon={s.icon ?? "check-circle"}
+                  accent={s.accent ?? colors.paid}
+                  total={s.bandTotal ?? 0}
+                  count={s.bandCount}
+                />
+              ) : null}
+              <DayHeaderRow date={s.date} total={s.total} />
+            </View>
+          );
+        }}
+        stickySectionHeadersEnabled={false}
+        contentContainerClassName="pb-[140px]"
+        showsVerticalScrollIndicator={false}
+      />
+      <CardBillSheet ref={billSheetRef} />
+    </>
   );
 }

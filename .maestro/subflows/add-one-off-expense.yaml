@@ -1,0 +1,28 @@
+# env: AMOUNT, NOTE, ACCOUNT (account name), BACKDATE ("true" → paid date = 1st of this month)
+appId: com.erniejeash.recur
+---
+- runFlow: tab-accounts.yaml
+- tapOn: "Add expense"
+- extendedWaitUntil:
+    visible: "Save Expense"
+    timeout: 5000
+- runFlow:
+    when:
+      true: ${BACKDATE == 'true'}
+    commands:
+      - tapOn: "Paid date.*"
+      - tapOn: "01 .*"
+      - tapOn: "OK"
+- tapOn: "Amount.*"
+- inputText: ${AMOUNT}
+- hideKeyboard
+- tapOn: "Pay from.*"
+- tapOn: "${ACCOUNT}, .*"
+- tapOn: "Notes"
+- inputText: ${NOTE}
+- hideKeyboard
+- tapOn: "Save Expense"
+- extendedWaitUntil:
+    visible: "NET WORTH"
+    timeout: 10000
+- waitForAnimationToEnd

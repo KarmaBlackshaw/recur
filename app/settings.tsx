@@ -1,18 +1,18 @@
 import React, { useState, useRef } from "react";
 import useMount from "ahooks/es/useMount";
-import range from "lodash/range";
 import { View, TouchableOpacity, Alert, Switch, ScrollView } from "react-native";
 import * as Notifications from 'expo-notifications';
 import { getPreference, setPreference } from '@/db/preferences';
-import { scheduleAllNotifications, cancelAllNotifications, buildSummaryContent } from '@/utils/notifications';
+import { buildSummaryContent, getUnpaidBillReminders } from '@/utils/notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
-import { AppSelectBottomSheet, type AppSelectBottomSheetRef } from '@/components/ui/AppSelectBottomSheet';
+import { TimePickerSheet, type TimePickerSheetRef } from '@/components/TimePickerSheet';
 import { exportBackup, importBackup } from "@/utils/backup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { AppText } from "@/components/ui/AppText";
+import { AppLabel } from "@/components/ui/AppLabel";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { seedRecurring, seedOneOff, clearRecurring, clearOneOff } from "@/db/seed";
@@ -20,20 +20,18 @@ import { colors } from "@/constants/theme";
 
 const version = Constants.expoConfig?.version ?? "—";
 
-const TIME_OPTIONS = [
-  ...range(6, 22).flatMap((h) => [0, 30].map((m) => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`)),
-  "22:00",
-].map((time) => ({ label: time, value: time }));
-
 export default function SettingsScreen() {
-  const { userName, reloadAll, expenses } = useExpenses();
+  const { userName, reloadAll, expenses, rescheduleNotifications } = useExpenses();
   const accounts = useAccounts();
-  const unpaidExpenses = expenses.filter((e) => e.status === 'unpaid');
+  const unpaidItems = [
+    ...expenses.filter((e) => e.status === 'unpaid'),
+    ...getUnpaidBillReminders(accounts.getCardBills, new Date()),
+  ];
   const [importing, setImporting] = useState(false);
   const [reminderTime, setReminderTime] = useState('09:00');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const timeSheetRef = useRef<AppSelectBottomSheetRef>(null);
+  const timeSheetRef = useRef<TimePickerSheetRef>(null);
 
   useMount(async () => {
     const time = await getPreference('reminderTime');
@@ -51,21 +49,13 @@ export default function SettingsScreen() {
   async function handleTimeChange(val: string) {
     setReminderTime(val);
     await setPreference('reminderTime', val);
-    const enabled = await getPreference('notificationsEnabled');
-    if (enabled !== 'false') {
-      await scheduleAllNotifications(expenses, val);
-    }
+    rescheduleNotifications();
   }
 
   async function handleToggleNotifications(val: boolean) {
     setNotificationsEnabled(val);
     await setPreference('notificationsEnabled', val ? 'true' : 'false');
-    if (val) {
-      const time = await getPreference('reminderTime') ?? '09:00';
-      await scheduleAllNotifications(expenses, time);
-    } else {
-      await cancelAllNotifications();
-    }
+    rescheduleNotifications();
   }
 
   const handleExport = async () => {
@@ -136,9 +126,9 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* PROFILE section */}
-        <AppText variant="label" className="text-textMuted mb-2 pl-1">
+        <AppLabel className="pl-1">
           Profile
-        </AppText>
+        </AppLabel>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
           <TouchableOpacity
             className="flex-row items-center px-5 py-4"
@@ -162,9 +152,9 @@ export default function SettingsScreen() {
         </View>
 
         {/* APP section */}
-        <AppText variant="label" className="text-textMuted mb-2 pl-1">
+        <AppLabel className="pl-1">
           App
-        </AppText>
+        </AppLabel>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
           <TouchableOpacity
             className="flex-row items-center px-5 py-4"
@@ -185,9 +175,9 @@ export default function SettingsScreen() {
         </View>
 
         {/* DATA section */}
-        <AppText variant="label" className="text-textMuted mb-2 pl-1">
+        <AppLabel className="pl-1">
           Data
-        </AppText>
+        </AppLabel>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
           <TouchableOpacity
             className="flex-row items-center px-5 py-4"
@@ -230,9 +220,9 @@ export default function SettingsScreen() {
         </View>
 
         {/* NOTIFICATIONS section */}
-        <AppText variant="label" className="text-textMuted mb-2 pl-1">
+        <AppLabel className="pl-1">
           Notifications
-        </AppText>
+        </AppLabel>
 
         {permissionDenied && notificationsEnabled && (
           <View
@@ -288,9 +278,9 @@ export default function SettingsScreen() {
         </View>
 
         {/* ABOUT section */}
-        <AppText variant="label" className="text-textMuted mb-2 pl-1">
+        <AppLabel className="pl-1">
           About
-        </AppText>
+        </AppLabel>
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
           <View className="flex-row items-center px-5 py-4">
             <View
@@ -310,19 +300,19 @@ export default function SettingsScreen() {
 
         {__DEV__ && (
           <>
-            <AppText variant="label" className="text-textMuted mb-2 pl-1">
+            <AppLabel className="pl-1">
               Dev Tools
-            </AppText>
+            </AppLabel>
             <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
               <TouchableOpacity
                 className="flex-row items-center px-5 py-4"
                 onPress={async () => {
                   await Notifications.cancelAllScheduledNotificationsAsync();
                   await Notifications.scheduleNotificationAsync({
-                    content: buildSummaryContent(unpaidExpenses, 'soon'),
+                    content: buildSummaryContent(unpaidItems, 'soon'),
                     trigger: { type: SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 5, repeats: false },
                   });
-                  Alert.alert('Dev', `Summary for ${unpaidExpenses.length} unpaid — firing in 5s`);
+                  Alert.alert('Dev', `Summary for ${unpaidItems.length} unpaid — firing in 5s`);
                 }}
                 accessibilityLabel="Test notifications"
               >
@@ -335,7 +325,7 @@ export default function SettingsScreen() {
                   Fire notifications in 5s
                 </AppText>
                 <AppText variant="caption" className="text-textMuted">
-                  {unpaidExpenses.length} unpaid
+                  {unpaidItems.length} unpaid
                 </AppText>
               </TouchableOpacity>
               <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
@@ -428,33 +418,11 @@ export default function SettingsScreen() {
 
       </ScrollView>
 
-      <AppSelectBottomSheet
+      <TimePickerSheet
         ref={timeSheetRef}
         title="Reminder Time"
-        items={TIME_OPTIONS}
-        value={TIME_OPTIONS.find((o) => o.value === reminderTime) ?? TIME_OPTIONS[0]}
-        onChange={(item) => handleTimeChange(item.value)}
-        keyExtractor={(item) => item.value}
-        renderItem={(item, selected, onSelect) => (
-          <TouchableOpacity
-            onPress={onSelect}
-            className="items-center justify-center py-3"
-          >
-            <AppText
-              variant="body-medium"
-              className={selected ? "text-primary text-sm font-semibold" : "text-white text-sm"}
-            >
-              {item.label}
-            </AppText>
-            {selected && (
-              <View pointerEvents="none" className="absolute top-1.5 right-1.5">
-                <Feather name="check" size={14} color={colors.text} />
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
-        columns={3}
-        snapPoints={["50%", "75%"]}
+        value={reminderTime}
+        onChange={handleTimeChange}
       />
     </SafeAreaView>
   );

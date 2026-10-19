@@ -6,15 +6,20 @@ import { getAll as getAllExpenses, insertWithId } from '@/db/expenses';
 import { getAll as getAllCategories, insertCategory } from '@/db/categories';
 import { getAll as getAllAccounts, insertWithId as insertAccountWithId } from '@/db/accounts';
 import { getAll as getAllTransactions, insertWithId as insertTransactionWithId } from '@/db/accountTransactions';
-import type { Account, AccountTransaction, Expense } from '@/types';
+import { getAll as getAllMonths, insertOrIgnore as insertMonth } from '@/db/expenseMonths';
+import { getAll as getAllCardBills, insertOrIgnore as insertCardBill } from '@/db/cardBills';
+import type { Account, AccountTransaction, CardBillOverride, Expense, MonthStatus } from '@/types';
 
 interface BackupFile {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   exportedAt: string;
   expenses: Expense[];
   categories: string[];
+  incomeCategories?: string[];
   accounts?: Account[];
   transactions?: AccountTransaction[];
+  months?: MonthStatus[];
+  cardBills?: CardBillOverride[];
 }
 
 const REQUIRED_EXPENSE_FIELDS: (keyof Expense)[] = [
@@ -28,7 +33,7 @@ const REQUIRED_EXPENSE_FIELDS: (keyof Expense)[] = [
 ];
 
 const ACCOUNT_TYPES = ['debit', 'credit', 'cash'];
-const TRANSACTION_KINDS = ['payment', 'interest', 'tax', 'transfer', 'adjust'];
+const TRANSACTION_KINDS = ['payment', 'interest', 'tax', 'transfer', 'fee', 'adjust', 'income'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -57,19 +62,45 @@ function isValidTransaction(value: unknown): boolean {
   );
 }
 
+function isValidMonth(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.expenseId === 'string' &&
+    typeof value.year === 'number' &&
+    typeof value.month === 'number' &&
+    (value.status === 'paid' || value.status === 'unpaid')
+  );
+}
+
+function isValidCardBill(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.accountId === 'string' &&
+    typeof value.year === 'number' &&
+    typeof value.month === 'number' &&
+    typeof value.amount === 'number'
+  );
+}
+
 export async function exportBackup(): Promise<void> {
   const expenses = await getAllExpenses();
   const categories = await getAllCategories();
+  const incomeCategories = await getAllCategories('income');
   const accounts = await getAllAccounts();
   const transactions = await getAllTransactions();
+  const months = await getAllMonths();
+  const cardBills = await getAllCardBills();
 
   const backup: BackupFile = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     expenses,
     categories,
+    incomeCategories,
     accounts,
     transactions,
+    months,
+    cardBills,
   };
 
   const dateSlug = new Date().toISOString().slice(0, 10);
@@ -109,7 +140,7 @@ export async function importBackup(): Promise<{ added: number; skipped: number }
 
   const backup = parsed as Partial<BackupFile>;
 
-  if (backup.version !== 1 && backup.version !== 2) {
+  if (backup.version !== 1 && backup.version !== 2 && backup.version !== 3) {
     throw new Error('Unsupported backup version.');
   }
 
@@ -117,7 +148,9 @@ export async function importBackup(): Promise<{ added: number; skipped: number }
     throw new Error('Backup file is corrupted — missing required fields.');
   }
 
+  const backupExpenseIds: string[] = [];
   for (const expense of backup.expenses) {
+    backupExpenseIds.push(expense.id);
     const missing = REQUIRED_EXPENSE_FIELDS.some(
       (field) => expense[field] === undefined || expense[field] === null,
     );
@@ -133,6 +166,17 @@ export async function importBackup(): Promise<{ added: number; skipped: number }
     !Array.isArray(backupTransactions) ||
     !backupAccounts.every(isValidAccount) ||
     !backupTransactions.every(isValidTransaction)
+  ) {
+    throw new Error('Backup file is corrupted — missing required fields.');
+  }
+
+  const backupMonths = backup.months ?? [];
+  const backupCardBills = backup.cardBills ?? [];
+  if (
+    !Array.isArray(backupMonths) ||
+    !Array.isArray(backupCardBills) ||
+    !backupMonths.every(isValidMonth) ||
+    !backupCardBills.every(isValidCardBill)
   ) {
     throw new Error('Backup file is corrupted — missing required fields.');
   }
@@ -161,6 +205,17 @@ export async function importBackup(): Promise<{ added: number; skipped: number }
     }
   }
 
+  const backupIncomeCategories = backup.incomeCategories ?? [];
+  if (!Array.isArray(backupIncomeCategories)) {
+    throw new Error('Backup file is corrupted — missing required fields.');
+  }
+  const existingIncomeCatSet = new Set(await getAllCategories('income'));
+  for (const cat of backupIncomeCategories) {
+    if (typeof cat === 'string' && !existingIncomeCatSet.has(cat)) {
+      await insertCategory(cat, 'income');
+    }
+  }
+
   const existingAccounts = await getAllAccounts();
   const knownAccountIds = new Set([
     ...existingAccounts.map((a) => a.id),
@@ -173,6 +228,22 @@ export async function importBackup(): Promise<{ added: number; skipped: number }
   for (const transaction of backupTransactions) {
     if (knownAccountIds.has(transaction.accountId)) {
       await insertTransactionWithId(transaction);
+    } else {
+      skipped++;
+    }
+  }
+
+  const knownExpenseIds = new Set([...existingIds, ...backupExpenseIds]);
+  for (const month of backupMonths) {
+    if (knownExpenseIds.has(month.expenseId)) {
+      await insertMonth(month);
+    } else {
+      skipped++;
+    }
+  }
+  for (const bill of backupCardBills) {
+    if (knownAccountIds.has(bill.accountId)) {
+      await insertCardBill(bill);
     } else {
       skipped++;
     }

@@ -1,0 +1,5 @@
+appId: com.erniejeash.recur
+---
+- runFlow:
+    file: tab.yaml
+    env: { TAB: "Accounts", MARKER: "NET WORTH" }

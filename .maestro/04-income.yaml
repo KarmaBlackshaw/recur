@@ -1,0 +1,36 @@
+appId: com.erniejeash.recur
+name: Income — no credit cards in Deposit-to, balance increases, double-tap Save creates one entry
+---
+- runFlow: subflows/launch-fresh.yaml
+- runFlow:
+    file: subflows/add-credit-card.yaml
+    env: { NAME: "BDO Visa", CUTOFF: "25", DUE: "15" }
+- assertVisible: "Cash, cash, balance ₱0.00"
+
+- runFlow: subflows/tab-activity.yaml
+- tapOn: "Income"
+- tapOn: "Add income"
+- extendedWaitUntil:
+    visible: "Save Income"
+    timeout: 5000
+- tapOn: "Amount.*"
+- inputText: "5000"
+- hideKeyboard
+- tapOn: "Deposit to.*"
+- assertVisible: "Cash, cash.*"
+- assertNotVisible: "BDO Visa, credit card.*"
+- assertNotVisible: ".*credit card.*"
+- tapOn: "Cash, cash.*"
+- tapOn: "Notes"
+- inputText: "October pay"
+- hideKeyboard
+- doubleTapOn: "Save Income"
+- extendedWaitUntil:
+    visible: "RECEIVED THIS MONTH"
+    timeout: 10000
+- waitForAnimationToEnd
+- assertVisible: "1 income"
+- assertVisible: "₱5,000.00"
+
+- runFlow: subflows/tab-accounts.yaml
+- assertVisible: "Cash, cash, balance ₱5,000.00"

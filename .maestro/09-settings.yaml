@@ -1,0 +1,53 @@
+appId: com.erniejeash.recur
+name: Settings — notifications off/on and reminder time change without errors
+---
+- runFlow: subflows/launch-fresh.yaml
+- tapOn: "Settings"
+- scrollUntilVisible:
+    element: "Set reminder time"
+    direction: DOWN
+- copyTextFrom:
+    text: "\\d{2}:\\d{2}"
+    rightOf: "Reminder time"
+- evalScript: ${output.initialTime = maestro.copiedText}
+- assertTrue: ${output.initialTime.length == 5 && output.initialTime.charAt(2) == ':'}
+
+# Notifications off → on, quickly. The Switch has no label or testID (app/settings.tsx:271), and
+# Maestro's `checked` filter doesn't distinguish its state, so the state is captured as screenshots.
+- tapOn:
+    rightOf:
+      text: "Notifications"
+      index: 1
+- takeScreenshot: 09-notifications-off
+- tapOn:
+    rightOf:
+      text: "Notifications"
+      index: 1
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+- takeScreenshot: 09-notifications-on
+- assertNotVisible: "Notifications disabled.*"
+
+# Change reminder time
+- tapOn: "Set reminder time"
+- extendedWaitUntil:
+    visible: "Done"
+    timeout: 5000
+- swipe:
+    from: "Hour,.*"
+    direction: UP
+- waitForAnimationToEnd
+- tapOn: "Done"
+- waitForAnimationToEnd
+- assertNotVisible: ${output.initialTime}
+- assertVisible:
+    text: "\\d{2}:\\d{2}"
+    rightOf: "Reminder time"
+
+# No error alert, app still alive
+- assertNotVisible: ".*[Ff]ailed.*"
+- assertNotVisible: ".*[Ee]rror.*"
+- assertVisible: "Set reminder time"

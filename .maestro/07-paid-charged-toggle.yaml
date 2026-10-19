@@ -1,0 +1,25 @@
+appId: com.erniejeash.recur
+name: Activity tab — Paid | Charged toggle shows the right rows
+---
+- runFlow: subflows/launch-fresh.yaml
+- runFlow:
+    file: subflows/add-credit-card.yaml
+    env: { NAME: "BDO Visa", CUTOFF: "25", DUE: "15" }
+- runFlow:
+    file: subflows/add-one-off-expense.yaml
+    env: { AMOUNT: "300", NOTE: "Groceries", ACCOUNT: "Cash", BACKDATE: "false" }
+- runFlow:
+    file: subflows/add-one-off-expense.yaml
+    env: { AMOUNT: "549", NOTE: "Netflix", ACCOUNT: "BDO Visa", BACKDATE: "false" }
+
+- runFlow: subflows/tab-activity.yaml
+- assertVisible: "PAID THIS MONTH"
+- assertVisible: "1 payment"
+- assertVisible: "Groceries, Other, from Cash, ₱300.00, Paid.*"
+- assertNotVisible: "Netflix.*"
+
+- tapOn: "Charged"
+- assertVisible: "CHARGED THIS MONTH"
+- assertVisible: "₱549.00 not yet paid off"
+- assertVisible: "Netflix, Other, from BDO Visa, ₱549.00, Charged.*"
+- assertNotVisible: "Groceries.*"

@@ -1,0 +1,95 @@
+appId: com.erniejeash.recur
+name: KPIs — 2×2 grid Total / Paid / Charged / To pay
+# Scenario (today after the 10th):
+#   BPI Gold (cut-off 1 / due 10): Netflix ₱549 one-off on the 1st → overdue bill ₱549, Netflix Charged
+#   Metro Card (cut-off 30 / due 31): no charges → ₱0 bill, hidden on Home
+#   Gym ₱1,000 monthly, due 28, paid from Metro Card, unpaid → in Total and To pay
+# Expected: Total 1,549 · Paid 0 · Charged 549 · To pay 1,549
+# After marking Gym paid it leaves Total as an expense, but the Metro Card Oct bill (cut-off 30)
+# now carries ₱1,000: Total 1,549 · Paid 0 · Charged 1,549 · To pay 1,549
+---
+- runFlow: subflows/launch-fresh.yaml
+- runFlow:
+    file: subflows/add-credit-card.yaml
+    env: { NAME: "BPI Gold", CUTOFF: "1", DUE: "10" }
+- runFlow:
+    file: subflows/add-credit-card.yaml
+    env: { NAME: "Metro Card", CUTOFF: "30", DUE: "31" }
+- runFlow:
+    file: subflows/add-one-off-expense.yaml
+    env: { AMOUNT: "549", NOTE: "Netflix", ACCOUNT: "BPI Gold", BACKDATE: "true" }
+
+# Recurring unpaid card expense
+- runFlow: subflows/tab-recurring.yaml
+- tapOn: "Add (recurring )?expense"
+- extendedWaitUntil:
+    visible: "Add Recurring Expense"
+    timeout: 5000
+- extendedWaitUntil:
+    visible: "Due Day.*"
+    timeout: 5000
+- tapOn:
+    text: "Due Day.*"
+    index: 1
+- eraseText: 3
+- inputText: "28"
+- hideKeyboard
+- tapOn: "Amount.*"
+- inputText: "1000"
+- hideKeyboard
+- tapOn: "Pay from.*"
+- tapOn: "Metro Card, .*"
+- scrollUntilVisible:
+    element: "Notes"
+    direction: DOWN
+- tapOn: "Notes"
+- inputText: "Gym"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Save Expense"
+    direction: DOWN
+- tapOn: "Save Expense"
+
+- runFlow: subflows/tab-home.yaml
+- extendedWaitUntil:
+    visible: "THIS MONTH"
+    timeout: 5000
+- assertVisible:
+    text: "₱1,549.00"
+    above: "Total"
+- assertVisible:
+    text: "₱0.00"
+    above: "Paid"
+    rightOf: "Total"
+- assertVisible:
+    text: "₱549.00"
+    above: "Charged"
+    below: "Total"
+- assertVisible:
+    text: "₱1,549.00"
+    above: "To pay"
+    below: "Paid"
+- assertNotVisible: "Metro Card bill.*"
+
+# Mark the card expense paid → leaves Total as an expense, re-enters via the Metro Card bill; Charged grows
+- runFlow: subflows/tab-recurring.yaml
+- tapOn: "Mark as paid"
+- runFlow: subflows/tab-home.yaml
+- extendedWaitUntil:
+    visible: "THIS MONTH"
+    timeout: 5000
+- assertVisible:
+    text: "₱1,549.00"
+    above: "Total"
+- assertVisible:
+    text: "₱0.00"
+    above: "Paid"
+    rightOf: "Total"
+- assertVisible:
+    text: "₱1,549.00"
+    above: "Charged"
+    below: "Total"
+- assertVisible:
+    text: "₱1,549.00"
+    above: "To pay"
+    below: "Paid"

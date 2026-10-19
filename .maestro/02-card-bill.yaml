@@ -1,0 +1,83 @@
+appId: com.erniejeash.recur
+name: Card bill — Charged badge, overdue bill, override, partial + full payment
+# Assumes today's day-of-month is after the 10th (bill: cut-off 1, due 10 → overdue).
+---
+- runFlow: subflows/launch-fresh.yaml
+- runFlow:
+    file: subflows/add-credit-card.yaml
+    env: { NAME: "BPI Gold", CUTOFF: "1", DUE: "10" }
+- runFlow:
+    file: subflows/add-one-off-expense.yaml
+    env: { AMOUNT: "549", NOTE: "Netflix", ACCOUNT: "BPI Gold", BACKDATE: "true" }
+
+# Card-paid expense shows the Charged badge
+- runFlow: subflows/tab-activity.yaml
+- tapOn: "Charged"
+- assertVisible: "Netflix, Other, from BPI Gold, ₱549.00, Charged.*"
+
+# Home: overdue estimated bill
+- runFlow: subflows/tab-home.yaml
+- assertVisible: "OVERDUE · 1"
+- assertVisible: "BPI Gold bill, ₱549.00 estimated, due .*, overdue"
+- assertVisible: "Est. · Due .*"
+
+# Override statement amount → Est. drops
+- tapOn: "BPI Gold bill,.*"
+- assertVisible: "BPI Gold · .* bill"
+- assertNotVisible: "Use estimate"
+- tapOn: "Statement amount.*"
+- eraseText: 12
+- inputText: "800"
+- hideKeyboard
+- tapOn: "Save amount"
+- assertVisible: "BPI Gold bill, ₱800.00, due .*, overdue"
+- assertNotVisible: "Est. · Due .*"
+- assertVisible: "Remaining"
+- assertVisible: "₱800.00"
+
+# Use estimate restores
+- tapOn: "Use estimate"
+- assertVisible: "BPI Gold bill, ₱549.00 estimated, due .*, overdue"
+- assertNotVisible: "Use estimate"
+
+# Pay bill → TransferSheet prefilled with remaining; pay partial
+- tapOn: "Pay bill"
+- extendedWaitUntil:
+    visible: "From"
+    timeout: 5000
+- assertVisible: "549.00"
+- assertVisible:
+    text: "BPI Gold, ₱549.00"
+    selected: true
+- tapOn:
+    text: "Amount.*"
+    index: 1
+- eraseText: 12
+- inputText: "200"
+- hideKeyboard
+- tapOn:
+    text: "Transfer"
+    index: 1
+- assertVisible: "BPI Gold bill, ₱549.00 estimated, due .*, overdue, ₱349.00 left"
+- assertVisible: "₱349.00 left"
+- runFlow: subflows/tab-activity.yaml
+- tapOn: "Charged"
+- assertVisible: "Netflix, Other, from BPI Gold, ₱549.00, Charged.*"
+
+# Pay the rest → bill leaves Home, Netflix flips to Paid
+- runFlow: subflows/tab-home.yaml
+- tapOn: "BPI Gold bill,.*"
+- tapOn: "Pay bill"
+- extendedWaitUntil:
+    visible: "From"
+    timeout: 5000
+- assertVisible: "349.00"
+- tapOn:
+    text: "Transfer"
+    index: 1
+- assertNotVisible: "BPI Gold bill,.*"
+- assertNotVisible: "OVERDUE · .*"
+- runFlow: subflows/tab-activity.yaml
+- tapOn: "Charged"
+- assertVisible: "Netflix, Other, from BPI Gold, ₱549.00, Paid.*"
+- assertVisible: "₱0.00 not yet paid off"

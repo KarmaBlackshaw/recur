@@ -1,0 +1,22 @@
+# env: AMOUNT, NOTE, ACCOUNT (account name)
+appId: com.erniejeash.recur
+---
+- runFlow: tab-activity.yaml
+- tapOn: "Income"
+- tapOn: "Add income"
+- extendedWaitUntil:
+    visible: "Save Income"
+    timeout: 5000
+- tapOn: "Amount.*"
+- inputText: ${AMOUNT}
+- hideKeyboard
+- tapOn: "Deposit to.*"
+- tapOn: "${ACCOUNT}, .*"
+- tapOn: "Notes"
+- inputText: ${NOTE}
+- hideKeyboard
+- tapOn: "Save Income"
+- extendedWaitUntil:
+    visible: "RECEIVED THIS MONTH"
+    timeout: 10000
+- waitForAnimationToEnd

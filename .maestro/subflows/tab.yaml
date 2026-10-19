@@ -1,0 +1,13 @@
+# env: TAB (Home|Activity|Recurring|Accounts), MARKER (regex visible only on that tab)
+# Retries the tab tap: a tap that lands while a modal screen is still closing is dropped.
+appId: com.erniejeash.recur
+---
+- waitForAnimationToEnd
+- repeat:
+    times: 4
+    while:
+      notVisible: ${MARKER}
+    commands:
+      - tapOn: ${TAB}
+      - waitForAnimationToEnd
+- assertVisible: ${MARKER}

@@ -1,0 +1,36 @@
+# env: NAME, CUTOFF, DUE
+appId: com.erniejeash.recur
+---
+- runFlow: tab-accounts.yaml
+- tapOn: "Add account"
+- extendedWaitUntil:
+    visible: "Opening balance.*"
+    timeout: 5000
+- tapOn:
+    text: "Name"
+    index: 1
+- eraseText: 40
+- inputText: ${NAME}
+- hideKeyboard
+- tapOn: "Credit card"
+- scrollUntilVisible:
+    element: "Due day.*"
+    direction: DOWN
+- tapOn:
+    text: "Cut-off day.*"
+    index: 1
+- inputText: ${CUTOFF}
+- hideKeyboard
+- tapOn:
+    text: "Due day.*"
+    index: 1
+- inputText: ${DUE}
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Save Account"
+    direction: DOWN
+- tapOn: "Save Account"
+- extendedWaitUntil:
+    visible: "${NAME}, credit card.*"
+    timeout: 10000
+- waitForAnimationToEnd

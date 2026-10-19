@@ -50,7 +50,7 @@ export interface MonthStatus {
 
 export type AccountType = 'debit' | 'credit' | 'cash';
 export type InterestPeriod = 'daily' | 'monthly' | 'yearly';
-export type TransactionKind = 'payment' | 'interest' | 'tax' | 'transfer' | 'adjust' | 'income';
+export type TransactionKind = 'payment' | 'interest' | 'tax' | 'transfer' | 'fee' | 'adjust' | 'income';
 
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   debit: 'Debit account',
@@ -63,6 +63,7 @@ export const TRANSACTION_KIND_LABEL: Record<TransactionKind, string> = {
   interest: 'Interest',
   tax: 'Tax withheld',
   transfer: 'Transfer',
+  fee: 'Transfer fee',
   adjust: 'Adjustment',
   income: 'Income',
 };

@@ -33,7 +33,7 @@ const REQUIRED_EXPENSE_FIELDS: (keyof Expense)[] = [
 ];
 
 const ACCOUNT_TYPES = ['debit', 'credit', 'cash'];
-const TRANSACTION_KINDS = ['payment', 'interest', 'tax', 'transfer', 'adjust', 'income'];
+const TRANSACTION_KINDS = ['payment', 'interest', 'tax', 'transfer', 'fee', 'adjust', 'income'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;

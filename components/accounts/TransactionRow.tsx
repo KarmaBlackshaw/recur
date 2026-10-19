@@ -18,6 +18,7 @@ const KIND_ICON: Record<TransactionKind, FeatherIconName> = {
   interest: "trending-up",
   tax: "percent",
   transfer: "repeat",
+  fee: "scissors",
   adjust: "sliders",
   income: "arrow-down-left",
 };

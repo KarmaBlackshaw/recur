@@ -8,10 +8,10 @@ import {
 } from "@gorhom/bottom-sheet";
 import { Feather } from "@expo/vector-icons";
 import { Controller, useForm } from "react-hook-form";
+import { router } from "expo-router";
 import dayjs from "dayjs";
 import round from "lodash/round";
 import { useAccounts } from "@/context/AccountContext";
-import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
@@ -38,7 +38,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet(_props, ref) {
   const sheetRef = useRef<BottomSheetModal>(null);
-  const transferRef = useRef<TransferSheetRef>(null);
   const accounts = useAccounts();
   const [selected, setSelected] = useState<CardBill>();
   const {
@@ -88,7 +87,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     sheetRef.current?.dismiss();
     const typed = parseFloat(getValues("amount"));
     const amount = isValid && !isNaN(typed) ? Math.max(0, round(typed - bill.paid, 2)) : bill.remaining;
-    transferRef.current?.present({ amount });
+    router.push({ pathname: "/transfer", params: { accountId: bill.account.id, amount: amount.toFixed(2) } });
   }
 
   const renderBackdrop = useCallback(
@@ -171,7 +170,6 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
           </>
         ) : null}
       </BottomSheetModal>
-      {bill ? <TransferSheet ref={transferRef} account={bill.account} /> : null}
     </>
   );
 });

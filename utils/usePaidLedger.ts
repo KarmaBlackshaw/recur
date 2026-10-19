@@ -24,6 +24,28 @@ export interface BillPaymentEntry {
   sourceName: string | undefined;
   effDate: Date;
   amount: number;
+  fee: number;
+}
+
+export interface IncomeEntry {
+  key: string;
+  income: AccountTransaction;
+  effDate: Date;
+  amount: number;
+}
+
+export interface TransferEntry {
+  key: string;
+  transfer: AccountTransaction;
+  fromName: string | undefined;
+  toName: string | undefined;
+  effDate: Date;
+  amount: number;
+  fee: number;
+}
+
+function transferFee(transactions: AccountTransaction[], transferId: string | null) {
+  return Math.abs(transactions.find((o) => transferId != null && o.transferId === transferId && o.kind === "fee")?.amount ?? 0);
 }
 
 // Every paid entry across all time — recurring cycles (dated by pay-date) + paid
@@ -91,7 +113,7 @@ export function useBillPayments(): BillPaymentEntry[] {
       if (!account) {
         continue;
       }
-      const source = transactions.find((o) => t.transferId != null && o.transferId === t.transferId && o.id !== t.id);
+      const source = transactions.find((o) => t.transferId != null && o.transferId === t.transferId && o.id !== t.id && o.kind === "transfer");
       items.push({
         key: t.id,
         payment: t,
@@ -99,6 +121,45 @@ export function useBillPayments(): BillPaymentEntry[] {
         sourceName: source ? accountsById[source.accountId]?.name : undefined,
         effDate: dayjs(t.createdAt).toDate(),
         amount: Math.abs(t.amount),
+        fee: transferFee(transactions, t.transferId),
+      });
+    }
+
+    return orderBy(items, "effDate", "desc");
+  }, [accounts, transactions, isCardAccount]);
+}
+
+// Transfers between own accounts, one entry per transfer (the From side, or the To
+// side when the From account was deleted). Transfers into a credit card are bill
+// payments and come from useBillPayments instead.
+export function useTransfers(): TransferEntry[] {
+  const { accounts, transactions, isCardAccount } = useAccounts();
+
+  return useMemo(() => {
+    const accountsById = keyBy(accounts, "id");
+    const items: TransferEntry[] = [];
+
+    for (const t of transactions) {
+      if (t.kind !== "transfer" || isCardAccount(t.accountId)) {
+        continue;
+      }
+      const counterpart = transactions.find(
+        (o) => t.transferId != null && o.transferId === t.transferId && o.id !== t.id && o.kind === "transfer"
+      );
+      const isFromSide = t.amount < 0;
+      if (isFromSide ? counterpart != null && isCardAccount(counterpart.accountId) : counterpart != null) {
+        continue;
+      }
+      const ownName = accountsById[t.accountId]?.name;
+      const otherName = counterpart ? accountsById[counterpart.accountId]?.name : undefined;
+      items.push({
+        key: t.id,
+        transfer: t,
+        fromName: isFromSide ? ownName : undefined,
+        toName: isFromSide ? otherName : ownName,
+        effDate: dayjs(t.createdAt).toDate(),
+        amount: Math.abs(t.amount),
+        fee: transferFee(transactions, t.transferId),
       });
     }
 

@@ -11,7 +11,6 @@ import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { TransactionRow } from "@/components/accounts/TransactionRow";
 import { AdjustBalanceSheet, type AdjustBalanceSheetRef } from "@/components/accounts/AdjustBalanceSheet";
-import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
@@ -111,7 +110,6 @@ export default function AccountDetailScreen() {
   const accounts = useAccounts();
   const account = accounts.accounts.find((a) => a.id === id);
   const adjustRef = useRef<AdjustBalanceSheetRef>(null);
-  const transferRef = useRef<TransferSheetRef>(null);
   const hasPresentedAction = useRef(false);
   const canTransfer = accounts.accounts.length > 1 && accounts.accounts.some((a) => a.type !== "credit");
 
@@ -137,7 +135,7 @@ export default function AccountDetailScreen() {
       adjustRef.current?.present();
     }
     if (action === "transfer" && canTransfer) {
-      transferRef.current?.present();
+      router.push({ pathname: "/transfer", params: { accountId: account.id } });
     }
   }, [account, action, canTransfer]);
 
@@ -146,7 +144,7 @@ export default function AccountDetailScreen() {
     if (!transferId) {
       return;
     }
-    Alert.alert("Delete transfer?", "Both sides of this transfer are removed and the balances restored.", [
+    Alert.alert("Delete transfer?", "Both sides of this transfer and any transfer fee are removed, and the balances restored.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -202,7 +200,7 @@ export default function AccountDetailScreen() {
               <ActionButton
                 icon="repeat"
                 label="Transfer"
-                onPress={() => transferRef.current?.present()}
+                onPress={() => router.push({ pathname: "/transfer", params: { accountId: account.id } })}
                 disabled={!canTransfer}
               />
               {account.id !== CASH_ACCOUNT_ID && (
@@ -239,7 +237,6 @@ export default function AccountDetailScreen() {
       />
 
       <AdjustBalanceSheet ref={adjustRef} account={account} />
-      <TransferSheet ref={transferRef} account={account} />
     </SafeAreaView>
   );
 }

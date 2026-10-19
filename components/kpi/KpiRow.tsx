@@ -26,7 +26,7 @@ export function KpiRow({ year, month, recurringOnly = false }: Props) {
     const d = dayjs(e.paidDate ?? e.createdAt);
     return d.year() === year && d.month() === month;
   };
-  const { getCardBills, isCardCharge, isCharged } = useAccounts();
+  const { getCardBills, isCardCharge, isCharged, transactions } = useAccounts();
   const source = expenses.filter(isInMonth);
 
   const cycleOf = (e: Expense) =>
@@ -46,10 +46,21 @@ export function KpiRow({ year, month, recurringOnly = false }: Props) {
   const amountOf = ({ expense }: { expense: Expense }) => resolveAmount(expense, year, month);
   const bills = recurringOnly ? [] : getCardBills(year, month).filter((b) => b.amount > 0);
 
-  const total = sumBy(counted, amountOf) + sumBy(bills, (b) => b.amount);
+  const fees = recurringOnly
+    ? 0
+    : -sumBy(
+        transactions.filter((t) => {
+          const d = dayjs(t.createdAt);
+          return t.kind === "fee" && d.year() === year && d.month() === month;
+        }),
+        "amount"
+      );
+
+  const total = sumBy(counted, amountOf) + sumBy(bills, (b) => b.amount) + fees;
   const paid =
     sumBy(counted.filter(({ status }) => status === "paid"), amountOf) +
-    sumBy(bills, (b) => Math.min(b.paid, b.amount));
+    sumBy(bills, (b) => Math.min(b.paid, b.amount)) +
+    fees;
   const unpaid = total - paid;
   const charged = sumBy(
     cardExpenses.filter(({ expense, status }) => {

@@ -12,9 +12,11 @@ interface Props {
 }
 
 export function BillPaymentRow({ entry }: Props) {
-  const { account, sourceName, amount } = entry;
+  const { account, sourceName, amount, fee } = entry;
   const title = `${account.name} bill`;
-  const meta = sourceName ? `from ${sourceName}` : "Bill payment";
+  const meta = [sourceName ? `from ${sourceName}` : "Bill payment", fee > 0 ? `fee ${formatAmount(fee)}` : null]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <TouchableOpacity

@@ -4,8 +4,10 @@ import { router } from "expo-router";
 import { ExpenseCard } from "@/components/ExpenseCard";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BillPaymentRow } from "@/components/accounts/BillPaymentRow";
+import { IncomeRow } from "@/components/accounts/IncomeRow";
+import { TransferRow } from "@/components/accounts/TransferRow";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
-import type { BillPaymentEntry } from "@/utils/usePaidLedger";
+import type { BillPaymentEntry, IncomeEntry, TransferEntry } from "@/utils/usePaidLedger";
 import type { Expense } from "@/types";
 
 // A single row in a day-grouped list. `effDate` decides which day bucket it lands
@@ -22,26 +24,29 @@ export interface DayEntry {
 }
 
 export type LedgerEntry = DayEntry | BillPaymentEntry;
+export type ActivityEntry = LedgerEntry | IncomeEntry | TransferEntry;
 
 interface DaySection {
   key: string;
   date: Date;
   total: number;
-  data: LedgerEntry[];
+  data: ActivityEntry[];
 }
 
 interface Props {
   // Pre-sorted by the caller; section order = first-seen day order (insertion order),
   // so pass entries newest-first or soonest-first to control direction.
-  entries: LedgerEntry[];
+  entries: ActivityEntry[];
   // false → skip the per-day headers/subtotals and render one flat list; each card
   // shows its own date instead (recurring tab). Default true (paid ledger).
   grouped?: boolean;
+  // false → day headers without subtotals (mixed in/out lists where a sum means nothing).
+  showDayTotals?: boolean;
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
 }
 
-export function DayGroupedExpenseList({ entries, grouped = true, ListHeaderComponent, ListEmptyComponent }: Props) {
+export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals = true, ListHeaderComponent, ListEmptyComponent }: Props) {
   const sections = useMemo(() => {
     if (!grouped) {
       return [{ key: "all", date: entries[0]?.effDate ?? new Date(), total: 0, data: entries }];
@@ -55,8 +60,14 @@ export function DayGroupedExpenseList({ entries, grouped = true, ListHeaderCompo
       keyExtractor={(item) => item.key}
       ListHeaderComponent={ListHeaderComponent}
       ListEmptyComponent={ListEmptyComponent}
-      renderItem={({ item, index }) =>
-        "expense" in item ? (
+      renderItem={({ item, index }) => {
+        if ("income" in item) {
+          return <IncomeRow entry={item} />;
+        }
+        if ("transfer" in item) {
+          return <TransferRow entry={item} />;
+        }
+        return "expense" in item ? (
           <ExpenseCard
             expense={item.expense}
             index={index}
@@ -76,13 +87,13 @@ export function DayGroupedExpenseList({ entries, grouped = true, ListHeaderCompo
           />
         ) : (
           <BillPaymentRow entry={item} />
-        )
-      }
+        );
+      }}
       renderSectionHeader={
         grouped
           ? ({ section }) => {
               const s = section as unknown as DaySection;
-              return <DayHeaderRow date={s.date} total={s.total} />;
+              return <DayHeaderRow date={s.date} total={showDayTotals ? s.total : undefined} />;
             }
           : undefined
       }

@@ -82,7 +82,7 @@ interface AccountContextValue {
   addIncome: (input: IncomeInput) => Promise<void>;
   updateIncome: (id: string, input: IncomeInput) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
-  transfer: (fromId: string, toId: string, amount: number, note?: string) => Promise<void>;
+  transfer: (fromId: string, toId: string, amount: number, note?: string, fee?: number) => Promise<void>;
   deleteTransfer: (transferId: string) => Promise<void>;
   syncPayment: (p: PaymentSync) => Promise<void>;
   removePayment: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => Promise<void>;
@@ -331,7 +331,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.id === id });
   });
 
-  const transfer = useMemoizedFn(async (fromId: string, toId: string, amount: number, note?: string) => {
+  const transfer = useMemoizedFn(async (fromId: string, toId: string, amount: number, note?: string, fee = 0) => {
     const from = state.accounts.find((a) => a.id === fromId);
     const to = state.accounts.find((a) => a.id === toId);
     if (!from || !to) {
@@ -341,12 +341,13 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Cannot transfer from a credit account");
     }
     const value = round(amount, 2);
-    if (!(value > 0) || fromId === toId) {
+    const feeValue = round(fee, 2);
+    if (!(value > 0) || feeValue < 0 || fromId === toId) {
       throw new Error("Invalid transfer");
     }
     const transferId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const createdAt = new Date().toISOString();
-    const txns = await transactionsDB.insertMany([
+    const rows: Omit<AccountTransaction, "id">[] = [
       {
         ...emptyTxnFields(),
         accountId: fromId,
@@ -365,7 +366,19 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         note: note ?? `Transfer from ${from.name}`,
         createdAt,
       },
-    ]);
+    ];
+    if (feeValue > 0) {
+      rows.push({
+        ...emptyTxnFields(),
+        accountId: fromId,
+        kind: "fee",
+        amount: -feeValue,
+        transferId,
+        note: `Fee for transfer to ${to.name}`,
+        createdAt,
+      });
+    }
+    const txns = await transactionsDB.insertMany(rows);
     dispatch({ type: "ADD_TRANSACTIONS", payload: txns });
   });
 

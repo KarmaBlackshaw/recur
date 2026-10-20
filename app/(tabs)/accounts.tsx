@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
+import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { Account } from "@/types";
 
 function openAddAccount() {
@@ -18,6 +19,7 @@ function openAddAccount() {
 
 export default function AccountsScreen() {
   const { accounts, isLoading } = useAccounts();
+  const refreshControl = useRefreshControl();
   const { fontScale } = useWindowDimensions();
   const numColumns = fontScale > 1.3 ? 1 : 2;
   const hasSpacer = numColumns === 2 && accounts.length % 2 === 1;
@@ -66,6 +68,7 @@ export default function AccountsScreen() {
           columnWrapperClassName={numColumns === 2 ? "gap-3" : undefined}
           contentContainerClassName="gap-3 px-5 pt-2 pb-[140px]"
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
         />
       )}
     </SafeAreaView>

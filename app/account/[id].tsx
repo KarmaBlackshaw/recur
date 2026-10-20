@@ -15,6 +15,7 @@ import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
+import { useRefreshControl } from "@/utils/useRefreshControl";
 import { ACCOUNT_TYPE_LABEL, type Account, type AccountTransaction, type FeatherIconName } from "@/types";
 
 function ActionButton({ icon, label, onPress, disabled }: {
@@ -108,6 +109,7 @@ function BalanceHeader({ account, balance, interestPerMonth }: {
 export default function AccountDetailScreen() {
   const { id, action } = useLocalSearchParams<{ id: string; action?: "adjust" | "transfer" }>();
   const accounts = useAccounts();
+  const refreshControl = useRefreshControl();
   const account = accounts.accounts.find((a) => a.id === id);
   const adjustRef = useRef<AdjustBalanceSheetRef>(null);
   const hasPresentedAction = useRef(false);
@@ -188,6 +190,7 @@ export default function AccountDetailScreen() {
         keyExtractor={(t) => t.id}
         stickySectionHeadersEnabled={false}
         contentContainerClassName="pb-12"
+        refreshControl={refreshControl}
         ListHeaderComponent={
           <>
             <BalanceHeader

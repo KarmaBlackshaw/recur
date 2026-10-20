@@ -44,9 +44,10 @@ interface Props {
   showDayTotals?: boolean;
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
+  refreshControl?: React.ComponentProps<typeof SectionList>["refreshControl"];
 }
 
-export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals = true, ListHeaderComponent, ListEmptyComponent }: Props) {
+export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals = true, ListHeaderComponent, ListEmptyComponent, refreshControl }: Props) {
   const sections = useMemo(() => {
     if (!grouped) {
       return [{ key: "all", date: entries[0]?.effDate ?? new Date(), total: 0, data: entries }];
@@ -60,6 +61,7 @@ export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals =
       keyExtractor={(item) => item.key}
       ListHeaderComponent={ListHeaderComponent}
       ListEmptyComponent={ListEmptyComponent}
+      refreshControl={refreshControl}
       renderItem={({ item, index }) => {
         if ("income" in item) {
           return <IncomeRow entry={item} />;

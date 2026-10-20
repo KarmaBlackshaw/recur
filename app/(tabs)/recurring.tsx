@@ -17,6 +17,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { effectivePaidDate, isOverdueOn } from "@/utils/dateHelpers";
 import { colors } from "@/constants/theme";
+import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { FeatherIconName } from "@/types";
 
 interface Band {
@@ -36,6 +37,7 @@ const BANDS: Omit<Band, "total" | "data">[] = [
 
 export default function RecurringScreen() {
   const { expenses, loading, getMonthStatus, resolveAmount, getMonthPaidAt } = useExpenses();
+  const refreshControl = useRefreshControl();
   const today = dayjs().startOf("day").toDate();
   const [{ year, month }, setSelected] = useSetState({ year: today.getFullYear(), month: today.getMonth() });
 
@@ -124,6 +126,7 @@ export default function RecurringScreen() {
           stickySectionHeadersEnabled={false}
           contentContainerClassName="pb-[140px]"
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
         />
       )}
     </SafeAreaView>

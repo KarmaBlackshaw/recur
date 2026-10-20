@@ -49,6 +49,7 @@
   },
   "scripts": {
     "start": "expo start",
+    "start:wt": "bash scripts/expo-wt.sh",
     "android": "rm -rf \"${TMPDIR:-/tmp}/metro-cache\" && CI=0 expo run:android",
     "emulator:cold-boot": "bash scripts/cold-boot-emulators.sh",
     "ios": "expo run:ios",

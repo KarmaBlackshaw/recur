@@ -1,4 +1,5 @@
 import type { Feather, Ionicons } from "@expo/vector-icons";
+import type { BankId } from "@/constants/banks";
 import type { BillSummary } from "@/utils/cardBills";
 
 export type FeatherIconName = keyof typeof Feather.glyphMap;
@@ -94,6 +95,7 @@ export interface Account {
   color: string | null;
   icon: IoniconName | null;
   logoUri: string | null;
+  bank: BankId | null;
   createdAt: string;
 }
 

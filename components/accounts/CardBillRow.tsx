@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
+import { isBillTbd } from "@/utils/cardBills";
 import type { CardBill } from "@/types";
 
 interface Props {
@@ -19,12 +20,13 @@ export function CardBillRow({ bill, onPress }: Props) {
   const title = `${bill.account.name} bill`;
   const due = dayjs(bill.dueDate);
   const meta = `${bill.isEstimate ? "Est. · " : ""}Due ${due.format("MMM D")}`;
+  const amountText = isBillTbd(bill) ? "TBD" : formatAmount(bill.amount);
   const leftText = `${formatAmount(bill.remaining)} left`;
   const badgeLabel = isPartial ? leftText : undefined;
   const stateText = [isOverdue ? "overdue" : "unpaid", isPartial ? leftText : undefined]
     .filter(Boolean)
     .join(", ");
-  const a11yLabel = `${title}, ${formatAmount(bill.amount)}${bill.isEstimate ? " estimated" : ""}, due ${due.format("MMMM D")}, ${stateText}`;
+  const a11yLabel = `${title}, ${isBillTbd(bill) ? "amount to be determined" : `${amountText}${bill.isEstimate ? " estimated" : ""}`}, due ${due.format("MMMM D")}, ${stateText}`;
 
   return (
     <TouchableOpacity
@@ -51,7 +53,7 @@ export function CardBillRow({ bill, onPress }: Props) {
           </AppText>
         </View>
         <View className="ml-3 items-end gap-1.5">
-          <AppText variant="amount" numberOfLines={1}>{formatAmount(bill.amount)}</AppText>
+          <AppText variant="amount" numberOfLines={1}>{amountText}</AppText>
           <StatusBadge status="unpaid" overdue={isOverdue} label={badgeLabel} />
         </View>
       </View>

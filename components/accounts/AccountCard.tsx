@@ -13,6 +13,7 @@ import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
 import { colors } from "@/constants/theme";
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
+import { findBank } from "@/constants/banks";
 import { ACCOUNT_TYPE_LABEL, INTEREST_PERIOD_UNIT, type Account, type AccountType, type IoniconName } from "@/types";
 
 interface Props {
@@ -44,6 +45,7 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
   const { getBalance, interestEstimate } = useAccounts();
   const isReducedMotion = useReducedMotion();
   const meta = TYPE_META[account.type];
+  const bank = findBank(account.bank);
   const isPreview = previewBalance != null;
   const balance = previewBalance ?? getBalance(account.id);
   const isCredit = account.type === "credit";
@@ -119,6 +121,10 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
           <View className="flex-row items-center gap-2.5">
             {account.logoUri ? (
               <Image source={{ uri: resolveAccountLogo(account.logoUri) }} className="size-9 rounded-xl bg-white" />
+            ) : bank ? (
+              <View className="size-9 rounded-xl items-center justify-center bg-white">
+                <bank.Logo width={24} height={24} />
+              </View>
             ) : (
               <View className="size-9 rounded-xl items-center justify-center bg-white/20">
                 <Ionicons name={account.icon ?? meta.icon} size={18} color={colors.text} />

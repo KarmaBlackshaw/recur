@@ -129,36 +129,36 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {expenses.length === 0 ? (
-        <EmptyState onAdd={() => router.push("/expense/add?type=regular")} />
-      ) : (
-        <HomeExpenseSections
-          overdue={overdue}
-          upcoming={upcoming}
-          recentlyPaid={recentlyPaid}
-          refreshControl={refreshControl}
-          ListHeaderComponent={
-            <View>
-              <AppText variant="overline" className="px-5 pt-2 pb-1">
-                This Month
-              </AppText>
-              <KpiRow year={year} month={month} />
-              <View className="gap-2 mx-5 mt-3 mb-1">
-                <AppText variant="meta">Upcoming & paid within</AppText>
-                <DayWindowSelector value={windowDays} onChange={setWindowDays} />
-              </View>
+      <HomeExpenseSections
+        overdue={overdue}
+        upcoming={upcoming}
+        recentlyPaid={recentlyPaid}
+        refreshControl={refreshControl}
+        ListHeaderComponent={
+          <View>
+            <AppText variant="overline" className="px-5 pt-2 pb-1">
+              This Month
+            </AppText>
+            <KpiRow year={year} month={month} />
+            <View className="gap-2 mx-5 mt-3 mb-1">
+              <AppText variant="meta">Upcoming & paid within</AppText>
+              <DayWindowSelector value={windowDays} onChange={setWindowDays} />
             </View>
-          }
-          ListEmptyComponent={
+          </View>
+        }
+        ListEmptyComponent={
+          expenses.length === 0 ? (
+            <EmptyState onAdd={() => router.push("/expense/add?type=regular")} />
+          ) : (
             <View className="mx-5 mt-1 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-border">
               <Feather name="inbox" size={15} color={colors.textMuted} />
               <AppText variant="meta" className="shrink">
                 Nothing due or paid in the last/next {windowLabel(windowDays).toLowerCase()}
               </AppText>
             </View>
-          }
-        />
-      )}
+          )
+        }
+      />
     </SafeAreaView>
   );
 }

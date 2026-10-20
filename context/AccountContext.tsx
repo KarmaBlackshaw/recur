@@ -443,7 +443,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           state.billOverrides.find((o) => o.accountId === account.id && o.year === year && o.month === month)?.amount ??
           null;
         const bill = computeBill({ txns, statementDay, dueDay, year, month, override, now });
-        if (dayjs(bill.cutoff).isBefore(dayjs(account.createdAt).startOf("month"))) {
+        if (dayjs(bill.dueDate).isBefore(dayjs(account.createdAt).startOf("day"))) {
           continue;
         }
         bills.push({ ...bill, account, year, month });

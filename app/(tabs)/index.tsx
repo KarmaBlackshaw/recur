@@ -17,6 +17,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { isOverdueOn, getDueDate, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
 import { usePaidLedger, useBillPayments } from "@/utils/usePaidLedger";
+import { isBillTbd } from "@/utils/cardBills";
 import { colors } from "@/constants/theme";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 
@@ -42,10 +43,11 @@ export default function HomeScreen() {
   });
 
   // Next month too: a new card's first bill is due next month.
+  // A ₱0 estimate means nothing billed yet, so it stays open as TBD until the user sets the statement amount.
   const openBills = useMemo(() => {
     const next = dayjs(new Date(year, month, 1)).add(1, "month");
     return [...accounts.getCardBills(year, month), ...accounts.getCardBills(next.year(), next.month())]
-      .filter((b) => !b.isPaid)
+      .filter((b) => !b.isPaid || isBillTbd(b))
       .map((b) => ({
         key: `bill-${b.account.id}-${b.year}-${b.month}`,
         bill: b,
@@ -63,7 +65,7 @@ export default function HomeScreen() {
           isOverdueOn(e.dueDay, year, month)
       )
       .map(dueEntry);
-    const bills = openBills.filter((b) => b.effDate < today);
+    const bills = openBills.filter((b) => !b.bill.isPaid && b.effDate < today);
     return sortBy([...entries, ...bills], "effDate");
   }, [expenses, getMonthStatus, resolveAmount, year, month, openBills]);
 

@@ -13,7 +13,8 @@ import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
 import { colors } from "@/constants/theme";
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
-import { ACCOUNT_TYPE_LABEL, type Account, type AccountType, type IoniconName } from "@/types";
+import { findBank } from "@/constants/banks";
+import { ACCOUNT_TYPE_LABEL, INTEREST_PERIOD_UNIT, type Account, type AccountType, type IoniconName } from "@/types";
 
 interface Props {
   account: Account;
@@ -41,9 +42,10 @@ function wholeAmount(amount: number): string {
 }
 
 export function AccountCard({ account, index = 0, previewBalance, onPress, isCompact = false }: Props) {
-  const { getBalance, monthlyInterestEstimate } = useAccounts();
+  const { getBalance, interestEstimate } = useAccounts();
   const isReducedMotion = useReducedMotion();
   const meta = TYPE_META[account.type];
+  const bank = findBank(account.bank);
   const isPreview = previewBalance != null;
   const balance = previewBalance ?? getBalance(account.id);
   const isCredit = account.type === "credit";
@@ -51,7 +53,7 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
   const hasCreditBalance = isCredit && balance < 0;
   const amountText = hasCreditBalance ? `${formatAmount(-balance)} credit` : signedAmount(balance);
 
-  const interest = account.type === "debit" && !isPreview ? monthlyInterestEstimate(account) : 0;
+  const interest = account.type === "debit" && !isPreview ? interestEstimate(account) : null;
   const limit = isCredit ? account.creditLimit : null;
   const available = limit != null ? limit - balance : 0;
   const isOverLimit = limit != null && available < 0;
@@ -80,8 +82,8 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
     }
   } else {
     labelParts.push(`balance ${amountText}`);
-    if (interest > 0) {
-      labelParts.push(`earns ${formatAmount(interest)} net interest per month`);
+    if (interest) {
+      labelParts.push(`earns ${formatAmount(interest.amount)} net interest per ${INTEREST_PERIOD_UNIT[interest.period].long}`);
     }
     if (isNegative) {
       labelParts.push(`overdrawn by ${formatAmount(-balance)}`);
@@ -119,6 +121,10 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
           <View className="flex-row items-center gap-2.5">
             {account.logoUri ? (
               <Image source={{ uri: resolveAccountLogo(account.logoUri) }} className="size-9 rounded-xl bg-white" />
+            ) : bank ? (
+              <View className="size-9 rounded-xl items-center justify-center bg-white">
+                <bank.Logo width={24} height={24} />
+              </View>
             ) : (
               <View className="size-9 rounded-xl items-center justify-center bg-white/20">
                 <Ionicons name={account.icon ?? meta.icon} size={18} color={colors.text} />
@@ -168,10 +174,10 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
               {amountText}
             </Text>
           </View>
-          {interest > 0 && !isCompact && (
+          {interest && !isCompact && (
             <View className="flex-row items-center gap-1">
               <Feather name="trending-up" size={12} color={colors.text} />
-              <AppText variant="meta" className="text-white/85" numberOfLines={1}>{`+${formatAmount(interest)}/mo`}</AppText>
+              <AppText variant="meta" className="text-white/85" numberOfLines={1}>{`+${formatAmount(interest.amount)}/${INTEREST_PERIOD_UNIT[interest.period].short}`}</AppText>
             </View>
           )}
         </View>

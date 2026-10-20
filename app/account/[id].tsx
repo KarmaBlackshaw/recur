@@ -16,7 +16,7 @@ import { colors } from "@/constants/theme";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
 import { useRefreshControl } from "@/utils/useRefreshControl";
-import { ACCOUNT_TYPE_LABEL, type Account, type AccountTransaction, type FeatherIconName } from "@/types";
+import { ACCOUNT_TYPE_LABEL, INTEREST_PERIOD_UNIT, type Account, type AccountTransaction, type FeatherIconName, type InterestEstimate } from "@/types";
 
 function ActionButton({ icon, label, onPress, disabled }: {
   icon: FeatherIconName;
@@ -49,10 +49,10 @@ function DetailRow({ label, value, isAlert }: { label: string; value: string; is
   );
 }
 
-function BalanceHeader({ account, balance, interestPerMonth }: {
+function BalanceHeader({ account, balance, interest }: {
   account: Account;
   balance: number;
-  interestPerMonth: number;
+  interest: InterestEstimate | null;
 }) {
   const isCredit = account.type === "credit";
   const available = isCredit && account.creditLimit != null ? account.creditLimit - balance : null;
@@ -78,10 +78,10 @@ function BalanceHeader({ account, balance, interestPerMonth }: {
           {signedAmount(balance)}
         </AppText>
       </View>
-      {interestPerMonth > 0 && (
+      {interest && (
         <View className="flex-row items-center gap-1.5 mt-1">
           <Feather name="trending-up" size={14} color={colors.paid} />
-          <AppText variant="meta" className="text-paid">+{formatAmount(interestPerMonth)}/mo net interest</AppText>
+          <AppText variant="meta" className="text-paid">+{formatAmount(interest.amount)}/{INTEREST_PERIOD_UNIT[interest.period].short} net interest</AppText>
         </View>
       )}
       {isCredit && (
@@ -196,7 +196,7 @@ export default function AccountDetailScreen() {
             <BalanceHeader
               account={account}
               balance={accounts.getBalance(account.id)}
-              interestPerMonth={accounts.monthlyInterestEstimate(account)}
+              interest={accounts.interestEstimate(account)}
             />
             <View className="flex-row gap-3 px-5 mb-4">
               <ActionButton icon="sliders" label="Adjust" onPress={() => adjustRef.current?.present()} />

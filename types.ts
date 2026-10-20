@@ -1,4 +1,5 @@
 import type { Feather, Ionicons } from "@expo/vector-icons";
+import type { BankId } from "@/constants/banks";
 import type { BillSummary } from "@/utils/cardBills";
 
 export type FeatherIconName = keyof typeof Feather.glyphMap;
@@ -58,6 +59,17 @@ export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   cash: 'Cash',
 };
 
+export interface InterestEstimate {
+  amount: number;
+  period: InterestPeriod;
+}
+
+export const INTEREST_PERIOD_UNIT: Record<InterestPeriod, { short: string; long: string }> = {
+  daily: { short: 'day', long: 'day' },
+  monthly: { short: 'mo', long: 'month' },
+  yearly: { short: 'yr', long: 'year' },
+};
+
 export const TRANSACTION_KIND_LABEL: Record<TransactionKind, string> = {
   payment: 'Payment',
   interest: 'Interest',
@@ -83,6 +95,7 @@ export interface Account {
   color: string | null;
   icon: IoniconName | null;
   logoUri: string | null;
+  bank: BankId | null;
   createdAt: string;
 }
 

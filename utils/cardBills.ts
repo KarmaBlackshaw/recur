@@ -69,6 +69,8 @@ export function computeBill(a: {
   };
 }
 
+export const isBillTbd = ({ isEstimate, amount }: BillSummary) => isEstimate && amount === 0;
+
 export function unsettledDebitIds(txns: CardTxn[]): Set<string> {
   const credits = txns.reduce((sum, { amount }) => (amount < 0 ? sum - amount : sum), 0);
   const debits = txns

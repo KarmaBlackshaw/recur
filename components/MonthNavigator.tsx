@@ -37,10 +37,24 @@ export function MonthNavigator({ year, month, onChange }: Props) {
     }
   }
 
-  const label = dayjs(new Date(year, month, 1)).format("MMMM YYYY");
+  const label = dayjs(new Date(year, month, 1)).format("MMM YYYY");
 
   return (
     <View className="flex-row items-center justify-between">
+      {!isCurrentMonth && (
+        <TouchableOpacity
+          onPress={resetToToday}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          className="h-7 px-3 mr-1 rounded-full items-center justify-center bg-primary/15 border border-primary"
+          accessibilityRole="button"
+          accessibilityLabel="Back to current month"
+        >
+          <Text className="text-xs text-secondary font-['Quicksand_700Bold']">
+            Today
+          </Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity
         onPress={prevMonth}
         className="w-11 h-11 items-center justify-center"

@@ -17,11 +17,14 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { isOverdueOn, getDueDate, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
 import { usePaidLedger, useBillPayments } from "@/utils/usePaidLedger";
+import { isBillTbd } from "@/utils/cardBills";
 import { colors } from "@/constants/theme";
+import { useRefreshControl } from "@/utils/useRefreshControl";
 
 export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus, resolveAmount } = useExpenses();
   const accounts = useAccounts();
+  const refreshControl = useRefreshControl();
   const ledger = usePaidLedger();
   const billPayments = useBillPayments();
   const [windowDays, setWindowDays] = useState<DayWindow>(7);
@@ -40,10 +43,11 @@ export default function HomeScreen() {
   });
 
   // Next month too: a new card's first bill is due next month.
+  // A ₱0 estimate means nothing billed yet, so it stays open as TBD until the user sets the statement amount.
   const openBills = useMemo(() => {
     const next = dayjs(new Date(year, month, 1)).add(1, "month");
     return [...accounts.getCardBills(year, month), ...accounts.getCardBills(next.year(), next.month())]
-      .filter((b) => !b.isPaid)
+      .filter((b) => !b.isPaid || isBillTbd(b))
       .map((b) => ({
         key: `bill-${b.account.id}-${b.year}-${b.month}`,
         bill: b,
@@ -61,7 +65,7 @@ export default function HomeScreen() {
           isOverdueOn(e.dueDay, year, month)
       )
       .map(dueEntry);
-    const bills = openBills.filter((b) => b.effDate < today);
+    const bills = openBills.filter((b) => !b.bill.isPaid && b.effDate < today);
     return sortBy([...entries, ...bills], "effDate");
   }, [expenses, getMonthStatus, resolveAmount, year, month, openBills]);
 
@@ -125,35 +129,36 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {expenses.length === 0 ? (
-        <EmptyState onAdd={() => router.push("/expense/add?type=regular")} />
-      ) : (
-        <HomeExpenseSections
-          overdue={overdue}
-          upcoming={upcoming}
-          recentlyPaid={recentlyPaid}
-          ListHeaderComponent={
-            <View>
-              <AppText variant="overline" className="px-5 pt-2 pb-1">
-                This Month
-              </AppText>
-              <KpiRow year={year} month={month} />
-              <View className="gap-2 mx-5 mt-3 mb-1">
-                <AppText variant="meta">Upcoming & paid within</AppText>
-                <DayWindowSelector value={windowDays} onChange={setWindowDays} />
-              </View>
+      <HomeExpenseSections
+        overdue={overdue}
+        upcoming={upcoming}
+        recentlyPaid={recentlyPaid}
+        refreshControl={refreshControl}
+        ListHeaderComponent={
+          <View>
+            <AppText variant="overline" className="px-5 pt-2 pb-1">
+              This Month
+            </AppText>
+            <KpiRow year={year} month={month} />
+            <View className="gap-2 mx-5 mt-3 mb-1">
+              <AppText variant="meta">Upcoming & paid within</AppText>
+              <DayWindowSelector value={windowDays} onChange={setWindowDays} />
             </View>
-          }
-          ListEmptyComponent={
+          </View>
+        }
+        ListEmptyComponent={
+          expenses.length === 0 ? (
+            <EmptyState onAdd={() => router.push("/expense/add?type=regular")} />
+          ) : (
             <View className="mx-5 mt-1 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-border">
               <Feather name="inbox" size={15} color={colors.textMuted} />
               <AppText variant="meta" className="shrink">
                 Nothing due or paid in the last/next {windowLabel(windowDays).toLowerCase()}
               </AppText>
             </View>
-          }
-        />
-      )}
+          )
+        }
+      />
     </SafeAreaView>
   );
 }

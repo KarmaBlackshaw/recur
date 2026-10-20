@@ -15,6 +15,7 @@ import { usePaidLedger, useBillPayments, useTransfers, type IncomeEntry } from "
 import type { FeatherIconName, TransactionKind } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
 import { AppChips } from "@/components/ui/AppChips";
 
@@ -51,6 +52,7 @@ function countLabel(count: number, singular: string, plural: string) {
 export default function ExpensesScreen() {
   const { loading } = useExpenses();
   const { isCharged, transactions } = useAccounts();
+  const refreshControl = useRefreshControl();
   const ledger = usePaidLedger();
   const billPayments = useBillPayments();
   const transfers = useTransfers();
@@ -175,6 +177,7 @@ export default function ExpensesScreen() {
       <DayGroupedExpenseList
         entries={entries}
         showDayTotals={segment !== "all"}
+        refreshControl={refreshControl}
         ListEmptyComponent={<EmptyState title={empty.title} icon={empty.icon} message={`${empty.message} ${monthLabel}`} />}
       />
     </SafeAreaView>

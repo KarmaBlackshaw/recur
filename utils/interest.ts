@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import type { InterestPeriod } from "@/types";
 
 const FORMAT = "YYYY-MM-DD";
-const PERIODS_PER_YEAR: Record<InterestPeriod, number> = { daily: 365, monthly: 12, yearly: 1 };
+export const PERIODS_PER_YEAR: Record<InterestPeriod, number> = { daily: 365, monthly: 12, yearly: 1 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -56,4 +56,8 @@ export function accrueInterest(a: {
     tax: round2(roundedGross - round2(net)),
     through: ends[ends.length - 1],
   };
+}
+
+export function netInterestPerPeriod(balance: number, rate: number, taxRate: number, period: InterestPeriod): number {
+  return ((Math.max(balance, 0) * rate) / 100 / PERIODS_PER_YEAR[period]) * (1 - taxRate / 100);
 }

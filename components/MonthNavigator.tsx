@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import { colors } from "@/constants/theme";
+import { AppButton } from "@/components/ui/AppButton";
 
 interface Props {
   year: number;
@@ -37,10 +38,22 @@ export function MonthNavigator({ year, month, onChange }: Props) {
     }
   }
 
-  const label = dayjs(new Date(year, month, 1)).format("MMMM YYYY");
+  const label = dayjs(new Date(year, month, 1)).format("MMM YYYY");
 
   return (
     <View className="flex-row items-center justify-between">
+      {!isCurrentMonth && (
+        <AppButton
+          label="Today"
+          variant="tonal"
+          size="sm"
+          onPress={resetToToday}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          className="mr-1"
+          accessibilityLabel="Back to current month"
+        />
+      )}
+
       <TouchableOpacity
         onPress={prevMonth}
         className="w-11 h-11 items-center justify-center"

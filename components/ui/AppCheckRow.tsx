@@ -14,7 +14,7 @@ interface Props {
 export function AppCheckRow({ label, description, checked, onToggle }: Props) {
   return (
     <TouchableOpacity
-      className="flex-row items-center gap-3 bg-surface border border-border rounded-xl px-3.5 py-3 mb-1 mt-1 min-h-[52px]"
+      className="flex-row items-center gap-3 bg-surface border border-border rounded-xl px-3.5 py-3 mb-1 mt-3 min-h-[52px]"
       onPress={() => onToggle(!checked)}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}

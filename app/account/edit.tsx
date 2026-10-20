@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -10,10 +10,15 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
+import { AppTabs } from "@/components/ui/AppTabs";
+import { AppDisclosureCard } from "@/components/ui/AppDisclosureCard";
 import { AccountCard } from "@/components/accounts/AccountCard";
-import { CardColorPicker, CardIconPicker, CardLogoPicker } from "@/components/accounts/CardStylePickers";
+import { CardColorPicker, CardIconPicker, CardLogoPicker, CardTemplatePicker } from "@/components/accounts/CardStylePickers";
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
+import { findBank, type BankId } from "@/constants/banks";
 import { colors } from "@/constants/theme";
+import { formatAmount } from "@/utils/dateHelpers";
+import { netInterestPerPeriod } from "@/utils/interest";
 import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod, type IoniconName } from "@/types";
 
 interface AccountFormValues {
@@ -29,7 +34,15 @@ interface AccountFormValues {
   color: string;
   icon: IoniconName;
   logoUri: string | null;
+  bank: BankId | null;
 }
+
+type CardStyleTab = "custom" | "template";
+
+const CARD_STYLE_TABS: { label: string; value: CardStyleTab }[] = [
+  { label: "Custom", value: "custom" },
+  { label: "Template", value: "template" },
+];
 
 const DEFAULT_ICON: Record<AccountType, IoniconName> = {
   debit: "wallet-outline",
@@ -47,6 +60,22 @@ const PERIOD_OPTIONS: { label: string; value: InterestPeriod }[] = [
   { label: "Monthly", value: "monthly" },
   { label: "Yearly", value: "yearly" },
 ];
+
+const SAMPLE_BALANCE = 10000;
+
+const PERIOD_UNIT: Record<InterestPeriod, string> = { daily: "day", monthly: "month", yearly: "year" };
+
+function formatInterestSummary(rate: string, period: InterestPeriod) {
+  const n = toNumber(rate);
+  if (n == null) {
+    return "Off";
+  }
+  if (isNaN(n)) {
+    return "Invalid rate";
+  }
+  const periodLabel = PERIOD_OPTIONS.find((option) => option.value === period)?.label;
+  return `${n}% · ${periodLabel}`;
+}
 
 function toText(value: number | null | undefined) {
   return value != null ? value.toString() : "";
@@ -97,6 +126,7 @@ function toFormValues(account: Account | undefined): AccountFormValues {
     color: account?.color ?? DEFAULT_CARD_COLOR,
     icon: account?.icon ?? DEFAULT_ICON[account?.type ?? "debit"],
     logoUri: account?.logoUri ?? null,
+    bank: account?.bank ?? null,
   };
 }
 
@@ -113,10 +143,13 @@ export default function EditAccountScreen() {
     watch,
     setValue,
     getFieldState,
-    formState: { isValid, isSubmitting },
+    formState: { isValid, isSubmitting, errors },
   } = useForm<AccountFormValues>({ mode: "onChange", defaultValues: toFormValues(editingAccount) });
 
+  const [isInterestOpen, setIsInterestOpen] = useState(editingAccount?.interestRate != null);
+  const [styleTab, setStyleTab] = useState<CardStyleTab>(editingAccount?.bank ? "template" : "custom");
   const type = watch("type");
+  const hasInterest = type === "debit" && toNumber(watch("interestRate")) != null;
   const values = watch();
   const openingBalance = toNumber(values.openingBalance);
   const previewAccount: Account = {
@@ -124,7 +157,7 @@ export default function EditAccountScreen() {
     name: values.name.trim() || "Account name",
     type,
     sortOrder: 0,
-    interestRate: type === "debit" ? toNumber(values.interestRate) : null,
+    interestRate: hasInterest ? toNumber(values.interestRate) : null,
     interestPeriod: values.interestPeriod,
     taxRate: null,
     interestAccruedThrough: null,
@@ -133,12 +166,37 @@ export default function EditAccountScreen() {
     dueDay: type === "credit" ? toNumber(values.dueDay) : null,
     color: values.color,
     icon: values.icon,
-    logoUri: values.logoUri,
+    ...cardStyle(values.logoUri, values.bank),
     createdAt: "",
   };
+  const hasInterestError = hasInterest && (errors.interestRate != null || errors.taxRate != null);
+  const interestSummary = formatInterestSummary(values.interestRate, values.interestPeriod);
+  const interestSummaryClassName = hasInterestError ? "text-overdue" : hasInterest ? "text-secondary" : "text-textMuted";
   const previewBalance = editingAccount
     ? accounts.getBalance(editingAccount.id)
     : openingBalance != null && !isNaN(openingBalance) ? openingBalance : 0;
+  const sampleBalance = previewBalance > 0 ? previewBalance : SAMPLE_BALANCE;
+  const sampleInterest =
+    hasInterest && !hasInterestError
+      ? netInterestPerPeriod(
+          sampleBalance,
+          toNumber(values.interestRate) ?? 0,
+          toNumber(values.taxRate) ?? 0,
+          values.interestPeriod
+        )
+      : null;
+
+  function cardStyle(logoUri: string | null, bank: BankId | null) {
+    return styleTab === "template" && bank ? { logoUri: null, bank } : { logoUri, bank: null };
+  }
+
+  function selectTemplate(bank: BankId | null, onChange: (value: BankId | null) => void) {
+    onChange(bank);
+    const template = findBank(bank);
+    if (template) {
+      setValue("color", template.color, { shouldDirty: true });
+    }
+  }
 
   function changeType(next: AccountType, onChange: (value: AccountType) => void) {
     onChange(next);
@@ -149,19 +207,20 @@ export default function EditAccountScreen() {
 
   const onSubmit = handleSubmit(async (data) => {
     const isDebit = data.type === "debit";
+    const earnsInterest = isDebit && toNumber(data.interestRate) != null;
     const isCredit = data.type === "credit";
     const input: AccountInput = {
       name: data.name.trim(),
       type: data.type,
-      interestRate: isDebit ? toNumber(data.interestRate) : null,
-      interestPeriod: isDebit ? data.interestPeriod : null,
-      taxRate: isDebit ? toNumber(data.taxRate) : null,
+      interestRate: earnsInterest ? toNumber(data.interestRate) : null,
+      interestPeriod: earnsInterest ? data.interestPeriod : null,
+      taxRate: earnsInterest ? toNumber(data.taxRate) : null,
       creditLimit: isCredit ? toNumber(data.creditLimit) : null,
       statementDay: isCredit ? toNumber(data.statementDay) : null,
       dueDay: isCredit ? toNumber(data.dueDay) : null,
       color: data.color,
       icon: data.icon,
-      logoUri: data.logoUri,
+      ...cardStyle(data.logoUri, data.bank),
     };
     try {
       if (editingAccount) {
@@ -281,7 +340,14 @@ export default function EditAccountScreen() {
         )}
 
         {type === "debit" && (
-          <>
+          <AppDisclosureCard
+            title="Interest"
+            description="Track interest credited and tax withheld"
+            summary={interestSummary}
+            summaryClassName={interestSummaryClassName}
+            isOpen={isInterestOpen}
+            onToggle={setIsInterestOpen}
+          >
             <Controller
               control={control}
               name="interestRate"
@@ -321,7 +387,12 @@ export default function EditAccountScreen() {
                 />
               )}
             />
-          </>
+            {sampleInterest != null && (
+              <AppText variant="meta" className="mt-3">
+                ≈ {formatAmount(sampleInterest)}/{PERIOD_UNIT[values.interestPeriod]} on {formatAmount(sampleBalance)} after tax
+              </AppText>
+            )}
+          </AppDisclosureCard>
         )}
 
         {type === "credit" && (
@@ -379,21 +450,34 @@ export default function EditAccountScreen() {
           </>
         )}
 
-        <Controller
-          control={control}
-          name="color"
-          render={({ field: { value, onChange } }) => <CardColorPicker value={value} onChange={onChange} />}
-        />
-        <Controller
-          control={control}
-          name="icon"
-          render={({ field: { value, onChange } }) => <CardIconPicker value={value} onChange={onChange} />}
-        />
-        <Controller
-          control={control}
-          name="logoUri"
-          render={({ field: { value, onChange } }) => <CardLogoPicker value={value} onChange={onChange} />}
-        />
+        <AppTabs tabs={CARD_STYLE_TABS} value={styleTab} onChange={setStyleTab} className="mt-4 mb-4" />
+        {styleTab === "custom" ? (
+          <>
+            <Controller
+              control={control}
+              name="color"
+              render={({ field: { value, onChange } }) => <CardColorPicker value={value} onChange={onChange} />}
+            />
+            <Controller
+              control={control}
+              name="icon"
+              render={({ field: { value, onChange } }) => <CardIconPicker value={value} onChange={onChange} />}
+            />
+            <Controller
+              control={control}
+              name="logoUri"
+              render={({ field: { value, onChange } }) => <CardLogoPicker value={value} onChange={onChange} />}
+            />
+          </>
+        ) : (
+          <Controller
+            control={control}
+            name="bank"
+            render={({ field: { value, onChange } }) => (
+              <CardTemplatePicker value={value} onChange={(bank) => selectTemplate(bank, onChange)} />
+            )}
+          />
+        )}
 
         <AppButton
           label={isEditing ? "Save Changes" : "Save Account"}

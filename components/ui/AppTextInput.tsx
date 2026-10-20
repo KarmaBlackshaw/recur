@@ -15,7 +15,7 @@ interface AppTextInputProps extends TextInputProps {
 export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
   function AppTextInput({ label, error, multiline, isAmount, value, onChangeText, className = "", ...props }, ref) {
     return (
-      <View>
+      <View className={label ? undefined : "mt-3"}>
         {label && (
           <AppLabel>
             {label}

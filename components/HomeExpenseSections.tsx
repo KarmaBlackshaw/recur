@@ -48,6 +48,7 @@ interface Props {
   recentlyPaid: LedgerEntry[];
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
+  refreshControl?: React.ComponentProps<typeof SectionList>["refreshControl"];
 }
 
 export function HomeExpenseSections({
@@ -56,6 +57,7 @@ export function HomeExpenseSections({
   recentlyPaid,
   ListHeaderComponent,
   ListEmptyComponent,
+  refreshControl,
 }: Props) {
   const billSheetRef = useRef<CardBillSheetRef>(null);
   const sections = useMemo<HomeSection[]>(() => {
@@ -105,6 +107,7 @@ export function HomeExpenseSections({
         keyExtractor={(item) => item.key}
         ListHeaderComponent={ListHeaderComponent}
         ListEmptyComponent={ListEmptyComponent}
+        refreshControl={refreshControl}
         renderItem={({ item, index }) =>
           "bill" in item ? (
             <CardBillRow bill={item.bill} onPress={() => billSheetRef.current?.present(item.bill)} />

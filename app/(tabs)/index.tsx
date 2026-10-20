@@ -19,10 +19,12 @@ import { isOverdueOn, getDueDate, getDueDateForMonth, getGreeting, getFormattedD
 import { usePaidLedger, useBillPayments } from "@/utils/usePaidLedger";
 import { isBillTbd } from "@/utils/cardBills";
 import { colors } from "@/constants/theme";
+import { useRefreshControl } from "@/utils/useRefreshControl";
 
 export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus, resolveAmount } = useExpenses();
   const accounts = useAccounts();
+  const refreshControl = useRefreshControl();
   const ledger = usePaidLedger();
   const billPayments = useBillPayments();
   const [windowDays, setWindowDays] = useState<DayWindow>(7);
@@ -134,6 +136,7 @@ export default function HomeScreen() {
           overdue={overdue}
           upcoming={upcoming}
           recentlyPaid={recentlyPaid}
+          refreshControl={refreshControl}
           ListHeaderComponent={
             <View>
               <AppText variant="overline" className="px-5 pt-2 pb-1">

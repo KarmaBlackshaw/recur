@@ -97,6 +97,7 @@ interface AccountContextValue {
     fallbackAccountId: string | null | undefined
   ) => boolean;
   reload: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const AccountContext = createContext<AccountContextValue | null>(null);
@@ -166,6 +167,11 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     } finally {
       isRunningInterest.current = false;
     }
+  });
+
+  const refresh = useMemoizedFn(async () => {
+    await runInterest();
+    await reload();
   });
 
   useAsyncEffect(async function* () {
@@ -521,6 +527,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       isCardAccount,
       isCardCharge,
       reload,
+      refresh,
     }),
     [state, netWorth, getCardBills, isCharged, isCardAccount, isCardCharge]
   );

@@ -4,10 +4,12 @@ import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 
 type Variant = "primary" | "tonal" | "ghost" | "destructive";
+type Size = "md" | "sm";
 
 interface AppButtonProps extends TouchableOpacityProps {
   label: string;
   variant?: Variant;
+  size?: Size;
   loading?: boolean;
 }
 
@@ -18,20 +20,27 @@ const VARIANT: Record<Variant, { container: string; text: string; spinner: strin
   destructive: { container: "border border-overdue/40 bg-overdue/10",    text: "text-overdue",       spinner: colors.overdue },
 };
 
+const SIZE: Record<Size, { container: string; text: string }> = {
+  md: { container: "rounded-xl min-h-[52px] px-4", text: "text-sm" },
+  sm: { container: "rounded-full h-7 px-3", text: "text-xs" },
+};
+
 export function AppButton({
   label,
   variant = "primary",
+  size = "md",
   disabled,
   loading = false,
   className = "",
   ...props
 }: AppButtonProps) {
   const v = VARIANT[variant];
+  const sz = SIZE[size];
   const isInactive = Boolean(disabled) || loading;
 
   return (
     <TouchableOpacity
-      className={`rounded-xl min-h-[52px] px-4 items-center justify-center ${v.container} ${disabled ? "opacity-40" : ""} ${className}`}
+      className={`${sz.container} items-center justify-center ${v.container} ${disabled ? "opacity-40" : ""} ${className}`}
       disabled={isInactive}
       activeOpacity={0.8}
       accessibilityRole="button"
@@ -42,7 +51,7 @@ export function AppButton({
       {loading ? (
         <ActivityIndicator color={v.spinner} />
       ) : (
-        <AppText variant="body-bold" className={`text-sm ${v.text}`}>{label}</AppText>
+        <AppText variant="body-bold" className={`${sz.text} ${v.text}`}>{label}</AppText>
       )}
     </TouchableOpacity>
   );

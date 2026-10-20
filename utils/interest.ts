@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import type { InterestPeriod } from "@/types";
 
 const FORMAT = "YYYY-MM-DD";
-const PERIODS_PER_YEAR: Record<InterestPeriod, number> = { daily: 365, monthly: 12, yearly: 1 };
+export const PERIODS_PER_YEAR: Record<InterestPeriod, number> = { daily: 365, monthly: 12, yearly: 1 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 

@@ -59,6 +59,17 @@ export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   cash: 'Cash',
 };
 
+export interface InterestEstimate {
+  amount: number;
+  period: InterestPeriod;
+}
+
+export const INTEREST_PERIOD_UNIT: Record<InterestPeriod, { short: string; long: string }> = {
+  daily: { short: 'day', long: 'day' },
+  monthly: { short: 'mo', long: 'month' },
+  yearly: { short: 'yr', long: 'year' },
+};
+
 export const TRANSACTION_KIND_LABEL: Record<TransactionKind, string> = {
   payment: 'Payment',
   interest: 'Interest',

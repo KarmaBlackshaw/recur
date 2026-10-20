@@ -24,7 +24,7 @@ export function AppRadioGroup<T extends string>({
   className = "",
 }: AppRadioGroupProps<T>) {
   return (
-    <View className={className}>
+    <View className={`${label ? "" : "mt-3"} ${className}`}>
       {label && (
         <AppLabel>
           {label}

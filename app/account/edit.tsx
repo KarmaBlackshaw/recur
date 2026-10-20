@@ -11,11 +11,14 @@ import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppTabs } from "@/components/ui/AppTabs";
+import { AppDisclosureCard } from "@/components/ui/AppDisclosureCard";
 import { AccountCard } from "@/components/accounts/AccountCard";
 import { CardColorPicker, CardIconPicker, CardLogoPicker, CardTemplatePicker } from "@/components/accounts/CardStylePickers";
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
 import { findBank, type BankId } from "@/constants/banks";
 import { colors } from "@/constants/theme";
+import { formatAmount } from "@/utils/dateHelpers";
+import { netInterestPerPeriod } from "@/utils/interest";
 import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod, type IoniconName } from "@/types";
 
 interface AccountFormValues {
@@ -57,6 +60,22 @@ const PERIOD_OPTIONS: { label: string; value: InterestPeriod }[] = [
   { label: "Monthly", value: "monthly" },
   { label: "Yearly", value: "yearly" },
 ];
+
+const SAMPLE_BALANCE = 10000;
+
+const PERIOD_UNIT: Record<InterestPeriod, string> = { daily: "day", monthly: "month", yearly: "year" };
+
+function formatInterestSummary(rate: string, period: InterestPeriod) {
+  const n = toNumber(rate);
+  if (n == null) {
+    return "Off";
+  }
+  if (isNaN(n)) {
+    return "Invalid rate";
+  }
+  const periodLabel = PERIOD_OPTIONS.find((option) => option.value === period)?.label;
+  return `${n}% · ${periodLabel}`;
+}
 
 function toText(value: number | null | undefined) {
   return value != null ? value.toString() : "";
@@ -124,11 +143,13 @@ export default function EditAccountScreen() {
     watch,
     setValue,
     getFieldState,
-    formState: { isValid, isSubmitting },
+    formState: { isValid, isSubmitting, errors },
   } = useForm<AccountFormValues>({ mode: "onChange", defaultValues: toFormValues(editingAccount) });
 
+  const [isInterestOpen, setIsInterestOpen] = useState(editingAccount?.interestRate != null);
   const [styleTab, setStyleTab] = useState<CardStyleTab>(editingAccount?.bank ? "template" : "custom");
   const type = watch("type");
+  const hasInterest = type === "debit" && toNumber(watch("interestRate")) != null;
   const values = watch();
   const openingBalance = toNumber(values.openingBalance);
   const previewAccount: Account = {
@@ -136,7 +157,7 @@ export default function EditAccountScreen() {
     name: values.name.trim() || "Account name",
     type,
     sortOrder: 0,
-    interestRate: type === "debit" ? toNumber(values.interestRate) : null,
+    interestRate: hasInterest ? toNumber(values.interestRate) : null,
     interestPeriod: values.interestPeriod,
     taxRate: null,
     interestAccruedThrough: null,
@@ -148,9 +169,22 @@ export default function EditAccountScreen() {
     ...cardStyle(values.logoUri, values.bank),
     createdAt: "",
   };
+  const hasInterestError = hasInterest && (errors.interestRate != null || errors.taxRate != null);
+  const interestSummary = formatInterestSummary(values.interestRate, values.interestPeriod);
+  const interestSummaryClassName = hasInterestError ? "text-overdue" : hasInterest ? "text-secondary" : "text-textMuted";
   const previewBalance = editingAccount
     ? accounts.getBalance(editingAccount.id)
     : openingBalance != null && !isNaN(openingBalance) ? openingBalance : 0;
+  const sampleBalance = previewBalance > 0 ? previewBalance : SAMPLE_BALANCE;
+  const sampleInterest =
+    hasInterest && !hasInterestError
+      ? netInterestPerPeriod(
+          sampleBalance,
+          toNumber(values.interestRate) ?? 0,
+          toNumber(values.taxRate) ?? 0,
+          values.interestPeriod
+        )
+      : null;
 
   function cardStyle(logoUri: string | null, bank: BankId | null) {
     return styleTab === "template" && bank ? { logoUri: null, bank } : { logoUri, bank: null };
@@ -173,13 +207,14 @@ export default function EditAccountScreen() {
 
   const onSubmit = handleSubmit(async (data) => {
     const isDebit = data.type === "debit";
+    const earnsInterest = isDebit && toNumber(data.interestRate) != null;
     const isCredit = data.type === "credit";
     const input: AccountInput = {
       name: data.name.trim(),
       type: data.type,
-      interestRate: isDebit ? toNumber(data.interestRate) : null,
-      interestPeriod: isDebit ? data.interestPeriod : null,
-      taxRate: isDebit ? toNumber(data.taxRate) : null,
+      interestRate: earnsInterest ? toNumber(data.interestRate) : null,
+      interestPeriod: earnsInterest ? data.interestPeriod : null,
+      taxRate: earnsInterest ? toNumber(data.taxRate) : null,
       creditLimit: isCredit ? toNumber(data.creditLimit) : null,
       statementDay: isCredit ? toNumber(data.statementDay) : null,
       dueDay: isCredit ? toNumber(data.dueDay) : null,
@@ -305,7 +340,14 @@ export default function EditAccountScreen() {
         )}
 
         {type === "debit" && (
-          <>
+          <AppDisclosureCard
+            title="Interest"
+            description="Track interest credited and tax withheld"
+            summary={interestSummary}
+            summaryClassName={interestSummaryClassName}
+            isOpen={isInterestOpen}
+            onToggle={setIsInterestOpen}
+          >
             <Controller
               control={control}
               name="interestRate"
@@ -345,7 +387,12 @@ export default function EditAccountScreen() {
                 />
               )}
             />
-          </>
+            {sampleInterest != null && (
+              <AppText variant="meta" className="mt-3">
+                ≈ {formatAmount(sampleInterest)}/{PERIOD_UNIT[values.interestPeriod]} on {formatAmount(sampleBalance)} after tax
+              </AppText>
+            )}
+          </AppDisclosureCard>
         )}
 
         {type === "credit" && (

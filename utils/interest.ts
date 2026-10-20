@@ -57,3 +57,7 @@ export function accrueInterest(a: {
     through: ends[ends.length - 1],
   };
 }
+
+export function netInterestPerPeriod(balance: number, rate: number, taxRate: number, period: InterestPeriod): number {
+  return ((Math.max(balance, 0) * rate) / 100 / PERIODS_PER_YEAR[period]) * (1 - taxRate / 100);
+}

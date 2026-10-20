@@ -6,12 +6,12 @@ import useMemoizedFn from "ahooks/es/useMemoizedFn";
 import round from "lodash/round";
 import { saveAccountLogo } from "@/utils/accountLogo/saveAccountLogo";
 import { deleteAccountLogo } from "@/utils/accountLogo/deleteAccountLogo";
-import type { Account, AccountInput, AccountTransaction, CardBill, CardBillOverride, IncomeInput } from "@/types";
+import type { Account, AccountInput, AccountTransaction, CardBill, CardBillOverride, IncomeInput, InterestEstimate } from "@/types";
 import * as accountsDB from "@/db/accounts";
 import * as transactionsDB from "@/db/accountTransactions";
 import * as cardBillsDB from "@/db/cardBills";
 import { touchCategory } from "@/db/categories";
-import { accrueInterest } from "@/utils/interest";
+import { accrueInterest, PERIODS_PER_YEAR } from "@/utils/interest";
 import { computeBill, unsettledDebitIds } from "@/utils/cardBills";
 
 interface State {
@@ -74,7 +74,7 @@ interface AccountContextValue {
   isLoading: boolean;
   getBalance: (accountId: string) => number;
   netWorth: { assets: number; owed: number; net: number };
-  monthlyInterestEstimate: (account: Account) => number;
+  interestEstimate: (account: Account) => InterestEstimate | null;
   addAccount: (input: AccountInput, openingBalance: number) => Promise<Account>;
   updateAccount: (id: string, input: AccountInput) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
@@ -218,12 +218,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     return { assets: round(assets, 2), owed: round(owed, 2), net: round(assets - owed, 2) };
   }, [state.accounts, balances]);
 
-  const monthlyInterestEstimate = useMemoizedFn((account: Account) => {
+  const interestEstimate = useMemoizedFn((account: Account) => {
     const balance = getBalance(account.id);
-    if (account.type !== "debit" || !account.interestRate || balance <= 0) {
-      return 0;
+    const period = account.interestPeriod;
+    if (account.type !== "debit" || !account.interestRate || !period || balance <= 0) {
+      return null;
     }
-    return round(((balance * account.interestRate) / 100 / 12) * (1 - (account.taxRate ?? 0) / 100), 2);
+    const amount = round(((balance * account.interestRate) / 100 / PERIODS_PER_YEAR[period]) * (1 - (account.taxRate ?? 0) / 100), 2);
+    return amount > 0 ? { amount, period } : null;
   });
 
   const addAccount = useMemoizedFn(async (input: AccountInput, openingBalance: number) => {
@@ -501,7 +503,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       isLoading: state.isLoading,
       getBalance,
       netWorth,
-      monthlyInterestEstimate,
+      interestEstimate,
       addAccount,
       updateAccount,
       deleteAccount,

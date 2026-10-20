@@ -6,8 +6,10 @@ import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BillPaymentRow } from "@/components/accounts/BillPaymentRow";
 import { IncomeRow } from "@/components/accounts/IncomeRow";
 import { TransferRow } from "@/components/accounts/TransferRow";
+import { LoanActivityRow } from "@/components/loans/LoanActivityRow";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
 import type { BillPaymentEntry, IncomeEntry, TransferEntry } from "@/utils/usePaidLedger";
+import type { LoanActivityEntry } from "@/utils/useLoanActivity";
 import type { Expense } from "@/types";
 
 // A single row in a day-grouped list. `effDate` decides which day bucket it lands
@@ -24,7 +26,7 @@ export interface DayEntry {
 }
 
 export type LedgerEntry = DayEntry | BillPaymentEntry;
-export type ActivityEntry = LedgerEntry | IncomeEntry | TransferEntry;
+export type ActivityEntry = LedgerEntry | IncomeEntry | TransferEntry | LoanActivityEntry;
 
 interface DaySection {
   key: string;
@@ -68,6 +70,9 @@ export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals =
         }
         if ("transfer" in item) {
           return <TransferRow entry={item} />;
+        }
+        if ("loanTxn" in item) {
+          return <LoanActivityRow entry={item} />;
         }
         return "expense" in item ? (
           <ExpenseCard

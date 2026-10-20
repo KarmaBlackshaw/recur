@@ -15,6 +15,7 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import * as Notifications from "expo-notifications";
 import { ExpenseProvider } from "@/context/ExpenseContext";
 import { AccountProvider } from "@/context/AccountContext";
+import { LoanProvider } from "@/context/LoanContext";
 import { colors } from "@/constants/theme";
 import { requestPermissions } from "@/utils/notifications";
 import { getPreference, setPreference } from "@/db/preferences";
@@ -69,16 +70,18 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AccountProvider>
-          <ExpenseProvider>
-            <BottomSheetModalProvider>
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: colors.background },
-                }}
-              />
-            </BottomSheetModalProvider>
-          </ExpenseProvider>
+          <LoanProvider>
+            <ExpenseProvider>
+              <BottomSheetModalProvider>
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.background },
+                  }}
+                />
+              </BottomSheetModalProvider>
+            </ExpenseProvider>
+          </LoanProvider>
         </AccountProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

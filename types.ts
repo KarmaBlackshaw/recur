@@ -51,7 +51,7 @@ export interface MonthStatus {
 
 export type AccountType = 'debit' | 'credit' | 'cash';
 export type InterestPeriod = 'daily' | 'monthly' | 'yearly';
-export type TransactionKind = 'payment' | 'interest' | 'tax' | 'transfer' | 'fee' | 'adjust' | 'income';
+export type TransactionKind = 'payment' | 'interest' | 'tax' | 'transfer' | 'fee' | 'adjust' | 'income' | 'loan_out' | 'loan_in';
 
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   debit: 'Debit account',
@@ -78,7 +78,44 @@ export const TRANSACTION_KIND_LABEL: Record<TransactionKind, string> = {
   fee: 'Transfer fee',
   adjust: 'Adjustment',
   income: 'Income',
+  loan_out: 'Loan out',
+  loan_in: 'Loan repayment',
 };
+
+export type TLoanInterest =
+  | { type: 'none' }
+  | { type: 'fixed'; amount: number }
+  | { type: 'percent_once' | 'monthly_principal' | 'monthly_balance'; rate: number };
+
+export type TLoanInterestType = TLoanInterest['type'];
+
+export const LOAN_INTEREST_TYPE_LABEL: Record<TLoanInterestType, string> = {
+  none: 'None',
+  fixed: 'Fixed amount',
+  percent_once: '% once',
+  monthly_principal: '% monthly (original)',
+  monthly_balance: '% monthly (remaining)',
+};
+
+export interface Loan {
+  id: string;
+  borrower: string;
+  principal: number;
+  accountId: string;
+  lentAt: string;
+  interest: TLoanInterest;
+  note: string | null;
+  createdAt: string;
+}
+
+export type LoanInput = Omit<Loan, 'id' | 'createdAt'>;
+
+export interface LoanPaymentInput {
+  loanId: string;
+  accountId: string;
+  amount: number;
+  paidAt: string;
+}
 
 export interface Account {
   id: string;
@@ -121,6 +158,7 @@ export interface AccountTransaction {
   transferId: string | null;
   note: string | null;
   category: string | null;
+  loanId: string | null;
   createdAt: string;
 }
 

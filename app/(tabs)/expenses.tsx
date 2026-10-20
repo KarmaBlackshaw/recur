@@ -12,6 +12,7 @@ import { MonthNavigator } from "@/components/MonthNavigator";
 import { DayGroupedExpenseList, type LedgerEntry, type ActivityEntry } from "@/components/DayGroupedExpenseList";
 import { formatAmount } from "@/utils/dateHelpers";
 import { usePaidLedger, useBillPayments, useTransfers, type IncomeEntry } from "@/utils/usePaidLedger";
+import { useLoanActivity, type LoanActivityEntry } from "@/utils/useLoanActivity";
 import type { FeatherIconName, TransactionKind } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -56,6 +57,7 @@ export default function ExpensesScreen() {
   const ledger = usePaidLedger();
   const billPayments = useBillPayments();
   const transfers = useTransfers();
+  const loanActivity = useLoanActivity();
   const params = useLocalSearchParams<{ segment?: Segment }>();
   const segment = SEGMENTS.find(({ value }) => value === params.segment)?.value ?? "all";
   const today = dayjs().startOf("day").toDate();
@@ -65,17 +67,25 @@ export default function ExpensesScreen() {
     const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
     const monthLedger = ledger.filter(isInMonth);
     const cardItems = monthLedger.filter((it) => it.isCard);
-    const paid: LedgerEntry[] = orderBy(
-      [...monthLedger.filter((it) => !it.isCard).map((it) => ({ ...it, compact: true })), ...billPayments.filter(isInMonth)],
+    const monthLoans = loanActivity.filter(isInMonth);
+    const paid: (LedgerEntry | LoanActivityEntry)[] = orderBy(
+      [
+        ...monthLedger.filter((it) => !it.isCard).map((it) => ({ ...it, compact: true })),
+        ...billPayments.filter(isInMonth),
+        ...monthLoans.filter(({ loanTxn }) => loanTxn.kind === "loan_out"),
+      ],
       "effDate",
       "desc"
     );
     const charged: LedgerEntry[] = cardItems.map((it) => ({ ...it, compact: true }));
-    const income: IncomeEntry[] = orderBy(
-      transactions
-        .filter((t) => t.kind === "income")
-        .map((t) => ({ key: t.id, income: t, effDate: new Date(t.createdAt), amount: t.amount }))
-        .filter(isInMonth),
+    const income: (IncomeEntry | LoanActivityEntry)[] = orderBy(
+      [
+        ...transactions
+          .filter((t) => t.kind === "income")
+          .map((t) => ({ key: t.id, income: t, effDate: new Date(t.createdAt), amount: t.amount }))
+          .filter(isInMonth),
+        ...monthLoans.filter(({ loanTxn }) => loanTxn.kind === "loan_in"),
+      ],
       "effDate",
       "desc"
     );
@@ -104,7 +114,7 @@ export default function ExpensesScreen() {
       transfers: monthTransfers,
     };
     return { byFilter, notPaidOff, fees, interest, tax };
-  }, [ledger, billPayments, transfers, transactions, isCharged, year, month]);
+  }, [ledger, billPayments, transfers, loanActivity, transactions, isCharged, year, month]);
 
   const entries = byFilter[segment];
   const moneyIn = sumBy(byFilter.income, "amount") + interest;

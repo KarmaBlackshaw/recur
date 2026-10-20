@@ -8,10 +8,20 @@ import { getAll as getAllAccounts, insertWithId as insertAccountWithId } from '@
 import { getAll as getAllTransactions, insertWithId as insertTransactionWithId } from '@/db/accountTransactions';
 import { getAll as getAllMonths, insertOrIgnore as insertMonth } from '@/db/expenseMonths';
 import { getAll as getAllCardBills, insertOrIgnore as insertCardBill } from '@/db/cardBills';
-import type { Account, AccountTransaction, CardBillOverride, Expense, MonthStatus } from '@/types';
+import { getAll as getAllLoans, insertWithId as insertLoanWithId } from '@/db/loans';
+import {
+  TRANSACTION_KIND_LABEL,
+  LOAN_INTEREST_TYPE_LABEL,
+  type Account,
+  type AccountTransaction,
+  type CardBillOverride,
+  type Expense,
+  type Loan,
+  type MonthStatus,
+} from '@/types';
 
 interface BackupFile {
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   exportedAt: string;
   expenses: Expense[];
   categories: string[];
@@ -20,6 +30,7 @@ interface BackupFile {
   transactions?: AccountTransaction[];
   months?: MonthStatus[];
   cardBills?: CardBillOverride[];
+  loans?: Loan[];
 }
 
 const REQUIRED_EXPENSE_FIELDS: (keyof Expense)[] = [
@@ -33,7 +44,8 @@ const REQUIRED_EXPENSE_FIELDS: (keyof Expense)[] = [
 ];
 
 const ACCOUNT_TYPES = ['debit', 'credit', 'cash'];
-const TRANSACTION_KINDS = ['payment', 'interest', 'tax', 'transfer', 'fee', 'adjust', 'income'];
+const TRANSACTION_KINDS = Object.keys(TRANSACTION_KIND_LABEL);
+const LOAN_INTEREST_TYPES = Object.keys(LOAN_INTEREST_TYPE_LABEL);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -60,6 +72,31 @@ function isValidTransaction(value: unknown): boolean {
     typeof value.amount === 'number' &&
     typeof value.createdAt === 'string'
   );
+}
+
+function isValidLoan(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== 'string' ||
+    typeof value.borrower !== 'string' ||
+    typeof value.accountId !== 'string' ||
+    typeof value.lentAt !== 'string' ||
+    typeof value.createdAt !== 'string' ||
+    typeof value.principal !== 'number' ||
+    !isRecord(value.interest) ||
+    typeof value.interest.type !== 'string' ||
+    !LOAN_INTEREST_TYPES.includes(value.interest.type)
+  ) {
+    return false;
+  }
+  const { type } = value.interest;
+  if (type === 'fixed') {
+    return typeof value.interest.amount === 'number';
+  }
+  if (type === 'none') {
+    return true;
+  }
+  return typeof value.interest.rate === 'number';
 }
 
 function isValidMonth(value: unknown): boolean {
@@ -90,9 +127,10 @@ export async function exportBackup(): Promise<void> {
   const transactions = await getAllTransactions();
   const months = await getAllMonths();
   const cardBills = await getAllCardBills();
+  const loans = await getAllLoans();
 
   const backup: BackupFile = {
-    version: 3,
+    version: 4,
     exportedAt: new Date().toISOString(),
     expenses,
     categories,
@@ -101,6 +139,7 @@ export async function exportBackup(): Promise<void> {
     transactions,
     months,
     cardBills,
+    loans,
   };
 
   const dateSlug = new Date().toISOString().slice(0, 10);
@@ -140,7 +179,7 @@ export async function importBackup(): Promise<{ added: number; skipped: number }
 
   const backup = parsed as Partial<BackupFile>;
 
-  if (backup.version !== 1 && backup.version !== 2 && backup.version !== 3) {
+  if (backup.version !== 1 && backup.version !== 2 && backup.version !== 3 && backup.version !== 4) {
     throw new Error('Unsupported backup version.');
   }
 
@@ -167,6 +206,11 @@ export async function importBackup(): Promise<{ added: number; skipped: number }
     !backupAccounts.every(isValidAccount) ||
     !backupTransactions.every(isValidTransaction)
   ) {
+    throw new Error('Backup file is corrupted — missing required fields.');
+  }
+
+  const backupLoans = backup.loans ?? [];
+  if (!Array.isArray(backupLoans) || !backupLoans.every(isValidLoan)) {
     throw new Error('Backup file is corrupted — missing required fields.');
   }
 
@@ -224,6 +268,9 @@ export async function importBackup(): Promise<{ added: number; skipped: number }
 
   for (const account of backupAccounts) {
     await insertAccountWithId(account);
+  }
+  for (const loan of backupLoans) {
+    await insertLoanWithId(loan);
   }
   for (const transaction of backupTransactions) {
     if (knownAccountIds.has(transaction.accountId)) {

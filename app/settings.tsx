@@ -15,6 +15,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
+import { useLoans } from "@/context/LoanContext";
 import { seedRecurring, seedOneOff, clearRecurring, clearOneOff } from "@/db/seed";
 import { colors } from "@/constants/theme";
 
@@ -23,6 +24,7 @@ const version = Constants.expoConfig?.version ?? "—";
 export default function SettingsScreen() {
   const { userName, reloadAll, expenses, rescheduleNotifications } = useExpenses();
   const accounts = useAccounts();
+  const loans = useLoans();
   const unpaidItems = [
     ...expenses.filter((e) => e.status === 'unpaid'),
     ...getUnpaidBillReminders(accounts.getCardBills, new Date()),
@@ -94,6 +96,7 @@ export default function SettingsScreen() {
       }
       await reloadAll();
       await accounts.reload();
+      await loans.reload();
       Alert.alert("Import Complete", `${result.added} added, ${result.skipped} skipped (already exist).`);
     } catch (e: unknown) {
       Alert.alert("Import Failed", e instanceof Error ? e.message : "An error occurred.");

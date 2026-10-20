@@ -111,8 +111,8 @@ function isPaymentFor(expenseId: string, cycleYear: number | null, cycleMonth: n
     t.kind === "payment" && t.expenseId === expenseId && t.cycleYear === cycleYear && t.cycleMonth === cycleMonth;
 }
 
-function emptyTxnFields(): Pick<AccountTransaction, "expenseId" | "cycleYear" | "cycleMonth" | "transferId" | "category"> {
-  return { expenseId: null, cycleYear: null, cycleMonth: null, transferId: null, category: null };
+function emptyTxnFields(): Pick<AccountTransaction, "expenseId" | "cycleYear" | "cycleMonth" | "transferId" | "category" | "loanId"> {
+  return { expenseId: null, cycleYear: null, cycleMonth: null, transferId: null, category: null, loanId: null };
 }
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {

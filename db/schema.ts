@@ -276,7 +276,8 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       created_at        TEXT NOT NULL,
       color             TEXT,
       icon              TEXT,
-      logo_uri          TEXT
+      logo_uri          TEXT,
+      bank              TEXT
     );
   `);
   const accountCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(accounts)");
@@ -284,6 +285,9 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
     await db.execAsync("ALTER TABLE accounts ADD COLUMN color TEXT");
     await db.execAsync("ALTER TABLE accounts ADD COLUMN icon TEXT");
     await db.execAsync("ALTER TABLE accounts ADD COLUMN logo_uri TEXT");
+  }
+  if (!accountCols.some((c) => c.name === "bank")) {
+    await db.execAsync("ALTER TABLE accounts ADD COLUMN bank TEXT");
   }
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS account_transactions (

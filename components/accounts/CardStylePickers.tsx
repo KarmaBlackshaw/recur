@@ -5,6 +5,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { CARD_COLORS } from "@/constants/cardColors";
+import { BANKS, type BankId } from "@/constants/banks";
 import { colors } from "@/constants/theme";
 import { resolveAccountLogo } from "@/utils/accountLogo/resolveAccountLogo";
 import type { IoniconName } from "@/types";
@@ -74,6 +75,31 @@ export function CardIconPicker({ value, onChange }: PickerProps<IoniconName>) {
           );
         })}
       </View>
+    </View>
+  );
+}
+
+export function CardTemplatePicker({ value, onChange }: PickerProps<BankId | null>) {
+  return (
+    <View className="mb-4 flex-row flex-wrap gap-3">
+      {BANKS.map(({ id, name, Logo }) => {
+        const isSelected = id === value;
+        return (
+          <TouchableOpacity
+            key={id}
+            onPress={() => onChange(isSelected ? null : id)}
+            className="w-16 items-center gap-1"
+            accessibilityRole="radio"
+            accessibilityState={{ selected: isSelected }}
+            accessibilityLabel={name}
+          >
+            <View className={`size-14 rounded-xl items-center justify-center bg-white ${isSelected ? "border-2 border-primary" : ""}`}>
+              <Logo width={36} height={36} />
+            </View>
+            <AppText variant="meta" className={isSelected ? "text-white" : ""} numberOfLines={1}>{name}</AppText>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }

@@ -90,6 +90,11 @@ export default function AddExpenseScreen() {
 
   const isVariableWatched = watch("isVariable");
   const hasEndDateWatched = watch("hasEndDate");
+  const accountIdWatched = watch("accountId");
+  const payCard = isRegular
+    ? undefined
+    : accounts.find((a) => a.id === accountIdWatched && a.type === "credit");
+  const isVariableAmount = !!payCard || isVariableWatched;
 
   React.useEffect(() => {
     if (
@@ -128,7 +133,7 @@ export default function AddExpenseScreen() {
   }, [editingExpense?.id]);
 
   const onSubmit = handleSubmit(async (data) => {
-    const isVar = isRegular ? false : data.isVariable;
+    const isVar = isRegular ? false : !!payCard || data.isVariable;
     const parsedAmount = data.amount.trim() !== "" ? parseFloat(data.amount) : null;
     const endActive = !isRegular && data.hasEndDate;
     const endParsed = endActive ? dayjs(data.endDate).toDate() : null;
@@ -137,12 +142,12 @@ export default function AddExpenseScreen() {
       name: "",
       amount: isVar ? null : parsedAmount,
       category: data.category,
-      dueDay: isRegular ? 1 : parseInt(data.dueDay, 10),
+      dueDay: isRegular ? 1 : payCard ? payCard.dueDay ?? 1 : parseInt(data.dueDay, 10),
       recurrence: isRegular ? "one-off" : data.recurrence,
       isVariable: isVar,
       status: editingExpense?.status ?? "unpaid",
       notes: data.notes.trim() || undefined,
-      reminderDaysBefore: isRegular ? null : (data.reminderDaysBefore.trim() === '' ? null : parseInt(data.reminderDaysBefore, 10)),
+      reminderDaysBefore: isRegular || payCard ? null : (data.reminderDaysBefore.trim() === '' ? null : parseInt(data.reminderDaysBefore, 10)),
       paidDate: isRegular ? data.paidDate : null,
       endYear: endParsed ? endParsed.getFullYear() : null,
       endMonth: endParsed ? endParsed.getMonth() : null,
@@ -240,7 +245,7 @@ export default function AddExpenseScreen() {
             )}
           />
         )}
-        {!isRegular && (
+        {!isRegular && !payCard && (
           <Controller
             control={control}
             name="dueDay"
@@ -272,7 +277,7 @@ export default function AddExpenseScreen() {
           name="amount"
           rules={{
             validate: (v) => {
-              if (isVariableWatched) {
+              if (isVariableAmount) {
                 return true;
               }
               if (v === "" || v === undefined) {
@@ -285,7 +290,7 @@ export default function AddExpenseScreen() {
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
             <AppTextInput
               autoFocus
-              label={isVariableWatched ? "This Month's Amount (₱)" : "Amount (₱)"}
+              label={isVariableAmount ? "This Month's Amount (₱)" : "Amount (₱)"}
               isAmount
               value={value}
               onChangeText={onChange}
@@ -333,6 +338,11 @@ export default function AddExpenseScreen() {
             );
           }}
         />
+        {payCard && (
+          <AppText variant="caption" className="px-1 mb-3">
+            {payCard.dueDay != null ? `Due with the card bill (day ${payCard.dueDay})` : "Due with the card bill"}
+          </AppText>
+        )}
 
         {/* Recurring-only fields */}
         {!isRegular && (
@@ -346,22 +356,25 @@ export default function AddExpenseScreen() {
                   options={RECURRENCE_OPTIONS}
                   value={value}
                   onChange={onChange}
+                  className="mb-3"
                 />
               )}
             />
 
-            <Controller
-              control={control}
-              name="isVariable"
-              render={({ field: { value, onChange } }) => (
-                <AppCheckRow
-                  label="Variable amount"
-                  description="Amount changes each month"
-                  checked={value}
-                  onToggle={onChange}
-                />
-              )}
-            />
+            {!payCard && (
+              <Controller
+                control={control}
+                name="isVariable"
+                render={({ field: { value, onChange } }) => (
+                  <AppCheckRow
+                    label="Variable amount"
+                    description="Amount changes each month"
+                    checked={value}
+                    onToggle={onChange}
+                  />
+                )}
+              />
+            )}
 
             <Controller
               control={control}
@@ -411,34 +424,38 @@ export default function AddExpenseScreen() {
               />
             )}
 
-            <Controller
-              control={control}
-              name="reminderDaysBefore"
-              rules={{
-                validate: (v) => {
-                  if (!v || v.trim() === '') {
-                    return true;
-                  }
-                  const n = parseInt(v, 10);
-                  return (!isNaN(n) && n >= 1 && n <= 14) || 'Must be 1–14';
-                },
-              }}
-              render={({ field: { value, onChange, onBlur }, fieldState }) => (
-                <AppTextInput
-                  label="Remind me (days before)"
-                  error={fieldState.error?.message}
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholder="1"
-                  keyboardType="numeric"
-                  maxLength={2}
+            {!payCard && (
+              <>
+                <Controller
+                  control={control}
+                  name="reminderDaysBefore"
+                  rules={{
+                    validate: (v) => {
+                      if (!v || v.trim() === '') {
+                        return true;
+                      }
+                      const n = parseInt(v, 10);
+                      return (!isNaN(n) && n >= 1 && n <= 14) || 'Must be 1–14';
+                    },
+                  }}
+                  render={({ field: { value, onChange, onBlur }, fieldState }) => (
+                    <AppTextInput
+                      label="Remind me (days before)"
+                      error={fieldState.error?.message}
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="1"
+                      keyboardType="numeric"
+                      maxLength={2}
+                    />
+                  )}
                 />
-              )}
-            />
-            <AppText variant="caption" className="px-1 mb-3">
-              Leave blank for default (1 day before due)
-            </AppText>
+                <AppText variant="caption" className="px-1 mb-3">
+                  Leave blank for default (1 day before due)
+                </AppText>
+              </>
+            )}
           </>
         )}
 

@@ -152,32 +152,35 @@ export default function ExpensesScreen() {
         />
       </View>
 
-      <AppChips
-        chips={SEGMENTS}
-        value={segment}
-        onChange={(next) => router.setParams({ segment: next })}
-        accessibilityLabel="Filter activity"
-        className="mt-1"
-      />
-
-      <View className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}>
-        <AppText variant="overline">{hero.overline}</AppText>
-        <Text
-          className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}
-          maxFontSizeMultiplier={1.4}
-        >
-          {formatAmount(total)}
-        </Text>
-        <AppText variant="meta">{heroMeta[segment]}</AppText>
-      </View>
-
       <DayGroupedExpenseList
         entries={entries}
         showDayTotals={segment !== "all"}
         refreshControl={refreshControl}
+        ListHeaderComponent={
+          <>
+            <AppChips
+              chips={SEGMENTS}
+              value={segment}
+              onChange={(next) => router.setParams({ segment: next })}
+              accessibilityLabel="Filter activity"
+              className="mt-1"
+            />
+
+            <View className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}>
+              <AppText variant="overline">{hero.overline}</AppText>
+              <Text
+                className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                maxFontSizeMultiplier={1.4}
+              >
+                {formatAmount(total)}
+              </Text>
+              <AppText variant="meta">{heroMeta[segment]}</AppText>
+            </View>
+          </>
+        }
         ListEmptyComponent={<EmptyState title={empty.title} icon={empty.icon} message={`${empty.message} ${monthLabel}`} />}
       />
     </SafeAreaView>

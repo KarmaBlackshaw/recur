@@ -421,7 +421,7 @@ export default function SettingsScreen() {
                 onPress={async () => {
                   try {
                     await seedLoans();
-                    await loans.reload();
+                    await Promise.all([loans.reload(), accounts.reload()]);
                     Alert.alert('Dev', 'Sample loans seeded.');
                   } catch (e: unknown) {
                     Alert.alert('Seed Failed', e instanceof Error ? e.message : 'An error occurred.');
@@ -446,7 +446,7 @@ export default function SettingsScreen() {
                 onPress={() =>
                   confirmClear('sample loans', async () => {
                     await clearSeedLoans();
-                    await loans.reload();
+                    await Promise.all([loans.reload(), accounts.reload()]);
                   })
                 }
                 accessibilityLabel="Clear sample loans"

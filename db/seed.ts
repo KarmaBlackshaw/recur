@@ -1,6 +1,7 @@
 import { getDB } from "@/db/schema";
 import { insertWithId } from "@/db/expenses";
 import { insertWithId as insertLoanWithId } from "@/db/loans";
+import { insert as insertTransaction } from "@/db/accountTransactions";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import dayjs from "dayjs";
 import type { Expense, Loan, TLoanInterest } from "@/types";
@@ -131,6 +132,7 @@ const DUMMY_LOANS: [borrower: string, principal: number, daysAgo: number, intere
 ];
 
 export async function seedLoans(): Promise<void> {
+  await clearSeedLoans();
   const createdAt = new Date().toISOString();
   for (const [index, [borrower, principal, daysAgo, interest]] of DUMMY_LOANS.entries()) {
     const loan: Loan = {
@@ -144,6 +146,10 @@ export async function seedLoans(): Promise<void> {
       createdAt,
     };
     await insertLoanWithId(loan);
+    await insertTransaction({
+      accountId: loan.accountId, kind: "loan_out", amount: -loan.principal, expenseId: null, cycleYear: null,
+      cycleMonth: null, transferId: null, note: null, category: null, loanId: loan.id, createdAt: loan.lentAt,
+    });
   }
 }
 

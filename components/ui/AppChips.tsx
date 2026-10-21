@@ -20,7 +20,7 @@ export function AppChips<T extends string>({ chips, value, onChange, accessibili
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      className={`grow-0 ${className}`}
+      className={`grow-0 shrink-0 ${className}`}
       contentContainerClassName="gap-2 px-5"
       accessibilityRole="radiogroup"
       accessibilityLabel={accessibilityLabel}

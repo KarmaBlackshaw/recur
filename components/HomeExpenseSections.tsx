@@ -1,24 +1,22 @@
 import React, { useMemo, useRef } from "react";
 import { View, SectionList } from "react-native";
-import { router } from "expo-router";
 import sumBy from "lodash/sumBy";
-import { ExpenseCard } from "@/components/ExpenseCard";
 import { CardBillRow } from "@/components/accounts/CardBillRow";
 import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
-import { BillPaymentRow } from "@/components/accounts/BillPaymentRow";
+import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BandHeader } from "@/components/BandHeader";
 import { colors } from "@/constants/theme";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
-import type { LedgerEntry } from "@/components/DayGroupedExpenseList";
+import type { ActivityEntry, LedgerEntry } from "@/components/DayGroupedExpenseList";
 import type { CardBill, FeatherIconName } from "@/types";
 
 export type BillEntry = { key: string; bill: CardBill; effDate: Date; amount: number };
 export type HomeEntry = LedgerEntry | BillEntry;
 
 // Home has three bands. Overdue + Upcoming are flat (each card shows its own date);
-// Recently Paid mirrors the Expenses ledger — day-grouped (DayHeaderRow + subtotals),
-// compact cards, with the "RECENTLY PAID" band label on the first day only.
+// Recent activity mirrors the Activity tab's All list — day-grouped, no subtotals
+// (it mixes money in and out), with the band label on the first day only.
 type FlatSection = {
   kind: "flat";
   key: string;
@@ -31,21 +29,18 @@ type FlatSection = {
 type DaySection = {
   kind: "day";
   key: string;
-  band?: string; // only the first paid day carries the band label
-  bandTotal?: number;
+  band?: string; // only the first day carries the band label
   bandCount?: number;
-  icon?: FeatherIconName;
-  accent?: string;
   date: Date;
   total: number;
-  data: LedgerEntry[];
+  data: ActivityEntry[];
 };
 type HomeSection = FlatSection | DaySection;
 
 interface Props {
   overdue: HomeEntry[];
   upcoming: HomeEntry[];
-  recentlyPaid: LedgerEntry[];
+  recentActivity: ActivityEntry[];
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
   refreshControl?: React.ComponentProps<typeof SectionList>["refreshControl"];
@@ -54,7 +49,7 @@ interface Props {
 export function HomeExpenseSections({
   overdue,
   upcoming,
-  recentlyPaid,
+  recentActivity,
   ListHeaderComponent,
   ListEmptyComponent,
   refreshControl,
@@ -87,22 +82,19 @@ export function HomeExpenseSections({
       });
     }
 
-    if (recentlyPaid.length) {
-      const days: DaySection[] = groupEntriesByDay(recentlyPaid).map((g) => ({ kind: "day", ...g }));
-      days[0].band = "Recently Paid";
-      days[0].bandTotal = sumBy(recentlyPaid, "amount");
-      days[0].bandCount = recentlyPaid.length;
-      days[0].icon = "check-circle";
-      days[0].accent = colors.paid;
+    if (recentActivity.length) {
+      const days: DaySection[] = groupEntriesByDay(recentActivity).map((g) => ({ kind: "day", ...g }));
+      days[0].band = "Recent activity";
+      days[0].bandCount = recentActivity.length;
       out.push(...days);
     }
 
     return out;
-  }, [overdue, upcoming, recentlyPaid]);
+  }, [overdue, upcoming, recentActivity]);
 
   return (
     <>
-      <SectionList<HomeEntry, HomeSection>
+      <SectionList<HomeEntry | ActivityEntry, HomeSection>
         sections={sections}
         keyExtractor={(item) => item.key}
         ListHeaderComponent={ListHeaderComponent}
@@ -111,26 +103,8 @@ export function HomeExpenseSections({
         renderItem={({ item, index }) =>
           "bill" in item ? (
             <CardBillRow bill={item.bill} onPress={() => billSheetRef.current?.present(item.bill)} />
-          ) : "payment" in item ? (
-            <BillPaymentRow entry={item} />
           ) : (
-            <ExpenseCard
-              expense={item.expense}
-              index={index}
-              compact={item.compact}
-              hideDate={item.hideDate}
-              referenceDate={item.refDate}
-              onPress={() =>
-                router.push({
-                  pathname: "/expense/add",
-                  params: {
-                    id: item.expense.id,
-                    year: item.refDate.getFullYear(),
-                    month: item.refDate.getMonth(),
-                  },
-                })
-              }
-            />
+            <ActivityEntryRow item={item} index={index} />
           )
         }
         renderSectionHeader={({ section }) => {
@@ -141,15 +115,9 @@ export function HomeExpenseSections({
           return (
             <View>
               {s.band ? (
-                <BandHeader
-                  label={s.band}
-                  icon={s.icon ?? "check-circle"}
-                  accent={s.accent ?? colors.paid}
-                  total={s.bandTotal ?? 0}
-                  count={s.bandCount}
-                />
+                <BandHeader label={s.band} icon="activity" accent={colors.textSecondary} count={s.bandCount} />
               ) : null}
-              <DayHeaderRow date={s.date} total={s.total} />
+              <DayHeaderRow date={s.date} />
             </View>
           );
         }}

@@ -239,9 +239,21 @@ export default function EditAccountScreen() {
     if (!editingAccount) {
       return;
     }
+    const loanTransactions = accounts.transactions.filter((t) => t.accountId === editingAccount.id && t.loanId != null);
+    const repaymentCount = loanTransactions.filter((t) => t.kind === "loan_in").length;
+    const lentCount = loanTransactions.filter((t) => t.kind === "loan_out").length;
+    const loanNotes = [
+      repaymentCount > 0
+        ? `${repaymentCount} loan ${repaymentCount === 1 ? "repayment" : "repayments"} recorded here will be removed, so those loans will show more owed.`
+        : "",
+      lentCount > 0
+        ? `${lentCount} ${lentCount === 1 ? "loan was" : "loans were"} lent from this account; ${lentCount === 1 ? "it'll" : "they'll"} show “Deleted account”.`
+        : "",
+    ].filter((note) => note !== "");
+    const loanNote = loanNotes.length > 0 ? `\n\n${loanNotes.join(" ")}` : "";
     Alert.alert(
       `Delete ${editingAccount.name}?`,
-      "Its transactions are removed. Expenses paid from it keep their history but no longer charge an account.",
+      `Its transactions are removed. Expenses paid from it keep their history but no longer charge an account.${loanNote}`,
       [
         { text: "Cancel", style: "cancel" },
         {

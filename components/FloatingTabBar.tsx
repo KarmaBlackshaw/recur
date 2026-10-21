@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Pressable } from "react-native";
+import { View, Text, TouchableOpacity, Pressable, useWindowDimensions } from "react-native";
 import Animated, { FadeIn, FadeInDown, FadeOut, useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -14,6 +14,7 @@ const TAB_META: Record<string, { label: string; icon: FeatherIconName }> = {
   expenses: { label: "Activity", icon: "check-circle" },
   recurring: { label: "Recurring", icon: "repeat" },
   accounts: { label: "Accounts", icon: "credit-card" },
+  loans: { label: "Loans", icon: "users" },
 };
 
 const FAB_TYPE: Record<string, "regular" | "recurring"> = {
@@ -23,12 +24,13 @@ const FAB_TYPE: Record<string, "regular" | "recurring"> = {
   accounts: "regular",
 };
 
-type QuickAction = "expense" | "income" | "transfer";
+type QuickAction = "expense" | "income" | "transfer" | "loan";
 
 const QUICK_ACTIONS: { key: QuickAction; label: string; icon: FeatherIconName }[] = [
   { key: "transfer", label: "Transfer", icon: "repeat" },
   { key: "income", label: "New income", icon: "arrow-down-left" },
   { key: "expense", label: "New expense", icon: "arrow-up-right" },
+  { key: "loan", label: "New loan", icon: "users" },
 ];
 
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
@@ -44,8 +46,28 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isReducedMotion = useReducedMotion();
   const fabBottom = insets.bottom + 12;
+  const { fontScale, width } = useWindowDimensions();
+  const isCompact = fontScale > 1.15 || width < 380;
+
+  function getFabLabel() {
+    if (isMenuOpen) {
+      return "Close quick actions";
+    }
+    if (activeName === "loans") {
+      return "Add loan";
+    }
+    if (isIncomeSegment) {
+      return "Add income";
+    }
+    return fabType === "recurring" ? "Add recurring expense" : "Add expense";
+  }
+  const fabLabel = getFabLabel();
 
   function handleAdd() {
+    if (activeName === "loans") {
+      router.push("/loan/add");
+      return;
+    }
     if (isIncomeSegment) {
       router.push("/income/add");
       return;
@@ -61,6 +83,10 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
     }
     if (action === "income") {
       router.push("/income/add");
+      return;
+    }
+    if (action === "loan") {
+      router.push("/loan/add");
       return;
     }
     router.push("/transfer");
@@ -124,6 +150,8 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
             }
             const focused = state.index === index;
             const color = focused ? colors.secondary : colors.textSecondary;
+            const isLabelVisible = focused || !isCompact;
+            const tabClass = `${isCompact && focused ? "flex-[1.8]" : "flex-1"} min-h-[44px] items-center py-2.5 rounded-[18px] ${focused ? "bg-primary/15" : ""}`;
 
             function onPress() {
               const event = navigation.emit({
@@ -141,21 +169,23 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                 key={route.key}
                 onPress={onPress}
                 activeOpacity={0.7}
-                className={`flex-1 items-center py-2.5 rounded-[18px] ${focused ? "bg-primary/15" : ""}`}
+                className={tabClass}
                 accessibilityRole="tab"
                 onLayout={focused ? (e) => setTabHeight(e.nativeEvent.layout.height) : undefined}
                 accessibilityState={{ selected: focused }}
                 accessibilityLabel={meta.label}
               >
                 <Feather name={meta.icon} size={19} color={color} />
-                <Text
-                  className="text-[10px] mt-1 tracking-wide"
-                  numberOfLines={1}
-                  maxFontSizeMultiplier={1.3}
-                  style={{ color, fontFamily: "Quicksand_700Bold" }}
-                >
-                  {meta.label}
-                </Text>
+                {isLabelVisible ? (
+                  <Text
+                    className="text-[10px] mt-1"
+                    numberOfLines={1}
+                    maxFontSizeMultiplier={1.3}
+                    style={{ color, fontFamily: "Quicksand_700Bold" }}
+                  >
+                    {meta.label}
+                  </Text>
+                ) : null}
               </TouchableOpacity>
             );
           })}
@@ -167,7 +197,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
           activeOpacity={0.85}
           className="rounded-[18px] bg-primary items-center justify-center"
           accessibilityRole="button"
-          accessibilityLabel={isMenuOpen ? "Close quick actions" : isIncomeSegment ? "Add income" : fabType === "recurring" ? "Add recurring expense" : "Add expense"}
+          accessibilityLabel={fabLabel}
           accessibilityHint="Long press for more actions"
           accessibilityActions={[{ name: "longpress", label: "More actions" }]}
           onAccessibilityAction={(e) => {

@@ -5,18 +5,18 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import sortBy from "lodash/sortBy";
-import orderBy from "lodash/orderBy";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { KpiRow } from "@/components/kpi/KpiRow";
-import { type DayEntry, type LedgerEntry } from "@/components/DayGroupedExpenseList";
+import { LoanSummaryCard } from "@/components/loans/LoanSummaryCard";
+import { type DayEntry } from "@/components/DayGroupedExpenseList";
 import { HomeExpenseSections, type HomeEntry } from "@/components/HomeExpenseSections";
 import { DayWindowSelector, windowLabel, type DayWindow } from "@/components/DayWindowSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { isOverdueOn, getDueDate, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
-import { usePaidLedger, useBillPayments } from "@/utils/usePaidLedger";
+import { useActivityFeed } from "@/utils/useActivityFeed";
 import { isBillTbd } from "@/utils/cardBills";
 import { colors } from "@/constants/theme";
 import { useRefreshControl } from "@/utils/useRefreshControl";
@@ -25,8 +25,7 @@ export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus, resolveAmount } = useExpenses();
   const accounts = useAccounts();
   const refreshControl = useRefreshControl();
-  const ledger = usePaidLedger();
-  const billPayments = useBillPayments();
+  const feed = useActivityFeed();
   const [windowDays, setWindowDays] = useState<DayWindow>(7);
   const today = dayjs().startOf("day").toDate();
   const year = today.getFullYear();
@@ -90,14 +89,12 @@ export default function HomeScreen() {
     return sortBy([...entries, ...bills], "effDate");
   }, [expenses, getMonthStatus, resolveAmount, year, month, windowDays, openBills]);
 
-  // Recently Paid: any paid entry whose pay-date lands in the rolling window.
-  const recentlyPaid = useMemo<LedgerEntry[]>(() => {
+  // Recent activity: every Activity-tab row dated within the rolling window.
+  const recentActivity = useMemo(() => {
     const lastN = dayjs(today).subtract(windowDays, "day").toDate();
     const endToday = dayjs().endOf("day").toDate();
-    const isInWindow = ({ effDate }: { effDate: Date }) => effDate >= lastN && effDate <= endToday;
-    const expensesPaid = ledger.filter((it) => !it.isCard && isInWindow(it)).map((it) => ({ ...it, compact: true }));
-    return orderBy([...expensesPaid, ...billPayments.filter(isInWindow)], "effDate", "desc");
-  }, [ledger, billPayments, windowDays]);
+    return feed.all.filter(({ effDate }) => effDate >= lastN && effDate <= endToday);
+  }, [feed, windowDays]);
 
   if (loading) {
     return (
@@ -132,7 +129,7 @@ export default function HomeScreen() {
       <HomeExpenseSections
         overdue={overdue}
         upcoming={upcoming}
-        recentlyPaid={recentlyPaid}
+        recentActivity={recentActivity}
         refreshControl={refreshControl}
         ListHeaderComponent={
           <View>
@@ -140,8 +137,9 @@ export default function HomeScreen() {
               This Month
             </AppText>
             <KpiRow year={year} month={month} />
+            <LoanSummaryCard />
             <View className="gap-2 mx-5 mt-3 mb-1">
-              <AppText variant="meta">Upcoming & paid within</AppText>
+              <AppText variant="meta">Upcoming & activity within</AppText>
               <DayWindowSelector value={windowDays} onChange={setWindowDays} />
             </View>
           </View>
@@ -153,7 +151,7 @@ export default function HomeScreen() {
             <View className="mx-5 mt-1 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-border">
               <Feather name="inbox" size={15} color={colors.textMuted} />
               <AppText variant="meta" className="shrink">
-                Nothing due or paid in the last/next {windowLabel(windowDays).toLowerCase()}
+                Nothing due and no activity in the last/next {windowLabel(windowDays).toLowerCase()}
               </AppText>
             </View>
           )

@@ -11,6 +11,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="expenses" options={{ title: "Activity" }} />
       <Tabs.Screen name="recurring" options={{ title: "Recurring" }} />
       <Tabs.Screen name="accounts" options={{ title: "Accounts" }} />
+      <Tabs.Screen name="loans" options={{ title: "Loans" }} />
     </Tabs>
   );
 }

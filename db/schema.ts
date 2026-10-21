@@ -301,6 +301,7 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       transfer_id  TEXT,
       note         TEXT,
       category     TEXT,
+      loan_id      TEXT,
       created_at   TEXT NOT NULL,
       FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
     );
@@ -308,6 +309,9 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   const txnCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(account_transactions)");
   if (!txnCols.some((c) => c.name === "category")) {
     await db.execAsync("ALTER TABLE account_transactions ADD COLUMN category TEXT");
+  }
+  if (!txnCols.some((c) => c.name === "loan_id")) {
+    await db.execAsync("ALTER TABLE account_transactions ADD COLUMN loan_id TEXT");
   }
   await db.execAsync(
     "CREATE INDEX IF NOT EXISTS idx_txn_account ON account_transactions(account_id)"
@@ -323,6 +327,19 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       month       INTEGER NOT NULL,
       amount      REAL NOT NULL,
       PRIMARY KEY (account_id, year, month)
+    );
+  `);
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS loans (
+      id             TEXT PRIMARY KEY NOT NULL,
+      borrower       TEXT NOT NULL,
+      principal      REAL NOT NULL,
+      account_id     TEXT NOT NULL,
+      lent_at        TEXT NOT NULL,
+      interest_type  TEXT NOT NULL,
+      interest_value REAL,
+      note           TEXT,
+      created_at     TEXT NOT NULL
     );
   `);
   if (!accountsMigrated) {

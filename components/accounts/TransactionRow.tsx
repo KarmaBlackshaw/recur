@@ -21,6 +21,8 @@ const KIND_ICON: Record<TransactionKind, FeatherIconName> = {
   fee: "scissors",
   adjust: "sliders",
   income: "arrow-down-left",
+  loan_out: "arrow-up-right",
+  loan_in: "arrow-down-left",
 };
 
 interface Props {

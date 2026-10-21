@@ -6,13 +6,13 @@ import type { AccountTransaction, IncomeInput, TransactionKind } from "@/types";
 interface TransactionRow {
   id: string; account_id: string; kind: string; amount: number;
   expense_id: string | null; cycle_year: number | null; cycle_month: number | null;
-  transfer_id: string | null; note: string | null; category: string | null; created_at: string;
+  transfer_id: string | null; note: string | null; category: string | null; loan_id: string | null; created_at: string;
 }
 
 const COLUMNS =
-  "id, account_id, kind, amount, expense_id, cycle_year, cycle_month, transfer_id, note, category, created_at";
+  "id, account_id, kind, amount, expense_id, cycle_year, cycle_month, transfer_id, note, category, loan_id, created_at";
 
-function newId(): string {
+export function newId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
@@ -28,6 +28,7 @@ function toTransaction(r: TransactionRow): AccountTransaction {
     transferId: r.transfer_id,
     note: r.note,
     category: r.category,
+    loanId: r.loan_id,
     createdAt: r.created_at,
   };
 }
@@ -40,14 +41,14 @@ export async function getAll(): Promise<AccountTransaction[]> {
   return rows.map(toTransaction);
 }
 
-async function insertRow(
+export async function insertRow(
   db: Awaited<ReturnType<typeof getDB>>,
   t: Omit<AccountTransaction, "id">
 ): Promise<AccountTransaction> {
   const id = newId();
   await db.runAsync(
-    `INSERT INTO account_transactions (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, t.accountId, t.kind, t.amount, t.expenseId, t.cycleYear, t.cycleMonth, t.transferId, t.note, t.category, t.createdAt]
+    `INSERT INTO account_transactions (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, t.accountId, t.kind, t.amount, t.expenseId, t.cycleYear, t.cycleMonth, t.transferId, t.note, t.category, t.loanId, t.createdAt]
   );
   return { ...t, id };
 }
@@ -115,12 +116,12 @@ export async function creditInterest(accountId: string, gross: number, tax: numb
     if (gross !== 0) {
       await insertRow(txn, {
         accountId, kind: "interest", amount: gross, expenseId: null, cycleYear: null, cycleMonth: null,
-        transferId: null, note: null, category: null, createdAt,
+        transferId: null, note: null, category: null, loanId: null, createdAt,
       });
       if (tax !== 0) {
         await insertRow(txn, {
           accountId, kind: "tax", amount: -tax, expenseId: null, cycleYear: null, cycleMonth: null,
-          transferId: null, note: null, category: null, createdAt,
+          transferId: null, note: null, category: null, loanId: null, createdAt,
         });
       }
     }
@@ -131,7 +132,7 @@ export async function creditInterest(accountId: string, gross: number, tax: numb
 export async function insertWithId(t: AccountTransaction): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    `INSERT OR IGNORE INTO account_transactions (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [t.id, t.accountId, t.kind, t.amount, t.expenseId, t.cycleYear, t.cycleMonth, t.transferId, t.note, t.category ?? null, t.createdAt]
+    `INSERT OR IGNORE INTO account_transactions (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [t.id, t.accountId, t.kind, t.amount, t.expenseId, t.cycleYear, t.cycleMonth, t.transferId, t.note, t.category ?? null, t.loanId ?? null, t.createdAt]
   );
 }

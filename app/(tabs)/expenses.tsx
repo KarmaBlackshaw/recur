@@ -4,15 +4,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
 import sumBy from "lodash/sumBy";
-import orderBy from "lodash/orderBy";
 import useSetState from "ahooks/es/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { MonthNavigator } from "@/components/MonthNavigator";
-import { DayGroupedExpenseList, type LedgerEntry, type ActivityEntry } from "@/components/DayGroupedExpenseList";
+import { DayGroupedExpenseList, type ActivityEntry } from "@/components/DayGroupedExpenseList";
 import { formatAmount } from "@/utils/dateHelpers";
-import { usePaidLedger, useBillPayments, useTransfers, type IncomeEntry } from "@/utils/usePaidLedger";
-import { useLoanActivity, type LoanActivityEntry } from "@/utils/useLoanActivity";
+import { useActivityFeed } from "@/utils/useActivityFeed";
 import type { FeatherIconName, TransactionKind } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -54,10 +52,7 @@ export default function ExpensesScreen() {
   const { loading } = useExpenses();
   const { isCharged, transactions } = useAccounts();
   const refreshControl = useRefreshControl();
-  const ledger = usePaidLedger();
-  const billPayments = useBillPayments();
-  const transfers = useTransfers();
-  const loanActivity = useLoanActivity();
+  const feed = useActivityFeed();
   const params = useLocalSearchParams<{ segment?: Segment }>();
   const segment = SEGMENTS.find(({ value }) => value === params.segment)?.value ?? "all";
   const today = dayjs().startOf("day").toDate();
@@ -65,33 +60,9 @@ export default function ExpensesScreen() {
 
   const { byFilter, notPaidOff, fees, interest, tax } = useMemo(() => {
     const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
-    const monthLedger = ledger.filter(isInMonth);
-    const cardItems = monthLedger.filter((it) => it.isCard);
-    const monthLoans = loanActivity.filter(isInMonth);
-    const paid: (LedgerEntry | LoanActivityEntry)[] = orderBy(
-      [
-        ...monthLedger.filter((it) => !it.isCard).map((it) => ({ ...it, compact: true })),
-        ...billPayments.filter(isInMonth),
-        ...monthLoans.filter(({ loanTxn }) => loanTxn.kind === "loan_out"),
-      ],
-      "effDate",
-      "desc"
-    );
-    const charged: LedgerEntry[] = cardItems.map((it) => ({ ...it, compact: true }));
-    const income: (IncomeEntry | LoanActivityEntry)[] = orderBy(
-      [
-        ...transactions
-          .filter((t) => t.kind === "income")
-          .map((t) => ({ key: t.id, income: t, effDate: new Date(t.createdAt), amount: t.amount }))
-          .filter(isInMonth),
-        ...monthLoans.filter(({ loanTxn }) => loanTxn.kind === "loan_in"),
-      ],
-      "effDate",
-      "desc"
-    );
-    const monthTransfers = transfers.filter(isInMonth);
+    const charged = feed.charged.filter(isInMonth);
     const notPaidOff = sumBy(
-      cardItems.filter(({ expense, refDate }) =>
+      charged.filter(({ expense, refDate }) =>
         expense.recurrence === "one-off"
           ? isCharged(expense.id, null, null)
           : isCharged(expense.id, refDate.getFullYear(), refDate.getMonth())
@@ -107,14 +78,14 @@ export default function ExpensesScreen() {
     const interest = monthTxnTotal("interest");
     const tax = monthTxnTotal("tax");
     const byFilter: Record<Segment, ActivityEntry[]> = {
-      all: orderBy([...paid, ...charged, ...income, ...monthTransfers], "effDate", "desc"),
-      paid,
+      all: feed.all.filter(isInMonth),
+      paid: feed.paid.filter(isInMonth),
       charged,
-      income,
-      transfers: monthTransfers,
+      income: feed.income.filter(isInMonth),
+      transfers: feed.transfers.filter(isInMonth),
     };
     return { byFilter, notPaidOff, fees, interest, tax };
-  }, [ledger, billPayments, transfers, loanActivity, transactions, isCharged, year, month]);
+  }, [feed, transactions, isCharged, year, month]);
 
   const entries = byFilter[segment];
   const moneyIn = sumBy(byFilter.income, "amount") + interest;

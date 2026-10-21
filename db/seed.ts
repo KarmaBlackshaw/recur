@@ -1,6 +1,9 @@
 import { getDB } from "@/db/schema";
 import { insertWithId } from "@/db/expenses";
-import type { Expense } from "@/types";
+import { insertWithId as insertLoanWithId } from "@/db/loans";
+import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import dayjs from "dayjs";
+import type { Expense, Loan, TLoanInterest } from "@/types";
 
 // ponytail: dev-only dummy data. Triggered by the "Seed dummy data" button in
 // the __DEV__ Dev Tools section of app/settings.tsx (hidden in prod builds).
@@ -112,4 +115,40 @@ export async function clearRecurring(): Promise<void> {
 
 export async function clearOneOff(): Promise<void> {
   await clearByRecurrence(true);
+}
+
+const DUMMY_LOANS: [borrower: string, principal: number, daysAgo: number, interest: TLoanInterest][] = [
+  ["Ana", 5000, 10, { type: "none" }],
+  ["Ana", 1500, 45, { type: "fixed", amount: 200 }],
+  ["Ben", 12000, 90, { type: "monthly_balance", rate: 3 }],
+  ["Carla", 800, 5, { type: "none" }],
+  ["Dan", 3000, 30, { type: "percent_once", rate: 10 }],
+  ["Ella", 20000, 120, { type: "monthly_principal", rate: 2 }],
+  ["Ben", 2500, 15, { type: "none" }],
+  ["Fritz", 650, 3, { type: "none" }],
+  ["Gina", 4200, 60, { type: "fixed", amount: 500 }],
+  ["Hector", 1000, 20, { type: "none" }],
+];
+
+export async function seedLoans(): Promise<void> {
+  const createdAt = new Date().toISOString();
+  for (const [index, [borrower, principal, daysAgo, interest]] of DUMMY_LOANS.entries()) {
+    const loan: Loan = {
+      id: `seed-loan-${index + 1}`,
+      borrower,
+      principal,
+      accountId: CASH_ACCOUNT_ID,
+      lentAt: dayjs().subtract(daysAgo, "day").startOf("day").toISOString(),
+      interest,
+      note: null,
+      createdAt,
+    };
+    await insertLoanWithId(loan);
+  }
+}
+
+export async function clearSeedLoans(): Promise<void> {
+  const db = await getDB();
+  await db.runAsync("DELETE FROM account_transactions WHERE loan_id LIKE 'seed-loan-%'");
+  await db.runAsync("DELETE FROM loans WHERE id LIKE 'seed-loan-%'");
 }

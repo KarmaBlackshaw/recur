@@ -9,7 +9,7 @@ interface Props {
   label: string;
   icon: FeatherIconName;
   accent: string;
-  total: number;
+  total?: number;
   count?: number;
 }
 
@@ -20,7 +20,7 @@ export function BandHeader({ label, icon, accent, total, count }: Props) {
       accessible
       className="flex-row items-center justify-between px-5 pt-6 pb-2"
       accessibilityRole="header"
-      accessibilityLabel={`${title}, ${formatAmount(total)}`}
+      accessibilityLabel={total != null ? `${title}, ${formatAmount(total)}` : title}
     >
       <View className="flex-row items-center gap-2">
         <Feather name={icon} size={14} color={accent} />
@@ -28,7 +28,7 @@ export function BandHeader({ label, icon, accent, total, count }: Props) {
           {title}
         </AppText>
       </View>
-      <AppText variant="amount-sm">{formatAmount(total)}</AppText>
+      {total != null ? <AppText variant="amount-sm">{formatAmount(total)}</AppText> : null}
     </View>
   );
 }

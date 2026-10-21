@@ -18,7 +18,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
-import { AppSuggestionChips } from "@/components/ui/AppSuggestionChips";
+import { AppCombobox } from "@/components/ui/AppCombobox";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { sanitizeAmount } from "@/utils/amountInput";
@@ -140,14 +140,14 @@ export default function AddLoanScreen() {
   const values = watch();
   const candidate = toLoanInput(values);
 
-  const borrowerSuggestions = useMemo(() => {
-    const names = uniqBy(
-      orderBy(loans.loans, "lentAt", "desc").map((l) => l.borrower.trim()),
-      (n) => n.toLowerCase()
-    );
-    const query = values.borrower.trim().toLowerCase();
-    return names.filter((n) => n.toLowerCase().includes(query) && n.toLowerCase() !== query);
-  }, [loans.loans, values.borrower]);
+  const borrowerNames = useMemo(
+    () =>
+      uniqBy(
+        orderBy(loans.loans, "lentAt", "desc").map((l) => l.borrower.trim()),
+        (n) => n.toLowerCase()
+      ),
+    [loans.loans]
+  );
 
   function previewOf(input: LoanInput) {
     if (isMonthly(input.interest.type)) {
@@ -237,6 +237,7 @@ export default function AddLoanScreen() {
 
   function pickBorrower(name: string) {
     setValue("borrower", name, { shouldValidate: true });
+    focusAmount();
   }
 
   const saveHint = Object.keys(errors).length
@@ -280,9 +281,11 @@ export default function AddLoanScreen() {
             validate: (v) => v.trim().length > 0 || "Enter who you lent to",
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
-            <AppTextInput
+            <AppCombobox
               autoFocus={!isEditing}
               label="Borrower"
+              items={borrowerNames}
+              onPick={pickBorrower}
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -294,13 +297,6 @@ export default function AddLoanScreen() {
             />
           )}
         />
-        <View className="mb-1">
-          <AppSuggestionChips
-            items={borrowerSuggestions}
-            onPick={pickBorrower}
-            accessibilityLabel="Previous borrowers"
-          />
-        </View>
 
         <Controller
           control={control}

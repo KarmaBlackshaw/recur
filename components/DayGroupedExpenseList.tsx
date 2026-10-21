@@ -1,12 +1,7 @@
 import React, { useMemo } from "react";
 import { SectionList } from "react-native";
-import { router } from "expo-router";
-import { ExpenseCard } from "@/components/ExpenseCard";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
-import { BillPaymentRow } from "@/components/accounts/BillPaymentRow";
-import { IncomeRow } from "@/components/accounts/IncomeRow";
-import { TransferRow } from "@/components/accounts/TransferRow";
-import { LoanActivityRow } from "@/components/loans/LoanActivityRow";
+import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
 import type { BillPaymentEntry, IncomeEntry, TransferEntry } from "@/utils/usePaidLedger";
 import type { LoanActivityEntry } from "@/utils/useLoanActivity";
@@ -64,38 +59,7 @@ export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals =
       ListHeaderComponent={ListHeaderComponent}
       ListEmptyComponent={ListEmptyComponent}
       refreshControl={refreshControl}
-      renderItem={({ item, index }) => {
-        if ("income" in item) {
-          return <IncomeRow entry={item} />;
-        }
-        if ("transfer" in item) {
-          return <TransferRow entry={item} />;
-        }
-        if ("loanTxn" in item) {
-          return <LoanActivityRow entry={item} />;
-        }
-        return "expense" in item ? (
-          <ExpenseCard
-            expense={item.expense}
-            index={index}
-            compact={item.compact}
-            hideDate={item.hideDate}
-            referenceDate={item.refDate}
-            onPress={() =>
-              router.push({
-                pathname: "/expense/add",
-                params: {
-                  id: item.expense.id,
-                  year: item.refDate.getFullYear(),
-                  month: item.refDate.getMonth(),
-                },
-              })
-            }
-          />
-        ) : (
-          <BillPaymentRow entry={item} />
-        );
-      }}
+      renderItem={({ item, index }) => <ActivityEntryRow item={item} index={index} />}
       renderSectionHeader={
         grouped
           ? ({ section }) => {

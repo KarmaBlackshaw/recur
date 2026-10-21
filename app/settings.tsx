@@ -16,7 +16,7 @@ import { AppLabel } from "@/components/ui/AppLabel";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
-import { seedRecurring, seedOneOff, clearRecurring, clearOneOff } from "@/db/seed";
+import { seedRecurring, seedOneOff, clearRecurring, clearOneOff, seedLoans, clearSeedLoans } from "@/db/seed";
 import { colors } from "@/constants/theme";
 
 const version = Constants.expoConfig?.version ?? "—";
@@ -412,6 +412,53 @@ export default function SettingsScreen() {
                 </View>
                 <AppText variant="body-medium" className="flex-1 text-white text-sm">
                   Clear expenses
+                </AppText>
+                <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
+              </TouchableOpacity>
+              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <TouchableOpacity
+                className="flex-row items-center px-5 py-4"
+                onPress={async () => {
+                  try {
+                    await seedLoans();
+                    await loans.reload();
+                    Alert.alert('Dev', 'Sample loans seeded.');
+                  } catch (e: unknown) {
+                    Alert.alert('Seed Failed', e instanceof Error ? e.message : 'An error occurred.');
+                  }
+                }}
+                accessibilityLabel="Seed sample loans"
+              >
+                <View
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+                  style={{ backgroundColor: colors.secondary }}
+                >
+                  <Feather name="users" size={15} color="#FFFFFF" />
+                </View>
+                <AppText variant="body-medium" className="flex-1 text-white text-sm">
+                  Seed loans
+                </AppText>
+                <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
+              </TouchableOpacity>
+              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <TouchableOpacity
+                className="flex-row items-center px-5 py-4"
+                onPress={() =>
+                  confirmClear('sample loans', async () => {
+                    await clearSeedLoans();
+                    await loans.reload();
+                  })
+                }
+                accessibilityLabel="Clear sample loans"
+              >
+                <View
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+                  style={{ backgroundColor: colors.overdue }}
+                >
+                  <Feather name="trash-2" size={15} color="#FFFFFF" />
+                </View>
+                <AppText variant="body-medium" className="flex-1 text-white text-sm">
+                  Clear sample loans
                 </AppText>
                 <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
               </TouchableOpacity>

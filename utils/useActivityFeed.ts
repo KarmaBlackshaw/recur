@@ -13,8 +13,8 @@ export interface ActivityFeed {
   transfers: TransferEntry[];
 }
 
-// Every activity row across all time, newest first. Home filters it to a rolling
-// window, Activity to the selected month.
+// Every activity row across all time, newest first. Home shows the latest
+// few, Activity filters to the selected month.
 export function useActivityFeed(): ActivityFeed {
   const { transactions } = useAccounts();
   const ledger = usePaidLedger();

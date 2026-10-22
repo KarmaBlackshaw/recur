@@ -12,7 +12,7 @@ interface AppComboboxProps extends ComponentPropsWithoutRef<typeof AppTextInput>
 const MAX_MATCHES = 5;
 
 export const AppCombobox = forwardRef<TextInput, AppComboboxProps>(
-  function AppCombobox({ items, onPick, value = "", onFocus, onBlur, ...props }, ref) {
+  function AppCombobox({ items, onPick, value = "", onPressIn, onBlur, ...props }, ref) {
     const [isOpen, { setTrue: open, setFalse: close }] = useBoolean(false);
     const query = value.trim().toLowerCase();
     const matches = items
@@ -28,9 +28,9 @@ export const AppCombobox = forwardRef<TextInput, AppComboboxProps>(
           ref={ref}
           {...props}
           value={value}
-          onFocus={(e) => {
+          onPressIn={(e) => {
             open();
-            onFocus?.(e);
+            onPressIn?.(e);
           }}
           onBlur={(e) => {
             close();

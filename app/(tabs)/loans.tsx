@@ -4,12 +4,12 @@ import { View, Text, FlatList, TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import dayjs from "dayjs";
 import sumBy from "lodash/sumBy";
 import orderBy from "lodash/orderBy";
+import groupBy from "lodash/groupBy";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
-import { LoanRow } from "@/components/loans/LoanRow";
+import { BorrowerRow } from "@/components/loans/BorrowerRow";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
@@ -55,7 +55,6 @@ export default function LoansScreen() {
   const refreshControl = useRefreshControl();
   const params = useLocalSearchParams<{ segment?: Segment }>();
   const segment = SEGMENTS.find(({ value }) => value === params.segment)?.value ?? "active";
-  const today = dayjs().format("YYYY-MM-DD");
   const [search, setSearch] = useState("");
   const [isSearchOpen, searchOpen] = useBoolean(false);
 
@@ -81,7 +80,14 @@ export default function LoansScreen() {
 
   const data: Record<Segment, Loan[]> = { active, settled };
   const query = isSearchOpen ? search.trim().toLowerCase() : "";
-  const entries = data[segment].filter(({ borrower }) => borrower.toLowerCase().includes(query));
+  const matches = data[segment].filter(({ borrower }) => borrower.toLowerCase().includes(query));
+  const entries = Object.entries(groupBy(matches, "borrower")).map(([borrower, items]) => ({
+    borrower,
+    loanCount: items.length,
+    amount: sumBy(items, ({ id }) =>
+      segment === "active" ? (loans.summaries[id]?.balance ?? 0) : (loans.summaries[id]?.paidTotal ?? 0)
+    ),
+  }));
   const hero = HERO[segment];
   const totals: Record<Segment, number> = {
     active: sumBy(active, ({ id }) => loans.summaries[id]?.balance ?? 0),
@@ -100,21 +106,13 @@ export default function LoansScreen() {
     searchOpen.toggle();
   }
 
-  const renderItem = ({ item }: { item: Loan }) => {
-    const summary = loans.summaries[item.id];
-    if (!summary) {
-      return null;
-    }
-    return (
-      <LoanRow
-        loan={item}
-        summary={summary}
-        accountName={accounts.accounts.find(({ id }) => id === item.accountId)?.name}
-        today={today}
-        onPress={() => router.push({ pathname: "/loan/[id]", params: { id: item.id } })}
-      />
-    );
-  };
+  const renderItem = ({ item }: { item: (typeof entries)[number] }) => (
+    <BorrowerRow
+      {...item}
+      isSettled={segment === "settled"}
+      onPress={() => router.push({ pathname: "/loan/borrower", params: { name: item.borrower } })}
+    />
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -154,7 +152,7 @@ export default function LoansScreen() {
 
       <FlatList
         data={entries}
-        keyExtractor={({ id }) => id}
+        keyExtractor={({ borrower }) => borrower}
         renderItem={renderItem}
         ListHeaderComponent={
           <View className={`mx-5 mb-1 rounded-2xl border p-5 ${hero.box}`}>

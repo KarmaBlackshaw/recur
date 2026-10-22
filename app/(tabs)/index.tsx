@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { View, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -11,7 +11,6 @@ import { KpiRow } from "@/components/kpi/KpiRow";
 import { LoanSummaryCard } from "@/components/loans/LoanSummaryCard";
 import { type DayEntry } from "@/components/DayGroupedExpenseList";
 import { HomeExpenseSections, type HomeEntry } from "@/components/HomeExpenseSections";
-import { DayWindowSelector, windowLabel, type DayWindow } from "@/components/DayWindowSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
@@ -21,18 +20,20 @@ import { isBillTbd } from "@/utils/cardBills";
 import { colors } from "@/constants/theme";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 
+const UPCOMING_LIMIT = 5;
+const ACTIVITY_LIMIT = 10;
+
 export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus, resolveAmount } = useExpenses();
   const accounts = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
-  const [windowDays, setWindowDays] = useState<DayWindow>(7);
   const today = dayjs().startOf("day").toDate();
   const year = today.getFullYear();
   const month = today.getMonth();
 
-  // Unpaid recurring cycles, split by urgency. Overdue always shows (window-agnostic);
-  // Upcoming is gated to the rolling [today, today+window] range.
+  // Unpaid recurring cycles, split by urgency. Overdue always shows in full;
+  // Upcoming is capped to the next UPCOMING_LIMIT dues.
   const dueEntry = (e: (typeof expenses)[number]): DayEntry => ({
     key: e.id,
     expense: e,
@@ -69,7 +70,6 @@ export default function HomeScreen() {
   }, [expenses, getMonthStatus, resolveAmount, year, month, openBills]);
 
   const upcoming = useMemo<HomeEntry[]>(() => {
-    const inN = dayjs(today).add(windowDays, "day").toDate();
     const entries = expenses
       .filter((e) => {
         if (e.recurrence === "one-off") {
@@ -81,20 +81,17 @@ export default function HomeScreen() {
         if (isOverdueOn(e.dueDay, year, month)) {
           return false;
         }
-        const d = getDueDate(e.dueDay);
-        return d >= today && d <= inN;
+        return getDueDate(e.dueDay) >= today;
       })
       .map(dueEntry);
-    const bills = openBills.filter((b) => b.effDate >= today && b.effDate <= inN);
-    return sortBy([...entries, ...bills], "effDate");
-  }, [expenses, getMonthStatus, resolveAmount, year, month, windowDays, openBills]);
+    const bills = openBills.filter((b) => b.effDate >= today);
+    return sortBy([...entries, ...bills], "effDate").slice(0, UPCOMING_LIMIT);
+  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills]);
 
-  // Recent activity: every Activity-tab row dated within the rolling window.
   const recentActivity = useMemo(() => {
-    const lastN = dayjs(today).subtract(windowDays, "day").toDate();
     const endToday = dayjs().endOf("day").toDate();
-    return feed.all.filter(({ effDate }) => effDate >= lastN && effDate <= endToday);
-  }, [feed, windowDays]);
+    return feed.all.filter(({ effDate }) => effDate <= endToday).slice(0, ACTIVITY_LIMIT);
+  }, [feed]);
 
   if (loading) {
     return (
@@ -138,10 +135,6 @@ export default function HomeScreen() {
             </AppText>
             <KpiRow year={year} month={month} />
             <LoanSummaryCard />
-            <View className="gap-2 mx-5 mt-3 mb-1">
-              <AppText variant="meta">Upcoming & activity within</AppText>
-              <DayWindowSelector value={windowDays} onChange={setWindowDays} />
-            </View>
           </View>
         }
         ListEmptyComponent={
@@ -151,7 +144,7 @@ export default function HomeScreen() {
             <View className="mx-5 mt-1 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-border">
               <Feather name="inbox" size={15} color={colors.textMuted} />
               <AppText variant="meta" className="shrink">
-                Nothing due and no activity in the last/next {windowLabel(windowDays).toLowerCase()}
+                Nothing due and no recent activity
               </AppText>
             </View>
           )

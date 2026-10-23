@@ -3,7 +3,7 @@ import { SectionList } from "react-native";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
-import type { BillPaymentEntry, IncomeEntry, TransferEntry } from "@/utils/usePaidLedger";
+import type { BillPaymentEntry, IncomeEntry, InterestEntry, TransferEntry } from "@/utils/usePaidLedger";
 import type { LoanActivityEntry } from "@/utils/useLoanActivity";
 import type { Expense } from "@/types";
 
@@ -21,7 +21,7 @@ export interface DayEntry {
 }
 
 export type LedgerEntry = DayEntry | BillPaymentEntry;
-export type ActivityEntry = LedgerEntry | IncomeEntry | TransferEntry | LoanActivityEntry;
+export type ActivityEntry = LedgerEntry | IncomeEntry | InterestEntry | TransferEntry | LoanActivityEntry;
 
 interface DaySection {
   key: string;

@@ -34,6 +34,15 @@ export interface IncomeEntry {
   amount: number;
 }
 
+export interface InterestEntry {
+  key: string;
+  interest: AccountTransaction;
+  accountName: string | undefined;
+  effDate: Date;
+  amount: number;
+  tax: number;
+}
+
 export interface TransferEntry {
   key: string;
   transfer: AccountTransaction;
@@ -165,4 +174,32 @@ export function useTransfers(): TransferEntry[] {
 
     return orderBy(items, "effDate", "desc");
   }, [accounts, transactions, isCardAccount]);
+}
+
+// One entry per interest credit, net of the tax withheld alongside it
+// (creditInterest writes both rows with the same account + timestamp).
+export function useInterestCredits(): InterestEntry[] {
+  const { accounts, transactions } = useAccounts();
+
+  return useMemo(() => {
+    const accountsById = keyBy(accounts, "id");
+    const taxByCredit = keyBy(
+      transactions.filter((t) => t.kind === "tax"),
+      (t) => `${t.accountId}|${t.createdAt}`
+    );
+    const items = transactions
+      .filter((t) => t.kind === "interest")
+      .map((t) => {
+        const tax = Math.abs(taxByCredit[`${t.accountId}|${t.createdAt}`]?.amount ?? 0);
+        return {
+          key: t.id,
+          interest: t,
+          accountName: accountsById[t.accountId]?.name,
+          effDate: dayjs(t.createdAt).toDate(),
+          amount: t.amount - tax,
+          tax,
+        };
+      });
+    return orderBy(items, "effDate", "desc");
+  }, [accounts, transactions]);
 }

@@ -17,6 +17,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { isOverdueOn, isEndedOn, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
 import { useActivityFeed } from "@/utils/useActivityFeed";
+import { useLingeringEntries } from "@/utils/useLingeringEntries";
 import { isBillTbd } from "@/utils/cardBills";
 import { colors } from "@/constants/theme";
 import { useRefreshControl } from "@/utils/useRefreshControl";
@@ -58,7 +59,11 @@ export default function HomeScreen() {
       }));
   }, [accounts.getCardBills, year, month]);
 
-  const overdue = useMemo<HomeEntry[]>(() => {
+  // Just-paid cards linger with their Paid badge before leaving Overdue / Upcoming.
+  const isPaidNow = (e: HomeEntry) =>
+    "expense" in e && getMonthStatus(e.expense.id, e.refDate.getFullYear(), e.refDate.getMonth()) === "paid";
+
+  const overdueLive = useMemo<HomeEntry[]>(() => {
     const entries = expenses
       .filter(
         (e) =>
@@ -68,10 +73,15 @@ export default function HomeScreen() {
       )
       .map((e) => dueEntry(e, year, month));
     const bills = openBills.filter((b) => !b.bill.isPaid && b.effDate < today);
-    return sortBy([...entries, ...bills], "effDate");
+    return [...entries, ...bills];
   }, [expenses, getMonthStatus, resolveAmount, year, month, openBills]);
+  const overdueWithPaid = useLingeringEntries(overdueLive, isPaidNow);
+  const overdue = useMemo(() => sortBy(overdueWithPaid, "effDate"), [overdueWithPaid]);
 
-  const upcoming = useMemo<UpcomingBand[]>(() => {
+  const next = dayjs(today).add(1, "month").startOf("month");
+  const isNextMonthNear = next.diff(today, "day") <= NEXT_MONTH_LOOKAHEAD_DAYS;
+
+  const upcomingLive = useMemo<HomeEntry[]>(() => {
     const unpaidDues = (y: number, m: number) =>
       expenses
         .filter(
@@ -81,30 +91,33 @@ export default function HomeScreen() {
             getMonthStatus(e.id, y, m) === "unpaid"
         )
         .map((e) => dueEntry(e, y, m));
-    const band = (key: string, monthStart: dayjs.Dayjs, entries: HomeEntry[]): UpcomingBand => ({
-      key,
-      label: monthStart.format("MMMM"),
-      caption: `${entries.length} left`,
-      total: sumBy(entries, "amount"),
-      data: sortBy(entries, "effDate").slice(0, UPCOMING_LIMIT),
-    });
-
-    const thisMonth = band("upcoming-this-month", dayjs(today), [
+    return [
       ...unpaidDues(year, month).filter((d) => d.effDate >= today),
       ...openBills.filter((b) => b.effDate >= today && dayjs(b.effDate).isSame(today, "month")),
-    ]);
-
-    const next = dayjs(today).add(1, "month").startOf("month");
-    const nextMonth =
-      next.diff(today, "day") <= NEXT_MONTH_LOOKAHEAD_DAYS
-        ? band("upcoming-next-month", next, [
+      ...(isNextMonthNear
+        ? [
             ...unpaidDues(next.year(), next.month()),
             ...openBills.filter((b) => dayjs(b.effDate).isSame(next, "month")),
-          ])
-        : undefined;
+          ]
+        : []),
+    ];
+  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills, isNextMonthNear]);
+  const upcomingWithPaid = useLingeringEntries(upcomingLive, isPaidNow);
 
-    return [thisMonth, nextMonth].filter((b): b is UpcomingBand => b != null && b.data.length > 0);
-  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills]);
+  const upcoming = useMemo<UpcomingBand[]>(() => {
+    const band = (monthStart: dayjs.Dayjs): UpcomingBand => {
+      const entries = upcomingWithPaid.filter((e) => dayjs(e.effDate).isSame(monthStart, "month"));
+      const remaining = entries.filter((e) => !isPaidNow(e));
+      return {
+        key: `upcoming-${monthStart.format("YYYY-MM")}`,
+        label: monthStart.format("MMMM"),
+        caption: `${remaining.length} left`,
+        total: sumBy(remaining, "amount"),
+        data: sortBy(entries, "effDate").slice(0, UPCOMING_LIMIT),
+      };
+    };
+    return [band(dayjs(today)), band(next)].filter((b) => b.data.length > 0);
+  }, [upcomingWithPaid, getMonthStatus]);
 
   const recentActivity = useMemo(() => {
     const endToday = dayjs().endOf("day").toDate();

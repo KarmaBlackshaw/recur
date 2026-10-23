@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import { View, TouchableOpacity, Alert, type AccessibilityActionEvent } from "react-native";
 import { router } from "expo-router";
+import { Pressable } from "react-native-gesture-handler";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
@@ -93,6 +94,24 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
     { name: "delete", label: "Delete" },
   ];
 
+  function handleSwipeToggle() {
+    swipeRef.current?.close();
+    handleToggle();
+  }
+
+  // RNGH Pressable, not TouchableOpacity: the swipeable's full-width right-actions layer sits on top
+  // and swallows RN touches on the left side; RNGH's own hit-testing passes through it.
+  function renderLeftActions() {
+    return (
+      <Pressable onPress={handleSwipeToggle} accessibilityRole="button" accessibilityLabel={isPaid ? "Mark unpaid" : "Mark paid"}>
+        <View className="flex-1 justify-center items-center gap-1 w-20 my-1.5 ml-5 rounded-2xl bg-paid/15">
+          <Feather name={isPaid ? "rotate-ccw" : "check"} size={20} color={colors.paid} />
+          <AppText variant="meta" className="text-paid">{isPaid ? "Unpay" : "Pay"}</AppText>
+        </View>
+      </Pressable>
+    );
+  }
+
   function renderRightActions() {
     return (
       <TouchableOpacity
@@ -110,7 +129,9 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
   return (
     <ReanimatedSwipeable
       ref={swipeRef}
+      renderLeftActions={canToggle ? renderLeftActions : undefined}
       renderRightActions={renderRightActions}
+      overshootLeft={false}
       overshootRight={false}
     >
       <TouchableOpacity
@@ -162,7 +183,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
                   <AppText variant="caption" className="uppercase tracking-wider">Ended</AppText>
                 </View>
               ) : (
-                <StatusBadge status={resolvedStatus} overdue={overdueFlag} charged={isChargedNow} onToggle={canToggle ? handleToggle : undefined} />
+                <StatusBadge status={resolvedStatus} overdue={overdueFlag} charged={isChargedNow} />
               )}
             </View>
           </View>

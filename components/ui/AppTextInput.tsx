@@ -3,6 +3,7 @@ import { TextInput, TextInputProps, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
+import { BottomSheetTextInput, useBottomSheetInternal } from "@gorhom/bottom-sheet";
 import { colors } from "@/constants/theme";
 import { formatAmount, sanitizeAmount } from "@/utils/amountInput";
 
@@ -14,6 +15,8 @@ interface AppTextInputProps extends TextInputProps {
 
 export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
   function AppTextInput({ label, error, multiline, isAmount, value, onChangeText, className = "", ...props }, ref) {
+    // gorhom only lifts the sheet above the keyboard when the focused input is a BottomSheetTextInput
+    const Input = useBottomSheetInternal(true) ? BottomSheetTextInput : TextInput;
     return (
       <View className={label ? undefined : "mt-3"}>
         {label && (
@@ -21,8 +24,14 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
             {label}
           </AppLabel>
         )}
-        <TextInput
-          ref={ref}
+        <Input
+          ref={(node: TextInput | null | undefined) => {
+            if (typeof ref === "function") {
+              ref(node ?? null);
+            } else if (ref) {
+              ref.current = node ?? null;
+            }
+          }}
           className={`bg-surface border rounded-xl px-4 py-4 text-white font-quicksand text-[15px] mb-1 ${error ? "border-overdue" : "border-border"} ${multiline ? "min-h-[96px]" : "min-h-[52px]"} ${className}`}
           placeholderTextColor={colors.textMuted}
           multiline={multiline}

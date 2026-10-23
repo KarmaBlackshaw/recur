@@ -11,10 +11,12 @@ interface Props {
   accent: string;
   total?: number;
   count?: number;
+  caption?: string;
 }
 
-export function BandHeader({ label, icon, accent, total, count }: Props) {
-  const title = count != null ? `${label} · ${count}` : label;
+export function BandHeader({ label, icon, accent, total, count, caption }: Props) {
+  const heading = count != null ? `${label} · ${count}` : label;
+  const title = caption ? `${heading}, ${caption}` : heading;
   return (
     <View
       accessible
@@ -25,8 +27,9 @@ export function BandHeader({ label, icon, accent, total, count }: Props) {
       <View className="flex-row items-center gap-2">
         <Feather name={icon} size={14} color={accent} />
         <AppText variant="overline" style={{ color: accent }}>
-          {title}
+          {heading}
         </AppText>
+        {caption ? <AppText variant="meta">{caption}</AppText> : null}
       </View>
       {total != null ? <AppText variant="amount-sm">{formatAmount(total)}</AppText> : null}
     </View>

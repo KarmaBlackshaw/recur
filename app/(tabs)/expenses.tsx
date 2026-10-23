@@ -58,7 +58,7 @@ export default function ExpensesScreen() {
   const today = dayjs().startOf("day").toDate();
   const [{ year, month }, setSelected] = useSetState({ year: today.getFullYear(), month: today.getMonth() });
 
-  const { byFilter, notPaidOff, fees, interest, tax } = useMemo(() => {
+  const { byFilter, notPaidOff, fees } = useMemo(() => {
     const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
     const charged = feed.charged.filter(isInMonth);
     const notPaidOff = sumBy(
@@ -75,8 +75,6 @@ export default function ExpensesScreen() {
         "amount"
       );
     const fees = monthTxnTotal("fee");
-    const interest = monthTxnTotal("interest");
-    const tax = monthTxnTotal("tax");
     const byFilter: Record<Segment, ActivityEntry[]> = {
       all: feed.all.filter(isInMonth),
       paid: feed.paid.filter(isInMonth),
@@ -84,15 +82,14 @@ export default function ExpensesScreen() {
       income: feed.income.filter(isInMonth),
       transfers: feed.transfers.filter(isInMonth),
     };
-    return { byFilter, notPaidOff, fees, interest, tax };
+    return { byFilter, notPaidOff, fees };
   }, [feed, transactions, isCharged, year, month]);
 
   const entries = byFilter[segment];
-  const moneyIn = sumBy(byFilter.income, "amount") + interest;
+  const moneyIn = sumBy(byFilter.income, "amount");
   const paidTotal = sumBy(byFilter.paid, "amount") + fees;
-  const moneyOut = paidTotal + tax;
   const totals: Record<Segment, number> = {
-    all: moneyIn - moneyOut,
+    all: moneyIn - paidTotal,
     paid: paidTotal,
     charged: sumBy(entries, "amount"),
     income: sumBy(entries, "amount"),
@@ -101,7 +98,7 @@ export default function ExpensesScreen() {
   const total = totals[segment];
   const hero = HERO[segment];
   const heroMeta: Record<Segment, string> = {
-    all: `${formatAmount(moneyIn)} in · ${formatAmount(moneyOut)} out`,
+    all: `${formatAmount(moneyIn)} in · ${formatAmount(paidTotal)} out`,
     paid: [countLabel(entries.length, "payment", "payments"), fees > 0 ? `incl. ${formatAmount(fees)} fees` : null]
       .filter(Boolean)
       .join(" · "),

@@ -1,5 +1,5 @@
 import React from "react";
-import { TouchableOpacity } from "react-native";
+import { View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { FeatherIconName, Status } from "@/types";
 import { colors } from "@/constants/theme";
@@ -10,7 +10,6 @@ interface Props {
   overdue?: boolean;
   charged?: boolean;
   label?: string;
-  onToggle?: () => void;
 }
 
 interface Tone {
@@ -53,27 +52,21 @@ const UNPAID: Tone = {
   textClass: "text-textSecondary",
 };
 
-export function StatusBadge({ status, overdue, charged, label, onToggle }: Props) {
+export function StatusBadge({ status, overdue, charged, label }: Props) {
   const isPaid = status === "paid";
   const tone = isPaid ? (charged ? CHARGED : PAID) : overdue ? OVERDUE : UNPAID;
   const text = label ?? tone.label;
 
   return (
-    <TouchableOpacity
-      onPress={onToggle}
-      disabled={!onToggle}
-      activeOpacity={0.7}
+    <View
       className={`flex-row items-center gap-1 rounded-full border px-2 py-0.5 ${tone.containerClass}`}
-      hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-      accessibilityRole={onToggle ? "button" : "text"}
-      accessibilityLabel={onToggle ? (isPaid ? "Mark as unpaid" : "Mark as paid") : text}
-      accessibilityHint={onToggle ? `Currently ${tone.label.toLowerCase()}` : undefined}
-      accessibilityState={onToggle ? { checked: isPaid } : undefined}
+      accessibilityRole="text"
+      accessibilityLabel={text}
     >
       <Feather name={tone.icon} size={10} color={tone.color} />
       <AppText variant="body-bold" className={`text-[11px] tracking-[0.5px] ${tone.textClass}`}>
         {text}
       </AppText>
-    </TouchableOpacity>
+    </View>
   );
 }

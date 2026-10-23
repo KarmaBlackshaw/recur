@@ -13,8 +13,9 @@ import type { CardBill, FeatherIconName } from "@/types";
 
 export type BillEntry = { key: string; bill: CardBill; effDate: Date; amount: number };
 export type HomeEntry = LedgerEntry | BillEntry;
+export type UpcomingBand = { key: string; label: string; caption: string; total: number; data: HomeEntry[] };
 
-// Home has three bands. Overdue + Upcoming are flat (each card shows its own date);
+// Home has three kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each card shows its own date);
 // Recent activity mirrors the Activity tab's All list — day-grouped, no subtotals
 // (it mixes money in and out), with the band label on the first day only.
 type FlatSection = {
@@ -24,6 +25,8 @@ type FlatSection = {
   icon: FeatherIconName;
   accent: string;
   total: number;
+  count?: number;
+  caption?: string;
   data: HomeEntry[];
 };
 type DaySection = {
@@ -39,7 +42,7 @@ type HomeSection = FlatSection | DaySection;
 
 interface Props {
   overdue: HomeEntry[];
-  upcoming: HomeEntry[];
+  upcoming: UpcomingBand[];
   recentActivity: ActivityEntry[];
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
@@ -66,20 +69,13 @@ export function HomeExpenseSections({
         icon: "alert-triangle",
         accent: colors.overdue,
         total: sumBy(overdue, "amount"),
+        count: overdue.length,
         data: overdue,
       });
     }
 
-    if (upcoming.length) {
-      out.push({
-        kind: "flat",
-        key: "upcoming",
-        band: "Upcoming",
-        icon: "arrow-up-circle",
-        accent: colors.secondary,
-        total: sumBy(upcoming, "amount"),
-        data: upcoming,
-      });
+    for (const { key, label, caption, total, data } of upcoming) {
+      out.push({ kind: "flat", key, band: label, caption, icon: "arrow-up-circle", accent: colors.secondary, total, data });
     }
 
     if (recentActivity.length) {
@@ -110,7 +106,7 @@ export function HomeExpenseSections({
         renderSectionHeader={({ section }) => {
           const s = section as unknown as HomeSection;
           if (s.kind === "flat") {
-            return <BandHeader label={s.band} icon={s.icon} accent={s.accent} total={s.total} count={s.data.length} />;
+            return <BandHeader label={s.band} icon={s.icon} accent={s.accent} total={s.total} count={s.count} caption={s.caption} />;
           }
           return (
             <View>

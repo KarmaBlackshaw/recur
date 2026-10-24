@@ -6,7 +6,7 @@ React Native / Expo recurring expenses tracker. Expo Router, TypeScript, NativeW
 
 ## Stack Conventions
 
-- **Styling:** NativeWind utility classes everywhere. **Never use `StyleSheet.create`** — it is banned. Use inline `style={{}}` only for: (1) Reanimated animated styles, (2) runtime-computed values that can't be expressed as static classes (e.g. dynamic `backgroundColor`, `shadowColor`). Never wrap these in `StyleSheet.create` — plain object inline only.
+- **Styling:** NativeWind utility classes everywhere. **Never use `StyleSheet.create`** — it is banned. Use inline `style={{}}` only for: (1) Reanimated animated styles, (2) runtime-computed values that can't be expressed as static classes (e.g. dynamic `backgroundColor`, `shadowColor`). Never wrap these in `StyleSheet.create` — plain object inline only. On `overflow-hidden` views, switch a conditional border to `border-0`, never to `""` — Android turns a removed `borderWidth` into NaN insets and clips away every child (#32).
 - **State:** `context/ExpenseContext.tsx` is the single source of truth. All mutations go through the context dispatcher after calling the DB helper.
 - **DB:** All SQLite access goes through `db/expenses.ts` and `db/categories.ts`. Never query the DB directly from components.
 - **Dates:** All date logic uses `dayjs`. No manual date arithmetic. Due is a day-of-month integer (1–31), not a full date string. `getDueDate(dueDay)` clamps to last day of month for short months.

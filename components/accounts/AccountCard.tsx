@@ -60,6 +60,10 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
   const utilization = limit ? Math.min(Math.max(balance / limit, 0), 1) : isOverLimit ? 1 : 0;
   const dueDate = isCredit && account.dueDay != null ? dayjs(nextOccurrence(account.dueDay)) : null;
 
+  // Keep borderWidth explicit. On Android, removing it from this overflow-hidden view leaves NaN
+  // border insets, and the padding-box clip then hides every child (issue #32).
+  const borderClass = isNegative ? "border-2 border-overdue" : "border-0";
+
   const subtitle = [
     meta.chip,
     account.interestRate ? `${account.interestRate}% p.a.` : null,
@@ -108,7 +112,7 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
     >
       <Animated.View
         entering={isReducedMotion || isPreview ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}
-        className={`grow rounded-3xl overflow-hidden justify-between ${isCompact ? "p-3" : "min-h-[164px] p-4"} ${isNegative ? "border-2 border-overdue" : ""}`}
+        className={`grow rounded-3xl overflow-hidden justify-between ${isCompact ? "p-3" : "min-h-[164px] p-4"} ${borderClass}`}
         style={{ backgroundColor: account.color ?? DEFAULT_CARD_COLOR }}
       >
         <LinearGradient

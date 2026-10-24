@@ -14,6 +14,7 @@ React Native / Expo recurring expenses tracker. Expo Router, TypeScript, NativeW
 - **Forms:** `react-hook-form` with `Controller` for every form field. Save button disabled when `!isValid`. Scrollable form screens use `AppFormScrollView` (not a bare `ScrollView`) so the focused field stays above the keyboard — Android is edge-to-edge, so the window never resizes for it.
 - **Animations:** `react-native-reanimated` for all animations. No `Animated` API from React Native core.
 - **Bottom sheets:** `@gorhom/bottom-sheet` (`BottomSheetModal`). No plain `Modal` for primary flows. Sheets with inputs: content-sized (default dynamic sizing, no fixed `snapPoints`) with `keyboardBehavior="interactive"`, and never `android_keyboardInputMode="adjustResize"` — under edge-to-edge it stops gorhom lifting the sheet, leaving it behind the keyboard.
+- **List rows:** Every money row (expenses, card bills, income, interest, transfers, loans, account transactions) renders through `components/ui/AppListRow.tsx`. No card-wrapped rows, no status pills inside rows. Tones, caption wording and the rest of the visual language live in `DESIGN.md`.
 - **No monkey patches:** Never suppress warnings or errors with guards, flags, or workarounds that hide the symptom without fixing the root cause. Always trace to root cause and fix there.
 - **Async style:** Always use `async/await`. Never use `.then()` / `.catch()` chains.
 

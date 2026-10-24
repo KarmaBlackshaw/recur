@@ -6,6 +6,7 @@ export type FeatherIconName = keyof typeof Feather.glyphMap;
 export type IoniconName = keyof typeof Ionicons.glyphMap;
 export type Recurrence = 'weekly' | 'monthly' | 'yearly' | 'one-off';
 export type Status = 'unpaid' | 'paid';
+export type HomeBandSlot = 'current' | 'next';
 
 export interface Expense {
   id: string;

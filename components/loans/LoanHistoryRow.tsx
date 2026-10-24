@@ -1,9 +1,6 @@
 import React from "react";
-import { TouchableOpacity, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
 import dayjs from "dayjs";
-import { AppText } from "@/components/ui/AppText";
-import { colors } from "@/constants/theme";
+import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { formatAmount } from "@/utils/dateHelpers";
 import type { AccountTransaction, FeatherIconName } from "@/types";
 
@@ -19,10 +16,10 @@ export type TLoanHistoryItem =
   | (TLoanHistoryBase & { kind: "interest" })
   | (TLoanHistoryBase & { kind: "payment"; txn: AccountTransaction });
 
-const KIND_META: Record<TLoanHistoryItem["kind"], { icon: FeatherIconName; tone: string; sign: string }> = {
-  lent: { icon: "arrow-up-right", tone: "text-white", sign: "−" },
-  interest: { icon: "trending-up", tone: "text-textSecondary", sign: "" },
-  payment: { icon: "arrow-down-left", tone: "text-paid", sign: "+" },
+const KIND_META: Record<TLoanHistoryItem["kind"], { icon: FeatherIconName; tone: RowTone; sign: string }> = {
+  lent: { icon: "arrow-up-right", tone: "neutral", sign: "−" },
+  interest: { icon: "trending-up", tone: "muted", sign: "" },
+  payment: { icon: "arrow-down-left", tone: "positive", sign: "+" },
 };
 
 function labelOf({ kind, accountName }: TLoanHistoryItem) {
@@ -44,23 +41,16 @@ export function LoanHistoryRow({ item, onPress }: { item: TLoanHistoryItem; onPr
   const dateLabel = dayjs(item.date).format("MMM D");
 
   return (
-    <TouchableOpacity
-      className="flex-row items-center gap-3 px-5 py-3 min-h-[60px]"
+    <AppListRow
+      icon={icon}
+      iconTone={tone === "positive" ? "positive" : "neutral"}
+      title={label}
+      amount={signed}
+      amountTone={tone}
+      accessory={onPress ? "trash-2" : undefined}
       onPress={onPress}
-      disabled={!onPress}
-      activeOpacity={0.85}
-      accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={`${label}, ${signed}, ${dateLabel}`}
       accessibilityHint={onPress ? "Deletes this payment" : undefined}
-    >
-      <View className="w-9 h-9 rounded-xl bg-white/[0.07] items-center justify-center">
-        <Feather name={icon} size={16} color={colors.textSecondary} />
-      </View>
-      <View className="flex-1">
-        <AppText variant="body-bold" className="text-sm" numberOfLines={1}>{label}</AppText>
-      </View>
-      <AppText variant="amount" className={`text-[15px] ${tone}`}>{signed}</AppText>
-      {onPress && <Feather name="trash-2" size={16} color={colors.textMuted} />}
-    </TouchableOpacity>
+    />
   );
 }

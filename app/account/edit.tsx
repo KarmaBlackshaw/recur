@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
+import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
@@ -7,6 +7,7 @@ import { Feather } from "@expo/vector-icons";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
@@ -291,7 +292,7 @@ export default function EditAccountScreen() {
         <View className="w-11" />
       </View>
 
-      <ScrollView
+      <AppFormScrollView
         contentContainerClassName="px-5 pb-5"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -507,7 +508,7 @@ export default function EditAccountScreen() {
         )}
 
         <View className="h-8" />
-      </ScrollView>
+      </AppFormScrollView>
     </SafeAreaView>
   );
 }

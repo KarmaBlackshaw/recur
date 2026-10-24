@@ -3,7 +3,7 @@ import useBoolean from "ahooks/es/useBoolean";
 import maxBy from "lodash/maxBy";
 import orderBy from "lodash/orderBy";
 import uniqBy from "lodash/uniqBy";
-import { View, TouchableOpacity, ScrollView, Alert, TextInput } from "react-native";
+import { View, TouchableOpacity, Alert, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
@@ -14,6 +14,7 @@ import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/Acc
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
@@ -268,7 +269,7 @@ export default function AddLoanScreen() {
         <View className="w-11" />
       </View>
 
-      <ScrollView
+      <AppFormScrollView
         contentContainerClassName="px-5 pb-5"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -475,7 +476,7 @@ export default function AddLoanScreen() {
         )}
 
         <View className="h-8" />
-      </ScrollView>
+      </AppFormScrollView>
 
       <Controller
         control={control}

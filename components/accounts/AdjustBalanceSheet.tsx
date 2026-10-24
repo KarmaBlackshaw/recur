@@ -63,7 +63,6 @@ export const AdjustBalanceSheet = forwardRef<AdjustBalanceSheetRef, { account: A
         ref={sheetRef}
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
         backgroundStyle={{ backgroundColor: colors.surface }}
         handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
         backdropComponent={renderBackdrop}

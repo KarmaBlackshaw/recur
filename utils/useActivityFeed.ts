@@ -42,10 +42,13 @@ export function useActivityFeed(): ActivityFeed {
       "desc"
     );
     const charged = ledger.filter((it) => it.isCard).map((it) => ({ ...it, compact: true }));
+    const liveTransferIds = new Set(transactions.filter((t) => t.kind === "transfer").map((t) => t.transferId));
     const income = orderBy(
       [
+        // Income earned on a transfer rides on its TransferRow (like tax on InterestRow), not a row of its own —
+        // unless both transfer sides were deleted with their accounts and it sits in a third account.
         ...transactions
-          .filter((t) => t.kind === "income")
+          .filter((t) => t.kind === "income" && (t.transferId == null || !liveTransferIds.has(t.transferId)))
           .map((t) => ({ key: t.id, income: t, effDate: new Date(t.createdAt), amount: t.amount })),
         ...interestCredits,
         ...loanActivity.filter(({ loanTxn }) => loanTxn.kind === "loan_in"),

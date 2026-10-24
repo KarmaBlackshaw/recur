@@ -171,3 +171,14 @@ export interface IncomeInput {
   note: string | null;
   receivedAt: string;
 }
+
+export interface TransferInput {
+  fromId: string;
+  toId: string;
+  amount: number;
+  fee: number;              // paid by you — deducted from From
+  income: number;           // earned on the transfer (e.g. a cash-out fee)
+  incomeCategory: string;
+  incomeAccountId: string;  // where the income lands — usually To
+  note: string | null;
+}

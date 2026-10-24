@@ -8,13 +8,19 @@ import { formatAmount } from "@/utils/dateHelpers";
 import type { TransferEntry } from "@/utils/usePaidLedger";
 
 export function TransferRow({ entry }: { entry: TransferEntry }) {
-  const { transfer, fromName, toName, amount, fee } = entry;
+  const { transfer, fromName, toName, amount, fee, earned, earnedCategory, earnedAccountName } = entry;
   const source = fromName ?? "Deleted account";
   const destination = toName ?? "Deleted account";
   const title = `${source} → ${destination}`;
   const isAutoNote = transfer.note === `Transfer to ${destination}` || transfer.note === `Transfer from ${source}`;
   const customNote = isAutoNote ? null : transfer.note;
-  const meta = [customNote, fee > 0 ? `fee ${formatAmount(fee)}` : null].filter(Boolean).join(" · ") || "Transfer";
+  const earnedLabel =
+    earned > 0
+      ? [`income ${formatAmount(earned)}`, earnedAccountName && `to ${earnedAccountName}`, earnedCategory && `(${earnedCategory})`]
+          .filter(Boolean)
+          .join(" ")
+      : null;
+  const meta = [customNote, fee > 0 ? `fee ${formatAmount(fee)}` : null, earnedLabel].filter(Boolean).join(" · ") || "Transfer";
 
   return (
     <TouchableOpacity

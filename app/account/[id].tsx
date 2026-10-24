@@ -146,7 +146,7 @@ export default function AccountDetailScreen() {
     if (!transferId) {
       return;
     }
-    Alert.alert("Delete transfer?", "Both sides of this transfer and any transfer fee are removed, and the balances restored.", [
+    Alert.alert("Delete transfer?", "Both sides of this transfer and any fee or income recorded with it are removed, and the balances restored.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",

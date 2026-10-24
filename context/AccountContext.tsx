@@ -6,7 +6,7 @@ import useMemoizedFn from "ahooks/es/useMemoizedFn";
 import round from "lodash/round";
 import { saveAccountLogo } from "@/utils/accountLogo/saveAccountLogo";
 import { deleteAccountLogo } from "@/utils/accountLogo/deleteAccountLogo";
-import type { Account, AccountInput, AccountTransaction, CardBill, CardBillOverride, IncomeInput, InterestEstimate } from "@/types";
+import type { Account, AccountInput, AccountTransaction, CardBill, CardBillOverride, IncomeInput, InterestEstimate, TransferInput } from "@/types";
 import * as accountsDB from "@/db/accounts";
 import * as transactionsDB from "@/db/accountTransactions";
 import * as cardBillsDB from "@/db/cardBills";
@@ -82,7 +82,7 @@ interface AccountContextValue {
   addIncome: (input: IncomeInput) => Promise<void>;
   updateIncome: (id: string, input: IncomeInput) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
-  transfer: (fromId: string, toId: string, amount: number, note?: string, fee?: number) => Promise<void>;
+  transfer: (input: TransferInput) => Promise<void>;
   deleteTransfer: (transferId: string) => Promise<void>;
   syncPayment: (p: PaymentSync) => Promise<void>;
   removePayment: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => Promise<void>;
@@ -339,7 +339,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.id === id });
   });
 
-  const transfer = useMemoizedFn(async (fromId: string, toId: string, amount: number, note?: string, fee = 0) => {
+  const transfer = useMemoizedFn(async ({ fromId, toId, amount, fee, income, incomeCategory, incomeAccountId, note }: TransferInput) => {
     const from = state.accounts.find((a) => a.id === fromId);
     const to = state.accounts.find((a) => a.id === toId);
     if (!from || !to) {
@@ -350,8 +350,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     }
     const value = round(amount, 2);
     const feeValue = round(fee, 2);
-    if (!(value > 0) || feeValue < 0 || fromId === toId) {
+    const incomeValue = round(income, 2);
+    if (!(value > 0) || feeValue < 0 || incomeValue < 0 || fromId === toId) {
       throw new Error("Invalid transfer");
+    }
+    const incomeAccount = state.accounts.find((a) => a.id === incomeAccountId);
+    // Card-bill payments aren't TransferEntries, so income on one would never surface in Activity.
+    if (incomeValue > 0 && (incomeAccount == null || incomeAccount.type === "credit" || to.type === "credit")) {
+      throw new Error("Invalid transfer income");
     }
     const transferId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const createdAt = new Date().toISOString();
@@ -386,8 +392,23 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         createdAt,
       });
     }
+    if (incomeValue > 0) {
+      rows.push({
+        ...emptyTxnFields(),
+        accountId: incomeAccountId,
+        kind: "income",
+        amount: incomeValue,
+        transferId,
+        category: incomeCategory,
+        note: note ?? `Earned on transfer ${from.name} → ${to.name}`,
+        createdAt,
+      });
+    }
     const txns = await transactionsDB.insertMany(rows);
     dispatch({ type: "ADD_TRANSACTIONS", payload: txns });
+    if (incomeValue > 0) {
+      await touchCategory(incomeCategory, undefined, "income");
+    }
   });
 
   const deleteTransfer = useMemoizedFn(async (transferId: string) => {

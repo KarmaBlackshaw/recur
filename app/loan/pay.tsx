@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import useBoolean from "ahooks/es/useBoolean";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
+import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
@@ -12,6 +12,7 @@ import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
@@ -88,7 +89,7 @@ function RecordPaymentForm({ loan }: { loan: Loan }) {
 
   return (
     <>
-      <ScrollView
+      <AppFormScrollView
         contentContainerClassName="px-5 pb-5"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -177,7 +178,7 @@ function RecordPaymentForm({ loan }: { loan: Loan }) {
         />
 
         <View className="h-8" />
-      </ScrollView>
+      </AppFormScrollView>
 
       <Controller
         control={control}

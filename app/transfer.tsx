@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
+import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import { useAccounts } from "@/context/AccountContext";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { CategoryBottomSheet, type CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { AppDisclosureCard } from "@/components/ui/AppDisclosureCard";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
@@ -220,7 +221,7 @@ export default function TransferScreen() {
         <View className="w-11" />
       </View>
 
-      <ScrollView
+      <AppFormScrollView
         contentContainerClassName="px-5 pb-5"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -383,7 +384,7 @@ export default function TransferScreen() {
           loading={isSubmitting}
           className="mt-4"
         />
-      </ScrollView>
+      </AppFormScrollView>
     </SafeAreaView>
   );
 }

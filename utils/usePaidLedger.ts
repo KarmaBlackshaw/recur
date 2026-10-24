@@ -51,6 +51,9 @@ export interface TransferEntry {
   effDate: Date;
   amount: number;
   fee: number;
+  earned: number; // income recorded with the transfer — not `income`, which ActivityEntryRow uses to detect IncomeEntry
+  earnedCategory: string | null;
+  earnedAccountName: string | null; // set only when the income went to an account other than To
 }
 
 function transferFee(transactions: AccountTransaction[], transferId: string | null) {
@@ -161,6 +164,8 @@ export function useTransfers(): TransferEntry[] {
       }
       const ownName = accountsById[t.accountId]?.name;
       const otherName = counterpart ? accountsById[counterpart.accountId]?.name : undefined;
+      const toAccountId = isFromSide ? counterpart?.accountId : t.accountId;
+      const income = transactions.find((o) => t.transferId != null && o.transferId === t.transferId && o.kind === "income");
       items.push({
         key: t.id,
         transfer: t,
@@ -169,6 +174,9 @@ export function useTransfers(): TransferEntry[] {
         effDate: dayjs(t.createdAt).toDate(),
         amount: Math.abs(t.amount),
         fee: transferFee(transactions, t.transferId),
+        earned: income?.amount ?? 0,
+        earnedCategory: income?.category ?? null,
+        earnedAccountName: income && income.accountId !== toAccountId ? accountsById[income.accountId]?.name ?? null : null,
       });
     }
 

@@ -58,7 +58,7 @@ export default function ExpensesScreen() {
   const today = dayjs().startOf("day").toDate();
   const [{ year, month }, setSelected] = useSetState({ year: today.getFullYear(), month: today.getMonth() });
 
-  const { byFilter, notPaidOff, fees } = useMemo(() => {
+  const { byFilter, notPaidOff, fees, transferIncome } = useMemo(() => {
     const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
     const charged = feed.charged.filter(isInMonth);
     const notPaidOff = sumBy(
@@ -75,24 +75,25 @@ export default function ExpensesScreen() {
         "amount"
       );
     const fees = monthTxnTotal("fee");
+    const transfers = feed.transfers.filter(isInMonth);
     const byFilter: Record<Segment, ActivityEntry[]> = {
       all: feed.all.filter(isInMonth),
       paid: feed.paid.filter(isInMonth),
       charged,
       income: feed.income.filter(isInMonth),
-      transfers: feed.transfers.filter(isInMonth),
+      transfers,
     };
-    return { byFilter, notPaidOff, fees };
+    return { byFilter, notPaidOff, fees, transferIncome: sumBy(transfers, "earned") };
   }, [feed, transactions, isCharged, year, month]);
 
   const entries = byFilter[segment];
-  const moneyIn = sumBy(byFilter.income, "amount");
+  const moneyIn = sumBy(byFilter.income, "amount") + transferIncome;
   const paidTotal = sumBy(byFilter.paid, "amount") + fees;
   const totals: Record<Segment, number> = {
     all: moneyIn - paidTotal,
     paid: paidTotal,
     charged: sumBy(entries, "amount"),
-    income: sumBy(entries, "amount"),
+    income: moneyIn,
     transfers: sumBy(entries, "amount"),
   };
   const total = totals[segment];
@@ -103,8 +104,17 @@ export default function ExpensesScreen() {
       .filter(Boolean)
       .join(" · "),
     charged: `${formatAmount(notPaidOff)} not yet paid off`,
-    income: countLabel(entries.length, "income", "incomes"),
-    transfers: [countLabel(entries.length, "transfer", "transfers"), fees > 0 ? `${formatAmount(fees)} fees` : null]
+    income: [
+      countLabel(entries.length, "income", "incomes"),
+      transferIncome > 0 ? `incl. ${formatAmount(transferIncome)} from transfers` : null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    transfers: [
+      countLabel(entries.length, "transfer", "transfers"),
+      fees > 0 ? `${formatAmount(fees)} fees` : null,
+      transferIncome > 0 ? `${formatAmount(transferIncome)} income` : null,
+    ]
       .filter(Boolean)
       .join(" · "),
   };

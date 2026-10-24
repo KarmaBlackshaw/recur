@@ -21,13 +21,14 @@ import { useLingeringEntries } from "@/utils/useLingeringEntries";
 import { isBillTbd } from "@/utils/cardBills";
 import { colors } from "@/constants/theme";
 import { useRefreshControl } from "@/utils/useRefreshControl";
+import type { HomeBandSlot } from "@/types";
 
 const UPCOMING_LIMIT = 5;
 const NEXT_MONTH_LOOKAHEAD_DAYS = 7;
 const ACTIVITY_LIMIT = 10;
 
 export default function HomeScreen() {
-  const { expenses, loading, userName, getMonthStatus, resolveAmount } = useExpenses();
+  const { expenses, loading, userName, getMonthStatus, resolveAmount, collapsedHomeBands, toggleHomeBand } = useExpenses();
   const accounts = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
@@ -105,18 +106,19 @@ export default function HomeScreen() {
   const upcomingWithPaid = useLingeringEntries(upcomingLive, isPaidNow);
 
   const upcoming = useMemo<UpcomingBand[]>(() => {
-    const band = (monthStart: dayjs.Dayjs): UpcomingBand => {
+    const band = (monthStart: dayjs.Dayjs, slot: HomeBandSlot): UpcomingBand => {
       const entries = upcomingWithPaid.filter((e) => dayjs(e.effDate).isSame(monthStart, "month"));
       const remaining = entries.filter((e) => !isPaidNow(e));
       return {
         key: `upcoming-${monthStart.format("YYYY-MM")}`,
+        slot,
         label: monthStart.format("MMMM"),
         caption: `${remaining.length} left`,
         total: sumBy(remaining, "amount"),
         data: sortBy(entries, "effDate").slice(0, UPCOMING_LIMIT),
       };
     };
-    return [band(dayjs(today)), band(next)].filter((b) => b.data.length > 0);
+    return [band(dayjs(today), "current"), band(next, "next")].filter((b) => b.data.length > 0);
   }, [upcomingWithPaid, getMonthStatus]);
 
   const recentActivity = useMemo(() => {
@@ -158,6 +160,8 @@ export default function HomeScreen() {
         overdue={overdue}
         upcoming={upcoming}
         recentActivity={recentActivity}
+        collapsedSlots={collapsedHomeBands}
+        onToggleSlot={toggleHomeBand}
         refreshControl={refreshControl}
         ListHeaderComponent={
           <View>

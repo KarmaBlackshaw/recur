@@ -6,14 +6,15 @@ React Native / Expo recurring expenses tracker. Expo Router, TypeScript, NativeW
 
 ## Stack Conventions
 
-- **Styling:** NativeWind utility classes everywhere. **Never use `StyleSheet.create`** — it is banned. Use inline `style={{}}` only for: (1) Reanimated animated styles, (2) runtime-computed values that can't be expressed as static classes (e.g. dynamic `backgroundColor`, `shadowColor`). Never wrap these in `StyleSheet.create` — plain object inline only.
+- **Styling:** NativeWind utility classes everywhere. **Never use `StyleSheet.create`** — it is banned. Use inline `style={{}}` only for: (1) Reanimated animated styles, (2) runtime-computed values that can't be expressed as static classes (e.g. dynamic `backgroundColor`, `shadowColor`). Never wrap these in `StyleSheet.create` — plain object inline only. On `overflow-hidden` views, switch a conditional border to `border-0`, never to `""` — Android turns a removed `borderWidth` into NaN insets and clips away every child (#32).
 - **State:** `context/ExpenseContext.tsx` is the single source of truth. All mutations go through the context dispatcher after calling the DB helper.
 - **DB:** All SQLite access goes through `db/expenses.ts` and `db/categories.ts`. Never query the DB directly from components.
 - **Dates:** All date logic uses `dayjs`. No manual date arithmetic. Due is a day-of-month integer (1–31), not a full date string. `getDueDate(dueDay)` clamps to last day of month for short months.
 - **Icons:** `@expo/vector-icons` (Ionicons / Feather) only. No emojis as icons. Use `FeatherIconName` (`keyof typeof Feather.glyphMap`, exported from `types.ts`) for all Feather icon name values — never `string`. The only permitted `as FeatherIconName` cast is at external boundaries (SQLite reads, URL params).
-- **Forms:** `react-hook-form` with `Controller` for every form field. Save button disabled when `!isValid`.
+- **Forms:** `react-hook-form` with `Controller` for every form field. Save button disabled when `!isValid`. Scrollable form screens use `AppFormScrollView` (not a bare `ScrollView`) so the focused field stays above the keyboard — Android is edge-to-edge, so the window never resizes for it.
 - **Animations:** `react-native-reanimated` for all animations. No `Animated` API from React Native core.
-- **Bottom sheets:** `@gorhom/bottom-sheet` (`BottomSheetModal`). No plain `Modal` for primary flows.
+- **Bottom sheets:** `@gorhom/bottom-sheet` (`BottomSheetModal`). No plain `Modal` for primary flows. Sheets with inputs: content-sized (default dynamic sizing, no fixed `snapPoints`) with `keyboardBehavior="interactive"`, and never `android_keyboardInputMode="adjustResize"` — under edge-to-edge it stops gorhom lifting the sheet, leaving it behind the keyboard.
+- **List rows:** Every money row (expenses, card bills, income, interest, transfers, loans, account transactions) renders through `components/ui/AppListRow.tsx`. No card-wrapped rows, no status pills inside rows. Tones, caption wording and the rest of the visual language live in `DESIGN.md`.
 - **No monkey patches:** Never suppress warnings or errors with guards, flags, or workarounds that hide the symptom without fixing the root cause. Always trace to root cause and fix there.
 - **Async style:** Always use `async/await`. Never use `.then()` / `.catch()` chains.
 

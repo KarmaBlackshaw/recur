@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import useBoolean from "ahooks/es/useBoolean";
 import maxBy from "lodash/maxBy";
-import { View, TouchableOpacity, ScrollView, Alert } from "react-native";
+import { View, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
@@ -10,6 +10,7 @@ import { CategoryBottomSheet, CategoryBottomSheetRef } from "@/components/Catego
 import { AccountPickerSheet, AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { useAccounts } from "@/context/AccountContext";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
@@ -33,7 +34,7 @@ export default function AddIncomeScreen() {
   const incomes = transactions.filter((t) => t.kind === "income");
   const editingIncome = id ? incomes.find((t) => t.id === id) : undefined;
   const isEditing = editingIncome != null;
-  const lastIncome = maxBy(incomes, "createdAt");
+  const lastIncome = maxBy(incomes.filter((t) => t.transferId == null), "createdAt");
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const [isDatePickerOpen, datePicker] = useBoolean();
@@ -150,7 +151,7 @@ export default function AddIncomeScreen() {
         <View className="w-11" />
       </View>
 
-      <ScrollView
+      <AppFormScrollView
         contentContainerClassName="px-5 pb-5"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -287,7 +288,7 @@ export default function AddIncomeScreen() {
         )}
 
         <View className="h-8" />
-      </ScrollView>
+      </AppFormScrollView>
 
       <Controller
         control={control}

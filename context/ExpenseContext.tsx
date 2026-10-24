@@ -12,7 +12,7 @@ import useAsyncEffect from "ahooks/es/useAsyncEffect";
 import useMemoizedFn from "ahooks/es/useMemoizedFn";
 import sortBy from "lodash/sortBy";
 import dayjs from "dayjs";
-import type { Expense, Status, MonthStatus } from "@/types";
+import type { Expense, Status, MonthStatus, HomeBandSlot } from "@/types";
 import * as expensesDB from "@/db/expenses";
 import * as preferencesDB from "@/db/preferences";
 import * as monthsDB from "@/db/expenseMonths";
@@ -24,6 +24,7 @@ interface State {
   expenses: Expense[];
   loading: boolean;
   userName: string | null;
+  collapsedHomeBands: HomeBandSlot[];
   monthStatuses: Record<string, Status>;
   monthAmounts: Record<string, number | null>;
   monthPaidAts: Record<string, string | null>;
@@ -35,6 +36,7 @@ type Action =
   | { type: "UPDATE"; payload: Expense }
   | { type: "REMOVE"; payload: string }
   | { type: "SET_USER_NAME"; payload: string | null }
+  | { type: "SET_COLLAPSED_BANDS"; payload: HomeBandSlot[] }
   | { type: "LOAD_MONTHS"; payload: MonthStatus[] }
   | { type: "SET_MONTH_STATUS"; payload: { expenseId: string; year: number; month: number; status: Status; paidAt: string | null } }
   | { type: "SET_MONTH_AMOUNT"; payload: { expenseId: string; year: number; month: number; amount: number | null } };
@@ -63,6 +65,8 @@ function reducer(state: State, action: Action): State {
       };
     case "SET_USER_NAME":
       return { ...state, userName: action.payload };
+    case "SET_COLLAPSED_BANDS":
+      return { ...state, collapsedHomeBands: action.payload };
     case "LOAD_MONTHS": {
       const statusMap: Record<string, Status> = {};
       const amountMap: Record<string, number | null> = {};
@@ -112,6 +116,7 @@ interface ExpenseContextValue {
   expenses: Expense[];
   loading: boolean;
   userName: string | null;
+  collapsedHomeBands: HomeBandSlot[];
   paidCycles: PaidCycle[];
   addExpense: (e: Omit<Expense, "id" | "createdAt">, monthlyAmount?: { year: number; month: number; amount: number | null }) => Promise<void>;
   updateExpense: (
@@ -121,6 +126,7 @@ interface ExpenseContextValue {
   ) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setUserName: (name: string | null) => void;
+  toggleHomeBand: (slot: HomeBandSlot) => Promise<void>;
   getMonthStatus: (id: string, year: number, month: number) => Status;
   getMonthAmount: (id: string, year: number, month: number) => number | null;
   resolveAmount: (expense: Expense, year: number, month: number) => number;
@@ -140,12 +146,25 @@ function paymentNote(expense: Pick<Expense, "name" | "category">): string {
   return expense.name || expense.category;
 }
 
+function parseCollapsedBands(raw: string | null): HomeBandSlot[] {
+  if (raw == null) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((v): v is HomeBandSlot => v === "current" || v === "next") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   const accounts = useAccounts();
   const [state, dispatch] = useReducer(reducer, {
     expenses: [],
     loading: true,
     userName: null,
+    collapsedHomeBands: [],
     monthStatuses: {},
     monthAmounts: {},
     monthPaidAts: {},
@@ -153,14 +172,16 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
   useAsyncEffect(async function* () {
     try {
-      const [rows, name, months] = await Promise.all([
+      const [rows, name, months, collapsedBands] = await Promise.all([
         expensesDB.getAll(),
         preferencesDB.getPreference("user_name"),
         monthsDB.getAll(),
+        preferencesDB.getPreference("homeCollapsedBands"),
       ]);
       yield;
       dispatch({ type: "LOAD", payload: rows });
       dispatch({ type: "SET_USER_NAME", payload: name });
+      dispatch({ type: "SET_COLLAPSED_BANDS", payload: parseCollapsedBands(collapsedBands) });
       dispatch({ type: "LOAD_MONTHS", payload: months });
     } catch {
       yield;
@@ -186,6 +207,18 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
   const setUserName = useMemoizedFn((name: string | null) => {
     dispatch({ type: "SET_USER_NAME", payload: name });
+  });
+
+  const toggleHomeBand = useMemoizedFn(async (slot: HomeBandSlot) => {
+    const next = state.collapsedHomeBands.includes(slot)
+      ? state.collapsedHomeBands.filter((s) => s !== slot)
+      : [...state.collapsedHomeBands, slot];
+    try {
+      await preferencesDB.setPreference("homeCollapsedBands", JSON.stringify(next));
+      dispatch({ type: "SET_COLLAPSED_BANDS", payload: next });
+    } catch (err) {
+      console.error("Saving collapsed bands failed", err);
+    }
   });
 
   const addExpense = useMemoizedFn(
@@ -447,11 +480,13 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         expenses: state.expenses,
         loading: state.loading,
         userName: state.userName,
+        collapsedHomeBands: state.collapsedHomeBands,
         paidCycles,
         addExpense,
         updateExpense,
         deleteExpense,
         setUserName,
+        toggleHomeBand,
         getMonthStatus,
         getMonthAmount,
         resolveAmount,

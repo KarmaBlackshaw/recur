@@ -5,10 +5,11 @@ import { Pressable } from "react-native-gesture-handler";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
-import { StatusBadge } from "@/components/StatusBadge";
+import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { AppText } from "@/components/ui/AppText";
 import dayjs from "dayjs";
-import { formatDueDate, getDueDateForMonth, isOverdueOn, formatAmount, isEndedOn, formatEndMonth } from "@/utils/dateHelpers";
+import { formatDueDate, formatDaysLate, getDueDateForMonth, isOverdueOn, formatAmount, isEndedOn, formatEndMonth } from "@/utils/dateHelpers";
+import { categoryIcon } from "@/utils/categories";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
@@ -20,8 +21,8 @@ interface Props {
   index?: number;
   referenceDate?: Date;
   onPress?: () => void;
-  compact?: boolean;   // day-grouped paid ledger: drop date line and toggle; badge only on card expenses (Charged/Paid)
-  hideDate?: boolean;  // drop the date/due line only, keep status badge (recurring tab)
+  compact?: boolean;   // ledger row under a day header: no pay toggle, caption only flags card-account status
+  hideDate?: boolean;  // caption shows the status word instead of the date
 }
 
 export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compact = false, hideDate = false }: Props) {
@@ -51,7 +52,6 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
   const title = expenseTitle(expense);
   const isCategoryTitle = title === expense.category;
   const amountText = displayAmount !== null ? formatAmount(displayAmount) : "TBD";
-  const daysOverdue = dayjs().startOf("day").diff(dayjs(dueDate).startOf("day"), "day");
   const dateText = ended
     ? `Ended ${formatEndMonth(expense.endYear!, expense.endMonth!)}`
     : isRegular
@@ -59,9 +59,16 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
       : isPaid
         ? dayjs(paidAt ?? dueDate).format("MMM D")
         : overdueFlag
-          ? `${daysOverdue} ${daysOverdue === 1 ? "day" : "days"} late`
+          ? formatDaysLate(dueDate)
           : formatDueDate(dueDate);
   const statusLabel = ended ? "Ended" : isChargedNow ? "Charged" : isPaid ? "Paid" : overdueFlag ? "Overdue" : "Unpaid";
+  // Settled captions stay neutral: the band or KPI already says "paid", and a mint caption on every
+  // row would repeat it. Only card charges (indigo) and late dues (coral) get a tint.
+  const statusTone: RowTone = ended ? "muted" : isChargedNow ? "accent" : overdueFlag ? "negative" : "neutral";
+  // Ledger rows sit under a day header, so they only flag card-account status.
+  const caption = compact || hideDate
+    ? (!compact || isCardAccount(expense.accountId) ? statusLabel : undefined)
+    : isPaid && !ended ? `${statusLabel} ${dateText}` : dateText;
   const canToggle = !compact && !ended;
 
   function handleToggle() {
@@ -134,61 +141,24 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
       overshootLeft={false}
       overshootRight={false}
     >
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={onPress ?? (() => router.push({ pathname: "/expense/add", params: { id: expense.id } }))}
-        accessibilityRole="button"
-        accessibilityLabel={`${isCategoryTitle ? title : `${title}, ${expense.category}`}${accountName != null ? `, from ${accountName}` : ""}, ${amountText}, ${statusLabel}, ${dateText}`}
-        accessibilityHint="Opens editor"
-        accessibilityActions={accessibilityActions}
-        onAccessibilityAction={handleAccessibilityAction}
-      >
-        <Animated.View entering={isReducedMotion ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}>
-          <View
-            className={`flex-row items-center rounded-2xl mx-5 my-1.5 px-4 py-3.5 border border-white/[0.07] ${
-              overdueFlag ? "bg-overdue/[0.06] border-l-[3px] border-l-overdue" : "bg-surface"
-            }`}
-          >
-            <View className="flex-1">
-              <AppText
-                variant="body-bold"
-                className={`text-[15px] ${ended ? "text-textMuted" : ""}`}
-                numberOfLines={1}
-              >
-                {title}
-              </AppText>
-              <View className="flex-row items-center gap-2 mt-1">
-                {!isCategoryTitle && <AppText variant="meta">{expense.category}</AppText>}
-                {expense.reminderDaysBefore != null && (
-                  <Feather name="bell" size={12} color={colors.secondary} />
-                )}
-                {!isCategoryTitle && accountName != null && <AppText variant="meta">·</AppText>}
-                {accountName != null && (
-                  <AppText variant="meta" numberOfLines={1} className="shrink">
-                    {accountName}
-                  </AppText>
-                )}
-                {!compact && !hideDate && (
-                  <AppText variant="meta" className={overdueFlag ? "text-overdue" : ended ? "text-textMuted" : ""}>
-                    {dateText}
-                  </AppText>
-                )}
-              </View>
-            </View>
-
-            <View className="ml-3 items-end gap-1.5">
-              <AppText variant="amount" numberOfLines={1}>{amountText}</AppText>
-              {compact && !isCardAccount(expense.accountId) ? null : ended ? (
-                <View className="px-2 py-0.5 rounded-md bg-white/[0.06]">
-                  <AppText variant="caption" className="uppercase tracking-wider">Ended</AppText>
-                </View>
-              ) : (
-                <StatusBadge status={resolvedStatus} overdue={overdueFlag} charged={isChargedNow} />
-              )}
-            </View>
-          </View>
-        </Animated.View>
-      </TouchableOpacity>
+      <Animated.View entering={isReducedMotion ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}>
+        <AppListRow
+          icon={categoryIcon(expense.category)}
+          iconTone={overdueFlag ? "negative" : "neutral"}
+          title={title}
+          meta={[isCategoryTitle ? null : expense.category, accountName].filter(Boolean).join(" · ") || undefined}
+          metaIcon={expense.reminderDaysBefore != null ? "bell" : undefined}
+          amount={amountText}
+          caption={caption}
+          captionTone={statusTone}
+          isMuted={ended}
+          onPress={onPress ?? (() => router.push({ pathname: "/expense/add", params: { id: expense.id } }))}
+          accessibilityLabel={`${isCategoryTitle ? title : `${title}, ${expense.category}`}${accountName != null ? `, from ${accountName}` : ""}, ${amountText}, ${statusLabel}, ${dateText}`}
+          accessibilityHint="Opens editor"
+          accessibilityActions={accessibilityActions}
+          onAccessibilityAction={handleAccessibilityAction}
+        />
+      </Animated.View>
     </ReanimatedSwipeable>
   );
 }

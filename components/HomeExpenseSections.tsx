@@ -9,13 +9,13 @@ import { BandHeader } from "@/components/BandHeader";
 import { colors } from "@/constants/theme";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
 import type { ActivityEntry, LedgerEntry } from "@/components/DayGroupedExpenseList";
-import type { CardBill, FeatherIconName } from "@/types";
+import type { CardBill, FeatherIconName, HomeBandSlot } from "@/types";
 
 export type BillEntry = { key: string; bill: CardBill; effDate: Date; amount: number };
 export type HomeEntry = LedgerEntry | BillEntry;
-export type UpcomingBand = { key: string; label: string; caption: string; total: number; data: HomeEntry[] };
+export type UpcomingBand = { key: string; slot: HomeBandSlot; label: string; caption: string; total: number; data: HomeEntry[] };
 
-// Home has three kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each card shows its own date);
+// Home has three kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each row shows its own date);
 // Recent activity mirrors the Activity tab's All list — day-grouped, no subtotals
 // (it mixes money in and out), with the band label on the first day only.
 type FlatSection = {
@@ -27,6 +27,8 @@ type FlatSection = {
   total: number;
   count?: number;
   caption?: string;
+  slot?: HomeBandSlot;
+  isCollapsed?: boolean;
   data: HomeEntry[];
 };
 type DaySection = {
@@ -44,6 +46,8 @@ interface Props {
   overdue: HomeEntry[];
   upcoming: UpcomingBand[];
   recentActivity: ActivityEntry[];
+  collapsedSlots: HomeBandSlot[];
+  onToggleSlot: (slot: HomeBandSlot) => void;
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
   refreshControl?: React.ComponentProps<typeof SectionList>["refreshControl"];
@@ -53,6 +57,8 @@ export function HomeExpenseSections({
   overdue,
   upcoming,
   recentActivity,
+  collapsedSlots,
+  onToggleSlot,
   ListHeaderComponent,
   ListEmptyComponent,
   refreshControl,
@@ -74,8 +80,20 @@ export function HomeExpenseSections({
       });
     }
 
-    for (const { key, label, caption, total, data } of upcoming) {
-      out.push({ kind: "flat", key, band: label, caption, icon: "arrow-up-circle", accent: colors.secondary, total, data });
+    for (const { key, slot, label, caption, total, data } of upcoming) {
+      const isCollapsed = collapsedSlots.includes(slot);
+      out.push({
+        kind: "flat",
+        key,
+        band: label,
+        caption,
+        icon: "arrow-up-circle",
+        accent: colors.secondary,
+        total,
+        slot,
+        isCollapsed,
+        data: isCollapsed ? [] : data,
+      });
     }
 
     if (recentActivity.length) {
@@ -86,7 +104,7 @@ export function HomeExpenseSections({
     }
 
     return out;
-  }, [overdue, upcoming, recentActivity]);
+  }, [overdue, upcoming, recentActivity, collapsedSlots]);
 
   return (
     <>
@@ -106,7 +124,19 @@ export function HomeExpenseSections({
         renderSectionHeader={({ section }) => {
           const s = section as unknown as HomeSection;
           if (s.kind === "flat") {
-            return <BandHeader label={s.band} icon={s.icon} accent={s.accent} total={s.total} count={s.count} caption={s.caption} />;
+            const { slot } = s;
+            return (
+              <BandHeader
+                label={s.band}
+                icon={s.icon}
+                accent={s.accent}
+                total={s.total}
+                count={s.count}
+                caption={s.caption}
+                isCollapsed={s.isCollapsed}
+                onToggle={slot ? () => onToggleSlot(slot) : undefined}
+              />
+            );
           }
           return (
             <View>

@@ -54,18 +54,24 @@ export function formatDue(dueDay: number): string {
   return formatDueDate(getDueDate(dueDay));
 }
 
+// Relative inside the coming week ("Today", "Tomorrow", "in 4 days"), the date itself beyond it.
 export function formatDueDate(d: Date): string {
-  if (dayjs(d).isSame(dayjs(), "day")) {
+  const diff = dayjs(d).startOf("day").diff(dayjs().startOf("day"), "day");
+  if (diff === 0) {
     return "Today";
   }
-  if (dayjs(d).isSame(dayjs().add(1, "day"), "day")) {
+  if (diff === 1) {
     return "Tomorrow";
   }
-  const diff = dayjs(d).startOf("day").diff(dayjs().startOf("day"), "day");
-  if (diff > 0) {
-    return `${diff} days`;
+  if (diff > 1 && diff < 7) {
+    return `in ${diff} days`;
   }
   return dayjs(d).format("MMM D");
+}
+
+export function formatDaysLate(d: Date): string {
+  const days = dayjs().startOf("day").diff(dayjs(d).startOf("day"), "day");
+  return `${days} ${days === 1 ? "day" : "days"} late`;
 }
 
 export function getGreeting(name?: string | null): string {

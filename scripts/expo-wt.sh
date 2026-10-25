@@ -11,21 +11,27 @@
 #   expo-wt --attach         # Metro already running here: only re-wire + restart
 #   expo-wt --port           # print this worktree's port and exit
 #   AVD=Pixel_6 expo-wt      # AVD to boot when no device is attached (default: first AVD)
+#   expo-wt --ios            # same, for the iOS Simulator (booted one, else the first iPhone)
+#   SIM="iPhone 17 Pro" expo-wt --ios  # pick the simulator by name or UDID
 # One emulator: the last worktree you run is the one you see.
 # One emulator per worktree: `emulator -avd <avd> -read-only &`, then `-s <serial>`.
 # Needs a debuggable (debug) build: the pref is written with `run-as`.
+# iOS needs the debug app installed once: `npx expo run:ios -d "<simulator>"`. Its prebuilt React Native
+# ignores the build-time port, so expo-wt sets the "Configure Bundler" location (RCT_jsLocation) instead.
 set -euo pipefail
 
 SERIAL="${ANDROID_SERIAL:-}"
+IOS=false
 ATTACH=false
 PRINT_PORT=false
 EXPO_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -s|--serial) SERIAL="$2"; shift ;;
+    --ios)       IOS=true ;;
     --attach)    ATTACH=true ;;
     --port)      PRINT_PORT=true ;;
-    -h|--help)   grep '^#' "$0" | sed -n '2,16p' | cut -c3-; exit 0 ;;
+    -h|--help)   grep '^#' "$0" | sed -n '2,20p' | cut -c3-; exit 0 ;;
     *)           EXPO_ARGS+=("$1") ;;
   esac
   shift
@@ -55,10 +61,42 @@ if $PRINT_PORT; then
   exit 0
 fi
 
+wire_ios() {
+  until curl -s "localhost:$PORT/status" | grep -q running; do
+    sleep 1
+  done
+  xcrun simctl spawn "$SIM" defaults write "$BUNDLE_ID" RCT_jsLocation -string "localhost:$PORT"
+  xcrun simctl terminate "$SIM" "$BUNDLE_ID" >/dev/null 2>&1 || true
+  xcrun simctl launch "$SIM" "$BUNDLE_ID" >/dev/null
+  echo "expo-wt: iOS simulator $SIM → $(basename "$ROOT") Metro :$PORT, $BUNDLE_ID relaunched"
+}
+
+if $IOS; then
+  BUNDLE_ID=$(node -p "require('$ROOT/app.json').expo.ios.bundleIdentifier")
+  udid_of() {
+    xcrun simctl list devices "$@" | grep -o -E '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -1
+  }
+  if [ -n "${SIM:-}" ] && ! [[ "$SIM" =~ ^[0-9A-F-]{36}$ ]]; then
+    SIM=$(xcrun simctl list devices available | grep -F "$SIM (" | grep -o -E '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -1)
+  fi
+  SIM="${SIM:-$(udid_of booted)}"
+  if [ -z "$SIM" ]; then
+    SIM=$(xcrun simctl list devices available | grep "iPhone" | grep -o -E '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -1)
+    [ -z "$SIM" ] && { echo "expo-wt: no iOS simulator found" >&2; exit 1; }
+    echo "expo-wt: no simulator booted, booting $SIM…"
+  fi
+  xcrun simctl boot "$SIM" 2>/dev/null || true
+  open -a Simulator
+  if ! xcrun simctl get_app_container "$SIM" "$BUNDLE_ID" >/dev/null 2>&1; then
+    echo "expo-wt: $BUNDLE_ID isn't installed on $SIM. Build it once: npx expo run:ios -d $SIM" >&2
+    exit 1
+  fi
+fi
+
 ADB=$(command -v adb || echo /opt/homebrew/share/android-commandlinetools/platform-tools/adb)
 PKG=$(node -p "require('$ROOT/app.json').expo.android.package")
 
-if [ -z "$SERIAL" ]; then
+if ! $IOS && [ -z "$SERIAL" ]; then
   DEVICES=$("$ADB" devices | awk 'NR>1 && $2=="device" {print $1}')
   COUNT=$(printf '%s' "$DEVICES" | grep -c . || true)
   if [ "$COUNT" -eq 0 ]; then
@@ -85,7 +123,7 @@ if [ -z "$SERIAL" ]; then
   SERIAL="$DEVICES"
 fi
 
-wire() {
+wire_android() {
   until curl -s "localhost:$PORT/status" | grep -q running; do
     sleep 1
   done
@@ -100,6 +138,14 @@ wire() {
   "$ADB" -s "$SERIAL" shell "run-as $PKG sh -c 'mkdir -p shared_prefs && echo \"<?xml version=\\\"1.0\\\" encoding=\\\"utf-8\\\" standalone=\\\"yes\\\" ?><map><string name=\\\"debug_http_host\\\">$host</string></map>\" > shared_prefs/${PKG}_preferences.xml'"
   "$ADB" -s "$SERIAL" shell am start -n "$PKG/.MainActivity" >/dev/null
   echo "expo-wt: $SERIAL → $(basename "$ROOT") Metro :$PORT, $PKG restarted"
+}
+
+wire() {
+  if $IOS; then
+    wire_ios
+  else
+    wire_android
+  fi
 }
 
 if [ "$(holder_cwd "$PORT")" = "$ROOT" ]; then

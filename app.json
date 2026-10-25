@@ -14,7 +14,8 @@
       "policy": "appVersion"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.erniejeash.recur"
     },
     "android": {
       "adaptiveIcon": {

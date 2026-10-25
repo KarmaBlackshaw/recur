@@ -80,6 +80,19 @@ npm run ios        # iOS simulator
 npm run android    # Android emulator
 ```
 
+### iOS Simulator
+
+Needs Xcode (with an iOS simulator runtime) and CocoaPods.
+
+```bash
+brew install cocoapods                # once
+npx expo run:ios -d "iPhone 17 Pro"   # once, and after native changes: builds + installs the debug app (ios/ is generated, not committed)
+npm run start:wt -- --ios             # this checkout's Metro, with the simulator pointed at it
+```
+
+The iOS app's prebuilt React Native always looks for Metro on :8081, so with several checkouts running it can
+load another one's code. `start:wt -- --ios` sets the simulator's bundler location to this checkout's port.
+
 ## Build
 
 ```bash

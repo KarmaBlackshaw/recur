@@ -1,3 +1,4 @@
+import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import type { MonthStatus, Status } from "@/types";
 
@@ -18,20 +19,20 @@ export async function getAll(): Promise<MonthStatus[]> {
   }));
 }
 
-export async function upsertStatus(
+// Writes a month's status, amount and pay time together: paying records what the month cost, so the
+// amount stays put when the expense is edited later.
+export async function setMonth(
   expenseId: string,
   year: number,
   month: number,
   status: Status,
+  amount: number | null,
   paidAt: string | null
 ): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    `INSERT OR REPLACE INTO expense_months (expense_id, year, month, status, amount, paid_at)
-     VALUES (?, ?, ?, ?,
-       (SELECT amount FROM expense_months WHERE expense_id=? AND year=? AND month=?),
-       ?)`,
-    [expenseId, year, month, status, expenseId, year, month, paidAt]
+    "INSERT OR REPLACE INTO expense_months (expense_id, year, month, status, amount, paid_at) VALUES (?, ?, ?, ?, ?, ?)",
+    [expenseId, year, month, status, amount, paidAt]
   );
 }
 
@@ -52,15 +53,13 @@ export async function upsertMonthlyAmount(
   );
 }
 
-export async function removeForExpense(expenseId: string): Promise<void> {
-  const db = await getDB();
-  await db.runAsync("DELETE FROM expense_months WHERE expense_id = ?", [expenseId]);
-}
-
-export async function insertOrIgnore(m: MonthStatus): Promise<void> {
-  const db = await getDB();
-  await db.runAsync(
+// Restores a month from a backup. Pass the import's transaction as `db`; returns 1 when added, 0 when it
+// already existed.
+export async function insertOrIgnore(m: MonthStatus, db?: SQLiteDatabase): Promise<number> {
+  const conn = db ?? (await getDB());
+  const result = await conn.runAsync(
     "INSERT OR IGNORE INTO expense_months (expense_id, year, month, status, amount, paid_at) VALUES (?, ?, ?, ?, ?, ?)",
     [m.expenseId, m.year, m.month, m.status, m.amount ?? null, m.paidAt ?? null]
   );
+  return result.changes;
 }

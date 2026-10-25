@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import type { AccountTransaction, IncomeInput, TransactionKind } from "@/types";
@@ -129,10 +130,13 @@ export async function creditInterest(accountId: string, gross: number, tax: numb
   });
 }
 
-export async function insertWithId(t: AccountTransaction): Promise<void> {
-  const db = await getDB();
-  await db.runAsync(
+// Restores a transaction from a backup. Pass the import's transaction as `db`; returns 1 when added, 0 when it
+// already existed.
+export async function insertWithId(t: AccountTransaction, db?: SQLiteDatabase): Promise<number> {
+  const conn = db ?? (await getDB());
+  const result = await conn.runAsync(
     `INSERT OR IGNORE INTO account_transactions (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [t.id, t.accountId, t.kind, t.amount, t.expenseId, t.cycleYear, t.cycleMonth, t.transferId, t.note, t.category ?? null, t.loanId ?? null, t.createdAt]
   );
+  return result.changes;
 }

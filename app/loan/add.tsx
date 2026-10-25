@@ -91,7 +91,7 @@ export default function AddLoanScreen() {
   const amountRef = useRef<TextInput>(null);
   const [isDatePickerOpen, datePicker] = useBoolean();
 
-  const depositAccounts = accounts.accounts.filter((a) => a.type !== "credit");
+  const depositAccounts = accounts.activeAccounts.filter((a) => a.type !== "credit");
 
   function toFormValues(loan?: Loan): LoanFormValues {
     if (loan) {

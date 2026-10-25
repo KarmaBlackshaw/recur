@@ -82,7 +82,7 @@ account transactions. Never hand-build another row.
 | positive | Mint 15% | Mint | Mint | money in (income, interest, repayments, collected loans) |
 | negative | Coral 15% | Coral | Coral | late |
 | accent | Periwinkle 15% | Periwinkle | Periwinkle | card bills and charges, loans, people |
-| muted | white 4% | Secondary Graphite | Muted Graphite | ended rows, transfer amounts |
+| muted | white 4% | Secondary Graphite | Muted Graphite | ended or not-due rows, transfer amounts |
 
 - **Swipe (expense rows):** dragging right reveals Pay or Unpay (mint, 80dp); dragging left reveals Delete
   (coral, 80dp), which confirms with an Alert.
@@ -122,6 +122,13 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Touch targets are at least 44dp.
 - Money lists sort by date. Home shows Overdue first, then this month, then next month once it is at most
   7 days away.
+- Home Overdue also lists unpaid dues from the last 3 months; their caption keeps counting "N days late".
+- The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
+  opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)
+  and Owed under a hairline.
+- The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
+  ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
+  "Ended Aug 2026" or "Every Mar 10".
 
 ## 6. Motion & Interaction
 - `react-native-reanimated` only; never the core `Animated` API.

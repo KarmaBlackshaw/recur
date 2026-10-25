@@ -6,7 +6,7 @@ import { getPreference, setPreference } from '@/db/preferences';
 import { buildSummaryContent, getUnpaidBillReminders } from '@/utils/notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { TimePickerSheet, type TimePickerSheetRef } from '@/components/TimePickerSheet';
-import { exportBackup, importBackup } from "@/utils/backup";
+import { exportBackup, formatImportSummary, importBackup } from "@/utils/backup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -35,15 +35,18 @@ export default function SettingsScreen() {
   const [permissionDenied, setPermissionDenied] = useState(false);
   const timeSheetRef = useRef<TimePickerSheetRef>(null);
 
-  useMount(async () => {
+  // An import can restore these, so they are re-read after one as well as on mount.
+  async function loadReminderPreferences() {
     const time = await getPreference('reminderTime');
     if (time) {
       setReminderTime(time);
     }
     const enabled = await getPreference('notificationsEnabled');
-    if (enabled === 'false') {
-      setNotificationsEnabled(false);
-    }
+    setNotificationsEnabled(enabled !== 'false');
+  }
+
+  useMount(async () => {
+    await loadReminderPreferences();
     const { status } = await Notifications.getPermissionsAsync();
     setPermissionDenied(status !== 'granted');
   });
@@ -97,9 +100,10 @@ export default function SettingsScreen() {
       await reloadAll();
       await accounts.reload();
       await loans.reload();
-      Alert.alert("Import Complete", `${result.added} added, ${result.skipped} skipped (already exist).`);
+      await loadReminderPreferences();
+      Alert.alert("Import complete", formatImportSummary(result));
     } catch (e: unknown) {
-      Alert.alert("Import Failed", e instanceof Error ? e.message : "An error occurred.");
+      Alert.alert("Import failed", e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
       setImporting(false);
     }
@@ -120,7 +124,7 @@ export default function SettingsScreen() {
         <AppText variant="heading" className="flex-1 text-center text-white text-xl">
           Settings
         </AppText>
-        <View style={{ width: 32 }} />
+        <View className="w-11" />
       </View>
 
       <ScrollView
@@ -139,8 +143,7 @@ export default function SettingsScreen() {
             accessibilityLabel="Edit profile"
           >
             <View
-              className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-              style={{ backgroundColor: colors.primary }}
+              className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-primary"
             >
               <Feather name="user" size={15} color="#FFFFFF" />
             </View>
@@ -165,8 +168,7 @@ export default function SettingsScreen() {
             accessibilityLabel="Manage categories"
           >
             <View
-              className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-              style={{ backgroundColor: colors.primary }}
+              className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-primary"
             >
               <Feather name="grid" size={15} color="#FFFFFF" />
             </View>
@@ -188,8 +190,7 @@ export default function SettingsScreen() {
             accessibilityLabel="Export data"
           >
             <View
-              className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-              style={{ backgroundColor: colors.primary }}
+              className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-primary"
             >
               <Feather name="upload" size={15} color="#FFFFFF" />
             </View>
@@ -198,7 +199,7 @@ export default function SettingsScreen() {
             </AppText>
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
           </TouchableOpacity>
-          <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+          <View className="h-px bg-white/[0.07]" />
           <TouchableOpacity
             className="flex-row items-center px-5 py-4"
             onPress={handleImport}
@@ -206,8 +207,7 @@ export default function SettingsScreen() {
             disabled={importing}
           >
             <View
-              className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-              style={{ backgroundColor: colors.primary }}
+              className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-primary"
             >
               <Feather name="download" size={15} color="#FFFFFF" />
             </View>
@@ -229,11 +229,10 @@ export default function SettingsScreen() {
 
         {permissionDenied && notificationsEnabled && (
           <View
-            className="rounded-xl px-4 py-3 mb-3 border border-overdue"
-            style={{ backgroundColor: 'rgba(248,113,113,0.08)' }}
+            className="rounded-xl px-4 py-3 mb-3 border border-overdue bg-overdue/[0.08]"
           >
             <AppText variant="caption" className="text-overdue text-xs">
-              Notifications disabled — enable in system Settings
+              Notifications are off for Recur. Turn them on in system Settings.
             </AppText>
           </View>
         )}
@@ -246,8 +245,7 @@ export default function SettingsScreen() {
             accessibilityLabel="Set reminder time"
           >
             <View
-              className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-              style={{ backgroundColor: colors.primary }}
+              className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-primary"
             >
               <Feather name="bell" size={15} color="#FFFFFF" />
             </View>
@@ -263,8 +261,7 @@ export default function SettingsScreen() {
           {/* Enable/disable row */}
           <View className="flex-row items-center px-5 py-4">
             <View
-              className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-              style={{ backgroundColor: colors.primary }}
+              className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-primary"
             >
               <Feather name="bell" size={15} color="#FFFFFF" />
             </View>
@@ -287,8 +284,7 @@ export default function SettingsScreen() {
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6">
           <View className="flex-row items-center px-5 py-4">
             <View
-              className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-              style={{ backgroundColor: colors.secondary }}
+              className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-secondary"
             >
               <Feather name="info" size={15} color="#FFFFFF" />
             </View>
@@ -331,7 +327,7 @@ export default function SettingsScreen() {
                   {unpaidItems.length} unpaid
                 </AppText>
               </TouchableOpacity>
-              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <View className="h-px bg-white/[0.07]" />
               <TouchableOpacity
                 className="flex-row items-center px-5 py-4"
                 onPress={async () => {
@@ -346,8 +342,7 @@ export default function SettingsScreen() {
                 accessibilityLabel="Seed recurring expenses"
               >
                 <View
-                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-                  style={{ backgroundColor: colors.paid }}
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-paid"
                 >
                   <Feather name="repeat" size={15} color="#FFFFFF" />
                 </View>
@@ -356,7 +351,7 @@ export default function SettingsScreen() {
                 </AppText>
                 <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
               </TouchableOpacity>
-              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <View className="h-px bg-white/[0.07]" />
               <TouchableOpacity
                 className="flex-row items-center px-5 py-4"
                 onPress={async () => {
@@ -371,8 +366,7 @@ export default function SettingsScreen() {
                 accessibilityLabel="Seed one-off expenses"
               >
                 <View
-                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-                  style={{ backgroundColor: colors.primary }}
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-primary"
                 >
                   <Feather name="file-text" size={15} color="#FFFFFF" />
                 </View>
@@ -381,15 +375,14 @@ export default function SettingsScreen() {
                 </AppText>
                 <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
               </TouchableOpacity>
-              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <View className="h-px bg-white/[0.07]" />
               <TouchableOpacity
                 className="flex-row items-center px-5 py-4"
                 onPress={() => confirmClear('recurring', clearRecurring)}
                 accessibilityLabel="Clear recurring expenses"
               >
                 <View
-                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-                  style={{ backgroundColor: colors.overdue }}
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-overdue"
                 >
                   <Feather name="trash-2" size={15} color="#FFFFFF" />
                 </View>
@@ -398,15 +391,14 @@ export default function SettingsScreen() {
                 </AppText>
                 <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
               </TouchableOpacity>
-              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <View className="h-px bg-white/[0.07]" />
               <TouchableOpacity
                 className="flex-row items-center px-5 py-4"
                 onPress={() => confirmClear('expenses', clearOneOff)}
                 accessibilityLabel="Clear one-off expenses"
               >
                 <View
-                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-                  style={{ backgroundColor: colors.overdue }}
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-overdue"
                 >
                   <Feather name="trash-2" size={15} color="#FFFFFF" />
                 </View>
@@ -415,7 +407,7 @@ export default function SettingsScreen() {
                 </AppText>
                 <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
               </TouchableOpacity>
-              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <View className="h-px bg-white/[0.07]" />
               <TouchableOpacity
                 className="flex-row items-center px-5 py-4"
                 onPress={async () => {
@@ -430,8 +422,7 @@ export default function SettingsScreen() {
                 accessibilityLabel="Seed sample loans"
               >
                 <View
-                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-                  style={{ backgroundColor: colors.secondary }}
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-secondary"
                 >
                   <Feather name="users" size={15} color="#FFFFFF" />
                 </View>
@@ -440,7 +431,7 @@ export default function SettingsScreen() {
                 </AppText>
                 <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
               </TouchableOpacity>
-              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <View className="h-px bg-white/[0.07]" />
               <TouchableOpacity
                 className="flex-row items-center px-5 py-4"
                 onPress={() =>
@@ -452,8 +443,7 @@ export default function SettingsScreen() {
                 accessibilityLabel="Clear sample loans"
               >
                 <View
-                  className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-                  style={{ backgroundColor: colors.overdue }}
+                  className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-overdue"
                 >
                   <Feather name="trash-2" size={15} color="#FFFFFF" />
                 </View>

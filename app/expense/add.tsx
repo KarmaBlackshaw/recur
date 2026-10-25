@@ -23,22 +23,39 @@ import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppCheckRow } from "@/components/ui/AppCheckRow";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
-import type { Recurrence, ExpenseFormValues } from "@/types";
+import { getDueDateForMonth } from "@/utils/dateHelpers";
+import type { Expense, Recurrence, ExpenseFormValues } from "@/types";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
 
 const RECURRENCE_OPTIONS: { label: string; value: Recurrence }[] = [
-  { label: "Weekly", value: "weekly" },
   { label: "Monthly", value: "monthly" },
   { label: "Yearly", value: "yearly" },
 ];
 
+const monthStart = (year: number, month: number) => new Date(year, month, 1).toISOString();
+const monthIndex = (iso: string) => dayjs(iso).year() * 12 + dayjs(iso).month();
+
+function startOf(expense: Expense | null, fallbackYear: number, fallbackMonth: number): string {
+  if (expense?.startYear != null && expense.startMonth != null) {
+    return monthStart(expense.startYear, expense.startMonth);
+  }
+  return expense ? dayjs(expense.createdAt).startOf("month").toISOString() : monthStart(fallbackYear, fallbackMonth);
+}
+
+function endOf(expense: Expense | null, fallbackYear: number, fallbackMonth: number): string {
+  return expense?.endYear != null
+    ? monthStart(expense.endYear, expense.endMonth ?? 0)
+    : monthStart(fallbackYear, fallbackMonth);
+}
+
 export default function AddExpenseScreen() {
-  const { id, year: yearParam, month: monthParam, type } = useLocalSearchParams<{
+  const { id, year: yearParam, month: monthParam, type, endPrompt } = useLocalSearchParams<{
     id?: string;
     year?: string;
     month?: string;
     type?: "regular" | "recurring";
+    endPrompt?: string; // "1" from the delete dialog's "Set end month": opens with the end month switched on
   }>();
   const { addExpense, updateExpense, expenses, getMonthAmount } = useExpenses();
   const now = new Date();
@@ -48,16 +65,20 @@ export default function AddExpenseScreen() {
   const isEditing = editingExpense !== null;
   const isRegular = isEditing ? editingExpense!.recurrence === "one-off" : type === "regular";
   const lastUsedCategory = maxBy(expenses, "createdAt")?.category ?? "Other";
-  const lastUsedAccountId = maxBy(expenses.filter((e) => e.accountId), "createdAt")?.accountId;
-  const initialAccountId = editingExpense ? editingExpense.accountId : lastUsedAccountId;
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
-  const { accounts, isLoading: isAccountsLoading } = useAccounts();
+  const { accounts, activeAccounts, isLoading: isAccountsLoading } = useAccounts();
+  const lastUsedAccountId = maxBy(
+    expenses.filter((e) => activeAccounts.some((a) => a.id === e.accountId)),
+    "createdAt"
+  )?.accountId;
+  const initialAccountId = editingExpense ? editingExpense.accountId : lastUsedAccountId;
 
   function toKnownAccountId(accountId?: string | null) {
     return accountId && accounts.some((a) => a.id === accountId) ? accountId : CASH_ACCOUNT_ID;
   }
   const [isPaidPickerOpen, paidPicker] = useBoolean();
+  const [isStartPickerOpen, startPicker] = useBoolean();
   const [isEndPickerOpen, endPicker] = useBoolean();
 
   const {
@@ -66,6 +87,7 @@ export default function AddExpenseScreen() {
     reset,
     setValue,
     getValues,
+    trigger,
     watch,
     formState: { isValid, isSubmitting, errors },
   } = useForm<ExpenseFormValues>({
@@ -79,11 +101,9 @@ export default function AddExpenseScreen() {
       notes: editingExpense?.notes || editingExpense?.name || "",
       reminderDaysBefore: '',
       paidDate: editingExpense?.paidDate ?? new Date().toISOString(),
-      hasEndDate: editingExpense?.endYear != null,
-      endDate:
-        editingExpense?.endYear != null
-          ? new Date(editingExpense.endYear, editingExpense.endMonth ?? 0, 1).toISOString()
-          : new Date().toISOString(),
+      startDate: startOf(editingExpense, currentYear, currentMonth),
+      hasEndDate: editingExpense?.endYear != null || endPrompt === "1",
+      endDate: endOf(editingExpense, currentYear, currentMonth),
       accountId: toKnownAccountId(initialAccountId),
     },
   });
@@ -91,10 +111,23 @@ export default function AddExpenseScreen() {
   const isVariableWatched = watch("isVariable");
   const hasEndDateWatched = watch("hasEndDate");
   const accountIdWatched = watch("accountId");
+  const isYearlyWatched = watch("recurrence") === "yearly";
+  const startDateWatched = watch("startDate");
+  const dueDayWatched = watch("dueDay");
   const payCard = isRegular
     ? undefined
     : accounts.find((a) => a.id === accountIdWatched && a.type === "credit");
   const isVariableAmount = !!payCard || isVariableWatched;
+  // Ends can't be before this month (or before the plan starts).
+  const earliestEnd = dayjs(
+    Math.max(new Date(now.getFullYear(), now.getMonth(), 1).getTime(), dayjs(startDateWatched).startOf("month").valueOf())
+  ).toDate();
+  const yearlyDueDay = payCard ? payCard.dueDay ?? 1 : parseInt(dueDayWatched, 10);
+  const yearlyCaption = `Due every ${dayjs(
+    yearlyDueDay >= 1 && yearlyDueDay <= 31
+      ? getDueDateForMonth(yearlyDueDay, dayjs(startDateWatched).year(), dayjs(startDateWatched).month())
+      : startDateWatched
+  ).format(yearlyDueDay >= 1 && yearlyDueDay <= 31 ? "MMMM D" : "MMMM")}`;
 
   React.useEffect(() => {
     if (
@@ -122,11 +155,9 @@ export default function AddExpenseScreen() {
         notes: editingExpense.notes || editingExpense.name || "",
         reminderDaysBefore: editingExpense.reminderDaysBefore != null ? editingExpense.reminderDaysBefore.toString() : '',
         paidDate: editingExpense.paidDate ?? new Date().toISOString(),
-        hasEndDate: editingExpense.endYear != null,
-        endDate:
-          editingExpense.endYear != null
-            ? new Date(editingExpense.endYear, editingExpense.endMonth ?? 0, 1).toISOString()
-            : new Date().toISOString(),
+        startDate: startOf(editingExpense, currentYear, currentMonth),
+        hasEndDate: editingExpense.endYear != null || endPrompt === "1",
+        endDate: endOf(editingExpense, currentYear, currentMonth),
         accountId: toKnownAccountId(editingExpense.accountId),
       });
     }
@@ -137,6 +168,7 @@ export default function AddExpenseScreen() {
     const parsedAmount = data.amount.trim() !== "" ? parseFloat(data.amount) : null;
     const endActive = !isRegular && data.hasEndDate;
     const endParsed = endActive ? dayjs(data.endDate).toDate() : null;
+    const startParsed = isRegular ? null : dayjs(data.startDate);
 
     const fields = {
       name: "",
@@ -149,6 +181,8 @@ export default function AddExpenseScreen() {
       notes: data.notes.trim() || undefined,
       reminderDaysBefore: isRegular || payCard ? null : (data.reminderDaysBefore.trim() === '' ? null : parseInt(data.reminderDaysBefore, 10)),
       paidDate: isRegular ? data.paidDate : null,
+      startYear: startParsed ? startParsed.year() : null,
+      startMonth: startParsed ? startParsed.month() : null,
       endYear: endParsed ? endParsed.getFullYear() : null,
       endMonth: endParsed ? endParsed.getMonth() : null,
       accountId: data.accountId,
@@ -281,7 +315,8 @@ export default function AddExpenseScreen() {
                 return true;
               }
               if (v === "" || v === undefined) {
-                return true;
+                // A regular expense is money already spent, so it needs an amount.
+                return isRegular ? "Enter an amount" : true;
               }
               const n = parseFloat(v);
               return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
@@ -361,6 +396,48 @@ export default function AddExpenseScreen() {
               )}
             />
 
+            {/* First month with a payment due. For yearly plans it's also the month it comes back every year. */}
+            <Controller
+              control={control}
+              name="startDate"
+              render={({ field: { value, onChange } }) => {
+                const startLabel = isYearlyWatched ? "First due" : "Starts";
+                return (
+                  <>
+                    <AppLabel>{startLabel}</AppLabel>
+                    <TouchableOpacity
+                      className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
+                      onPress={startPicker.setTrue}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${startLabel}, ${dayjs(value).format("MMMM YYYY")}`}
+                      accessibilityHint={isYearlyWatched ? yearlyCaption : undefined}
+                    >
+                      <AppText variant="body-medium" className="text-white text-base">
+                        {dayjs(value).format("MMM YYYY")}
+                      </AppText>
+                      <Feather name="calendar" size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {isYearlyWatched && (
+                      <AppText variant="caption" className="px-1">{yearlyCaption}</AppText>
+                    )}
+                    {isStartPickerOpen && (
+                      <DateTimePicker
+                        value={dayjs(value).toDate()}
+                        mode="date"
+                        onChange={(event, date) => {
+                          startPicker.setFalse();
+                          if (event.type === "set" && date) {
+                            onChange(new Date(date.getFullYear(), date.getMonth(), 1).toISOString());
+                            trigger("endDate");
+                          }
+                        }}
+                      />
+                    )}
+                  </>
+                );
+              }}
+            />
+
             {!payCard && (
               <Controller
                 control={control}
@@ -384,7 +461,10 @@ export default function AddExpenseScreen() {
                   label="Set an end month"
                   description="Stops recurring after this month"
                   checked={value}
-                  onToggle={onChange}
+                  onToggle={(checked) => {
+                    onChange(checked);
+                    trigger("endDate");
+                  }}
                 />
               )}
             />
@@ -392,25 +472,38 @@ export default function AddExpenseScreen() {
               <Controller
                 control={control}
                 name="endDate"
-                render={({ field: { value, onChange } }) => (
+                rules={{
+                  validate: (v, values) =>
+                    !values.hasEndDate ||
+                    monthIndex(v) >= monthIndex(values.startDate) ||
+                    `Can't end before ${dayjs(values.startDate).format("MMM YYYY")}`,
+                }}
+                render={({ field: { value, onChange }, fieldState }) => (
                   <>
                     <AppLabel>Ends</AppLabel>
                     <TouchableOpacity
-                      className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
+                      className={`bg-surface border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1 ${fieldState.error ? "border-overdue" : "border-border"}`}
                       onPress={endPicker.setTrue}
                       accessibilityRole="button"
                       accessibilityLabel={`Ends, ${dayjs(value).format("MMM YYYY")}`}
+                      accessibilityHint={fieldState.error?.message}
                     >
                       <AppText variant="body-medium" className="text-white text-base">
                         {dayjs(value).format("MMM YYYY")}
                       </AppText>
                       <Feather name="calendar" size={16} color={colors.textMuted} />
                     </TouchableOpacity>
+                    {fieldState.error?.message ? (
+                      <View className="flex-row items-center gap-1.5 mb-1" accessibilityLiveRegion="polite">
+                        <Feather name="alert-circle" size={12} color={colors.overdue} />
+                        <AppText variant="meta" className="text-overdue">{fieldState.error.message}</AppText>
+                      </View>
+                    ) : null}
                     {isEndPickerOpen && (
                       <DateTimePicker
                         value={dayjs(value).toDate()}
                         mode="date"
-                        minimumDate={new Date(now.getFullYear(), now.getMonth(), 1)}
+                        minimumDate={earliestEnd}
                         onChange={(event, date) => {
                           endPicker.setFalse();
                           if (event.type === "set" && date) {

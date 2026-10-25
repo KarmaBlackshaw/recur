@@ -49,7 +49,7 @@ export const AppCombobox = forwardRef<TextInput, AppComboboxProps>(
             {matches.map((item, index) => (
               <TouchableOpacity
                 key={item}
-                className={`min-h-[44px] justify-center px-4 ${index > 0 ? "border-t border-border" : ""}`}
+                className={`min-h-[44px] justify-center px-4 ${index > 0 ? "border-t border-border" : "border-t-0"}`}
                 onPress={() => {
                   close();
                   onPick(item);

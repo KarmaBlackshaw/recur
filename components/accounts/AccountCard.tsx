@@ -58,7 +58,9 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
   const available = limit != null ? limit - balance : 0;
   const isOverLimit = limit != null && available < 0;
   const utilization = limit ? Math.min(Math.max(balance / limit, 0), 1) : isOverLimit ? 1 : 0;
-  const dueDate = isCredit && account.dueDay != null ? dayjs(nextOccurrence(account.dueDay)) : null;
+  const isArchived = account.archivedAt != null;
+  // Archived cards have no bills, so no due date either.
+  const dueDate = isCredit && account.dueDay != null && !isArchived ? dayjs(nextOccurrence(account.dueDay)) : null;
 
   // Keep borderWidth explicit. On Android, removing it from this overflow-hidden view leaves NaN
   // border insets, and the padding-box clip then hides every child (issue #32).
@@ -66,13 +68,17 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
 
   const subtitle = [
     meta.chip,
-    account.interestRate ? `${account.interestRate}% p.a.` : null,
+    isArchived ? "Archived" : null,
+    account.interestRate && !isArchived ? `${account.interestRate}% p.a.` : null,
     dueDate ? `due ${dueDate.format("MMM D")}` : null,
   ]
     .filter(Boolean)
     .join(" • ");
 
   const labelParts = [account.name, ACCOUNT_TYPE_LABEL[account.type].toLowerCase()];
+  if (isArchived) {
+    labelParts.push("archived");
+  }
   if (isCredit) {
     const owedText = hasCreditBalance ? `credit balance ${formatAmount(-balance)}` : `owed ${amountText}`;
     labelParts.push(limit != null ? `${owedText} of ${formatAmount(limit)} limit` : owedText);

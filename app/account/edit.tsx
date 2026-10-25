@@ -18,7 +18,9 @@ import { CardColorPicker, CardIconPicker, CardLogoPicker, CardTemplatePicker } f
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
 import { findBank, type BankId } from "@/constants/banks";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/dateHelpers";
+import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { cycleStateOn, formatAmount } from "@/utils/dateHelpers";
+import { signedAmount } from "@/utils/signedAmount";
 import { netInterestPerPeriod } from "@/utils/interest";
 import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod, type IoniconName } from "@/types";
 
@@ -168,6 +170,7 @@ export default function EditAccountScreen() {
     color: values.color,
     icon: values.icon,
     ...cardStyle(values.logoUri, values.bank),
+    archivedAt: null,
     createdAt: "",
   };
   const hasInterestError = hasInterest && (errors.interestRate != null || errors.taxRate != null);
@@ -226,6 +229,8 @@ export default function EditAccountScreen() {
     try {
       if (editingAccount) {
         await accounts.updateAccount(editingAccount.id, input);
+        // Expenses charged to a card follow its due day, which the update may have moved.
+        await expenses.reloadAll();
       } else {
         await accounts.addAccount(input, toNumber(data.openingBalance) ?? 0);
       }
@@ -235,6 +240,51 @@ export default function EditAccountScreen() {
       Alert.alert("Save failed", "Something went wrong. Please try again.");
     }
   });
+
+  async function archive(id: string) {
+    try {
+      await accounts.archiveAccount(id);
+      router.back();
+    } catch (e) {
+      console.error("Archive account failed", e);
+      Alert.alert("Archive failed", "Something went wrong. Please try again.");
+    }
+  }
+
+  async function unarchive(id: string) {
+    try {
+      await accounts.unarchiveAccount(id);
+      router.back();
+    } catch (e) {
+      console.error("Unarchive account failed", e);
+      Alert.alert("Unarchive failed", "Something went wrong. Please try again.");
+    }
+  }
+
+  function confirmArchive() {
+    if (!editingAccount) {
+      return;
+    }
+    const balance = accounts.getBalance(editingAccount.id);
+    const now = new Date();
+    const stillPaying = expenses.expenses.filter(
+      (e) =>
+        e.accountId === editingAccount.id &&
+        e.recurrence !== "one-off" &&
+        cycleStateOn(e, now.getFullYear(), now.getMonth()) !== "ended"
+    ).length;
+    const notes = [
+      "It stops showing up when you pick an account, and it has no bills or interest. Its history stays.",
+      balance !== 0 ? `Its ${signedAmount(balance)} balance still counts in your net worth.` : null,
+      stillPaying > 0
+        ? `${stillPaying} recurring ${stillPaying === 1 ? "expense still pays" : "expenses still pay"} from it. Edit ${stillPaying === 1 ? "it" : "them"} to pay from another account.`
+        : null,
+    ].filter(Boolean);
+    Alert.alert(`Archive ${editingAccount.name}?`, notes.join("\n\n"), [
+      { text: "Cancel", style: "cancel" },
+      { text: "Archive", onPress: () => archive(editingAccount.id) },
+    ]);
+  }
 
   function confirmDelete() {
     if (!editingAccount) {
@@ -252,11 +302,15 @@ export default function EditAccountScreen() {
         : "",
     ].filter((note) => note !== "");
     const loanNote = loanNotes.length > 0 ? `\n\n${loanNotes.join(" ")}` : "";
+    const canArchiveInstead =
+      editingAccount.archivedAt == null && accounts.transactions.some((t) => t.accountId === editingAccount.id);
+    const archiveNote = canArchiveInstead ? "\n\nTo keep its history, archive it instead." : "";
     Alert.alert(
       `Delete ${editingAccount.name}?`,
-      `Its transactions are removed. Expenses paid from it keep their history but no longer charge an account.${loanNote}`,
+      `Its transactions are removed. Expenses paid from it keep their history but no longer charge an account.${loanNote}${archiveNote}`,
       [
         { text: "Cancel", style: "cancel" },
+        ...(canArchiveInstead ? [{ text: "Archive", onPress: () => archive(editingAccount.id) }] : []),
         {
           text: "Delete",
           style: "destructive",
@@ -503,6 +557,18 @@ export default function EditAccountScreen() {
           <AppText variant="meta" className="text-center mt-2">Fill in the required fields to save</AppText>
         )}
 
+        {editingAccount && editingAccount.id !== CASH_ACCOUNT_ID && (
+          editingAccount.archivedAt ? (
+            <AppButton
+              label="Unarchive Account"
+              variant="tonal"
+              onPress={() => unarchive(editingAccount.id)}
+              className="mt-3"
+            />
+          ) : (
+            <AppButton label="Archive Account" variant="ghost" onPress={confirmArchive} className="mt-3" />
+          )
+        )}
         {isEditing && (
           <AppButton label="Delete Account" variant="destructive" onPress={confirmDelete} className="mt-3" />
         )}

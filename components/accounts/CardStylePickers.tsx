@@ -39,7 +39,7 @@ export function CardColorPicker({ value, onChange }: PickerProps<string>) {
             <TouchableOpacity
               key={color}
               onPress={() => onChange(color)}
-              className={`size-11 rounded-xl items-center justify-center ${isSelected ? "border-2 border-white" : ""}`}
+              className={`size-11 rounded-xl items-center justify-center ${isSelected ? "border-2 border-white" : "border-0"}`}
               style={{ backgroundColor: color }}
               accessibilityRole="radio"
               accessibilityState={{ selected: isSelected }}
@@ -93,7 +93,7 @@ export function CardTemplatePicker({ value, onChange }: PickerProps<BankId | nul
             accessibilityState={{ selected: isSelected }}
             accessibilityLabel={name}
           >
-            <View className={`size-14 rounded-xl items-center justify-center bg-white ${isSelected ? "border-2 border-primary" : ""}`}>
+            <View className={`size-14 rounded-xl items-center justify-center bg-white ${isSelected ? "border-2 border-primary" : "border-0"}`}>
               <Logo width={36} height={36} />
             </View>
             <AppText variant="meta" className={isSelected ? "text-white" : ""} numberOfLines={1}>{name}</AppText>

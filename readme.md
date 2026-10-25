@@ -4,7 +4,7 @@ A recurring expenses tracker built with React Native and Expo. Track monthly bil
 
 ## Features
 
-- Track expenses by recurrence: weekly, monthly, yearly, or one-off
+- Track expenses by recurrence: monthly, yearly, or one-off, with optional start and end months
 - Due day anchoring with smart month-end clamping
 - Overdue detection with visual warnings
 - Mark paid / reset per cycle
@@ -80,19 +80,39 @@ npm run ios        # iOS simulator
 npm run android    # Android emulator
 ```
 
+### iOS Simulator
+
+Needs Xcode (with an iOS simulator runtime) and CocoaPods.
+
+```bash
+brew install cocoapods                # once
+npx expo run:ios -d "iPhone 17 Pro"   # once, and after native changes: builds + installs the debug app (ios/ is generated, not committed)
+npm run start:wt -- --ios             # this checkout's Metro, with the simulator pointed at it
+```
+
+The iOS app's prebuilt React Native always looks for Metro on :8081, so with several checkouts running it can
+load another one's code. `start:wt -- --ios` sets the simulator's bundler location to this checkout's port.
+
 ## Build
 
 ```bash
-npm run build:apk  # Android APK (EAS preview)
-npm run build:aab  # Android AAB (EAS production)
+npm run build:apk      # Android APK (EAS preview)
+npm run build:aab      # Android AAB (EAS production)
+npm run build:ios-sim  # iOS Simulator build (EAS, no Apple account needed)
+npm run build:ipa      # iPhone build for registered devices (EAS preview, needs an Apple Developer account)
 ```
 
-Requires EAS CLI and an Expo account for cloud builds.
+Requires EAS CLI and an Expo account for cloud builds. Pushing to `master` builds the APK and the iOS Simulator
+build (`.eas/workflows/build.yml`). Install the latest simulator build with `npx eas-cli build:run -p ios --latest`.
+
+To get installable iPhone builds: join the Apple Developer Program, run `npm run build:ipa` once to sign in and
+let EAS create the certificate and profile, register each iPhone with `npx eas-cli device:create`, then switch
+`build_ios` in `.eas/workflows/build.yml` to the `preview` profile.
 
 ## Data Model
 
 ```ts
-type Recurrence = 'weekly' | 'monthly' | 'yearly' | 'one-off';
+type Recurrence = 'monthly' | 'yearly' | 'one-off';
 type Status = 'unpaid' | 'paid';
 
 interface Expense {

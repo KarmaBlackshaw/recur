@@ -94,10 +94,10 @@ function BalanceHeader({ account, balance, interest }: {
               isAlert={available < 0}
             />
           )}
-          {account.statementDay != null && (
+          {account.statementDay != null && account.archivedAt == null && (
             <DetailRow label="Next cut-off" value={dayjs(nextOccurrence(account.statementDay)).format("MMM D")} />
           )}
-          {account.dueDay != null && (
+          {account.dueDay != null && account.archivedAt == null && (
             <DetailRow label="Payment due" value={dayjs(nextOccurrence(account.dueDay)).format("MMM D")} />
           )}
         </View>
@@ -111,9 +111,11 @@ export default function AccountDetailScreen() {
   const accounts = useAccounts();
   const refreshControl = useRefreshControl();
   const account = accounts.accounts.find((a) => a.id === id);
+  const isArchived = account?.archivedAt != null;
   const adjustRef = useRef<AdjustBalanceSheetRef>(null);
   const hasPresentedAction = useRef(false);
-  const canTransfer = accounts.accounts.length > 1 && accounts.accounts.some((a) => a.type !== "credit");
+  const canTransfer =
+    !isArchived && accounts.activeAccounts.length > 1 && accounts.activeAccounts.some((a) => a.type !== "credit");
 
   const sections = useMemo(() => {
     const own = orderBy(
@@ -133,13 +135,25 @@ export default function AccountDetailScreen() {
       return;
     }
     hasPresentedAction.current = true;
-    if (action === "adjust") {
+    if (action === "adjust" && !isArchived) {
       adjustRef.current?.present();
     }
     if (action === "transfer" && canTransfer) {
       router.push({ pathname: "/transfer", params: { accountId: account.id } });
     }
-  }, [account, action, canTransfer]);
+  }, [account, action, canTransfer, isArchived]);
+
+  async function handleUnarchive() {
+    if (!account) {
+      return;
+    }
+    try {
+      await accounts.unarchiveAccount(account.id);
+    } catch (e) {
+      console.error("Unarchive account failed", e);
+      Alert.alert("Unarchive failed", "Something went wrong. Please try again.");
+    }
+  }
 
   function confirmDeleteTransfer(transaction: AccountTransaction) {
     const { transferId } = transaction;
@@ -180,7 +194,9 @@ export default function AccountDetailScreen() {
         </TouchableOpacity>
         <View className="flex-1 items-center">
           <AppText variant="title" numberOfLines={1}>{account.name}</AppText>
-          <AppText variant="caption">{ACCOUNT_TYPE_LABEL[account.type]}</AppText>
+          <AppText variant="caption">
+            {isArchived ? `${ACCOUNT_TYPE_LABEL[account.type]} · Archived` : ACCOUNT_TYPE_LABEL[account.type]}
+          </AppText>
         </View>
         <View className="w-11" />
       </View>
@@ -198,14 +214,26 @@ export default function AccountDetailScreen() {
               balance={accounts.getBalance(account.id)}
               interest={accounts.interestEstimate(account)}
             />
+            {isArchived && (
+              <AppText variant="meta" className="px-5 mb-3">
+                Archived: it no longer shows up when you pick an account, and it has no bills or interest. Its
+                history stays here.
+              </AppText>
+            )}
             <View className="flex-row gap-3 px-5 mb-4">
-              <ActionButton icon="sliders" label="Adjust" onPress={() => adjustRef.current?.present()} />
-              <ActionButton
-                icon="repeat"
-                label="Transfer"
-                onPress={() => router.push({ pathname: "/transfer", params: { accountId: account.id } })}
-                disabled={!canTransfer}
-              />
+              {isArchived ? (
+                <ActionButton icon="rotate-ccw" label="Unarchive" onPress={handleUnarchive} />
+              ) : (
+                <>
+                  <ActionButton icon="sliders" label="Adjust" onPress={() => adjustRef.current?.present()} />
+                  <ActionButton
+                    icon="repeat"
+                    label="Transfer"
+                    onPress={() => router.push({ pathname: "/transfer", params: { accountId: account.id } })}
+                    disabled={!canTransfer}
+                  />
+                </>
+              )}
               {account.id !== CASH_ACCOUNT_ID && (
                 <ActionButton
                   icon="edit-2"

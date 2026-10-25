@@ -8,7 +8,7 @@ import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated"
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { AppText } from "@/components/ui/AppText";
 import dayjs from "dayjs";
-import { formatDueDate, formatDaysLate, getDueDateForMonth, isOverdueOn, formatAmount, isEndedOn, formatEndMonth } from "@/utils/dateHelpers";
+import { formatDueDate, formatDaysLate, getDueDateForMonth, isOverdueOn, formatAmount, cycleStateOn, formatMonth, nextCycleDueDate } from "@/utils/dateHelpers";
 import { categoryIcon } from "@/utils/categories";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
@@ -26,8 +26,8 @@ interface Props {
 }
 
 export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compact = false, hideDate = false }: Props) {
-  const { getMonthStatus, toggleMonthStatus, deleteExpense, getMonthAmount, getMonthPaidAt } = useExpenses();
-  const { accounts, isCharged, isCardAccount } = useAccounts();
+  const { getMonthStatus, toggleMonthStatus, deleteExpense, getDisplayAmount, getMonthPaidAt, paidCycles } = useExpenses();
+  const { accounts, transactions, isCharged, isCardAccount } = useAccounts();
   const accountName = accounts.find((a) => a.id === expense.accountId)?.name;
   const swipeRef = useRef<SwipeableMethods>(null);
   const isReducedMotion = useReducedMotion();
@@ -42,18 +42,24 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
   // Paid recurring shows when it was actually paid (paid_at), not its due date.
   // Fall back to dueDate only for legacy rows recorded before paid_at existed.
   const paidAt = !isRegular ? getMonthPaidAt(expense.id, year, month) : null;
-  const ended = !isRegular && isEndedOn(expense.endYear, expense.endMonth, year, month);
-  const overdueFlag = !isRegular && !ended && resolvedStatus === "unpaid" && isOverdueOn(expense.dueDay, year, month);
-  const monthlyActual = getMonthAmount(expense.id, year, month);
-  const displayAmount = expense.isVariable
-    ? (monthlyActual !== null ? monthlyActual : null)
-    : expense.amount;
+  // Not started yet, ended, or a yearly plan outside its month: nothing is due, so the row is muted.
+  const cycleState = cycleStateOn(expense, year, month);
+  const isInactive = cycleState !== "active";
+  const overdueFlag = !isRegular && !isInactive && resolvedStatus === "unpaid" && isOverdueOn(expense.dueDay, year, month);
+  const displayAmount = getDisplayAmount(expense, year, month);
 
   const title = expenseTitle(expense);
   const isCategoryTitle = title === expense.category;
   const amountText = displayAmount !== null ? formatAmount(displayAmount) : "TBD";
-  const dateText = ended
-    ? `Ended ${formatEndMonth(expense.endYear!, expense.endMonth!)}`
+  const inactiveText: Record<typeof cycleState, string> = {
+    active: "",
+    ended: expense.endYear != null && expense.endMonth != null ? `Ended ${formatMonth(expense.endYear, expense.endMonth)}` : "Ended",
+    "not-started":
+      expense.startYear != null && expense.startMonth != null ? `Starts ${formatMonth(expense.startYear, expense.startMonth)}` : "Not started",
+    "off-cycle": `Every ${dayjs(nextCycleDueDate(expense, year, month) ?? dueDate).format("MMM D")}`,
+  };
+  const dateText = isInactive
+    ? inactiveText[cycleState]
     : isRegular
       ? dayjs(expense.createdAt).format("MMM D")
       : isPaid
@@ -61,15 +67,23 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
         : overdueFlag
           ? formatDaysLate(dueDate)
           : formatDueDate(dueDate);
-  const statusLabel = ended ? "Ended" : isChargedNow ? "Charged" : isPaid ? "Paid" : overdueFlag ? "Overdue" : "Unpaid";
+  const inactiveLabel: Record<typeof cycleState, string> = {
+    active: "",
+    ended: "Ended",
+    "not-started": "Not started",
+    "off-cycle": "Not due this month",
+  };
+  const statusLabel = isInactive
+    ? inactiveLabel[cycleState]
+    : isChargedNow ? "Charged" : isPaid ? "Paid" : overdueFlag ? "Overdue" : "Unpaid";
   // Settled captions stay neutral: the band or KPI already says "paid", and a mint caption on every
   // row would repeat it. Only card charges (indigo) and late dues (coral) get a tint.
-  const statusTone: RowTone = ended ? "muted" : isChargedNow ? "accent" : overdueFlag ? "negative" : "neutral";
+  const statusTone: RowTone = isInactive ? "muted" : isChargedNow ? "accent" : overdueFlag ? "negative" : "neutral";
   // Ledger rows sit under a day header, so they only flag card-account status.
   const caption = compact || hideDate
     ? (!compact || isCardAccount(expense.accountId) ? statusLabel : undefined)
-    : isPaid && !ended ? `${statusLabel} ${dateText}` : dateText;
-  const canToggle = !compact && !ended;
+    : isPaid && !isInactive ? `${statusLabel} ${dateText}` : dateText;
+  const canToggle = !compact && !isInactive;
 
   function handleToggle() {
     toggleMonthStatus(expense.id, year, month);
@@ -77,14 +91,30 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
 
   function handleDelete() {
     swipeRef.current?.close();
-    Alert.alert("Delete expense", `Remove "${title}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => deleteExpense(expense.id),
-      },
-    ]);
+    const confirmDelete = { text: "Delete", style: "destructive" as const, onPress: () => deleteExpense(expense.id) };
+    const paidMonths = isRegular ? 0 : paidCycles.filter((c) => c.expenseId === expense.id).length;
+    if (paidMonths === 0) {
+      Alert.alert("Delete expense", `Remove "${title}"?`, [{ text: "Cancel", style: "cancel" }, confirmDelete]);
+      return;
+    }
+    // Deleting a recurring expense drops its paid months from Activity and the totals, while the payments it
+    // made stay in the account balances, so offer ending it instead.
+    const hasPayments = transactions.some((t) => t.kind === "payment" && t.expenseId === expense.id);
+    const history = `Its ${paidMonths} paid ${paidMonths === 1 ? "month leaves" : "months leave"} Activity and the totals.`;
+    const balances = hasPayments ? " The payments stay in your account balances." : "";
+    Alert.alert(
+      `Delete "${title}"?`,
+      `${history}${balances}\n\nTo stop it and keep the history, set an end month instead.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Set end month",
+          onPress: () =>
+            router.push({ pathname: "/expense/add", params: { id: expense.id, year, month, endPrompt: "1" } }),
+        },
+        confirmDelete,
+      ]
+    );
   }
 
   function handleAccessibilityAction({ nativeEvent }: AccessibilityActionEvent) {
@@ -151,7 +181,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
           amount={amountText}
           caption={caption}
           captionTone={statusTone}
-          isMuted={ended}
+          isMuted={isInactive}
           onPress={onPress ?? (() => router.push({ pathname: "/expense/add", params: { id: expense.id } }))}
           accessibilityLabel={`${isCategoryTitle ? title : `${title}, ${expense.category}`}${accountName != null ? `, from ${accountName}` : ""}, ${amountText}, ${statusLabel}, ${dateText}`}
           accessibilityHint="Opens editor"

@@ -45,17 +45,22 @@ export default function ProfileScreen() {
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
       <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity className="p-1" onPress={() => router.back()}>
+        <TouchableOpacity
+          className="w-11 h-11 items-center justify-center"
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <Feather name="chevron-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
         <AppText variant="heading" className="flex-1 text-center text-white text-xl">
           Profile
         </AppText>
-        <View style={{ width: 32 }} />
+        <View className="w-11" />
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+        contentContainerClassName="px-4 pb-10"
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -81,26 +86,13 @@ export default function ProfileScreen() {
                 maxLength={40}
                 autoCapitalize="words"
                 returnKeyType="done"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.07)",
-                  borderRadius: 10,
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  color: "#FFFFFF",
-                  fontSize: 15,
-                  fontFamily: "Quicksand_500Medium",
-                  marginBottom: 16,
-                }}
+                className="bg-white/[0.07] rounded-[10px] px-[14px] py-[12px] text-white text-[15px] font-quicksand-medium mb-[16px]"
               />
             )}
           />
 
           <TouchableOpacity
-            className="rounded-xl items-center py-3"
-            style={{
-              backgroundColor:
-                isDirty && isValid ? colors.primary : "rgba(255,255,255,0.1)",
-            }}
+            className={`rounded-xl items-center py-3 ${isDirty && isValid ? "bg-primary" : "bg-white/10"}`}
             onPress={handleSubmit(onSave)}
             disabled={!isDirty || !isValid}
           >

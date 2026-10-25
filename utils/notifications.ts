@@ -2,6 +2,8 @@ import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import dayjs from 'dayjs';
 import groupBy from 'lodash/groupBy';
+import range from 'lodash/range';
+import sortBy from 'lodash/sortBy';
 import sumBy from 'lodash/sumBy';
 import uniq from 'lodash/uniq';
 import { getDueDateForMonth, hasCycleIn } from '@/utils/dateHelpers';
@@ -11,6 +13,17 @@ export interface Reminder {
   amount: number | null;
   dueDate: Date;
   daysBefore: number;
+}
+
+// Reminders are scheduled a year ahead so they keep arriving even when the app isn't opened for a while;
+// every launch reschedules them with current amounts.
+const REMINDER_MONTHS_AHEAD = 12;
+// iOS keeps at most 64 pending local notifications per app, so only the soonest ones are scheduled.
+const MAX_SCHEDULED = 60;
+
+function upcomingMonths(now: Date): dayjs.Dayjs[] {
+  const start = dayjs(now).startOf('month');
+  return range(REMINDER_MONTHS_AHEAD).map((i) => start.add(i, 'month'));
 }
 
 export async function requestPermissions(): Promise<boolean> {
@@ -57,15 +70,14 @@ export function getExpenseReminders(
   getDisplayAmount: (expense: Expense, year: number, month: number) => number | null,
   now: Date
 ): Reminder[] {
-  const current = dayjs(now);
-  const next = current.add(1, 'month');
+  const months = upcomingMonths(now);
   const reminders: Reminder[] = [];
   for (const expense of expenses) {
     if (expense.reminderDaysBefore === 0) {
       continue;
     }
     const daysBefore = expense.reminderDaysBefore ?? 1;
-    const cycles = expense.recurrence === 'one-off' ? [current] : [current, next];
+    const cycles = expense.recurrence === 'one-off' ? [months[0]] : months;
     for (const cycle of cycles) {
       const year = cycle.year();
       const month = cycle.month();
@@ -89,12 +101,9 @@ export function getUnpaidBillReminders(
   getCardBills: (year: number, month: number) => CardBill[],
   now: Date
 ): Reminder[] {
-  const current = dayjs(now);
-  const next = current.add(1, 'month');
-  return [
-    ...getCardBills(current.year(), current.month()),
-    ...getCardBills(next.year(), next.month()),
-  ]
+  // Statements not cut yet are estimated from the card's balance as of now.
+  return upcomingMonths(now)
+    .flatMap((month) => getCardBills(month.year(), month.month()))
     .filter((bill) => !bill.isPaid && bill.remaining > 0)
     .map((bill) => ({ amount: bill.remaining, dueDate: bill.dueDate, daysBefore: 1 }));
 }
@@ -116,7 +125,11 @@ export async function scheduleAllNotifications(reminders: Reminder[], reminderTi
       eligible.push({ reminder, fireTime: fireDate.getTime() });
     }
 
-    for (const [fireTime, group] of Object.entries(groupBy(eligible, 'fireTime'))) {
+    const soonest = sortBy(Object.entries(groupBy(eligible, 'fireTime')), ([fireTime]) => Number(fireTime)).slice(
+      0,
+      MAX_SCHEDULED
+    );
+    for (const [fireTime, group] of soonest) {
       const leads = uniq(group.map((g) => g.reminder.daysBefore));
       const label = leads.length === 1 ? dueLabel(leads[0]) : 'soon';
       await Notifications.scheduleNotificationAsync({

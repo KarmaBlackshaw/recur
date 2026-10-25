@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import dayjs from "dayjs";
+import range from "lodash/range";
 import sortBy from "lodash/sortBy";
 import sumBy from "lodash/sumBy";
 import { useExpenses } from "@/context/ExpenseContext";
@@ -28,6 +29,8 @@ import type { HomeBandSlot } from "@/types";
 const UPCOMING_LIMIT = 5;
 const NEXT_MONTH_LOOKAHEAD_DAYS = 7;
 const ACTIVITY_LIMIT = 10;
+// How many months back an unpaid due stays in Overdue after its own month has ended.
+const OVERDUE_LOOKBACK_MONTHS = 3;
 
 export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus, resolveAmount, collapsedHomeBands, toggleHomeBand } = useExpenses();
@@ -68,14 +71,15 @@ export default function HomeScreen() {
     "expense" in e && getMonthStatus(e.expense.id, e.refDate.getFullYear(), e.refDate.getMonth()) === "paid";
 
   const overdueLive = useMemo<HomeEntry[]>(() => {
-    const entries = expenses
-      .filter(
-        (e) =>
-          hasCycleIn(e, year, month) &&
-          getMonthStatus(e.id, year, month) === "unpaid" &&
-          isOverdueOn(e.dueDay, year, month)
-      )
-      .map((e) => dueEntry(e, year, month));
+    // A missed due stays here after its month ends. Card bills don't need carrying: each statement already
+    // includes the unpaid balance, so carrying them too would count it twice.
+    const entries = range(OVERDUE_LOOKBACK_MONTHS + 1).flatMap((monthsBack) => {
+      const at = dayjs(today).subtract(monthsBack, "month");
+      const [y, m] = [at.year(), at.month()];
+      return expenses
+        .filter((e) => hasCycleIn(e, y, m) && getMonthStatus(e.id, y, m) === "unpaid" && isOverdueOn(e.dueDay, y, m))
+        .map((e) => dueEntry(e, y, m));
+    });
     const bills = openBills.filter((b) => !b.bill.isPaid && b.effDate < today);
     return [...entries, ...bills];
   }, [expenses, getMonthStatus, resolveAmount, year, month, openBills, today]);

@@ -1,8 +1,9 @@
 import React from "react";
 import { Image, TouchableOpacity, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
+import { Ionicon } from "@/components/ui/Ionicon";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { CARD_COLORS } from "@/constants/cardColors";
 import { BANKS, type BankId } from "@/constants/banks";
@@ -70,7 +71,7 @@ export function CardIconPicker({ value, onChange }: PickerProps<IoniconName>) {
               accessibilityState={{ selected: isSelected }}
               accessibilityLabel={icon.replace("-outline", "").replace("-", " ")}
             >
-              <Ionicons name={icon} size={20} color={isSelected ? colors.text : colors.textSecondary} />
+              <Ionicon name={icon} size={20} color={isSelected ? colors.text : colors.textSecondary} />
             </TouchableOpacity>
           );
         })}
@@ -82,7 +83,7 @@ export function CardIconPicker({ value, onChange }: PickerProps<IoniconName>) {
 export function CardTemplatePicker({ value, onChange }: PickerProps<BankId | null>) {
   return (
     <View className="mb-4 flex-row flex-wrap gap-3">
-      {BANKS.map(({ id, name, Logo }) => {
+      {BANKS.map(({ id, name, logo }) => {
         const isSelected = id === value;
         return (
           <TouchableOpacity
@@ -94,7 +95,7 @@ export function CardTemplatePicker({ value, onChange }: PickerProps<BankId | nul
             accessibilityLabel={name}
           >
             <View className={`size-14 rounded-xl items-center justify-center bg-white ${isSelected ? "border-2 border-primary" : "border-0"}`}>
-              <Logo width={36} height={36} />
+              <Image source={logo} className="size-[36px]" />
             </View>
             <AppText variant="meta" className={isSelected ? "text-white" : ""} numberOfLines={1}>{name}</AppText>
           </TouchableOpacity>

@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { View, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { useForm, Controller } from "react-hook-form";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";

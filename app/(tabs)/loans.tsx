@@ -1,12 +1,10 @@
 import React, { useMemo, useState } from "react";
-import useBoolean from "ahooks/es/useBoolean";
+import { useBoolean } from "@/utils/useBoolean";
 import { View, Text, FlatList, TouchableOpacity } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import sumBy from "lodash/sumBy";
-import orderBy from "lodash/orderBy";
-import groupBy from "lodash/groupBy";
+import { sumBy, orderBy, groupBy } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { BorrowerRow } from "@/components/loans/BorrowerRow";

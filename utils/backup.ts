@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import uniqBy from 'lodash/uniqBy';
+import { uniqBy } from '@/utils/collections';
 
 import { getAll as getAllExpenses, insertWithId as insertExpenseWithId } from '@/db/expenses';
 import { getAll as getAllCategories, insertCategory } from '@/db/categories';

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
 import { colors } from "@/constants/theme";
 import { AppButton } from "@/components/ui/AppButton";

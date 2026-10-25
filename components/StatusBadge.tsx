@@ -1,6 +1,6 @@
 import React from "react";
 import { View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import type { FeatherIconName, Status } from "@/types";
 import { colors } from "@/constants/theme";
 import { AppText } from "@/components/ui/AppText";

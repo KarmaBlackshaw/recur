@@ -1,8 +1,8 @@
 import React, { createContext, useCallback, useContext, useMemo, useReducer } from "react";
 import dayjs from "dayjs";
-import useAsyncEffect from "ahooks/es/useAsyncEffect";
-import useMemoizedFn from "ahooks/es/useMemoizedFn";
-import round from "lodash/round";
+import { useAsyncEffect } from "@/utils/useAsyncEffect";
+import { useMemoizedFn } from "@/utils/useMemoizedFn";
+import { round } from "@/utils/round";
 import {
   getAll as getAllLoans,
   insert as insertLoan,

@@ -1,8 +1,9 @@
 import React from "react";
 import { View, Text } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicon } from "@/components/ui/Ionicon";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
+import type { IoniconName } from "@/types";
 
 export type KpiTone = "primary" | "paid" | "overdue" | "neutral" | "charged";
 
@@ -18,7 +19,7 @@ export interface KpiCardProps {
   label: string;
   value: string;
   tone: KpiTone;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconName;
 }
 
 export function KpiCard({ label, value, tone, icon }: KpiCardProps) {
@@ -26,7 +27,7 @@ export function KpiCard({ label, value, tone, icon }: KpiCardProps) {
   return (
     <View className={`flex-1 rounded-2xl px-3 py-3 border ${t.card}`}>
       <View className={`w-8 h-8 rounded-xl items-center justify-center mb-2 ${t.iconBg}`}>
-        <Ionicons name={icon} size={16} color={t.icon} />
+        <Ionicon name={icon} size={16} color={t.icon} />
       </View>
       <Text
         className={`text-[18px] leading-tight font-oswald ${t.value}`}

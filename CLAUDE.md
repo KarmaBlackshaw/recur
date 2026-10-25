@@ -10,7 +10,8 @@ React Native / Expo recurring expenses tracker. Expo Router, TypeScript, NativeW
 - **State:** `context/ExpenseContext.tsx` is the single source of truth. All mutations go through the context dispatcher after calling the DB helper.
 - **DB:** All SQLite access goes through `db/expenses.ts` and `db/categories.ts`. Never query the DB directly from components.
 - **Dates:** All date logic uses `dayjs`. No manual date arithmetic. Due is a day-of-month integer (1–31), not a full date string. `getDueDate(dueDay)` clamps to last day of month for short months.
-- **Icons:** `@expo/vector-icons` (Ionicons / Feather) only. No emojis as icons. Use `FeatherIconName` (`keyof typeof Feather.glyphMap`, exported from `types.ts`) for all Feather icon name values — never `string`. The only permitted `as FeatherIconName` cast is at external boundaries (SQLite reads, URL params).
+- **Icons:** `@expo/vector-icons` (Ionicons / Feather) only. No emojis as icons. Use `FeatherIconName` (`keyof typeof Feather.glyphMap`, exported from `types.ts`) for all Feather icon name values — never `string`. The only permitted `as FeatherIconName` cast is at external boundaries (SQLite reads, URL params). Import each family from its own entry (`import Feather from "@expo/vector-icons/Feather"`) — the `@expo/vector-icons` barrel bundles all 19 icon fonts. Ionicons render through `components/ui/Ionicon.tsx`, a subset font of the glyphs in `constants/ionicons.ts`: to use a new one, add it there and run `node scripts/subset-fonts.mjs`.
+- **Bundle size:** No lodash, ahooks or tailwind-merge — use `utils/collections.ts` and `utils/round.ts` (lodash semantics, pinned by `scripts/collections-check.mjs`), the `utils/use*.ts` hooks, and `utils/mergeClassNames.ts`. Import a package's per-feature entry, never a barrel that re-exports everything. Bank logos are PNGs generated from `assets/banks/*.svg` by `scripts/generate-bank-logos.mjs` — there is no react-native-svg.
 - **Forms:** `react-hook-form` with `Controller` for every form field. Save button disabled when `!isValid`. Scrollable form screens use `AppFormScrollView` (not a bare `ScrollView`) so the focused field stays above the keyboard — Android is edge-to-edge, so the window never resizes for it.
 - **Animations:** `react-native-reanimated` for all animations. No `Animated` API from React Native core.
 - **Bottom sheets:** `@gorhom/bottom-sheet` (`BottomSheetModal`). No plain `Modal` for primary flows. Sheets with inputs: content-sized (default dynamic sizing, no fixed `snapPoints`) with `keyboardBehavior="interactive"`, and never `android_keyboardInputMode="adjustResize"` — under edge-to-edge it stops gorhom lifting the sheet, leaving it behind the keyboard.
@@ -71,7 +72,7 @@ text:     #FFFFFF
 border:   rgba(255,255,255,0.07)
 ```
 
-Fonts: Oswald (headings, bundled TTFs in `assets/fonts/oswald`) + Quicksand (body) via `@expo-google-fonts`.
+Fonts: Oswald (headings, subset TTFs in `assets/fonts/oswald`, regenerated from `source/` by `scripts/subset-fonts.mjs`) + Quicksand (body), imported per weight from `@expo-google-fonts/quicksand/<weight>`. Quicksand ships unmodified: its license reserves the name, so it can't be subset.
 
 ## Folder Structure
 
@@ -85,7 +86,10 @@ db/expenses.ts           # getAll, insert, updateStatus, remove
 db/categories.ts         # getCustom, insertCustom
 utils/dateHelpers.ts     # getDueDate, isOverdue, formatDue
 utils/categories.ts      # PRESET_CATEGORIES
+utils/collections.ts     # orderBy, groupBy, sumBy… (lodash semantics, no lodash)
 constants/theme.ts       # Color tokens (mirrors tailwind.config.js)
+plugins/                 # Local Expo config plugins (android/ and ios/ are generated)
+scripts/                 # *-check.mjs logic checks; asset generators (fonts, icons, bank logos)
 types.ts                 # Shared TS types
 ```
 

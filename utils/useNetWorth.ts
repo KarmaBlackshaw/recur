@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import round from "lodash/round";
-import sumBy from "lodash/sumBy";
+import { sumBy } from "@/utils/collections";
+import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 

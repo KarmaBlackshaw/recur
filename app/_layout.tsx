@@ -1,16 +1,14 @@
 import React, { useEffect } from "react";
-import useMount from "ahooks/es/useMount";
+import { useMount } from "@/utils/useMount";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
-import {
-  Quicksand_400Regular,
-  Quicksand_500Medium,
-  Quicksand_600SemiBold,
-  Quicksand_700Bold,
-} from "@expo-google-fonts/quicksand";
+import { Quicksand_400Regular } from "@expo-google-fonts/quicksand/400Regular";
+import { Quicksand_500Medium } from "@expo-google-fonts/quicksand/500Medium";
+import { Quicksand_600SemiBold } from "@expo-google-fonts/quicksand/600SemiBold";
+import { Quicksand_700Bold } from "@expo-google-fonts/quicksand/700Bold";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import * as Notifications from "expo-notifications";
 import { ExpenseProvider } from "@/context/ExpenseContext";

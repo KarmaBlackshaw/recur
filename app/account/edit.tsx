@@ -3,7 +3,7 @@ import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { AppButton } from "@/components/ui/AppButton";

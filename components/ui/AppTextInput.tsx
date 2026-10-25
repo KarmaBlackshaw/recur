@@ -1,6 +1,6 @@
 import React, { forwardRef } from "react";
 import { TextInput, TextInputProps, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { BottomSheetTextInput, useBottomSheetInternal } from "@gorhom/bottom-sheet";

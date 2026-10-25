@@ -15,7 +15,7 @@ import { ExpenseCard } from "@/components/ExpenseCard";
 import { BandHeader } from "@/components/BandHeader";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
-import { effectivePaidDate, isOverdueOn } from "@/utils/dateHelpers";
+import { cycleStateOn, effectivePaidDate, getDueDateForMonth, isOverdueOn, nextCycleDueDate } from "@/utils/dateHelpers";
 import { colors } from "@/constants/theme";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { FeatherIconName } from "@/types";
@@ -25,15 +25,19 @@ interface Band {
   label: string;
   icon: FeatherIconName;
   accent: string;
-  total: number;
+  total?: number;
   data: DayEntry[];
 }
 
+// Rank order. "Not due" holds plans with no cycle this month (not started, ended, or a yearly plan
+// outside its month): listed so they stay easy to find, but never totalled.
 const BANDS: Omit<Band, "total" | "data">[] = [
   { key: "overdue", label: "Overdue", icon: "alert-triangle", accent: colors.overdue },
   { key: "unpaid", label: "Unpaid", icon: "circle", accent: colors.secondary },
   { key: "paid", label: "Paid", icon: "check-circle", accent: colors.paid },
+  { key: "not-due", label: "Not due", icon: "pause-circle", accent: colors.textMuted },
 ];
+const NOT_DUE_RANK = 3;
 
 export default function RecurringScreen() {
   const { expenses, loading, getMonthStatus, resolveAmount, getMonthPaidAt } = useExpenses();
@@ -48,10 +52,18 @@ export default function RecurringScreen() {
 
   const bands = useMemo<Band[]>(() => {
     const ranked = recurringExpenses.map((e) => {
-      const paidAt = getMonthPaidAt(e.id, year, month);
-      const effDate = effectivePaidDate(paidAt, e.dueDay, year, month);
       const refDate = new Date(year, month, 1);
       const amount = resolveAmount(e, year, month);
+      const cycleState = cycleStateOn(e, year, month);
+      if (cycleState !== "active") {
+        // Upcoming plans by their next due date, then ended ones by when they ended.
+        const nextDue = nextCycleDueDate(e, year, month);
+        const endedAt = e.endYear != null && e.endMonth != null ? getDueDateForMonth(e.dueDay, e.endYear, e.endMonth) : refDate;
+        const entry: DayEntry = { key: e.id, expense: e, effDate: nextDue ?? endedAt, refDate, amount };
+        return { entry, rank: NOT_DUE_RANK, isEnded: nextDue == null };
+      }
+      const paidAt = getMonthPaidAt(e.id, year, month);
+      const effDate = effectivePaidDate(paidAt, e.dueDay, year, month);
 
       const status = getMonthStatus(e.id, year, month);
       const overdue = status === "unpaid" && isOverdueOn(e.dueDay, year, month);
@@ -59,12 +71,12 @@ export default function RecurringScreen() {
       const rank = overdue ? 0 : status === "unpaid" ? 1 : 2;
 
       const entry: DayEntry = { key: e.id, expense: e, effDate, refDate, amount };
-      return { entry, rank };
+      return { entry, rank, isEnded: false };
     });
-    const sorted = sortBy(ranked, ["rank", (r) => r.entry.effDate]);
+    const sorted = sortBy(ranked, ["rank", "isEnded", (r) => r.entry.effDate]);
     return BANDS.map((band, rank) => {
       const data = sorted.filter((r) => r.rank === rank).map((r) => r.entry);
-      return { ...band, data, total: sumBy(data, "amount") };
+      return { ...band, data, total: rank === NOT_DUE_RANK ? undefined : sumBy(data, "amount") };
     }).filter((band) => band.data.length > 0);
   }, [recurringExpenses, getMonthStatus, resolveAmount, getMonthPaidAt, year, month]);
 

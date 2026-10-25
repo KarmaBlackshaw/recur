@@ -69,16 +69,22 @@ export async function getById(id: string): Promise<Account | undefined> {
 export async function update(id: string, input: AccountInput): Promise<void> {
   const db = await getDB();
   const today = dayjs().format("YYYY-MM-DD");
-  await db.runAsync(
-    `UPDATE accounts SET name=?, type=?, interest_rate=?, interest_period=?, tax_rate=?, credit_limit=?, statement_day=?, due_day=?, color=?, icon=?, logo_uri=?, bank=?,
-     interest_accrued_through = CASE
-       WHEN ? != 'debit' THEN interest_accrued_through
-       WHEN IFNULL(interest_rate, 0) <= 0 AND IFNULL(?, 0) > 0 THEN ?
-       ELSE COALESCE(interest_accrued_through, ?)
-     END
-     WHERE id=?`,
-    [input.name, input.type, input.interestRate, input.interestPeriod, input.taxRate, input.creditLimit, input.statementDay, input.dueDay, input.color, input.icon, input.logoUri, input.bank, input.type, input.interestRate, today, today, id]
-  );
+  await withWriteTransaction(db, async (txn) => {
+    await txn.runAsync(
+      `UPDATE accounts SET name=?, type=?, interest_rate=?, interest_period=?, tax_rate=?, credit_limit=?, statement_day=?, due_day=?, color=?, icon=?, logo_uri=?, bank=?,
+       interest_accrued_through = CASE
+         WHEN ? != 'debit' THEN interest_accrued_through
+         WHEN IFNULL(interest_rate, 0) <= 0 AND IFNULL(?, 0) > 0 THEN ?
+         ELSE COALESCE(interest_accrued_through, ?)
+       END
+       WHERE id=?`,
+      [input.name, input.type, input.interestRate, input.interestPeriod, input.taxRate, input.creditLimit, input.statementDay, input.dueDay, input.color, input.icon, input.logoUri, input.bank, input.type, input.interestRate, today, today, id]
+    );
+    // Recurring expenses charged to a card are due with its bill, so they follow its due day.
+    if (input.type === "credit" && input.dueDay != null) {
+      await txn.runAsync("UPDATE expenses SET dueDay = ? WHERE account_id = ? AND recurrence != 'one-off'", [input.dueDay, id]);
+    }
+  });
 }
 
 export async function remove(id: string): Promise<void> {

@@ -9,6 +9,7 @@ import { getAll as getAllTransactions, insertWithId as insertTransactionWithId }
 import { getAll as getAllMonths, insertOrIgnore as insertMonth } from '@/db/expenseMonths';
 import { getAll as getAllCardBills, insertOrIgnore as insertCardBill } from '@/db/cardBills';
 import { getAll as getAllLoans, insertWithId as insertLoanWithId } from '@/db/loans';
+import { backfillExpenseHistory, getDB } from '@/db/schema';
 import {
   TRANSACTION_KIND_LABEL,
   LOAN_INTEREST_TYPE_LABEL,
@@ -42,6 +43,9 @@ const REQUIRED_EXPENSE_FIELDS: (keyof Expense)[] = [
   'status',
   'createdAt',
 ];
+
+// 'weekly' is accepted from older backups; backfillExpenseHistory turns it into 'monthly'.
+const RECURRENCES = ['weekly', 'monthly', 'yearly', 'one-off'];
 
 const ACCOUNT_TYPES = ['debit', 'credit', 'cash'];
 const TRANSACTION_KINDS = Object.keys(TRANSACTION_KIND_LABEL);
@@ -193,7 +197,7 @@ export async function importBackup(): Promise<{ added: number; skipped: number }
     const missing = REQUIRED_EXPENSE_FIELDS.some(
       (field) => expense[field] === undefined || expense[field] === null,
     );
-    if (missing) {
+    if (missing || !RECURRENCES.includes(expense.recurrence)) {
       throw new Error('Backup file is corrupted — missing required fields.');
     }
   }
@@ -295,6 +299,9 @@ export async function importBackup(): Promise<{ added: number; skipped: number }
       skipped++;
     }
   }
+
+  // Older backups have no start months or paid amounts; fill them in the same way an app update does.
+  await backfillExpenseHistory(await getDB());
 
   return { added, skipped };
 }

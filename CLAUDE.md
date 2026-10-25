@@ -21,7 +21,7 @@ React Native / Expo recurring expenses tracker. Expo Router, TypeScript, NativeW
 ## Data Model
 
 ```ts
-type Recurrence = 'weekly' | 'monthly' | 'yearly' | 'one-off';
+type Recurrence = 'monthly' | 'yearly' | 'one-off';
 type Status = 'unpaid' | 'paid';
 
 interface Expense {
@@ -34,14 +34,21 @@ interface Expense {
   status: Status;        // default: 'unpaid'
   notes?: string;
   createdAt: string;
+  startYear?: number | null;  // first month with a cycle; yearly plans recur every year in this month
+  startMonth?: number | null; // 0-based. Null for one-off
+  endYear?: number | null;    // last month with a cycle. Null = open-ended
+  endMonth?: number | null;
 }
 ```
 
 ## Business Rules
 
 - Expenses always sorted ascending by `dueDay`.
-- Overdue = `status === 'unpaid' && getDueDate(dueDay) < startOfToday()`. Never auto-change status — only show red warning.
-- Mark paid on a recurring expense: status flips to `paid`. Stays paid until user resets it next cycle.
+- A recurring expense only has a cycle in a month when `hasCycleIn(expense, year, month)` (`utils/dateHelpers.ts`): on or after its start month, not past its end month, and for yearly plans only in the start month's calendar month. KPIs, Home Overdue/Upcoming, reminders and the Recurring tab's bands all go through it; months without a cycle show as muted "Not due" rows.
+- Overdue = an unpaid cycle whose due date (`getDueDateForMonth`) is before today. Never auto-change status — only show red warning.
+- Mark paid on a recurring expense: that month flips to `paid` and records what it cost in `expense_months.amount`, so editing the expense later never rewrites paid history. Unpaying a fixed expense clears it again.
+- Categories are stored by name on expenses and income, so renaming one renames it on every row.
+- Deleting a recurring expense with paid months warns that its history leaves Activity (payments stay in the balances) and offers setting an end month instead.
 - One-off expenses stay paid permanently.
 - KPI totals (Total / Paid / Unpaid) are computed from the in-memory expenses array — no extra DB query.
 - Swipe-to-delete via `react-native-gesture-handler` `Swipeable`. Confirm with `Alert` before deleting.

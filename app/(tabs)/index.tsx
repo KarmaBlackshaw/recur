@@ -15,10 +15,12 @@ import { HomeExpenseSections, type HomeEntry, type UpcomingBand } from "@/compon
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
-import { isOverdueOn, isEndedOn, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
+import { isOverdueOn, hasCycleIn, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { useLingeringEntries } from "@/utils/useLingeringEntries";
 import { isBillTbd } from "@/utils/cardBills";
+import { monthKey } from "@/utils/monthKey";
+import { useToday } from "@/utils/useToday";
 import { colors } from "@/constants/theme";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { HomeBandSlot } from "@/types";
@@ -32,14 +34,15 @@ export default function HomeScreen() {
   const accounts = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
-  const today = dayjs().startOf("day").toDate();
+  const today = useToday();
   const year = today.getFullYear();
   const month = today.getMonth();
 
   // Unpaid recurring cycles, split by urgency. Overdue always shows in full;
   // each Upcoming band lists its next UPCOMING_LIMIT dues but counts and totals the whole month.
+  // Keyed per cycle: near month end the same expense can be due in both Upcoming months.
   const dueEntry = (e: (typeof expenses)[number], y: number, m: number): DayEntry => ({
-    key: e.id,
+    key: monthKey(e.id, y, m),
     expense: e,
     effDate: getDueDateForMonth(e.dueDay, y, m),
     refDate: new Date(y, m, 1),
@@ -68,14 +71,14 @@ export default function HomeScreen() {
     const entries = expenses
       .filter(
         (e) =>
-          e.recurrence !== "one-off" &&
+          hasCycleIn(e, year, month) &&
           getMonthStatus(e.id, year, month) === "unpaid" &&
           isOverdueOn(e.dueDay, year, month)
       )
       .map((e) => dueEntry(e, year, month));
     const bills = openBills.filter((b) => !b.bill.isPaid && b.effDate < today);
     return [...entries, ...bills];
-  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills]);
+  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills, today]);
   const overdueWithPaid = useLingeringEntries(overdueLive, isPaidNow);
   const overdue = useMemo(() => sortBy(overdueWithPaid, "effDate"), [overdueWithPaid]);
 
@@ -85,12 +88,7 @@ export default function HomeScreen() {
   const upcomingLive = useMemo<HomeEntry[]>(() => {
     const unpaidDues = (y: number, m: number) =>
       expenses
-        .filter(
-          (e) =>
-            e.recurrence !== "one-off" &&
-            !isEndedOn(e.endYear, e.endMonth, y, m) &&
-            getMonthStatus(e.id, y, m) === "unpaid"
-        )
+        .filter((e) => hasCycleIn(e, y, m) && getMonthStatus(e.id, y, m) === "unpaid")
         .map((e) => dueEntry(e, y, m));
     return [
       ...unpaidDues(year, month).filter((d) => d.effDate >= today),
@@ -102,7 +100,7 @@ export default function HomeScreen() {
           ]
         : []),
     ];
-  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills, isNextMonthNear]);
+  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills, isNextMonthNear, today]);
   const upcomingWithPaid = useLingeringEntries(upcomingLive, isPaidNow);
 
   const upcoming = useMemo<UpcomingBand[]>(() => {
@@ -119,12 +117,12 @@ export default function HomeScreen() {
       };
     };
     return [band(dayjs(today), "current"), band(next, "next")].filter((b) => b.data.length > 0);
-  }, [upcomingWithPaid, getMonthStatus]);
+  }, [upcomingWithPaid, getMonthStatus, today]);
 
   const recentActivity = useMemo(() => {
-    const endToday = dayjs().endOf("day").toDate();
+    const endToday = dayjs(today).endOf("day").toDate();
     return feed.all.filter(({ effDate }) => effDate <= endToday).slice(0, ACTIVITY_LIMIT);
-  }, [feed]);
+  }, [feed, today]);
 
   if (loading) {
     return (

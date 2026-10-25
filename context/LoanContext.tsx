@@ -13,6 +13,7 @@ import {
 import { remove as removeTransaction } from "@/db/accountTransactions";
 import { useAccounts } from "@/context/AccountContext";
 import { summarizeLoan, type TLoanSummary } from "@/utils/loans/summarizeLoan";
+import { useToday } from "@/utils/useToday";
 import type { AccountTransaction, Loan, LoanInput, LoanPaymentInput } from "@/types";
 
 interface State {
@@ -82,7 +83,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     [accounts.transactions]
   );
 
-  const today = dayjs().format("YYYY-MM-DD");
+  const today = dayjs(useToday()).format("YYYY-MM-DD");
 
   const summaries = useMemo(() => {
     const map: Record<string, TLoanSummary> = {};

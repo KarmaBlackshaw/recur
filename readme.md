@@ -4,7 +4,7 @@ A recurring expenses tracker built with React Native and Expo. Track monthly bil
 
 ## Features
 
-- Track expenses by recurrence: weekly, monthly, yearly, or one-off
+- Track expenses by recurrence: monthly, yearly, or one-off, with optional start and end months
 - Due day anchoring with smart month-end clamping
 - Overdue detection with visual warnings
 - Mark paid / reset per cycle
@@ -92,7 +92,7 @@ Requires EAS CLI and an Expo account for cloud builds.
 ## Data Model
 
 ```ts
-type Recurrence = 'weekly' | 'monthly' | 'yearly' | 'one-off';
+type Recurrence = 'monthly' | 'yearly' | 'one-off';
 type Status = 'unpaid' | 'paid';
 
 interface Expense {

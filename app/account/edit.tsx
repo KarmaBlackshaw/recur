@@ -226,6 +226,8 @@ export default function EditAccountScreen() {
     try {
       if (editingAccount) {
         await accounts.updateAccount(editingAccount.id, input);
+        // Expenses charged to a card follow its due day, which the update may have moved.
+        await expenses.reloadAll();
       } else {
         await accounts.addAccount(input, toNumber(data.openingBalance) ?? 0);
       }

@@ -2,6 +2,8 @@ import * as SQLite from "expo-sqlite";
 import dayjs from "dayjs";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
+import { inferStartMonth } from "@/utils/dateHelpers";
+import type { Expense, Status } from "@/types";
 
 let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -184,6 +186,14 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
     await db.runAsync(
       "INSERT OR REPLACE INTO prefs (key, value) VALUES ('migrated_expense_end_v1', '1')"
     );
+  }
+
+  // Migration: add start_year / start_month to expenses (first month with a cycle; yearly anniversary month).
+  // Existing rows are filled in by backfillExpenseHistory once every table exists.
+  const expenseStartCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(expenses)");
+  if (!expenseStartCols.some((c) => c.name === "start_year")) {
+    await db.execAsync("ALTER TABLE expenses ADD COLUMN start_year INTEGER");
+    await db.execAsync("ALTER TABLE expenses ADD COLUMN start_month INTEGER");
   }
 
   // Migration: add last_used_at to categories (recency-based picker sort).
@@ -379,6 +389,47 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   );
   await db.runAsync("DELETE FROM account_transactions WHERE account_id NOT IN (SELECT id FROM accounts)");
   await db.runAsync("DELETE FROM card_bills WHERE account_id NOT IN (SELECT id FROM accounts)");
+  await backfillExpenseHistory(db);
 
   return db;
+}
+
+// Brings expense rows saved by older versions (or restored from an older backup) up to the current model.
+// Idempotent: each step only touches rows that still need it.
+export async function backfillExpenseHistory(database: SQLite.SQLiteDatabase): Promise<void> {
+  // Weekly plans were only ever scheduled monthly (every cycle is a month), so they already behaved as monthly.
+  await database.runAsync("UPDATE expenses SET recurrence = 'monthly' WHERE recurrence = 'weekly'");
+
+  const unstarted = await database.getAllAsync<{ id: string; recurrence: Expense["recurrence"]; createdAt: string }>(
+    "SELECT id, recurrence, createdAt FROM expenses WHERE recurrence != 'one-off' AND (start_year IS NULL OR start_month IS NULL)"
+  );
+  for (const expense of unstarted) {
+    const months = await database.getAllAsync<{ year: number; month: number; status: Status }>(
+      "SELECT year, month, status FROM expense_months WHERE expense_id = ?",
+      [expense.id]
+    );
+    const start = inferStartMonth({ recurrence: expense.recurrence, createdAt: expense.createdAt, months });
+    await database.runAsync("UPDATE expenses SET start_year = ?, start_month = ? WHERE id = ?", [
+      start.year,
+      start.month,
+      expense.id,
+    ]);
+  }
+
+  // Paid months keep what they cost. Rows paid before that was recorded take it from their payment, else from
+  // the expense's amount as it stands, which is what those months have shown until now.
+  await database.runAsync(
+    `UPDATE expense_months SET amount = (
+       SELECT ABS(t.amount) FROM account_transactions t
+       WHERE t.kind = 'payment' AND t.expense_id = expense_months.expense_id
+         AND t.cycle_year = expense_months.year AND t.cycle_month = expense_months.month
+     )
+     WHERE status = 'paid' AND amount IS NULL`
+  );
+  await database.runAsync(
+    `UPDATE expense_months SET amount = (
+       SELECT e.amount FROM expenses e WHERE e.id = expense_months.expense_id AND e.is_variable = 0
+     )
+     WHERE status = 'paid' AND amount IS NULL`
+  );
 }

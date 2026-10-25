@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import groupBy from 'lodash/groupBy';
 import sumBy from 'lodash/sumBy';
 import uniq from 'lodash/uniq';
-import { getDueDateForMonth, isEndedOn } from '@/utils/dateHelpers';
+import { getDueDateForMonth, hasCycleIn } from '@/utils/dateHelpers';
 import type { CardBill, Expense, Status } from '@/types';
 
 export interface Reminder {
@@ -54,6 +54,7 @@ export function buildSummaryContent(group: { amount: number | null }[], label: s
 export function getExpenseReminders(
   expenses: Expense[],
   getMonthStatus: (id: string, year: number, month: number) => Status,
+  getDisplayAmount: (expense: Expense, year: number, month: number) => number | null,
   now: Date
 ): Reminder[] {
   const current = dayjs(now);
@@ -68,13 +69,17 @@ export function getExpenseReminders(
     for (const cycle of cycles) {
       const year = cycle.year();
       const month = cycle.month();
-      if (isEndedOn(expense.endYear, expense.endMonth, year, month)) {
+      if (expense.recurrence !== 'one-off' && !hasCycleIn(expense, year, month)) {
         continue;
       }
       if (getMonthStatus(expense.id, year, month) !== 'unpaid') {
         continue;
       }
-      reminders.push({ amount: expense.amount, dueDate: getDueDateForMonth(expense.dueDay, year, month), daysBefore });
+      reminders.push({
+        amount: getDisplayAmount(expense, year, month),
+        dueDate: getDueDateForMonth(expense.dueDay, year, month),
+        daysBefore,
+      });
     }
   }
   return reminders;

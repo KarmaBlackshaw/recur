@@ -30,6 +30,12 @@ interface State {
   monthPaidAts: Record<string, string | null>;
 }
 
+interface MonthState {
+  status: Status;
+  amount: number | null;
+  paidAt: string | null;
+}
+
 type Action =
   | { type: "LOAD"; payload: Expense[] }
   | { type: "ADD"; payload: Expense }
@@ -38,7 +44,7 @@ type Action =
   | { type: "SET_USER_NAME"; payload: string | null }
   | { type: "SET_COLLAPSED_BANDS"; payload: HomeBandSlot[] }
   | { type: "LOAD_MONTHS"; payload: MonthStatus[] }
-  | { type: "SET_MONTH_STATUS"; payload: { expenseId: string; year: number; month: number; status: Status; paidAt: string | null } }
+  | { type: "SET_MONTH"; payload: { expenseId: string; year: number; month: number } & MonthState }
   | { type: "SET_MONTH_AMOUNT"; payload: { expenseId: string; year: number; month: number; amount: number | null } };
 
 function reducer(state: State, action: Action): State {
@@ -91,12 +97,13 @@ function reducer(state: State, action: Action): State {
         },
       };
     }
-    case "SET_MONTH_STATUS": {
-      const { expenseId, year, month, status, paidAt } = action.payload;
+    case "SET_MONTH": {
+      const { expenseId, year, month, status, amount, paidAt } = action.payload;
       const k = monthKey(expenseId, year, month);
       return {
         ...state,
         monthStatuses: { ...state.monthStatuses, [k]: status },
+        monthAmounts: { ...state.monthAmounts, [k]: amount },
         monthPaidAts: { ...state.monthPaidAts, [k]: paidAt },
       };
     }
@@ -129,6 +136,9 @@ interface ExpenseContextValue {
   toggleHomeBand: (slot: HomeBandSlot) => Promise<void>;
   getMonthStatus: (id: string, year: number, month: number) => Status;
   getMonthAmount: (id: string, year: number, month: number) => number | null;
+  // What the cycle costs: the amount paid for paid months, the month's own amount for variable expenses,
+  // else the expense's amount. Null when unknown (shown as TBD).
+  getDisplayAmount: (expense: Expense, year: number, month: number) => number | null;
   resolveAmount: (expense: Expense, year: number, month: number) => number;
   getMonthPaidAt: (id: string, year: number, month: number) => string | null;
   toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
@@ -325,6 +335,40 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     [state.expenses, state.monthStatuses]
   );
 
+  const getMonthAmount = useCallback(
+    (id: string, year: number, month: number): number | null => {
+      return state.monthAmounts[monthKey(id, year, month)] ?? null;
+    },
+    [state.monthAmounts]
+  );
+
+  const getDisplayAmount = useCallback(
+    (expense: Expense, year: number, month: number): number | null => {
+      if (expense.recurrence === "one-off") {
+        return expense.amount;
+      }
+      const k = monthKey(expense.id, year, month);
+      const stored = state.monthAmounts[k] ?? null;
+      if (expense.isVariable || (state.monthStatuses[k] === "paid" && stored != null)) {
+        return stored;
+      }
+      return expense.amount;
+    },
+    [state.monthAmounts, state.monthStatuses]
+  );
+
+  const resolveAmount = useCallback(
+    (expense: Expense, year: number, month: number): number => getDisplayAmount(expense, year, month) ?? 0,
+    [getDisplayAmount]
+  );
+
+  const getMonthPaidAt = useCallback(
+    (id: string, year: number, month: number): string | null => {
+      return state.monthPaidAts[monthKey(id, year, month)] ?? null;
+    },
+    [state.monthPaidAts]
+  );
+
   const rescheduleGeneration = useRef(0);
   const rescheduleQueue = useRef<Promise<void>>(Promise.resolve());
 
@@ -352,7 +396,10 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         }
         const now = new Date();
         await scheduleAllNotifications(
-          [...getExpenseReminders(state.expenses, getMonthStatus, now), ...getUnpaidBillReminders(accounts.getCardBills, now)],
+          [
+            ...getExpenseReminders(state.expenses, getMonthStatus, getDisplayAmount, now),
+            ...getUnpaidBillReminders(accounts.getCardBills, now),
+          ],
           time
         );
       } catch (err) {
@@ -364,7 +411,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     rescheduleNotifications();
-  }, [state.expenses, state.monthStatuses, state.loading, accounts.isLoading, accounts.transactions, accounts.billOverrides, accounts.accounts]);
+  }, [state.expenses, state.monthStatuses, state.monthAmounts, state.loading, accounts.isLoading, accounts.transactions, accounts.billOverrides, accounts.accounts]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (status) => {
@@ -375,25 +422,10 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.remove();
   }, []);
 
-  const getMonthAmount = useCallback(
-    (id: string, year: number, month: number): number | null => {
-      return state.monthAmounts[monthKey(id, year, month)] ?? null;
-    },
-    [state.monthAmounts]
-  );
-
-  const resolveAmount = useCallback(
-    (expense: Expense, year: number, month: number): number =>
-      expense.isVariable ? (getMonthAmount(expense.id, year, month) ?? 0) : (expense.amount ?? 0),
-    [getMonthAmount]
-  );
-
-  const getMonthPaidAt = useCallback(
-    (id: string, year: number, month: number): string | null => {
-      return state.monthPaidAts[monthKey(id, year, month)] ?? null;
-    },
-    [state.monthPaidAts]
-  );
+  const writeMonth = useMemoizedFn(async (expenseId: string, year: number, month: number, next: MonthState) => {
+    await monthsDB.setMonth(expenseId, year, month, next.status, next.amount, next.paidAt);
+    dispatch({ type: "SET_MONTH", payload: { expenseId, year, month, ...next } });
+  });
 
   const toggleMonthStatus = useMemoizedFn(
     async (id: string, year: number, month: number): Promise<void> => {
@@ -427,19 +459,25 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       } else {
-        const current = state.monthStatuses[monthKey(id, year, month)] ?? "unpaid";
-        const next: Status = current === "unpaid" ? "paid" : "unpaid";
-        const paidAt = next === "paid" ? new Date().toISOString() : null;
-        await monthsDB.upsertStatus(id, year, month, next, paidAt);
-        dispatch({ type: "SET_MONTH_STATUS", payload: { expenseId: id, year, month, status: next, paidAt } });
+        const k = monthKey(id, year, month);
+        const previous: MonthState = {
+          status: state.monthStatuses[k] ?? "unpaid",
+          amount: state.monthAmounts[k] ?? null,
+          paidAt: state.monthPaidAts[k] ?? null,
+        };
+        const status: Status = previous.status === "unpaid" ? "paid" : "unpaid";
+        // Variable months keep their own amount. A fixed expense's paid month records its amount, so a later
+        // edit doesn't rewrite it, and follows the expense again once unpaid.
+        const amount = expense.isVariable ? previous.amount : status === "paid" ? expense.amount : null;
+        await writeMonth(id, year, month, { status, amount, paidAt: status === "paid" ? new Date().toISOString() : null });
         try {
-          if (next === "paid") {
+          if (status === "paid") {
             await accounts.syncPayment({
               expenseId: id,
               accountId: expense.accountId,
               cycleYear: year,
               cycleMonth: month,
-              amount: expense.isVariable ? getMonthAmount(id, year, month) : expense.amount,
+              amount,
               note: paymentNote(expense),
             });
           } else {
@@ -447,9 +485,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (err) {
           console.error("Failed to sync payment, reverting status", err);
-          const previousPaidAt = getMonthPaidAt(id, year, month);
-          await monthsDB.upsertStatus(id, year, month, current, previousPaidAt);
-          dispatch({ type: "SET_MONTH_STATUS", payload: { expenseId: id, year, month, status: current, paidAt: previousPaidAt } });
+          await writeMonth(id, year, month, previous);
           return;
         }
       }
@@ -474,31 +510,42 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "LOAD_MONTHS", payload: months });
   });
 
-  return (
-    <ExpenseContext.Provider
-      value={{
-        expenses: state.expenses,
-        loading: state.loading,
-        userName: state.userName,
-        collapsedHomeBands: state.collapsedHomeBands,
-        paidCycles,
-        addExpense,
-        updateExpense,
-        deleteExpense,
-        setUserName,
-        toggleHomeBand,
-        getMonthStatus,
-        getMonthAmount,
-        resolveAmount,
-        getMonthPaidAt,
-        toggleMonthStatus,
-        reloadAll,
-        rescheduleNotifications,
-      }}
-    >
-      {children}
-    </ExpenseContext.Provider>
+  const value = useMemo<ExpenseContextValue>(
+    () => ({
+      expenses: state.expenses,
+      loading: state.loading,
+      userName: state.userName,
+      collapsedHomeBands: state.collapsedHomeBands,
+      paidCycles,
+      addExpense,
+      updateExpense,
+      deleteExpense,
+      setUserName,
+      toggleHomeBand,
+      getMonthStatus,
+      getMonthAmount,
+      getDisplayAmount,
+      resolveAmount,
+      getMonthPaidAt,
+      toggleMonthStatus,
+      reloadAll,
+      rescheduleNotifications,
+    }),
+    [
+      state.expenses,
+      state.loading,
+      state.userName,
+      state.collapsedHomeBands,
+      paidCycles,
+      getMonthStatus,
+      getMonthAmount,
+      getDisplayAmount,
+      resolveAmount,
+      getMonthPaidAt,
+    ]
   );
+
+  return <ExpenseContext.Provider value={value}>{children}</ExpenseContext.Provider>;
 }
 
 export function useExpenses() {

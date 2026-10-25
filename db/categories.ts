@@ -1,4 +1,5 @@
 import { getDB } from "@/db/schema";
+import { withWriteTransaction } from "@/db/withWriteTransaction";
 import type { CategoryKind } from "@/types";
 
 export interface Category {
@@ -51,9 +52,27 @@ export async function insertCategory(name: string, kind: CategoryKind = "expense
   );
 }
 
+// Expenses and income store the category by name, so the rename cascades to every row using it.
 export async function renameCategory(id: number, newName: string): Promise<void> {
   const db = await getDB();
-  await db.runAsync("UPDATE categories SET name = ? WHERE rowid = ?", [newName, id]);
+  await withWriteTransaction(db, async (txn) => {
+    const row = await txn.getFirstAsync<{ name: string; kind: CategoryKind }>(
+      "SELECT name, kind FROM categories WHERE rowid = ?",
+      [id]
+    );
+    if (!row) {
+      return;
+    }
+    await txn.runAsync("UPDATE categories SET name = ? WHERE rowid = ?", [newName, id]);
+    if (row.kind === "income") {
+      await txn.runAsync(
+        "UPDATE account_transactions SET category = ? WHERE kind = 'income' AND category = ?",
+        [newName, row.name]
+      );
+    } else {
+      await txn.runAsync("UPDATE expenses SET category = ? WHERE category = ?", [newName, row.name]);
+    }
+  });
 }
 
 export async function deleteCategory(id: number): Promise<void> {

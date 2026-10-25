@@ -96,11 +96,18 @@ load another one's code. `start:wt -- --ios` sets the simulator's bundler locati
 ## Build
 
 ```bash
-npm run build:apk  # Android APK (EAS preview)
-npm run build:aab  # Android AAB (EAS production)
+npm run build:apk      # Android APK (EAS preview)
+npm run build:aab      # Android AAB (EAS production)
+npm run build:ios-sim  # iOS Simulator build (EAS, no Apple account needed)
+npm run build:ipa      # iPhone build for registered devices (EAS preview, needs an Apple Developer account)
 ```
 
-Requires EAS CLI and an Expo account for cloud builds.
+Requires EAS CLI and an Expo account for cloud builds. Pushing to `master` builds the APK and the iOS Simulator
+build (`.eas/workflows/build.yml`). Install the latest simulator build with `npx eas-cli build:run -p ios --latest`.
+
+To get installable iPhone builds: join the Apple Developer Program, run `npm run build:ipa` once to sign in and
+let EAS create the certificate and profile, register each iPhone with `npx eas-cli device:create`, then switch
+`build_ios` in `.eas/workflows/build.yml` to the `preview` profile.
 
 ## Data Model
 

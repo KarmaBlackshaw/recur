@@ -55,8 +55,11 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:android": "npx expo run:android --variant release",
+    "build:ios": "npx expo run:ios --configuration Release",
     "build:apk": "eas build --platform android --profile preview",
-    "build:aab": "eas build --platform android --profile production"
+    "build:aab": "eas build --platform android --profile production",
+    "build:ios-sim": "eas build --platform ios --profile preview-simulator",
+    "build:ipa": "eas build --platform ios --profile preview"
   },
   "private": true
 }

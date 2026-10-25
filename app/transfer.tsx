@@ -132,14 +132,14 @@ function IncomeCategoryField({ value, onChange }: IncomeCategoryFieldProps) {
 export default function TransferScreen() {
   const { accountId, amount } = useLocalSearchParams<{ accountId?: string; amount?: string }>();
   const accounts = useAccounts();
-  const sources = accounts.accounts.filter((a) => a.type !== "credit");
+  const sources = accounts.activeAccounts.filter((a) => a.type !== "credit");
   const [isIncomeOpen, setIsIncomeOpen] = useState(false);
 
   function toFormValues(): TransferFormValues {
     const account = accounts.accounts.find((a) => a.id === accountId);
     const isSource = account == null || account.type !== "credit";
     const from = isSource ? account?.id ?? sources[0]?.id ?? "" : sources[0]?.id ?? "";
-    const to = isSource ? accounts.accounts.find((a) => a.id !== from)?.id ?? "" : account.id;
+    const to = isSource ? accounts.activeAccounts.find((a) => a.id !== from)?.id ?? "" : account.id;
     const lastTransferIncome = maxBy(
       accounts.transactions.filter((t) => t.kind === "income" && t.transferId != null),
       "createdAt"
@@ -170,7 +170,7 @@ export default function TransferScreen() {
   });
   const fromId = watch("fromId");
   const toId = watch("toId");
-  const destinations = accounts.accounts.filter((a) => a.id !== fromId);
+  const destinations = accounts.activeAccounts.filter((a) => a.id !== fromId);
   const isCreditAccount = (id: string) => accounts.accounts.find((a) => a.id === id)?.type === "credit";
   const toAccount = accounts.accounts.find((a) => a.id === toId);
   const canEarnIncome = toAccount?.type !== "credit";

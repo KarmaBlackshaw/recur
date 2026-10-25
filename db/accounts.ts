@@ -10,10 +10,11 @@ interface AccountRow {
   interest_accrued_through: string | null; credit_limit: number | null;
   statement_day: number | null; due_day: number | null; created_at: string;
   color: string | null; icon: string | null; logo_uri: string | null; bank: string | null;
+  archived_at: string | null;
 }
 
 const COLUMNS =
-  "id, name, type, sort_order, interest_rate, interest_period, tax_rate, interest_accrued_through, credit_limit, statement_day, due_day, created_at, color, icon, logo_uri, bank";
+  "id, name, type, sort_order, interest_rate, interest_period, tax_rate, interest_accrued_through, credit_limit, statement_day, due_day, created_at, color, icon, logo_uri, bank, archived_at";
 
 function toAccount(r: AccountRow): Account {
   return {
@@ -33,6 +34,7 @@ function toAccount(r: AccountRow): Account {
     icon: r.icon as IoniconName | null,
     logoUri: r.logo_uri,
     bank: r.bank as BankId | null,
+    archivedAt: r.archived_at,
   };
 }
 
@@ -54,10 +56,10 @@ export async function insert(input: AccountInput): Promise<Account> {
   const sortOrder = (row?.max_order ?? -1) + 1;
   const interestAccruedThrough = input.type === "debit" ? dayjs().format("YYYY-MM-DD") : null;
   await db.runAsync(
-    `INSERT INTO accounts (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, input.name, input.type, sortOrder, input.interestRate, input.interestPeriod, input.taxRate, interestAccruedThrough, input.creditLimit, input.statementDay, input.dueDay, createdAt, input.color, input.icon, input.logoUri, input.bank]
+    `INSERT INTO accounts (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.name, input.type, sortOrder, input.interestRate, input.interestPeriod, input.taxRate, interestAccruedThrough, input.creditLimit, input.statementDay, input.dueDay, createdAt, input.color, input.icon, input.logoUri, input.bank, null]
   );
-  return { ...input, id, sortOrder, interestAccruedThrough, createdAt };
+  return { ...input, id, sortOrder, interestAccruedThrough, archivedAt: null, createdAt };
 }
 
 export async function getById(id: string): Promise<Account | undefined> {
@@ -105,10 +107,25 @@ export async function remove(id: string): Promise<void> {
   });
 }
 
+// Archived accounts earn nothing, so interest picks up again from the day an account is unarchived.
+export async function setArchivedAt(id: string, archivedAt: string | null): Promise<void> {
+  const db = await getDB();
+  const today = dayjs().format("YYYY-MM-DD");
+  await db.runAsync(
+    `UPDATE accounts SET archived_at = ?,
+       interest_accrued_through = CASE
+         WHEN ? IS NULL AND interest_accrued_through IS NOT NULL AND interest_accrued_through < ? THEN ?
+         ELSE interest_accrued_through
+       END
+     WHERE id = ?`,
+    [archivedAt, archivedAt, today, today, id]
+  );
+}
+
 export async function insertWithId(a: Account): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    `INSERT OR IGNORE INTO accounts (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [a.id, a.name, a.type, a.sortOrder, a.interestRate, a.interestPeriod, a.taxRate, a.interestAccruedThrough, a.creditLimit, a.statementDay, a.dueDay, a.createdAt, a.color ?? null, a.icon ?? null, a.logoUri ?? null, a.bank ?? null]
+    `INSERT OR IGNORE INTO accounts (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [a.id, a.name, a.type, a.sortOrder, a.interestRate, a.interestPeriod, a.taxRate, a.interestAccruedThrough, a.creditLimit, a.statementDay, a.dueDay, a.createdAt, a.color ?? null, a.icon ?? null, a.logoUri ?? null, a.bank ?? null, a.archivedAt ?? null]
   );
 }

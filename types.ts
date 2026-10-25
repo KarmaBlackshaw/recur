@@ -137,10 +137,11 @@ export interface Account {
   icon: IoniconName | null;
   logoUri: string | null;
   bank: BankId | null;
+  archivedAt: string | null;   // ISO timestamp. Archived accounts keep their history but leave pickers, bills and interest.
   createdAt: string;
 }
 
-export type AccountInput = Omit<Account, 'id' | 'createdAt' | 'sortOrder' | 'interestAccruedThrough'>;
+export type AccountInput = Omit<Account, 'id' | 'createdAt' | 'sortOrder' | 'interestAccruedThrough' | 'archivedAt'>;
 
 export interface CardBillOverride {
   accountId: string;

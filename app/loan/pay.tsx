@@ -32,9 +32,9 @@ function RecordPaymentForm({ loan }: { loan: Loan }) {
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const [isDatePickerOpen, datePicker] = useBoolean();
   const loans = useLoans();
-  const { accounts } = useAccounts();
+  const { accounts, activeAccounts } = useAccounts();
   const balance = loans.summaries[loan.id]?.balance ?? 0;
-  const depositAccounts = accounts.filter((a) => a.type !== "credit");
+  const depositAccounts = activeAccounts.filter((a) => a.type !== "credit");
   const isLiveDeposit = depositAccounts.some((a) => a.id === loan.accountId);
   const {
     control,

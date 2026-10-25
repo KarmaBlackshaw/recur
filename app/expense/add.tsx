@@ -65,11 +65,14 @@ export default function AddExpenseScreen() {
   const isEditing = editingExpense !== null;
   const isRegular = isEditing ? editingExpense!.recurrence === "one-off" : type === "regular";
   const lastUsedCategory = maxBy(expenses, "createdAt")?.category ?? "Other";
-  const lastUsedAccountId = maxBy(expenses.filter((e) => e.accountId), "createdAt")?.accountId;
-  const initialAccountId = editingExpense ? editingExpense.accountId : lastUsedAccountId;
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
-  const { accounts, isLoading: isAccountsLoading } = useAccounts();
+  const { accounts, activeAccounts, isLoading: isAccountsLoading } = useAccounts();
+  const lastUsedAccountId = maxBy(
+    expenses.filter((e) => activeAccounts.some((a) => a.id === e.accountId)),
+    "createdAt"
+  )?.accountId;
+  const initialAccountId = editingExpense ? editingExpense.accountId : lastUsedAccountId;
 
   function toKnownAccountId(accountId?: string | null) {
     return accountId && accounts.some((a) => a.id === accountId) ? accountId : CASH_ACCOUNT_ID;

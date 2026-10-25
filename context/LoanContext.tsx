@@ -101,6 +101,9 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     if (account.type === "credit") {
       throw new Error("Loans can't use a credit card");
     }
+    if (account.archivedAt) {
+      throw new Error("Loans can't use an archived account");
+    }
   };
 
   const addLoan = useMemoizedFn(async (input: LoanInput) => {

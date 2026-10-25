@@ -21,8 +21,8 @@ interface Props {
 export const AccountPickerSheet = forwardRef<AccountPickerSheetRef, Props>(
   function AccountPickerSheet({ value, onChange, onDismiss, title = "Pay from", options }, ref) {
     const sheetRef = useRef<AppBottomSheetRef>(null);
-    const { accounts } = useAccounts();
-    const pickable = options ?? accounts;
+    const { activeAccounts } = useAccounts();
+    const pickable = options ?? activeAccounts;
     const { fontScale } = useWindowDimensions();
     const cardWidth = fontScale > 1.3 ? "100%" : "50%";
 

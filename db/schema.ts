@@ -299,6 +299,9 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!accountCols.some((c) => c.name === "bank")) {
     await db.execAsync("ALTER TABLE accounts ADD COLUMN bank TEXT");
   }
+  if (!accountCols.some((c) => c.name === "archived_at")) {
+    await db.execAsync("ALTER TABLE accounts ADD COLUMN archived_at TEXT");
+  }
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS account_transactions (
       id           TEXT PRIMARY KEY NOT NULL,

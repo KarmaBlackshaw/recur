@@ -122,6 +122,9 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Touch targets are at least 44dp.
 - Money lists sort by date. Home shows Overdue first, then this month, then next month once it is at most
   7 days away.
+- The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
+  opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)
+  and Owed under a hairline.
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

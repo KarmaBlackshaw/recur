@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import { touchCategory } from "@/db/categories";
 import { newId } from "@/db/accountTransactions";
@@ -72,13 +73,16 @@ export async function insert(e: ExpenseFields): Promise<Expense> {
   return { ...e, id, createdAt, status, paidDate, ...schedule, accountId: e.accountId ?? null };
 }
 
-export async function insertWithId(e: Expense): Promise<void> {
-  const db = await getDB();
-  await db.runAsync(
+// Restores an expense from a backup. Pass the import's transaction as `db`; returns 1 when added, 0 when it
+// already existed.
+export async function insertWithId(e: Expense, db?: SQLiteDatabase): Promise<number> {
+  const conn = db ?? (await getDB());
+  const result = await conn.runAsync(
     `INSERT OR IGNORE INTO expenses (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [e.id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.createdAt, e.paidDate ?? null, e.startYear ?? null, e.startMonth ?? null, e.endYear ?? null, e.endMonth ?? null, e.accountId ?? null]
   );
-  await touchCategory(e.category, e.createdAt);
+  await touchCategory(e.category, e.createdAt, "expense", conn);
+  return result.changes;
 }
 
 export async function updateStatus(

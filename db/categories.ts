@@ -1,3 +1,4 @@
+import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import type { CategoryKind } from "@/types";
@@ -32,24 +33,31 @@ export async function getAllWithIds(kind: CategoryKind = "expense"): Promise<Cat
 export async function touchCategory(
   name: string,
   at: string = new Date().toISOString(),
-  kind: CategoryKind = "expense"
+  kind: CategoryKind = "expense",
+  db?: SQLiteDatabase
 ): Promise<void> {
-  const db = await getDB();
-  await db.runAsync("UPDATE categories SET last_used_at = ? WHERE name = ? AND kind = ?", [at, name, kind]);
+  const conn = db ?? (await getDB());
+  await conn.runAsync("UPDATE categories SET last_used_at = ? WHERE name = ? AND kind = ?", [at, name, kind]);
 }
 
-export async function insertCategory(name: string, kind: CategoryKind = "expense"): Promise<void> {
-  const db = await getDB();
-  const row = await db.getFirstAsync<{ max_order: number }>(
+// Pass a transaction as `db` to insert inside it. Returns 1 when added, 0 when the category already existed.
+export async function insertCategory(
+  name: string,
+  kind: CategoryKind = "expense",
+  db?: SQLiteDatabase
+): Promise<number> {
+  const conn = db ?? (await getDB());
+  const row = await conn.getFirstAsync<{ max_order: number }>(
     "SELECT MAX(sort_order) as max_order FROM categories WHERE kind = ?",
     [kind]
   );
   const nextOrder = (row?.max_order ?? -1) + 1;
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  await db.runAsync(
+  const result = await conn.runAsync(
     "INSERT OR IGNORE INTO categories (id, name, sort_order, kind) VALUES (?, ?, ?, ?)",
     [id, name, nextOrder, kind]
   );
+  return result.changes;
 }
 
 // Expenses and income store the category by name, so the rename cascades to every row using it.

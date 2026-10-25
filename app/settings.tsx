@@ -6,7 +6,7 @@ import { getPreference, setPreference } from '@/db/preferences';
 import { buildSummaryContent, getUnpaidBillReminders } from '@/utils/notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { TimePickerSheet, type TimePickerSheetRef } from '@/components/TimePickerSheet';
-import { exportBackup, importBackup } from "@/utils/backup";
+import { exportBackup, formatImportSummary, importBackup } from "@/utils/backup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -35,15 +35,18 @@ export default function SettingsScreen() {
   const [permissionDenied, setPermissionDenied] = useState(false);
   const timeSheetRef = useRef<TimePickerSheetRef>(null);
 
-  useMount(async () => {
+  // An import can restore these, so they are re-read after one as well as on mount.
+  async function loadReminderPreferences() {
     const time = await getPreference('reminderTime');
     if (time) {
       setReminderTime(time);
     }
     const enabled = await getPreference('notificationsEnabled');
-    if (enabled === 'false') {
-      setNotificationsEnabled(false);
-    }
+    setNotificationsEnabled(enabled !== 'false');
+  }
+
+  useMount(async () => {
+    await loadReminderPreferences();
     const { status } = await Notifications.getPermissionsAsync();
     setPermissionDenied(status !== 'granted');
   });
@@ -97,9 +100,10 @@ export default function SettingsScreen() {
       await reloadAll();
       await accounts.reload();
       await loans.reload();
-      Alert.alert("Import Complete", `${result.added} added, ${result.skipped} skipped (already exist).`);
+      await loadReminderPreferences();
+      Alert.alert("Import complete", formatImportSummary(result));
     } catch (e: unknown) {
-      Alert.alert("Import Failed", e instanceof Error ? e.message : "An error occurred.");
+      Alert.alert("Import failed", e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
       setImporting(false);
     }

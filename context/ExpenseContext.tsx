@@ -502,12 +502,16 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   });
 
   const reloadAll = useMemoizedFn(async () => {
-    const [rows, months] = await Promise.all([
+    const [rows, months, name, collapsedBands] = await Promise.all([
       expensesDB.getAll(),
       monthsDB.getAll(),
+      preferencesDB.getPreference("user_name"),
+      preferencesDB.getPreference("homeCollapsedBands"),
     ]);
     dispatch({ type: "LOAD", payload: rows });
     dispatch({ type: "LOAD_MONTHS", payload: months });
+    dispatch({ type: "SET_USER_NAME", payload: name });
+    dispatch({ type: "SET_COLLAPSED_BANDS", payload: parseCollapsedBands(collapsedBands) });
   });
 
   const value = useMemo<ExpenseContextValue>(

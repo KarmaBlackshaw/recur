@@ -1,3 +1,4 @@
+import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import type { MonthStatus, Status } from "@/types";
 
@@ -52,10 +53,13 @@ export async function upsertMonthlyAmount(
   );
 }
 
-export async function insertOrIgnore(m: MonthStatus): Promise<void> {
-  const db = await getDB();
-  await db.runAsync(
+// Restores a month from a backup. Pass the import's transaction as `db`; returns 1 when added, 0 when it
+// already existed.
+export async function insertOrIgnore(m: MonthStatus, db?: SQLiteDatabase): Promise<number> {
+  const conn = db ?? (await getDB());
+  const result = await conn.runAsync(
     "INSERT OR IGNORE INTO expense_months (expense_id, year, month, status, amount, paid_at) VALUES (?, ?, ?, ?, ?, ?)",
     [m.expenseId, m.year, m.month, m.status, m.amount ?? null, m.paidAt ?? null]
   );
+  return result.changes;
 }

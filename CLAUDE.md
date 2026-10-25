@@ -51,6 +51,7 @@ interface Expense {
 - Deleting a recurring expense with paid months warns that its history leaves Activity (payments stay in the balances) and offers setting an end month instead.
 - Archived accounts (`archived_at`) keep their transactions and still count in net worth, but leave every account picker (`activeAccounts`), card bills, bill reminders and interest. Unarchiving resumes interest from that day. Cash can't be archived. Deleting an account with history offers archiving instead.
 - Net worth = account assets + open loan balances ("Lent", the same total as Home's "Owed to you") − card balances owed (`utils/useNetWorth.ts`).
+- Backups (format v5) also carry preferences and account logos. Import runs in one write transaction, so a bad file changes nothing, and only fills preferences that aren't set yet.
 - One-off expenses stay paid permanently.
 - KPI totals (Total / Paid / Unpaid) are computed from the in-memory expenses array — no extra DB query.
 - Swipe-to-delete via `react-native-gesture-handler` `Swipeable`. Confirm with `Alert` before deleting.

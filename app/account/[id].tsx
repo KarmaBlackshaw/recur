@@ -113,8 +113,30 @@ export default function AccountDetailScreen() {
   const isArchived = account?.archivedAt != null;
   const adjustRef = useRef<AdjustBalanceSheetRef>(null);
   const hasPresentedAction = useRef(false);
+  const isCredit = account?.type === "credit";
   const canTransfer =
     !isArchived && accounts.activeAccounts.length > 1 && accounts.activeAccounts.some((a) => a.type !== "credit");
+
+  const openBill = useMemo(() => {
+    if (!isCredit) {
+      return undefined;
+    }
+    const now = dayjs();
+    const next = now.add(1, "month");
+    const bills = [...accounts.getCardBills(now.year(), now.month()), ...accounts.getCardBills(next.year(), next.month())]
+      .filter((b) => b.account.id === id && !b.isPaid && b.remaining > 0);
+    return orderBy(bills, "dueDate", "asc")[0];
+  }, [accounts.getCardBills, id, isCredit]);
+
+  function openTransfer() {
+    if (!account) {
+      return;
+    }
+    const params = openBill
+      ? { accountId: account.id, amount: openBill.remaining.toFixed(2) }
+      : { accountId: account.id };
+    router.push({ pathname: "/transfer", params });
+  }
 
   const sections = useMemo(() => {
     const own = orderBy(
@@ -138,7 +160,7 @@ export default function AccountDetailScreen() {
       adjustRef.current?.present();
     }
     if (action === "transfer" && canTransfer) {
-      router.push({ pathname: "/transfer", params: { accountId: account.id } });
+      openTransfer();
     }
   }, [account, action, canTransfer, isArchived]);
 
@@ -226,9 +248,9 @@ export default function AccountDetailScreen() {
                 <>
                   <ActionButton icon="sliders" label="Adjust" onPress={() => adjustRef.current?.present()} />
                   <ActionButton
-                    icon="repeat"
-                    label="Transfer"
-                    onPress={() => router.push({ pathname: "/transfer", params: { accountId: account.id } })}
+                    icon={isCredit ? "credit-card" : "repeat"}
+                    label={isCredit ? "Pay" : "Transfer"}
+                    onPress={openTransfer}
                     disabled={!canTransfer}
                   />
                 </>

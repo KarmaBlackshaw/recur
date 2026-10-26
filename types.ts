@@ -142,6 +142,12 @@ export interface Account {
   createdAt: string;
 }
 
+export interface AccountBankGroup {
+  key: BankId | 'other';
+  label: string;
+  accounts: Account[];
+}
+
 export type AccountInput = Omit<Account, 'id' | 'createdAt' | 'sortOrder' | 'interestAccruedThrough' | 'archivedAt'>;
 
 export interface CardBillOverride {

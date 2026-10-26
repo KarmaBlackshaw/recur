@@ -30,7 +30,7 @@ import {
 const BACKUP_VERSION = 5;
 
 // The settings a backup carries. Migration flags and the permission prompt flag belong to the device.
-const BACKUP_PREFERENCE_KEYS = ['user_name', 'reminderTime', 'notificationsEnabled', 'homeCollapsedBands'];
+const BACKUP_PREFERENCE_KEYS = ['user_name', 'reminderTime', 'notificationsEnabled', 'homeCollapsedBands', 'accountsGroupByBank'];
 
 const NOT_A_BACKUP = "This file isn't a Recur backup.";
 const NEWER_BACKUP = 'This backup was made by a newer version of Recur. Update the app and try again.';

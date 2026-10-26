@@ -1,6 +1,6 @@
 import React, { forwardRef, type ComponentPropsWithoutRef } from "react";
 import { TextInput, TouchableOpacity, View } from "react-native";
-import useBoolean from "ahooks/es/useBoolean";
+import { useBoolean } from "@/utils/useBoolean";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 

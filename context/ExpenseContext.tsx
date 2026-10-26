@@ -8,9 +8,9 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import useAsyncEffect from "ahooks/es/useAsyncEffect";
-import useMemoizedFn from "ahooks/es/useMemoizedFn";
-import sortBy from "lodash/sortBy";
+import { useAsyncEffect } from "@/utils/useAsyncEffect";
+import { useMemoizedFn } from "@/utils/useMemoizedFn";
+import { sortBy } from "@/utils/collections";
 import dayjs from "dayjs";
 import type { Expense, Status, MonthStatus, HomeBandSlot } from "@/types";
 import * as expensesDB from "@/db/expenses";

@@ -1,7 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import dayjs from "dayjs";
-import sumBy from "lodash/sumBy";
+import { sumBy } from "@/utils/collections";
 import { formatAmount, hasCycleIn } from "@/utils/dateHelpers";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";

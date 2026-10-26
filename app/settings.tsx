@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import useMount from "ahooks/es/useMount";
+import { useMount } from "@/utils/useMount";
 import { View, TouchableOpacity, Alert, Switch, ScrollView } from "react-native";
 import * as Notifications from 'expo-notifications';
 import { getPreference, setPreference } from '@/db/preferences';
@@ -9,7 +9,7 @@ import { TimePickerSheet, type TimePickerSheetRef } from '@/components/TimePicke
 import { exportBackup, formatImportSummary, importBackup } from "@/utils/backup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import Constants from "expo-constants";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";

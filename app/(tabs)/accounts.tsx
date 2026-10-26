@@ -1,10 +1,10 @@
 import React from "react";
 import { View, FlatList, TouchableOpacity, useWindowDimensions } from "react-native";
-import useBoolean from "ahooks/es/useBoolean";
-import chunk from "lodash/chunk";
+import { useBoolean } from "@/utils/useBoolean";
+import { chunk } from "@/utils/collections";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { useAccounts } from "@/context/AccountContext";
 import { AccountCard } from "@/components/accounts/AccountCard";
 import { NetWorthHero } from "@/components/accounts/NetWorthHero";

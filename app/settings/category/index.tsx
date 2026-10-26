@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import { View, TouchableOpacity, Alert, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { Category, getAllWithIds, deleteCategory } from "@/db/categories";

@@ -1,10 +1,8 @@
 import React, { useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import sumBy from "lodash/sumBy";
-import groupBy from "lodash/groupBy";
-import orderBy from "lodash/orderBy";
+import Feather from "@expo/vector-icons/Feather";
+import { sumBy, groupBy, orderBy } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";

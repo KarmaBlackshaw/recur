@@ -1,11 +1,11 @@
 import React, { useRef } from "react";
-import useBoolean from "ahooks/es/useBoolean";
-import maxBy from "lodash/maxBy";
+import { useBoolean } from "@/utils/useBoolean";
+import { maxBy } from "@/utils/collections";
 import { View, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { CategoryBottomSheet, CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
 import { AccountPickerSheet, AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { useAccounts } from "@/context/AccountContext";

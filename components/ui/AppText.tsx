@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, TextProps, StyleProp, TextStyle } from "react-native";
-import { twMerge } from "tailwind-merge";
+import { mergeClassNames } from "@/utils/mergeClassNames";
 
 type Variant =
   | "display"
@@ -45,7 +45,7 @@ export function AppText({
   const v = VARIANT_STYLE[variant];
   return (
     <Text
-      className={twMerge(v.className, className)}
+      className={mergeClassNames(v.className, className)}
       style={[{ fontFamily: v.fontFamily }, style as StyleProp<TextStyle>]}
       maxFontSizeMultiplier={maxFontSizeMultiplier}
       {...props}

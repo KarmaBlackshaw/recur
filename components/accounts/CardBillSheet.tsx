@@ -6,11 +6,11 @@ import {
   BottomSheetScrollView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { Controller, useForm } from "react-hook-form";
 import { router } from "expo-router";
 import dayjs from "dayjs";
-import round from "lodash/round";
+import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";

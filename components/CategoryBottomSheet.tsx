@@ -2,7 +2,7 @@
 import React, { forwardRef, useRef } from "react";
 import { TouchableOpacity } from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { router } from "expo-router";
 import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";

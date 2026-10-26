@@ -1,11 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import dayjs from 'dayjs';
-import groupBy from 'lodash/groupBy';
-import range from 'lodash/range';
-import sortBy from 'lodash/sortBy';
-import sumBy from 'lodash/sumBy';
-import uniq from 'lodash/uniq';
+import { groupBy, range, sortBy, sumBy, uniq } from '@/utils/collections';
 import { getDueDateForMonth, hasCycleIn } from '@/utils/dateHelpers';
 import type { CardBill, Expense, Status } from '@/types';
 

@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Alert, type AccessibilityActionEvent } from "re
 import { router } from "expo-router";
 import { Pressable } from "react-native-gesture-handler";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { AppText } from "@/components/ui/AppText";

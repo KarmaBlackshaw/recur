@@ -34,7 +34,13 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
     formState: { isValid, isSubmitting },
   } = useForm<PayCardFormValues>({
     mode: "onChange",
-    defaultValues: { fromId: sources[0]?.id ?? "", amount: amount ?? "", fee: "", note: "" },
+    defaultValues: {
+      fromId: sources[0]?.id ?? "",
+      // A settled bill (₱0) has nothing to prefill; an invalid prefill would disable Pay silently
+      amount: amount != null && parseFloat(amount) >= 0.01 ? amount : "",
+      fee: "",
+      note: "",
+    },
   });
 
   const onSubmit = handleSubmit(async (data) => {
@@ -186,11 +192,12 @@ export default function PayCardScreen() {
   }
 
   if (!card || card.type !== "credit" || card.archivedAt != null) {
+    const isArchivedCard = card?.type === "credit" && card.archivedAt != null;
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center px-8 gap-4">
         <Feather name="inbox" size={40} color={colors.textMuted} />
         <AppText variant="meta" className="text-center">
-          {card?.archivedAt != null ? "This card is archived." : "This card no longer exists."}
+          {isArchivedCard ? "This card is archived." : "This card no longer exists."}
         </AppText>
         <AppButton label="Back" variant="tonal" onPress={() => router.back()} />
       </SafeAreaView>

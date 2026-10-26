@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import type { TransactionKind } from "@/types";
+import type { CardBill, TransactionKind } from "@/types";
 
 export type CardTxn = { id: string; amount: number; createdAt: string; kind: TransactionKind };
 
@@ -79,6 +79,36 @@ export function computeBill(a: {
 }
 
 export const isBillTbd = ({ isEstimate, amount }: BillSummary) => isEstimate && amount === 0;
+
+// Unpaid bills from `lookbackMonths` back through next month, oldest first: a missed bill stays until it's paid.
+// A statement already includes what the card's previous bill still owes, and payments clear that bill first, so
+// while it's open a newer bill only asks for the charges it added. The oldest bill shown carries anything older.
+export function openCardBills(
+  getCardBills: (year: number, month: number) => CardBill[],
+  today: Date,
+  lookbackMonths: number
+): CardBill[] {
+  const thisMonth = dayjs(today).startOf("month");
+  const previousByCard = new Map<string, CardBill>();
+  const open: CardBill[] = [];
+  for (let offset = -lookbackMonths; offset <= 1; offset++) {
+    const at = thisMonth.add(offset, "month");
+    for (const statement of getCardBills(at.year(), at.month())) {
+      const owedBefore = previousByCard.get(statement.account.id)?.remaining ?? 0;
+      previousByCard.set(statement.account.id, statement);
+      const added = Math.max(0, round2(statement.remaining - owedBefore));
+      const bill =
+        owedBefore > EPSILON
+          ? { ...statement, amount: added, paid: 0, remaining: added, isPaid: added <= EPSILON }
+          : statement;
+      // A ₱0 estimate means nothing billed yet, so this and next month's stay open as TBD until the amount is set.
+      if (!bill.isPaid || (offset >= 0 && isBillTbd(statement))) {
+        open.push(bill);
+      }
+    }
+  }
+  return open;
+}
 
 export function unsettledDebitIds(txns: CardTxn[]): Set<string> {
   const credits = txns.reduce((sum, { amount }) => (amount < 0 ? sum - amount : sum), 0);

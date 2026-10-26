@@ -17,7 +17,7 @@ import { AppText } from "@/components/ui/AppText";
 import { isOverdueOn, hasCycleIn, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { useLingeringEntries } from "@/utils/useLingeringEntries";
-import { isBillTbd } from "@/utils/cardBills";
+import { openCardBills } from "@/utils/cardBills";
 import { monthKey } from "@/utils/monthKey";
 import { useToday } from "@/utils/useToday";
 import { colors } from "@/constants/theme";
@@ -27,7 +27,7 @@ import type { HomeBandSlot } from "@/types";
 const UPCOMING_LIMIT = 5;
 const NEXT_MONTH_LOOKAHEAD_DAYS = 7;
 const ACTIVITY_LIMIT = 10;
-// How many months back an unpaid due stays in Overdue after its own month has ended.
+// How many months back an unpaid due or card bill stays in Overdue after its own month has ended.
 const OVERDUE_LOOKBACK_MONTHS = 3;
 
 export default function HomeScreen() {
@@ -51,26 +51,23 @@ export default function HomeScreen() {
   });
 
   // Next month too: a new card's first bill is due next month.
-  // A ₱0 estimate means nothing billed yet, so it stays open as TBD until the user sets the statement amount.
-  const openBills = useMemo(() => {
-    const next = dayjs(new Date(year, month, 1)).add(1, "month");
-    return [...accounts.getCardBills(year, month), ...accounts.getCardBills(next.year(), next.month())]
-      .filter((b) => !b.isPaid || isBillTbd(b))
-      .map((b) => ({
+  const openBills = useMemo(
+    () =>
+      openCardBills(accounts.getCardBills, today, OVERDUE_LOOKBACK_MONTHS).map((b) => ({
         key: `bill-${b.account.id}-${b.year}-${b.month}`,
         bill: b,
         effDate: b.dueDate,
         amount: b.remaining,
-      }));
-  }, [accounts.getCardBills, year, month]);
+      })),
+    [accounts.getCardBills, today]
+  );
 
   // Just-paid cards linger with their Paid badge before leaving Overdue / Upcoming.
   const isPaidNow = (e: HomeEntry) =>
     "expense" in e && getMonthStatus(e.expense.id, e.refDate.getFullYear(), e.refDate.getMonth()) === "paid";
 
   const overdueLive = useMemo<HomeEntry[]>(() => {
-    // A missed due stays here after its month ends. Card bills don't need carrying: each statement already
-    // includes the unpaid balance, so carrying them too would count it twice.
+    // A missed due stays here after its month ends, and so does a card bill until it's paid.
     const entries = range(OVERDUE_LOOKBACK_MONTHS + 1).flatMap((monthsBack) => {
       const at = dayjs(today).subtract(monthsBack, "month");
       const [y, m] = [at.year(), at.month()];

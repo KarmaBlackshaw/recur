@@ -122,7 +122,7 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Touch targets are at least 44dp.
 - Money lists sort by date. Home shows Overdue first, then this month, then next month once it is at most
   7 days away.
-- Home Overdue also lists unpaid dues from the last 3 months; their caption keeps counting "N days late".
+- Home Overdue also lists unpaid dues and card bills from the last 3 months; their caption keeps counting "N days late".
 - The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)
   and Owed under a hairline. The header's layers toggle (saved, carried in backups) groups active accounts into a

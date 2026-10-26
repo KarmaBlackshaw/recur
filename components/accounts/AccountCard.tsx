@@ -21,6 +21,7 @@ interface Props {
   previewBalance?: number;
   onPress?: () => void;
   isCompact?: boolean;
+  isStatic?: boolean;
 }
 
 const TYPE_META: Record<AccountType, { icon: IoniconName; chip: string }> = {
@@ -38,12 +39,13 @@ function wholeAmount(amount: number): string {
   return `₱${Math.round(amount).toLocaleString("en-PH")}`;
 }
 
-export function AccountCard({ account, index = 0, previewBalance, onPress, isCompact = false }: Props) {
+export function AccountCard({ account, index = 0, previewBalance, onPress, isCompact = false, isStatic = false }: Props) {
   const { getBalance, interestEstimate } = useAccounts();
   const isReducedMotion = useReducedMotion();
   const meta = TYPE_META[account.type];
   const bank = findBank(account.bank);
   const isPreview = previewBalance != null;
+  const isPressable = !isPreview && !isStatic;
   const balance = previewBalance ?? getBalance(account.id);
   const isCredit = account.type === "credit";
   const isNegative = !isCredit && balance < 0;
@@ -105,16 +107,16 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
     <TouchableOpacity
       className="flex-1"
       activeOpacity={0.85}
-      disabled={isPreview}
+      disabled={!isPressable}
       onPress={onPress ?? (() => router.push(`/account/${account.id}`))}
-      accessibilityRole={isPreview ? undefined : "button"}
+      accessibilityRole={isPressable ? "button" : undefined}
       accessibilityLabel={labelParts.join(", ")}
-      accessibilityHint={isPreview || onPress ? undefined : "Opens account details"}
-      accessibilityActions={isPreview || onPress ? undefined : ACCESSIBILITY_ACTIONS}
+      accessibilityHint={!isPressable || onPress ? undefined : "Opens account details"}
+      accessibilityActions={!isPressable || onPress ? undefined : ACCESSIBILITY_ACTIONS}
       onAccessibilityAction={handleAccessibilityAction}
     >
       <Animated.View
-        entering={isReducedMotion || isPreview ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}
+        entering={isReducedMotion || !isPressable ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}
         className={`grow rounded-3xl overflow-hidden justify-between ${isCompact ? "p-3" : "min-h-[164px] p-4"} ${borderClass}`}
         style={{ backgroundColor: account.color ?? DEFAULT_CARD_COLOR }}
       >

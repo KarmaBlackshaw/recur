@@ -1,12 +1,12 @@
 import React, { useRef } from "react";
-import useBoolean from "ahooks/es/useBoolean";
+import { useBoolean } from "@/utils/useBoolean";
 import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppText } from "@/components/ui/AppText";
@@ -32,9 +32,9 @@ function RecordPaymentForm({ loan }: { loan: Loan }) {
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const [isDatePickerOpen, datePicker] = useBoolean();
   const loans = useLoans();
-  const { accounts } = useAccounts();
+  const { accounts, activeAccounts } = useAccounts();
   const balance = loans.summaries[loan.id]?.balance ?? 0;
-  const depositAccounts = accounts.filter((a) => a.type !== "credit");
+  const depositAccounts = activeAccounts.filter((a) => a.type !== "credit");
   const isLiveDeposit = depositAccounts.some((a) => a.id === loan.accountId);
   const {
     control,

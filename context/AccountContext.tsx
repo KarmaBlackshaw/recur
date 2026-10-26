@@ -1,9 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
 import { AppState } from "react-native";
 import dayjs from "dayjs";
-import useAsyncEffect from "ahooks/es/useAsyncEffect";
-import useMemoizedFn from "ahooks/es/useMemoizedFn";
-import round from "lodash/round";
+import { useAsyncEffect } from "@/utils/useAsyncEffect";
+import { useMemoizedFn } from "@/utils/useMemoizedFn";
+import { round } from "@/utils/round";
 import { saveAccountLogo } from "@/utils/accountLogo/saveAccountLogo";
 import { deleteAccountLogo } from "@/utils/accountLogo/deleteAccountLogo";
 import type { Account, AccountInput, AccountTransaction, CardBill, CardBillOverride, IncomeInput, InterestEstimate, TransferInput } from "@/types";
@@ -13,6 +13,7 @@ import * as cardBillsDB from "@/db/cardBills";
 import { touchCategory } from "@/db/categories";
 import { accrueInterest, PERIODS_PER_YEAR } from "@/utils/interest";
 import { computeBill, unsettledDebitIds } from "@/utils/cardBills";
+import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 
 interface State {
   accounts: Account[];
@@ -69,6 +70,8 @@ export interface PaymentSync {
 
 interface AccountContextValue {
   accounts: Account[];
+  // Accounts that can take new money: everything except archived ones. Pickers list these.
+  activeAccounts: Account[];
   transactions: AccountTransaction[];
   billOverrides: CardBillOverride[];
   isLoading: boolean;
@@ -78,6 +81,8 @@ interface AccountContextValue {
   addAccount: (input: AccountInput, openingBalance: number) => Promise<Account>;
   updateAccount: (id: string, input: AccountInput) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
+  archiveAccount: (id: string) => Promise<void>;
+  unarchiveAccount: (id: string) => Promise<void>;
   adjustBalance: (id: string, target: number) => Promise<void>;
   addIncome: (input: IncomeInput) => Promise<void>;
   updateIncome: (id: string, input: IncomeInput) => Promise<void>;
@@ -138,7 +143,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       const today = dayjs().format("YYYY-MM-DD");
       let hasCredited = false;
       for (const account of accounts) {
-        if (account.type !== "debit" || !account.interestRate || account.interestRate <= 0 || !account.interestPeriod) {
+        if (account.type !== "debit" || account.archivedAt || !account.interestRate || account.interestRate <= 0 || !account.interestPeriod) {
           continue;
         }
         const own = transactions.filter((t) => t.accountId === account.id);
@@ -227,7 +232,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const interestEstimate = useMemoizedFn((account: Account) => {
     const balance = getBalance(account.id);
     const period = account.interestPeriod;
-    if (account.type !== "debit" || !account.interestRate || !period || balance <= 0) {
+    if (account.type !== "debit" || account.archivedAt || !account.interestRate || !period || balance <= 0) {
       return null;
     }
     const amount = round(((balance * account.interestRate) / 100 / PERIODS_PER_YEAR[period]) * (1 - (account.taxRate ?? 0) / 100), 2);
@@ -265,6 +270,26 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_ACCOUNTS", payload: accounts });
   });
 
+  const setArchived = useMemoizedFn(async (id: string, archivedAt: string | null) => {
+    await accountsDB.setArchivedAt(id, archivedAt);
+    dispatch({ type: "SET_ACCOUNTS", payload: await accountsDB.getAll() });
+  });
+
+  // Archiving keeps an account's history and balance (still in net worth) but takes it out of pickers, bills and
+  // interest, so it's the safe way to retire an account. Cash always stays.
+  const archiveAccount = useMemoizedFn(async (id: string) => {
+    if (id === CASH_ACCOUNT_ID) {
+      throw new Error("Cash can't be archived");
+    }
+    await setArchived(id, new Date().toISOString());
+  });
+
+  const unarchiveAccount = useMemoizedFn(async (id: string) => {
+    await setArchived(id, null);
+  });
+
+  const activeAccounts = useMemo(() => state.accounts.filter((a) => !a.archivedAt), [state.accounts]);
+
   const deleteAccount = useMemoizedFn(async (id: string) => {
     const logoUri = state.accounts.find((a) => a.id === id)?.logoUri;
     await accountsDB.remove(id);
@@ -291,8 +316,12 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   });
 
   const addIncome = useMemoizedFn(async (input: IncomeInput) => {
-    if (state.accounts.find((a) => a.id === input.accountId)?.type === "credit") {
+    const account = state.accounts.find((a) => a.id === input.accountId);
+    if (account?.type === "credit") {
       throw new Error("Income can't be deposited to a credit card");
+    }
+    if (account?.archivedAt) {
+      throw new Error("Income can't be deposited to an archived account");
     }
     const txn = await transactionsDB.insert({
       ...emptyTxnFields(),
@@ -348,6 +377,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (from.type === "credit") {
       throw new Error("Cannot transfer from a credit account");
     }
+    if (from.archivedAt || to.archivedAt) {
+      throw new Error("Archived accounts can't send or receive transfers");
+    }
     const value = round(amount, 2);
     const feeValue = round(fee, 2);
     const incomeValue = round(income, 2);
@@ -356,7 +388,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     }
     const incomeAccount = state.accounts.find((a) => a.id === incomeAccountId);
     // Card-bill payments aren't TransferEntries, so income on one would never surface in Activity.
-    if (incomeValue > 0 && (incomeAccount == null || incomeAccount.type === "credit" || to.type === "credit")) {
+    if (incomeValue > 0 && (incomeAccount == null || incomeAccount.archivedAt || incomeAccount.type === "credit" || to.type === "credit")) {
       throw new Error("Invalid transfer income");
     }
     const transferId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -475,6 +507,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         if (dayjs(bill.cutoff).isBefore(dayjs(account.createdAt).startOf("month"))) {
           continue;
         }
+        // An archived card has no bills after it was archived; earlier ones stay part of past months.
+        if (account.archivedAt && dayjs(bill.dueDate).isAfter(dayjs(account.archivedAt), "day")) {
+          continue;
+        }
         bills.push({ ...bill, account, year, month });
       }
       return bills;
@@ -525,6 +561,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       accounts: state.accounts,
+      activeAccounts,
       transactions: state.transactions,
       billOverrides: state.billOverrides,
       isLoading: state.isLoading,
@@ -534,6 +571,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       addAccount,
       updateAccount,
       deleteAccount,
+      archiveAccount,
+      unarchiveAccount,
       adjustBalance,
       addIncome,
       updateIncome,
@@ -550,7 +589,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       reload,
       refresh,
     }),
-    [state, netWorth, getCardBills, isCharged, isCardAccount, isCardCharge]
+    [state, activeAccounts, netWorth, getCardBills, isCharged, isCardAccount, isCardCharge]
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

@@ -1,3 +1,4 @@
+import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import { insertRow, newId } from "@/db/accountTransactions";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
@@ -89,11 +90,14 @@ export async function insertPayment(p: LoanPaymentInput): Promise<void> {
   });
 }
 
-export async function insertWithId(l: Loan): Promise<void> {
-  const db = await getDB();
+// Restores a loan from a backup. Pass the import's transaction as `db`; returns 1 when added, 0 when it already
+// existed. Unlike insert, it writes no "loan out" transaction: backups carry that row themselves.
+export async function insertWithId(l: Loan, db?: SQLiteDatabase): Promise<number> {
+  const conn = db ?? (await getDB());
   const { type: interestType, value: interestValue } = fromLoanInterest(l.interest);
-  await db.runAsync(
+  const result = await conn.runAsync(
     `INSERT OR IGNORE INTO loans (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [l.id, l.borrower, l.principal, l.accountId, l.lentAt, interestType, interestValue, l.note ?? null, l.createdAt]
   );
+  return result.changes;
 }

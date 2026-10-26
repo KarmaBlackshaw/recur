@@ -4,6 +4,7 @@ import { insertWithId as insertLoanWithId } from "@/db/loans";
 import { insert as insertTransaction } from "@/db/accountTransactions";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import dayjs from "dayjs";
+import { hasCycleIn } from "@/utils/dateHelpers";
 import type { Expense, Loan, TLoanInterest } from "@/types";
 
 // ponytail: dev-only dummy data. Triggered by the "Seed dummy data" button in
@@ -39,7 +40,13 @@ const DUMMY: Omit<Expense, "createdAt">[] = [
 // is INSERT OR IGNORE on the fixed seed-NN ids, so re-running never duplicates.
 async function seed(expenses: Omit<Expense, "createdAt">[]): Promise<void> {
   const createdAt = new Date().toISOString();
-  const full: Expense[] = expenses.map((e) => ({ ...e, createdAt }));
+  // Recurring plans start two months back so the seeded history months count.
+  const start = dayjs().subtract(2, "month");
+  const full: Expense[] = expenses.map((e) =>
+    e.recurrence === "one-off"
+      ? { ...e, createdAt }
+      : { ...e, createdAt, startYear: start.year(), startMonth: start.month() }
+  );
   for (const e of full) await insertWithId(e);
   // Give recurring expenses a few months of paid history for KPI variety.
   await seedTestData(full.filter((e) => e.recurrence !== "one-off"));
@@ -90,8 +97,12 @@ export async function seedTestData(expenses: Expense[]): Promise<void> {
   for (const expense of expenses) {
     for (let i = 0; i < months.length; i++) {
       const { year, month } = months[i];
+      if (!hasCycleIn(expense, year, month)) {
+        continue;
+      }
       const status = i === 0 ? randomStatus() : "paid";
-      const amount = expense.isVariable ? randomAmount() : null;
+      // Variable months carry their own amount; paid fixed months record what they cost.
+      const amount = expense.isVariable ? randomAmount() : status === "paid" ? expense.amount : null;
       const paidAt = status === "paid" ? randomPaidAt(year, month) : null;
       await db.runAsync(
         `INSERT OR REPLACE INTO expense_months (expense_id, year, month, status, amount, paid_at)
@@ -100,13 +111,6 @@ export async function seedTestData(expenses: Expense[]): Promise<void> {
       );
     }
   }
-}
-
-export async function clearAllData(): Promise<void> {
-  const db = await getDB();
-  await db.runAsync("DELETE FROM expense_months");
-  await db.runAsync("DELETE FROM expenses");
-  await db.runAsync("DELETE FROM categories WHERE id NOT LIKE 'preset-%'");
 }
 
 // oneOff=false clears every recurring row; oneOff=true clears one-off rows.

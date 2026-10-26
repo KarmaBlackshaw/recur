@@ -1,11 +1,11 @@
 import React, { useRef } from "react";
-import useBoolean from "ahooks/es/useBoolean";
-import maxBy from "lodash/maxBy";
+import { useBoolean } from "@/utils/useBoolean";
+import { maxBy } from "@/utils/collections";
 import { View, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { CategoryBottomSheet, CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
 import { AccountPickerSheet, AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { useAccounts } from "@/context/AccountContext";
@@ -30,7 +30,7 @@ interface IncomeFormValues {
 
 export default function AddIncomeScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { accounts, transactions, isLoading, addIncome, updateIncome, deleteIncome } = useAccounts();
+  const { accounts, activeAccounts, transactions, isLoading, addIncome, updateIncome, deleteIncome } = useAccounts();
   const incomes = transactions.filter((t) => t.kind === "income");
   const editingIncome = id ? incomes.find((t) => t.id === id) : undefined;
   const isEditing = editingIncome != null;
@@ -39,10 +39,12 @@ export default function AddIncomeScreen() {
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const [isDatePickerOpen, datePicker] = useBoolean();
 
-  const depositAccounts = accounts.filter((a) => a.type !== "credit");
+  const depositAccounts = activeAccounts.filter((a) => a.type !== "credit");
 
-  function toKnownAccountId(accountId?: string) {
-    return accountId && depositAccounts.some((a) => a.id === accountId) ? accountId : CASH_ACCOUNT_ID;
+  // An income already in an archived account keeps it when edited; new income only defaults to accounts in use.
+  function toKnownAccountId(accountId: string | undefined, canBeArchived: boolean) {
+    const pool = canBeArchived ? accounts.filter((a) => a.type !== "credit") : depositAccounts;
+    return accountId && pool.some((a) => a.id === accountId) ? accountId : CASH_ACCOUNT_ID;
   }
 
   function toFormValues(income?: AccountTransaction): IncomeFormValues {
@@ -51,7 +53,7 @@ export default function AddIncomeScreen() {
         receivedAt: income.createdAt,
         amount: income.amount.toString(),
         category: income.category ?? "Salary",
-        accountId: toKnownAccountId(income.accountId),
+        accountId: toKnownAccountId(income.accountId, true),
         notes: income.note ?? "",
       };
     }
@@ -59,7 +61,7 @@ export default function AddIncomeScreen() {
       receivedAt: dayjs().startOf("day").toISOString(),
       amount: "",
       category: lastIncome?.category ?? "Salary",
-      accountId: toKnownAccountId(lastIncome?.accountId),
+      accountId: toKnownAccountId(lastIncome?.accountId, false),
       notes: "",
     };
   }

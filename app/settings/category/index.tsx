@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import { View, TouchableOpacity, Alert, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { Category, getAllWithIds, deleteCategory } from "@/db/categories";
@@ -40,8 +40,13 @@ export default function ManageCategoriesScreen() {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
-          await deleteCategory(cat.id);
-          setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+          try {
+            await deleteCategory(cat.id);
+            setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+          } catch (e) {
+            console.error("Delete category failed", e);
+            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+          }
         },
       },
     ]);
@@ -50,13 +55,23 @@ export default function ManageCategoriesScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity className="p-1" onPress={() => router.back()}>
+        <TouchableOpacity
+          className="w-11 h-11 items-center justify-center"
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <Feather name="chevron-left" size={24} color={colors.secondary} />
         </TouchableOpacity>
         <AppText variant="heading" className="flex-1 text-center text-white text-xl">
           Categories
         </AppText>
-        <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/settings/category/add", params: { kind } })}>
+        <TouchableOpacity
+          className="w-11 h-11 items-center justify-center"
+          onPress={() => router.push({ pathname: "/settings/category/add", params: { kind } })}
+          accessibilityRole="button"
+          accessibilityLabel="Add category"
+        >
           <Feather name="plus" size={24} color={colors.secondary} />
         </TouchableOpacity>
       </View>
@@ -64,7 +79,7 @@ export default function ManageCategoriesScreen() {
       <FlatList
         data={categories}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+        contentContainerClassName="px-4 pb-8"
         ListHeaderComponent={
           <View>
             <AppTabs tabs={KIND_TABS} value={kind} onChange={setKind} className="mb-3" />
@@ -74,12 +89,22 @@ export default function ManageCategoriesScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View className="bg-surface border border-border rounded-xl px-3 py-3 mb-1 flex-row items-center gap-3">
-            <TouchableOpacity className="p-1" onPress={() => handleDelete(item)}>
+          <View className="bg-surface border border-border rounded-xl px-1 py-1 mb-1 flex-row items-center gap-1">
+            <TouchableOpacity
+              className="w-11 h-11 items-center justify-center"
+              onPress={() => handleDelete(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${item.name}`}
+            >
               <Feather name="trash-2" size={18} color={colors.overdue} />
             </TouchableOpacity>
             <AppText variant="body-medium" className="flex-1 text-white text-sm">{item.name}</AppText>
-            <TouchableOpacity className="p-1" onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: String(item.id), editName: item.name, kind } })}>
+            <TouchableOpacity
+              className="w-11 h-11 items-center justify-center"
+              onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: String(item.id), editName: item.name, kind } })}
+              accessibilityRole="button"
+              accessibilityLabel={`Rename ${item.name}`}
+            >
               <Feather name="edit-2" size={16} color={colors.secondary} />
             </TouchableOpacity>
           </View>

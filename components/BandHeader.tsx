@@ -1,6 +1,6 @@
 import React from "react";
 import { View, TouchableOpacity } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";

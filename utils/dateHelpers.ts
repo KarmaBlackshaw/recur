@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import type { Recurrence } from "@/types";
+import type { Expense, Status } from "@/types";
 
 export function getDueDate(dueDay: number): Date {
   const now = new Date();
@@ -38,20 +38,6 @@ export function effectivePaidDate(
   dueMonth: number
 ): Date {
   return paidAt ? dayjs(paidAt).toDate() : getDueDateForMonth(dueDay, dueYear, dueMonth);
-}
-
-export function isOverdue(dueDay: number): boolean {
-  const d = dayjs(getDueDate(dueDay)).startOf("day");
-  return d.isBefore(dayjs()) && !d.isSame(dayjs(), "day");
-}
-
-export function nextDueDay(dueDay: number, recurrence: Recurrence): number {
-  // dueDay is a fixed anchor (1–31) — it never changes between cycles.
-  return dueDay;
-}
-
-export function formatDue(dueDay: number): string {
-  return formatDueDate(getDueDate(dueDay));
 }
 
 // Relative inside the coming week ("Today", "Tomorrow", "in 4 days"), the date itself beyond it.
@@ -112,6 +98,77 @@ export function isEndedOn(
   return year > endYear || (year === endYear && month > endMonth);
 }
 
-export function formatEndMonth(endYear: number, endMonth: number): string {
-  return dayjs(new Date(endYear, endMonth, 1)).format("MMM YYYY");
+export function formatMonth(year: number, month: number): string {
+  return dayjs(new Date(year, month, 1)).format("MMM YYYY");
+}
+
+type CyclePlan = Pick<Expense, "recurrence" | "startYear" | "startMonth" | "endYear" | "endMonth">;
+
+// "active": the plan has a cycle due this month. Otherwise it's before the start month, past the end month,
+// or a yearly plan outside its anniversary month (the start month). One-offs are always active.
+export type CycleState = "active" | "not-started" | "ended" | "off-cycle";
+
+const monthIndex = (year: number, month: number) => year * 12 + month;
+
+export function cycleStateOn(plan: CyclePlan, year: number, month: number): CycleState {
+  if (plan.recurrence === "one-off") {
+    return "active";
+  }
+  if (
+    plan.startYear != null &&
+    plan.startMonth != null &&
+    monthIndex(year, month) < monthIndex(plan.startYear, plan.startMonth)
+  ) {
+    return "not-started";
+  }
+  if (isEndedOn(plan.endYear, plan.endMonth, year, month)) {
+    return "ended";
+  }
+  if (plan.recurrence === "yearly" && plan.startMonth != null && month !== plan.startMonth) {
+    return "off-cycle";
+  }
+  return "active";
+}
+
+// Whether a recurring expense is due in this month, so it counts in totals, lists and reminders.
+export function hasCycleIn(plan: CyclePlan, year: number, month: number): boolean {
+  return plan.recurrence !== "one-off" && cycleStateOn(plan, year, month) === "active";
+}
+
+// Due date of the plan's first cycle at or after the given month; null once no cycle is left.
+export function nextCycleDueDate(plan: CyclePlan & Pick<Expense, "dueDay">, year: number, month: number): Date | null {
+  for (let i = 0; i < 12; i++) {
+    const at = dayjs(new Date(year, month + i, 1));
+    const state = cycleStateOn(plan, at.year(), at.month());
+    if (state === "active") {
+      return getDueDateForMonth(plan.dueDay, at.year(), at.month());
+    }
+    if (state === "ended") {
+      return null;
+    }
+    if (state === "not-started" && plan.startYear != null && plan.startMonth != null) {
+      return getDueDateForMonth(plan.dueDay, plan.startYear, plan.startMonth);
+    }
+  }
+  return null;
+}
+
+// Start month for a recurring expense saved before start months existed, recovered from its history so no
+// recorded month disappears: the earliest of its created month and any month it has data for. Yearly plans
+// anchor on their earliest paid month instead, since the month a yearly bill was paid is the month it's due.
+export function inferStartMonth(a: {
+  recurrence: Expense["recurrence"];
+  createdAt: string;
+  months: { year: number; month: number; status: Status }[];
+}): { year: number; month: number } {
+  const earliest = (list: { year: number; month: number }[]) =>
+    list.reduce((first, m) => (monthIndex(m.year, m.month) < monthIndex(first.year, first.month) ? m : first));
+  const paid = a.months.filter((m) => m.status === "paid");
+  if (a.recurrence === "yearly" && paid.length > 0) {
+    const { year, month } = earliest(paid);
+    return { year, month };
+  }
+  const created = dayjs(a.createdAt);
+  const { year, month } = earliest([{ year: created.year(), month: created.month() }, ...a.months]);
+  return { year, month };
 }

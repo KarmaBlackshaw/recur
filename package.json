@@ -3,21 +3,19 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
-    "@expo-google-fonts/caveat": "^0.4.2",
     "@expo-google-fonts/quicksand": "^0.4.1",
     "@expo/vector-icons": "^15.1.1",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@react-native-community/datetimepicker": "9.1.0",
-    "ahooks": "^3.10.0",
     "babel-preset-expo": "~57.0.0",
     "dayjs": "^1.11.21",
     "expo": "~57.0.30",
+    "expo-build-properties": "~57.0.22",
     "expo-constants": "~57.0.22",
     "expo-document-picker": "~57.0.3",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-image-picker": "~57.0.20",
-    "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.13",
     "expo-notifications": "~57.0.23",
     "expo-router": "~57.0.28",
@@ -25,26 +23,21 @@
     "expo-splash-screen": "~57.0.10",
     "expo-sqlite": "~57.0.4",
     "expo-status-bar": "~57.0.1",
-    "lodash": "^4.18.1",
     "nativewind": "^4.2.6",
     "react": "19.2.3",
     "react-hook-form": "^7.76.1",
     "react-native": "0.86.3",
-    "react-native-currency-input": "^1.1.1",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
-    "react-native-svg": "15.15.4",
     "react-native-worklets": "0.10.1",
-    "tailwind-merge": "^2.6.1",
     "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
-    "@types/lodash": "^4.17.26",
     "@types/react": "~19.2.2",
-    "react-native-svg-transformer": "^1.5.3",
     "sharp": "^0.34.5",
+    "subset-font": "^2.9.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -55,8 +48,11 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:android": "npx expo run:android --variant release",
+    "build:ios": "npx expo run:ios --configuration Release",
     "build:apk": "eas build --platform android --profile preview",
-    "build:aab": "eas build --platform android --profile production"
+    "build:aab": "eas build --platform android --profile production",
+    "build:ios-sim": "eas build --platform ios --profile preview-simulator",
+    "build:ipa": "eas build --platform ios --profile preview"
   },
   "private": true
 }

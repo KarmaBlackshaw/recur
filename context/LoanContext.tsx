@@ -1,8 +1,8 @@
 import React, { createContext, useCallback, useContext, useMemo, useReducer } from "react";
 import dayjs from "dayjs";
-import useAsyncEffect from "ahooks/es/useAsyncEffect";
-import useMemoizedFn from "ahooks/es/useMemoizedFn";
-import round from "lodash/round";
+import { useAsyncEffect } from "@/utils/useAsyncEffect";
+import { useMemoizedFn } from "@/utils/useMemoizedFn";
+import { round } from "@/utils/round";
 import {
   getAll as getAllLoans,
   insert as insertLoan,
@@ -13,6 +13,7 @@ import {
 import { remove as removeTransaction } from "@/db/accountTransactions";
 import { useAccounts } from "@/context/AccountContext";
 import { summarizeLoan, type TLoanSummary } from "@/utils/loans/summarizeLoan";
+import { useToday } from "@/utils/useToday";
 import type { AccountTransaction, Loan, LoanInput, LoanPaymentInput } from "@/types";
 
 interface State {
@@ -82,7 +83,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     [accounts.transactions]
   );
 
-  const today = dayjs().format("YYYY-MM-DD");
+  const today = dayjs(useToday()).format("YYYY-MM-DD");
 
   const summaries = useMemo(() => {
     const map: Record<string, TLoanSummary> = {};
@@ -99,6 +100,9 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     }
     if (account.type === "credit") {
       throw new Error("Loans can't use a credit card");
+    }
+    if (account.archivedAt) {
+      throw new Error("Loans can't use an archived account");
     }
   };
 

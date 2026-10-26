@@ -13,3 +13,12 @@ jobs:
       platform: android
       profile: preview
 
+  # Simulator build: needs no Apple account. Switch the profile to `preview` for an installable iPhone build
+  # once Apple credentials and devices are set up (`npm run build:ipa` once, interactively).
+  build_ios:
+    name: Build iOS
+    type: build
+    params:
+      platform: ios
+      profile: preview-simulator
+

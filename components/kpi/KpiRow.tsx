@@ -1,8 +1,8 @@
 import React from "react";
 import { View } from "react-native";
 import dayjs from "dayjs";
-import sumBy from "lodash/sumBy";
-import { formatAmount, isEndedOn } from "@/utils/dateHelpers";
+import { sumBy } from "@/utils/collections";
+import { formatAmount, hasCycleIn } from "@/utils/dateHelpers";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { KpiCard } from "@/components/kpi/KpiCard";
@@ -18,7 +18,7 @@ export function KpiRow({ year, month, recurringOnly = false }: Props) {
   const { expenses, resolveAmount, getMonthStatus } = useExpenses();
   const isInMonth = (e: Expense) => {
     if (e.recurrence !== "one-off") {
-      return !isEndedOn(e.endYear, e.endMonth, year, month);
+      return hasCycleIn(e, year, month);
     }
     if (recurringOnly) {
       return false;

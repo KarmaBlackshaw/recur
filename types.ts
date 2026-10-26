@@ -1,10 +1,11 @@
-import type { Feather, Ionicons } from "@expo/vector-icons";
+import type Feather from "@expo/vector-icons/Feather";
 import type { BankId } from "@/constants/banks";
+import type { IoniconName } from "@/constants/ionicons";
 import type { BillSummary } from "@/utils/cardBills";
 
+export type { IoniconName };
 export type FeatherIconName = keyof typeof Feather.glyphMap;
-export type IoniconName = keyof typeof Ionicons.glyphMap;
-export type Recurrence = 'weekly' | 'monthly' | 'yearly' | 'one-off';
+export type Recurrence = 'monthly' | 'yearly' | 'one-off';
 export type Status = 'unpaid' | 'paid';
 export type HomeBandSlot = 'current' | 'next';
 
@@ -21,6 +22,8 @@ export interface Expense {
   createdAt: string;
   reminderDaysBefore?: number | null;
   paidDate?: string | null;   // ISO date — when a one-off was paid (default today on insert). Null for recurring.
+  startYear?: number | null;   // first month with a cycle (yearly: also the month it's due every year). Null for one-off.
+  startMonth?: number | null;  // 0-based month.
   endYear?: number | null;   // recurring end anchor — year. NULL = open-ended. Always null for one-off.
   endMonth?: number | null;  // 0-based month. NULL = open-ended.
   accountId?: string | null;
@@ -36,6 +39,7 @@ export interface ExpenseFormValues {
   notes: string;
   reminderDaysBefore: string;
   paidDate: string;   // ISO date string (one-off only)
+  startDate: string;  // ISO date string, first-of-start-month (recurring only)
   hasEndDate: boolean;
   endDate: string;   // ISO date string, first-of-end-month (recurring only)
   accountId: string;
@@ -46,7 +50,7 @@ export interface MonthStatus {
   year: number;
   month: number;
   status: Status;
-  amount?: number | null;
+  amount?: number | null;   // Variable: that month's amount. Paid: what the month cost when paid, so editing the expense never rewrites history.
   paidAt?: string | null;   // ISO timestamp — when this recurring month was marked paid. Null when unpaid/unknown.
 }
 
@@ -134,10 +138,17 @@ export interface Account {
   icon: IoniconName | null;
   logoUri: string | null;
   bank: BankId | null;
+  archivedAt: string | null;   // ISO timestamp. Archived accounts keep their history but leave pickers, bills and interest.
   createdAt: string;
 }
 
-export type AccountInput = Omit<Account, 'id' | 'createdAt' | 'sortOrder' | 'interestAccruedThrough'>;
+export interface AccountBankGroup {
+  key: BankId | 'other';
+  label: string;
+  accounts: Account[];
+}
+
+export type AccountInput = Omit<Account, 'id' | 'createdAt' | 'sortOrder' | 'interestAccruedThrough' | 'archivedAt'>;
 
 export interface CardBillOverride {
   accountId: string;

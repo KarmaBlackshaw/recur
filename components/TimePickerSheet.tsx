@@ -2,7 +2,7 @@
 import React, { forwardRef, useRef, useState } from "react";
 import { View } from "react-native";
 import dayjs from "dayjs";
-import range from "lodash/range";
+import { range } from "@/utils/collections";
 import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppWheelPicker } from "@/components/ui/AppWheelPicker";
 import { AppButton } from "@/components/ui/AppButton";

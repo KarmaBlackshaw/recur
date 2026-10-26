@@ -2,10 +2,9 @@ import React, { useMemo } from "react";
 import { View, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
-import sortBy from "lodash/sortBy";
-import sumBy from "lodash/sumBy";
+import { range, sortBy, sumBy } from "@/utils/collections";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { KpiRow } from "@/components/kpi/KpiRow";
@@ -15,10 +14,12 @@ import { HomeExpenseSections, type HomeEntry, type UpcomingBand } from "@/compon
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
-import { isOverdueOn, isEndedOn, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
+import { isOverdueOn, hasCycleIn, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { useLingeringEntries } from "@/utils/useLingeringEntries";
 import { isBillTbd } from "@/utils/cardBills";
+import { monthKey } from "@/utils/monthKey";
+import { useToday } from "@/utils/useToday";
 import { colors } from "@/constants/theme";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { HomeBandSlot } from "@/types";
@@ -26,20 +27,23 @@ import type { HomeBandSlot } from "@/types";
 const UPCOMING_LIMIT = 5;
 const NEXT_MONTH_LOOKAHEAD_DAYS = 7;
 const ACTIVITY_LIMIT = 10;
+// How many months back an unpaid due stays in Overdue after its own month has ended.
+const OVERDUE_LOOKBACK_MONTHS = 3;
 
 export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus, resolveAmount, collapsedHomeBands, toggleHomeBand } = useExpenses();
   const accounts = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
-  const today = dayjs().startOf("day").toDate();
+  const today = useToday();
   const year = today.getFullYear();
   const month = today.getMonth();
 
   // Unpaid recurring cycles, split by urgency. Overdue always shows in full;
   // each Upcoming band lists its next UPCOMING_LIMIT dues but counts and totals the whole month.
+  // Keyed per cycle: near month end the same expense can be due in both Upcoming months.
   const dueEntry = (e: (typeof expenses)[number], y: number, m: number): DayEntry => ({
-    key: e.id,
+    key: monthKey(e.id, y, m),
     expense: e,
     effDate: getDueDateForMonth(e.dueDay, y, m),
     refDate: new Date(y, m, 1),
@@ -65,17 +69,18 @@ export default function HomeScreen() {
     "expense" in e && getMonthStatus(e.expense.id, e.refDate.getFullYear(), e.refDate.getMonth()) === "paid";
 
   const overdueLive = useMemo<HomeEntry[]>(() => {
-    const entries = expenses
-      .filter(
-        (e) =>
-          e.recurrence !== "one-off" &&
-          getMonthStatus(e.id, year, month) === "unpaid" &&
-          isOverdueOn(e.dueDay, year, month)
-      )
-      .map((e) => dueEntry(e, year, month));
+    // A missed due stays here after its month ends. Card bills don't need carrying: each statement already
+    // includes the unpaid balance, so carrying them too would count it twice.
+    const entries = range(OVERDUE_LOOKBACK_MONTHS + 1).flatMap((monthsBack) => {
+      const at = dayjs(today).subtract(monthsBack, "month");
+      const [y, m] = [at.year(), at.month()];
+      return expenses
+        .filter((e) => hasCycleIn(e, y, m) && getMonthStatus(e.id, y, m) === "unpaid" && isOverdueOn(e.dueDay, y, m))
+        .map((e) => dueEntry(e, y, m));
+    });
     const bills = openBills.filter((b) => !b.bill.isPaid && b.effDate < today);
     return [...entries, ...bills];
-  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills]);
+  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills, today]);
   const overdueWithPaid = useLingeringEntries(overdueLive, isPaidNow);
   const overdue = useMemo(() => sortBy(overdueWithPaid, "effDate"), [overdueWithPaid]);
 
@@ -85,12 +90,7 @@ export default function HomeScreen() {
   const upcomingLive = useMemo<HomeEntry[]>(() => {
     const unpaidDues = (y: number, m: number) =>
       expenses
-        .filter(
-          (e) =>
-            e.recurrence !== "one-off" &&
-            !isEndedOn(e.endYear, e.endMonth, y, m) &&
-            getMonthStatus(e.id, y, m) === "unpaid"
-        )
+        .filter((e) => hasCycleIn(e, y, m) && getMonthStatus(e.id, y, m) === "unpaid")
         .map((e) => dueEntry(e, y, m));
     return [
       ...unpaidDues(year, month).filter((d) => d.effDate >= today),
@@ -102,7 +102,7 @@ export default function HomeScreen() {
           ]
         : []),
     ];
-  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills, isNextMonthNear]);
+  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills, isNextMonthNear, today]);
   const upcomingWithPaid = useLingeringEntries(upcomingLive, isPaidNow);
 
   const upcoming = useMemo<UpcomingBand[]>(() => {
@@ -119,12 +119,12 @@ export default function HomeScreen() {
       };
     };
     return [band(dayjs(today), "current"), band(next, "next")].filter((b) => b.data.length > 0);
-  }, [upcomingWithPaid, getMonthStatus]);
+  }, [upcomingWithPaid, getMonthStatus, today]);
 
   const recentActivity = useMemo(() => {
-    const endToday = dayjs().endOf("day").toDate();
+    const endToday = dayjs(today).endOf("day").toDate();
     return feed.all.filter(({ effDate }) => effDate <= endToday).slice(0, ACTIVITY_LIMIT);
-  }, [feed]);
+  }, [feed, today]);
 
   if (loading) {
     return (

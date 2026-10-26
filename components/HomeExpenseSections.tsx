@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from "react";
 import { View, SectionList } from "react-native";
-import sumBy from "lodash/sumBy";
+import { sumBy } from "@/utils/collections";
 import { CardBillRow } from "@/components/accounts/CardBillRow";
 import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";

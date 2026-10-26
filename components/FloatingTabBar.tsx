@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Pressable, useWindowDimensions } from "re
 import Animated, { FadeIn, FadeInDown, FadeOut, useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import type { BottomTabBarProps } from "expo-router/tabs";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";

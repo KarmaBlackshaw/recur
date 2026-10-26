@@ -10,7 +10,8 @@ React Native / Expo recurring expenses tracker. Expo Router, TypeScript, NativeW
 - **State:** `context/ExpenseContext.tsx` is the single source of truth. All mutations go through the context dispatcher after calling the DB helper.
 - **DB:** All SQLite access goes through `db/expenses.ts` and `db/categories.ts`. Never query the DB directly from components.
 - **Dates:** All date logic uses `dayjs`. No manual date arithmetic. Due is a day-of-month integer (1–31), not a full date string. `getDueDate(dueDay)` clamps to last day of month for short months.
-- **Icons:** `@expo/vector-icons` (Ionicons / Feather) only. No emojis as icons. Use `FeatherIconName` (`keyof typeof Feather.glyphMap`, exported from `types.ts`) for all Feather icon name values — never `string`. The only permitted `as FeatherIconName` cast is at external boundaries (SQLite reads, URL params).
+- **Icons:** `@expo/vector-icons` (Ionicons / Feather) only. No emojis as icons. Use `FeatherIconName` (`keyof typeof Feather.glyphMap`, exported from `types.ts`) for all Feather icon name values — never `string`. The only permitted `as FeatherIconName` cast is at external boundaries (SQLite reads, URL params). Import each family from its own entry (`import Feather from "@expo/vector-icons/Feather"`) — the `@expo/vector-icons` barrel bundles all 19 icon fonts. Ionicons render through `components/ui/Ionicon.tsx`, a subset font of the glyphs in `constants/ionicons.ts`: to use a new one, add it there and run `node scripts/subset-fonts.mjs`.
+- **Bundle size:** No lodash, ahooks or tailwind-merge — use `utils/collections.ts` and `utils/round.ts` (lodash semantics, pinned by `scripts/collections-check.mjs`), the `utils/use*.ts` hooks, and `utils/mergeClassNames.ts`. Import a package's per-feature entry, never a barrel that re-exports everything. Bank logos are PNGs generated from `assets/banks/*.svg` by `scripts/generate-bank-logos.mjs` — there is no react-native-svg.
 - **Forms:** `react-hook-form` with `Controller` for every form field. Save button disabled when `!isValid`. Scrollable form screens use `AppFormScrollView` (not a bare `ScrollView`) so the focused field stays above the keyboard — Android is edge-to-edge, so the window never resizes for it.
 - **Animations:** `react-native-reanimated` for all animations. No `Animated` API from React Native core.
 - **Bottom sheets:** `@gorhom/bottom-sheet` (`BottomSheetModal`). No plain `Modal` for primary flows. Sheets with inputs: content-sized (default dynamic sizing, no fixed `snapPoints`) with `keyboardBehavior="interactive"`, and never `android_keyboardInputMode="adjustResize"` — under edge-to-edge it stops gorhom lifting the sheet, leaving it behind the keyboard.
@@ -21,7 +22,7 @@ React Native / Expo recurring expenses tracker. Expo Router, TypeScript, NativeW
 ## Data Model
 
 ```ts
-type Recurrence = 'weekly' | 'monthly' | 'yearly' | 'one-off';
+type Recurrence = 'monthly' | 'yearly' | 'one-off';
 type Status = 'unpaid' | 'paid';
 
 interface Expense {
@@ -34,14 +35,26 @@ interface Expense {
   status: Status;        // default: 'unpaid'
   notes?: string;
   createdAt: string;
+  startYear?: number | null;  // first month with a cycle; yearly plans recur every year in this month
+  startMonth?: number | null; // 0-based. Null for one-off
+  endYear?: number | null;    // last month with a cycle. Null = open-ended
+  endMonth?: number | null;
 }
 ```
 
 ## Business Rules
 
 - Expenses always sorted ascending by `dueDay`.
-- Overdue = `status === 'unpaid' && getDueDate(dueDay) < startOfToday()`. Never auto-change status — only show red warning.
-- Mark paid on a recurring expense: status flips to `paid`. Stays paid until user resets it next cycle.
+- A recurring expense only has a cycle in a month when `hasCycleIn(expense, year, month)` (`utils/dateHelpers.ts`): on or after its start month, not past its end month, and for yearly plans only in the start month's calendar month. KPIs, Home Overdue/Upcoming, reminders and the Recurring tab's bands all go through it; months without a cycle show as muted "Not due" rows.
+- Overdue = an unpaid cycle whose due date (`getDueDateForMonth`) is before today. Never auto-change status — only show red warning.
+- Mark paid on a recurring expense: that month flips to `paid` and records what it cost in `expense_months.amount`, so editing the expense later never rewrites paid history. Unpaying a fixed expense clears it again.
+- Categories are stored by name on expenses and income, so renaming one renames it on every row.
+- Deleting a recurring expense with paid months warns that its history leaves Activity (payments stay in the balances) and offers setting an end month instead.
+- Home Overdue keeps unpaid recurring dues from the last 3 months (`OVERDUE_LOOKBACK_MONTHS`). Card bills are not carried forward: each statement already includes the unpaid balance.
+- Archived accounts (`archived_at`) keep their transactions and still count in net worth, but leave every account picker (`activeAccounts`), card bills, bill reminders and interest. Unarchiving resumes interest from that day. Cash can't be archived. Deleting an account with history offers archiving instead.
+- Net worth = account assets + open loan balances ("Lent", the same total as Home's "Owed to you") − card balances owed (`utils/useNetWorth.ts`).
+- Reminders are scheduled 12 months ahead, soonest first, capped at 60 pending notifications (iOS allows 64 per app). Every launch reschedules them.
+- Backups (format v5) also carry preferences and account logos. Import runs in one write transaction, so a bad file changes nothing, and only fills preferences that aren't set yet.
 - One-off expenses stay paid permanently.
 - KPI totals (Total / Paid / Unpaid) are computed from the in-memory expenses array — no extra DB query.
 - Swipe-to-delete via `react-native-gesture-handler` `Swipeable`. Confirm with `Alert` before deleting.
@@ -59,7 +72,7 @@ text:     #FFFFFF
 border:   rgba(255,255,255,0.07)
 ```
 
-Fonts: Oswald (headings, bundled TTFs in `assets/fonts/oswald`) + Quicksand (body) via `@expo-google-fonts`.
+Fonts: Oswald (headings, subset TTFs in `assets/fonts/oswald`, regenerated from `source/` by `scripts/subset-fonts.mjs`) + Quicksand (body), imported per weight from `@expo-google-fonts/quicksand/<weight>`. Quicksand ships unmodified: its license reserves the name, so it can't be subset.
 
 ## Folder Structure
 
@@ -73,7 +86,10 @@ db/expenses.ts           # getAll, insert, updateStatus, remove
 db/categories.ts         # getCustom, insertCustom
 utils/dateHelpers.ts     # getDueDate, isOverdue, formatDue
 utils/categories.ts      # PRESET_CATEGORIES
+utils/collections.ts     # orderBy, groupBy, sumBy… (lodash semantics, no lodash)
 constants/theme.ts       # Color tokens (mirrors tailwind.config.js)
+plugins/                 # Local Expo config plugins (android/ and ios/ are generated)
+scripts/                 # *-check.mjs logic checks; asset generators (fonts, icons, bank logos)
 types.ts                 # Shared TS types
 ```
 

@@ -23,6 +23,16 @@ const DUMMY: Omit<Expense, "createdAt">[] = [
   { id: "seed-11", name: "Amazon Prime", category: "Subscriptions", amount: 139, dueDay: 10, recurrence: "yearly", status: "unpaid", isVariable: false },
   { id: "seed-12", name: "Coffee run", category: "Food", amount: 6, dueDay: 9, recurrence: "one-off", status: "paid", isVariable: false },
   { id: "seed-13", name: "New headphones", category: "Other", amount: 199, dueDay: 2, recurrence: "one-off", status: "paid", isVariable: false },
+  { id: "seed-14", name: "Water", category: "Utilities", amount: 30, dueDay: 22, recurrence: "monthly", status: "unpaid", isVariable: true },
+  { id: "seed-15", name: "YouTube Premium", category: "Subscriptions", amount: 13.99, dueDay: 24, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-16", name: "Health Insurance", category: "Insurance", amount: 210, dueDay: 26, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-17", name: "Parking", category: "Transport", amount: 75, dueDay: 27, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-18", name: "iCloud", category: "Subscriptions", amount: 2.99, dueDay: 29, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-19", name: "HOA Dues", category: "Housing", amount: 90, dueDay: 30, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-20", name: "Savings Transfer", category: "Other", amount: 300, dueDay: 31, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-21", name: "Gas", category: "Transport", amount: 110, dueDay: 2, recurrence: "monthly", status: "unpaid", isVariable: true },
+  { id: "seed-22", name: "Pet Food", category: "Food", amount: 55, dueDay: 4, recurrence: "monthly", status: "unpaid", isVariable: false },
+  { id: "seed-23", name: "Pharmacy", category: "Health", amount: 35, dueDay: 6, recurrence: "monthly", status: "unpaid", isVariable: true },
 ];
 
 // Insert dummy expenses + backfill paid month-history. Idempotent: insertWithId

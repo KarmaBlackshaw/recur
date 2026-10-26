@@ -85,7 +85,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     sheetRef.current?.dismiss();
     const typed = parseFloat(getValues("amount"));
     const amount = isValid && !isNaN(typed) ? Math.max(0, round(typed - bill.paid, 2)) : bill.remaining;
-    router.push({ pathname: "/transfer", params: { accountId: bill.account.id, amount: amount.toFixed(2) } });
+    router.push({ pathname: "/account/pay", params: { id: bill.account.id, amount: amount.toFixed(2) } });
   }
 
   const renderBackdrop = useCallback(

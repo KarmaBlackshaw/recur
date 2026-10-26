@@ -10,12 +10,12 @@ import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { TransactionRow } from "@/components/accounts/TransactionRow";
 import { AdjustBalanceSheet, type AdjustBalanceSheetRef } from "@/components/accounts/AdjustBalanceSheet";
+import { AccountCard } from "@/components/accounts/AccountCard";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
-import { signedAmount } from "@/utils/signedAmount";
 import { useRefreshControl } from "@/utils/useRefreshControl";
-import { ACCOUNT_TYPE_LABEL, INTEREST_PERIOD_UNIT, type Account, type AccountTransaction, type FeatherIconName, type InterestEstimate } from "@/types";
+import { ACCOUNT_TYPE_LABEL, type Account, type AccountTransaction, type FeatherIconName } from "@/types";
 
 function ActionButton({ icon, label, onPress, disabled }: {
   icon: FeatherIconName;
@@ -48,58 +48,25 @@ function DetailRow({ label, value, isAlert }: { label: string; value: string; is
   );
 }
 
-function BalanceHeader({ account, balance, interest }: {
-  account: Account;
-  balance: number;
-  interest: InterestEstimate | null;
-}) {
-  const isCredit = account.type === "credit";
-  const available = isCredit && account.creditLimit != null ? account.creditLimit - balance : null;
-  const isAlert = isCredit ? available != null && available < 0 : balance < 0;
-  const caption = isCredit ? "Owed" : "Balance";
+function CreditDetails({ account, balance }: { account: Account; balance: number }) {
+  const available = account.creditLimit != null ? account.creditLimit - balance : null;
+  const isActive = account.archivedAt == null;
 
   return (
-    <View
-      className={`mx-5 mb-4 rounded-2xl p-4 border ${isAlert ? "bg-overdue/[0.06] border-overdue/30" : "bg-surface border-border"}`}
-      accessible
-      accessibilityLabel={`${ACCOUNT_TYPE_LABEL[account.type]}, ${caption} ${signedAmount(balance)}${isAlert ? (isCredit ? ", over limit" : ", overdrawn") : ""}`}
-    >
-      <AppText variant="overline">{caption}</AppText>
-      <View className="flex-row items-center gap-2 mt-1">
-        {isAlert && <Feather name="alert-triangle" size={20} color={colors.overdue} />}
-        <AppText
-          variant="display"
-          className={`text-[34px] ${isAlert && !isCredit ? "text-overdue" : "text-white"}`}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.6}
-        >
-          {signedAmount(balance)}
-        </AppText>
-      </View>
-      {interest && (
-        <View className="flex-row items-center gap-1.5 mt-1">
-          <Feather name="trending-up" size={14} color={colors.paid} />
-          <AppText variant="meta" className="text-paid">+{formatAmount(interest.amount)}/{INTEREST_PERIOD_UNIT[interest.period].short} net interest</AppText>
-        </View>
+    <View className="mx-5 mb-4 rounded-2xl px-4 py-2 bg-surface border border-border">
+      {account.creditLimit != null && <DetailRow label="Limit" value={formatAmount(account.creditLimit)} />}
+      {available != null && (
+        <DetailRow
+          label={available < 0 ? "Over limit by" : "Available"}
+          value={formatAmount(Math.abs(available))}
+          isAlert={available < 0}
+        />
       )}
-      {isCredit && (
-        <View className="mt-3 pt-2 border-t border-border">
-          {account.creditLimit != null && <DetailRow label="Limit" value={formatAmount(account.creditLimit)} />}
-          {available != null && (
-            <DetailRow
-              label={available < 0 ? "Over limit by" : "Available"}
-              value={formatAmount(Math.abs(available))}
-              isAlert={available < 0}
-            />
-          )}
-          {account.statementDay != null && account.archivedAt == null && (
-            <DetailRow label="Next cut-off" value={dayjs(nextOccurrence(account.statementDay)).format("MMM D")} />
-          )}
-          {account.dueDay != null && account.archivedAt == null && (
-            <DetailRow label="Payment due" value={dayjs(nextOccurrence(account.dueDay)).format("MMM D")} />
-          )}
-        </View>
+      {account.statementDay != null && isActive && (
+        <DetailRow label="Next cut-off" value={dayjs(nextOccurrence(account.statementDay)).format("MMM D")} />
+      )}
+      {account.dueDay != null && isActive && (
+        <DetailRow label="Payment due" value={dayjs(nextOccurrence(account.dueDay)).format("MMM D")} />
       )}
     </View>
   );
@@ -208,11 +175,10 @@ export default function AccountDetailScreen() {
         refreshControl={refreshControl}
         ListHeaderComponent={
           <>
-            <BalanceHeader
-              account={account}
-              balance={accounts.getBalance(account.id)}
-              interest={accounts.interestEstimate(account)}
-            />
+            <View className="flex-row px-5 mb-4">
+              <AccountCard account={account} isStatic />
+            </View>
+            {account.type === "credit" && <CreditDetails account={account} balance={accounts.getBalance(account.id)} />}
             {isArchived && (
               <AppText variant="meta" className="px-5 mb-3">
                 Archived: it no longer shows up when you pick an account, and it has no bills or interest. Its

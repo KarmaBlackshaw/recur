@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
+import type { TransactionKind } from "@/types";
 
-export type CardTxn = { id: string; amount: number; createdAt: string };
+export type CardTxn = { id: string; amount: number; createdAt: string; kind: TransactionKind };
 
 export type BillSummary = {
   cutoff: Date;
@@ -45,14 +46,22 @@ export function computeBill(a: {
 
   let balance = 0;
   let paid = 0;
-  for (const txn of a.txns) {
+  let adjustPaid = 0;
+  const txns = [...a.txns].sort((x, y) => x.createdAt.localeCompare(y.createdAt) || x.id.localeCompare(y.id));
+  for (const txn of txns) {
     const at = dayjs(txn.createdAt);
     if (!at.isAfter(cutoffEnd)) {
       balance += txn.amount;
-    } else if (txn.amount < 0 && !at.isAfter(a.now)) {
-      paid += -txn.amount;
+    } else if (!at.isAfter(a.now)) {
+      if (txn.kind === "adjust") {
+        // An upward adjustment after the cut-off reverses earlier adjustment payments before it counts as a new charge.
+        adjustPaid = Math.max(0, adjustPaid - txn.amount);
+      } else if (txn.amount < 0) {
+        paid += -txn.amount;
+      }
     }
   }
+  paid += adjustPaid;
 
   const estimate = Math.max(0, round2(balance));
   const amount = a.override ?? estimate;

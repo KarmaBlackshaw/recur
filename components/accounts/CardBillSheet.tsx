@@ -48,17 +48,15 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     formState: { isValid, isSubmitting },
   } = useForm<BillFormValues>({ mode: "onChange", defaultValues: { amount: "" } });
 
-  const bill =
-    selected &&
-    (accounts
-      .getCardBills(selected.year, selected.month)
-      .find((b) => b.account.id === selected.account.id) ??
-      selected);
+  // Home's row can leave out what an older open bill still owes; the sheet always shows the full statement.
+  const statementOf = (b: CardBill) =>
+    accounts.getCardBills(b.year, b.month).find((s) => s.account.id === b.account.id) ?? b;
+  const bill = selected && statementOf(selected);
 
   useImperativeHandle(ref, () => ({
     present: (next) => {
       setSelected(next);
-      reset({ amount: next.amount.toFixed(2) });
+      reset({ amount: statementOf(next).amount.toFixed(2) });
       sheetRef.current?.present();
     },
   }));

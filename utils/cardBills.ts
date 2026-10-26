@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
+import type { CardBill, TransactionKind } from "@/types";
 
-export type CardTxn = { id: string; amount: number; createdAt: string };
+export type CardTxn = { id: string; amount: number; createdAt: string; kind: TransactionKind };
 
 export type BillSummary = {
   cutoff: Date;
@@ -45,14 +46,22 @@ export function computeBill(a: {
 
   let balance = 0;
   let paid = 0;
-  for (const txn of a.txns) {
+  let adjustPaid = 0;
+  const txns = [...a.txns].sort((x, y) => x.createdAt.localeCompare(y.createdAt) || x.id.localeCompare(y.id));
+  for (const txn of txns) {
     const at = dayjs(txn.createdAt);
     if (!at.isAfter(cutoffEnd)) {
       balance += txn.amount;
-    } else if (txn.amount < 0 && !at.isAfter(a.now)) {
-      paid += -txn.amount;
+    } else if (!at.isAfter(a.now)) {
+      if (txn.kind === "adjust") {
+        // An upward adjustment after the cut-off reverses earlier adjustment payments before it counts as a new charge.
+        adjustPaid = Math.max(0, adjustPaid - txn.amount);
+      } else if (txn.amount < 0) {
+        paid += -txn.amount;
+      }
     }
   }
+  paid += adjustPaid;
 
   const estimate = Math.max(0, round2(balance));
   const amount = a.override ?? estimate;
@@ -70,6 +79,36 @@ export function computeBill(a: {
 }
 
 export const isBillTbd = ({ isEstimate, amount }: BillSummary) => isEstimate && amount === 0;
+
+// Unpaid bills from `lookbackMonths` back through next month, oldest first: a missed bill stays until it's paid.
+// A statement already includes what the card's previous bill still owes, and payments clear that bill first, so
+// while it's open a newer bill only asks for the charges it added. The oldest bill shown carries anything older.
+export function openCardBills(
+  getCardBills: (year: number, month: number) => CardBill[],
+  today: Date,
+  lookbackMonths: number
+): CardBill[] {
+  const thisMonth = dayjs(today).startOf("month");
+  const previousByCard = new Map<string, CardBill>();
+  const open: CardBill[] = [];
+  for (let offset = -lookbackMonths; offset <= 1; offset++) {
+    const at = thisMonth.add(offset, "month");
+    for (const statement of getCardBills(at.year(), at.month())) {
+      const owedBefore = previousByCard.get(statement.account.id)?.remaining ?? 0;
+      previousByCard.set(statement.account.id, statement);
+      const added = Math.max(0, round2(statement.remaining - owedBefore));
+      const bill =
+        owedBefore > EPSILON
+          ? { ...statement, amount: added, paid: 0, remaining: added, isPaid: added <= EPSILON }
+          : statement;
+      // A ₱0 estimate means nothing billed yet, so this and next month's stay open as TBD until the amount is set.
+      if (!bill.isPaid || (offset >= 0 && isBillTbd(statement))) {
+        open.push(bill);
+      }
+    }
+  }
+  return open;
+}
 
 export function unsettledDebitIds(txns: CardTxn[]): Set<string> {
   const credits = txns.reduce((sum, { amount }) => (amount < 0 ? sum - amount : sum), 0);

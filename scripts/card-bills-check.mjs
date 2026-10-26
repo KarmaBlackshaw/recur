@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { billDates, computeBill, unsettledDebitIds } from "../utils/cardBills.ts";
+import { billDates, computeBill, openCardBills, unsettledDebitIds } from "../utils/cardBills.ts";
 
 const ymd = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
@@ -84,6 +84,57 @@ const capped = computeBill({
   txns: [charge, latePayment, { id: "q", amount: -500, createdAt: new Date(2026, 11, 1).toISOString() }],
 });
 assert.equal(capped.paid, 3000);
+
+const titanium = { ...base, statementDay: 9, dueDay: 30, month: 9, override: 42423.03, now: new Date(2026, 9, 26, 17, 22) };
+const adjust = (id, amount, at) => ({ id, amount, kind: "adjust", createdAt: at.toISOString() });
+const opening = adjust("o", 42423.03, new Date(2026, 9, 19, 22, 58));
+const adjustPayment = adjust("p", -42423.03, new Date(2026, 9, 26, 16, 51));
+const paidByAdjust = computeBill({ ...titanium, txns: [opening, adjustPayment] });
+assert.equal(paidByAdjust.isPaid, true);
+const reversed = computeBill({
+  ...titanium,
+  txns: [adjust("r2", 0.03, new Date(2026, 9, 26, 16, 52, 30)), opening, adjust("r1", 42423, new Date(2026, 9, 26, 16, 52)), adjustPayment],
+});
+assert.equal(reversed.isPaid, false);
+assert.equal(reversed.paid, 0);
+assert.equal(reversed.remaining, 42423.03);
+const halfReversed = computeBill({ ...titanium, txns: [opening, adjustPayment, adjust("r1", 20000, new Date(2026, 9, 26, 16, 52))] });
+assert.equal(halfReversed.remaining, 20000);
+
+const transferPayment = { id: "t", amount: -3000, kind: "transfer", createdAt: new Date(2026, 10, 1).toISOString() };
+const raisedAfterTransfer = computeBill({ ...base, txns: [charge, transferPayment, adjust("u", 500, new Date(2026, 10, 2))] });
+assert.equal(raisedAfterTransfer.isPaid, true);
+const nextStatementCharge = { id: "n", amount: 800, kind: "payment", createdAt: new Date(2026, 10, 3).toISOString() };
+const chargedAfterAdjustPayment = computeBill({
+  ...base,
+  txns: [charge, adjust("p", -3000, new Date(2026, 10, 1)), nextStatementCharge],
+});
+assert.equal(chargedAfterAdjustPayment.isPaid, true);
+
+// Titanium's October bill missed, viewed in November: it stays until paid, and November only shows new charges.
+const titaniumCard = { id: "ti" };
+const openOn = (txns, now, octoberAmount = 42423.03) =>
+  openCardBills(
+    (year, month) => [
+      {
+        ...computeBill({ ...titanium, txns, year, month, override: month === 9 ? octoberAmount : null, now }),
+        account: titaniumCard,
+        year,
+        month,
+      },
+    ],
+    now,
+    3
+  ).map((b) => [b.month, b.remaining]);
+const transfer = (id, amount, at) => ({ id, amount, kind: "transfer", createdAt: at.toISOString() });
+const purchase = { id: "c", amount: 5000, kind: "payment", createdAt: new Date(2026, 9, 25).toISOString() };
+assert.deepEqual(openOn([opening], new Date(2026, 10, 2)), [[9, 42423.03]]);
+assert.deepEqual(openOn([opening, purchase], new Date(2026, 10, 2)), [[9, 42423.03], [10, 5000]]);
+const partlyPaid = [opening, purchase, transfer("p1", -20000, new Date(2026, 10, 15))];
+assert.deepEqual(openOn(partlyPaid, new Date(2026, 10, 20)), [[9, 22423.03], [10, 5000]]);
+const octoberPaid = [opening, purchase, transfer("p1", -42423.03, new Date(2026, 10, 15))];
+assert.deepEqual(openOn(octoberPaid, new Date(2026, 10, 20)), [[10, 5000]]);
+assert.deepEqual(openOn([], new Date(2026, 10, 2), null), [[10, 0], [11, 0]]);
 
 const debits = [
   { id: "d2", amount: 200, createdAt: "2026-10-02T00:00:00.000Z" },

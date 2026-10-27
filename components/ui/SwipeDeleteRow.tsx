@@ -3,7 +3,6 @@ import { TouchableOpacity } from "react-native";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import type { SharedValue } from "react-native-reanimated";
 import Feather from "@expo/vector-icons/Feather";
-import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 
 interface Props {
@@ -25,13 +24,12 @@ export function SwipeDeleteRow({ onDelete, renderLeftActions, children }: Props)
 
     return (
       <TouchableOpacity
-        className="justify-center items-center gap-1 w-20 my-1.5 mr-5 rounded-2xl bg-overdue/15"
+        className="justify-center items-center w-20 my-1.5 mr-5 rounded-2xl bg-overdue/15"
         onPress={handleDelete}
         accessibilityRole="button"
         accessibilityLabel="Delete"
       >
         <Feather name="trash-2" size={20} color={colors.overdue} />
-        <AppText variant="meta" className="text-overdue">Delete</AppText>
       </TouchableOpacity>
     );
   }

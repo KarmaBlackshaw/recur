@@ -241,7 +241,7 @@ export default function AccountDetailScreen() {
           <TransactionRow
             transaction={item}
             accountType={account.type}
-            onPress={item.transferId ? () => confirmDeleteTransfer(item) : undefined}
+            onDelete={item.transferId ? () => confirmDeleteTransfer(item) : undefined}
           />
         )}
         ListEmptyComponent={

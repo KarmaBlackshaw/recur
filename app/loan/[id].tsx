@@ -97,8 +97,8 @@ export default function LoanDetailScreen() {
   }
 
   function renderItem({ item }: { item: TLoanHistoryItem }) {
-    const onPress = item.kind === "payment" ? () => confirmDeletePayment(item.txn) : undefined;
-    return <LoanHistoryRow item={item} onPress={onPress} />;
+    const onDelete = item.kind === "payment" ? () => confirmDeletePayment(item.txn) : undefined;
+    return <LoanHistoryRow item={item} onDelete={onDelete} />;
   }
 
   function renderSectionHeader({ section }: { section: { date: Date } }) {

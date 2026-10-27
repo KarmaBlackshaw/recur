@@ -1,6 +1,8 @@
 import React from "react";
+import { type AccessibilityActionEvent } from "react-native";
 import dayjs from "dayjs";
 import { AppListRow } from "@/components/ui/AppListRow";
+import { SwipeDeleteRow } from "@/components/ui/SwipeDeleteRow";
 import { categoryIcon } from "@/utils/categories";
 import { formatAmount } from "@/utils/dateHelpers";
 import {
@@ -26,10 +28,10 @@ const KIND_ICON: Record<TransactionKind, FeatherIconName> = {
 interface Props {
   transaction: AccountTransaction;
   accountType: AccountType;
-  onPress?: () => void;
+  onDelete?: () => void;
 }
 
-export function TransactionRow({ transaction, accountType, onPress }: Props) {
+export function TransactionRow({ transaction, accountType, onDelete }: Props) {
   const label = TRANSACTION_KIND_LABEL[transaction.kind];
   const icon = categoryIcon(transaction.category, KIND_ICON[transaction.kind]);
   const isMoneyIn = accountType === "credit" ? transaction.amount < 0 : transaction.amount > 0;
@@ -38,18 +40,26 @@ export function TransactionRow({ transaction, accountType, onPress }: Props) {
   const meta = [transaction.category, transaction.note].filter(Boolean).join(" · ") || undefined;
   const details = [transaction.category, transaction.note, time].filter(Boolean).join(", ");
 
+  function handleAccessibilityAction({ nativeEvent }: AccessibilityActionEvent) {
+    if (nativeEvent.actionName === "delete") {
+      onDelete?.();
+    }
+  }
+
   return (
-    <AppListRow
-      icon={icon}
-      iconTone={isMoneyIn ? "positive" : "neutral"}
-      title={label}
-      meta={meta}
-      amount={signed}
-      amountTone={isMoneyIn ? "positive" : "neutral"}
-      caption={time}
-      onPress={onPress}
-      accessibilityLabel={`${label}, ${signed}, ${details}`}
-      accessibilityHint={onPress ? "Offers to delete this transfer" : undefined}
-    />
+    <SwipeDeleteRow onDelete={onDelete}>
+      <AppListRow
+        icon={icon}
+        iconTone={isMoneyIn ? "positive" : "neutral"}
+        title={label}
+        meta={meta}
+        amount={signed}
+        amountTone={isMoneyIn ? "positive" : "neutral"}
+        caption={time}
+        accessibilityLabel={`${label}, ${signed}, ${details}`}
+        accessibilityActions={onDelete ? [{ name: "delete", label: "Delete" }] : undefined}
+        onAccessibilityAction={onDelete ? handleAccessibilityAction : undefined}
+      />
+    </SwipeDeleteRow>
   );
 }

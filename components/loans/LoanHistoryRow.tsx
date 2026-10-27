@@ -1,6 +1,8 @@
 import React from "react";
+import { type AccessibilityActionEvent } from "react-native";
 import dayjs from "dayjs";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
+import { SwipeDeleteRow } from "@/components/ui/SwipeDeleteRow";
 import { formatAmount } from "@/utils/dateHelpers";
 import type { AccountTransaction, FeatherIconName } from "@/types";
 
@@ -34,23 +36,30 @@ function labelOf({ kind, accountName }: TLoanHistoryItem) {
   }
 }
 
-export function LoanHistoryRow({ item, onPress }: { item: TLoanHistoryItem; onPress?: () => void }) {
+export function LoanHistoryRow({ item, onDelete }: { item: TLoanHistoryItem; onDelete?: () => void }) {
   const { icon, tone, sign } = KIND_META[item.kind];
   const label = labelOf(item);
   const signed = `${sign}${formatAmount(item.amount)}`;
   const dateLabel = dayjs(item.date).format("MMM D");
 
+  function handleAccessibilityAction({ nativeEvent }: AccessibilityActionEvent) {
+    if (nativeEvent.actionName === "delete") {
+      onDelete?.();
+    }
+  }
+
   return (
-    <AppListRow
-      icon={icon}
-      iconTone={tone === "positive" ? "positive" : "neutral"}
-      title={label}
-      amount={signed}
-      amountTone={tone}
-      accessory={onPress ? "trash-2" : undefined}
-      onPress={onPress}
-      accessibilityLabel={`${label}, ${signed}, ${dateLabel}`}
-      accessibilityHint={onPress ? "Deletes this payment" : undefined}
-    />
+    <SwipeDeleteRow onDelete={onDelete}>
+      <AppListRow
+        icon={icon}
+        iconTone={tone === "positive" ? "positive" : "neutral"}
+        title={label}
+        amount={signed}
+        amountTone={tone}
+        accessibilityLabel={`${label}, ${signed}, ${dateLabel}`}
+        accessibilityActions={onDelete ? [{ name: "delete", label: "Delete" }] : undefined}
+        onAccessibilityAction={onDelete ? handleAccessibilityAction : undefined}
+      />
+    </SwipeDeleteRow>
   );
 }

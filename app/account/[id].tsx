@@ -95,14 +95,16 @@ export default function AccountDetailScreen() {
     return orderBy(bills, "dueDate", "asc")[0];
   }, [accounts.getCardBills, id, isCredit]);
 
-  function openTransfer() {
+  function openPayOrTransfer() {
     if (!account) {
       return;
     }
-    const params = openBill
-      ? { accountId: account.id, amount: openBill.remaining.toFixed(2) }
-      : { accountId: account.id };
-    router.push({ pathname: "/transfer", params });
+    if (!isCredit) {
+      router.push({ pathname: "/transfer", params: { accountId: account.id } });
+      return;
+    }
+    const params = openBill ? { id: account.id, amount: openBill.remaining.toFixed(2) } : { id: account.id };
+    router.push({ pathname: "/account/pay", params });
   }
 
   const sections = useMemo(() => {
@@ -127,7 +129,7 @@ export default function AccountDetailScreen() {
       adjustRef.current?.present();
     }
     if (action === "transfer" && canTransfer) {
-      openTransfer();
+      openPayOrTransfer();
     }
   }, [account, action, canTransfer, isArchived]);
 
@@ -216,7 +218,7 @@ export default function AccountDetailScreen() {
                   <ActionButton
                     icon={isCredit ? "credit-card" : "repeat"}
                     label={isCredit ? "Pay" : "Transfer"}
-                    onPress={openTransfer}
+                    onPress={openPayOrTransfer}
                     disabled={!canTransfer}
                   />
                 </>

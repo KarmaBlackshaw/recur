@@ -40,15 +40,13 @@ name: Card bill — Charged badge, overdue bill, override, partial + full paymen
 - assertVisible: "BPI Gold bill, ₱549.00 estimated, due .*, overdue"
 - assertNotVisible: "Use estimate"
 
-# Pay bill → TransferSheet prefilled with remaining; pay partial
+# Pay bill → card pay page prefilled with remaining; pay partial
 - tapOn: "Pay bill"
 - extendedWaitUntil:
-    visible: "From"
+    visible: "Pay from"
     timeout: 5000
+- assertVisible: "BPI Gold, credit card, owed ₱549.00.*"
 - assertVisible: "549.00"
-- assertVisible:
-    text: "BPI Gold, ₱549.00"
-    selected: true
 - tapOn:
     text: "Amount.*"
     index: 1
@@ -56,7 +54,7 @@ name: Card bill — Charged badge, overdue bill, override, partial + full paymen
 - inputText: "200"
 - hideKeyboard
 - tapOn:
-    text: "Transfer"
+    text: "Pay bill"
     index: 1
 - assertVisible: "BPI Gold bill, ₱549.00 estimated, due .*, overdue, ₱349.00 left"
 - assertVisible: "₱349.00 left"
@@ -69,11 +67,11 @@ name: Card bill — Charged badge, overdue bill, override, partial + full paymen
 - tapOn: "BPI Gold bill,.*"
 - tapOn: "Pay bill"
 - extendedWaitUntil:
-    visible: "From"
+    visible: "Pay from"
     timeout: 5000
 - assertVisible: "349.00"
 - tapOn:
-    text: "Transfer"
+    text: "Pay bill"
     index: 1
 - assertNotVisible: "BPI Gold bill,.*"
 - assertNotVisible: "OVERDUE · .*"

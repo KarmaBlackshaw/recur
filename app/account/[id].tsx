@@ -11,12 +11,20 @@ import { AppLabel } from "@/components/ui/AppLabel";
 import { TransactionRow } from "@/components/accounts/TransactionRow";
 import { AdjustBalanceSheet, type AdjustBalanceSheetRef } from "@/components/accounts/AdjustBalanceSheet";
 import { AccountCard } from "@/components/accounts/AccountCard";
+import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
+import { isBillTbd } from "@/utils/cardBills";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { OverdraftError } from "@/utils/accounts/OverdraftError";
-import { ACCOUNT_TYPE_LABEL, type Account, type AccountTransaction, type FeatherIconName } from "@/types";
+import {
+  ACCOUNT_TYPE_LABEL,
+  type Account,
+  type AccountTransaction,
+  type CardBill,
+  type FeatherIconName,
+} from "@/types";
 
 function ActionButton({ icon, label, onPress, disabled }: {
   icon: FeatherIconName;
@@ -40,18 +48,61 @@ function ActionButton({ icon, label, onPress, disabled }: {
   );
 }
 
-function DetailRow({ label, value, isAlert }: { label: string; value: string; isAlert?: boolean }) {
+function DetailRow({ label, value, isAlert, onPress }: {
+  label: string;
+  value: string;
+  isAlert?: boolean;
+  onPress?: () => void;
+}) {
+  const valueText = (
+    <AppText variant="body-bold" className={`text-sm ${isAlert ? "text-overdue" : "text-white"}`}>{value}</AppText>
+  );
+  if (!onPress) {
+    return (
+      <View className="flex-row justify-between py-1.5">
+        <AppText variant="meta">{label}</AppText>
+        {valueText}
+      </View>
+    );
+  }
   return (
-    <View className="flex-row justify-between py-1.5">
+    <TouchableOpacity
+      className="flex-row items-center justify-between py-1.5"
+      onPress={onPress}
+      activeOpacity={0.7}
+      hitSlop={{ top: 6, bottom: 6 }}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${value}`}
+      accessibilityHint="Opens the bill"
+    >
       <AppText variant="meta">{label}</AppText>
-      <AppText variant="body-bold" className={`text-sm ${isAlert ? "text-overdue" : "text-white"}`}>{value}</AppText>
-    </View>
+      <View className="flex-row items-center gap-1">
+        {valueText}
+        <Feather name="chevron-right" size={16} color={colors.textMuted} />
+      </View>
+    </TouchableOpacity>
   );
 }
 
-function CreditDetails({ account, balance }: { account: Account; balance: number }) {
+function billState(bill: CardBill) {
+  if (isBillTbd(bill)) {
+    return "TBD";
+  }
+  if (bill.isPaid && bill.amount > 0) {
+    return "Paid";
+  }
+  return bill.paid > 0 ? `${formatAmount(bill.remaining)} left` : formatAmount(bill.remaining);
+}
+
+function CreditDetails({ account, balance, dueBill, onDueBillPress }: {
+  account: Account;
+  balance: number;
+  dueBill?: CardBill;
+  onDueBillPress: () => void;
+}) {
   const available = account.creditLimit != null ? account.creditLimit - balance : null;
   const isActive = account.archivedAt == null;
+  const dueDate = account.dueDay != null ? dayjs(nextOccurrence(account.dueDay)).format("MMM D") : "";
 
   return (
     <View className="mx-5 mb-4 rounded-2xl px-4 py-2 bg-surface border border-border">
@@ -67,7 +118,12 @@ function CreditDetails({ account, balance }: { account: Account; balance: number
         <DetailRow label="Next cut-off" value={dayjs(nextOccurrence(account.statementDay)).format("MMM D")} />
       )}
       {account.dueDay != null && isActive && (
-        <DetailRow label="Payment due" value={dayjs(nextOccurrence(account.dueDay)).format("MMM D")} />
+        // Opens the bill from here too, so one set from Home (even to ₱0, which hides it there) stays editable.
+        <DetailRow
+          label="Payment due"
+          value={dueBill ? `${dueDate} · ${billState(dueBill)}` : dueDate}
+          onPress={dueBill ? onDueBillPress : undefined}
+        />
       )}
     </View>
   );
@@ -80,6 +136,7 @@ export default function AccountDetailScreen() {
   const account = accounts.accounts.find((a) => a.id === id);
   const isArchived = account?.archivedAt != null;
   const adjustRef = useRef<AdjustBalanceSheetRef>(null);
+  const billSheetRef = useRef<CardBillSheetRef>(null);
   const hasPresentedAction = useRef(false);
   const isCredit = account?.type === "credit";
   const canTransfer =
@@ -95,6 +152,15 @@ export default function AccountDetailScreen() {
       .filter((b) => b.account.id === id && !b.isPaid && b.remaining > 0);
     return orderBy(bills, "dueDate", "asc")[0];
   }, [accounts.getCardBills, id, isCredit]);
+
+  const dueDay = account?.dueDay;
+  const dueBill = useMemo(() => {
+    if (!isCredit || isArchived || dueDay == null) {
+      return undefined;
+    }
+    const due = dayjs(nextOccurrence(dueDay));
+    return accounts.getCardBills(due.year(), due.month()).find((b) => b.account.id === id);
+  }, [accounts.getCardBills, dueDay, id, isArchived, isCredit]);
 
   function openPayOrTransfer() {
     if (!account) {
@@ -203,7 +269,14 @@ export default function AccountDetailScreen() {
             <View className="flex-row px-5 mb-4">
               <AccountCard account={account} isStatic />
             </View>
-            {account.type === "credit" && <CreditDetails account={account} balance={accounts.getBalance(account.id)} />}
+            {account.type === "credit" && (
+              <CreditDetails
+                account={account}
+                balance={accounts.getBalance(account.id)}
+                dueBill={dueBill}
+                onDueBillPress={() => dueBill && billSheetRef.current?.present(dueBill)}
+              />
+            )}
             {isArchived && (
               <AppText variant="meta" className="px-5 mb-3">
                 Archived: it no longer shows up when you pick an account, and it has no bills or interest. Its
@@ -258,6 +331,7 @@ export default function AccountDetailScreen() {
       />
 
       <AdjustBalanceSheet ref={adjustRef} account={account} />
+      <CardBillSheet ref={billSheetRef} />
     </SafeAreaView>
   );
 }

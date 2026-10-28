@@ -12,7 +12,8 @@ export function LoanActivityRow({ entry }: { entry: LoanActivityEntry }) {
   const borrower = loan?.borrower;
   const title = borrower == null ? "Loan" : isRepayment ? `${borrower} repaid` : `Lent to ${borrower}`;
   const signed = `${isRepayment ? "+" : "−"}${formatAmount(amount)}`;
-  const meta = accounts.accounts.find(({ id }) => id === loanTxn.accountId)?.name ?? "Deleted account";
+  const accountName = accounts.accounts.find(({ id }) => id === loanTxn.accountId)?.name ?? "Deleted account";
+  const meta = [accountName, loan?.note].filter(Boolean).join(" · ");
 
   return (
     <AppListRow

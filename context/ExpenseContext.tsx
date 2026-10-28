@@ -316,7 +316,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         console.error("Failed to sync one-off payment, reverting expense", err);
         await expensesDB.update(id, existing);
         dispatch({ type: "UPDATE", payload: existing });
-        return;
+        throw err;
       }
     }
   );
@@ -456,7 +456,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           console.error("Failed to sync payment, reverting status", err);
           await expensesDB.updateStatus(id, expense.status);
           dispatch({ type: "UPDATE", payload: expense });
-          return;
+          throw err;
         }
       } else {
         const k = monthKey(id, year, month);
@@ -486,7 +486,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
           console.error("Failed to sync payment, reverting status", err);
           await writeMonth(id, year, month, previous);
-          return;
+          throw err;
         }
       }
     }

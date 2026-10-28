@@ -16,6 +16,7 @@ import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 import type { AccountTransaction } from "@/types";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
@@ -30,7 +31,8 @@ interface IncomeFormValues {
 
 export default function AddIncomeScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { accounts, activeAccounts, transactions, isLoading, addIncome, updateIncome, deleteIncome } = useAccounts();
+  const { accounts, activeAccounts, transactions, isLoading, overdraftError, addIncome, updateIncome, deleteIncome } =
+    useAccounts();
   const incomes = transactions.filter((t) => t.kind === "income");
   const editingIncome = id ? incomes.find((t) => t.id === id) : undefined;
   const isEditing = editingIncome != null;
@@ -70,6 +72,8 @@ export default function AddIncomeScreen() {
     control,
     handleSubmit,
     reset,
+    getValues,
+    trigger,
     formState: { isValid, isSubmitting, errors },
   } = useForm<IncomeFormValues>({
     mode: "onChange",
@@ -101,7 +105,7 @@ export default function AddIncomeScreen() {
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Save failed", "Something went wrong. Please try again.");
+      Alert.alert("Save failed", error instanceof OverdraftError ? error.message : "Something went wrong. Please try again.");
     }
   });
 
@@ -120,7 +124,10 @@ export default function AddIncomeScreen() {
             router.back();
           } catch (error) {
             console.error(error);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            Alert.alert(
+              "Delete failed",
+              error instanceof OverdraftError ? error.message : "Something went wrong. Please try again."
+            );
           }
         },
       },
@@ -199,7 +206,13 @@ export default function AddIncomeScreen() {
             required: true,
             validate: (v) => {
               const n = parseFloat(v);
-              return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
+              if (isNaN(n) || n < 0.01) {
+                return "Must be ≥ 0.01";
+              }
+              if (!isEditing) {
+                return true;
+              }
+              return overdraftError([{ accountId: getValues("accountId"), amount: n }], (t) => t.id === id)?.message ?? true;
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
@@ -313,7 +326,12 @@ export default function AddIncomeScreen() {
             title="Deposit to"
             options={depositAccounts}
             value={value}
-            onChange={onChange}
+            onChange={(accountId) => {
+              onChange(accountId);
+              if (getValues("amount")) {
+                trigger("amount");
+              }
+            }}
           />
         )}
       />

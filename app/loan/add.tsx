@@ -22,6 +22,7 @@ import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { sanitizeAmount } from "@/utils/amountInput";
 import { formatAmount } from "@/utils/dateHelpers";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
@@ -183,7 +184,7 @@ export default function AddLoanScreen() {
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Save failed", "Something went wrong. Please try again.");
+      Alert.alert("Save failed", error instanceof OverdraftError ? error.message : "Something went wrong. Please try again.");
     }
   });
 
@@ -208,7 +209,10 @@ export default function AddLoanScreen() {
             router.dismissTo("/loans");
           } catch (error) {
             console.error(error);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            Alert.alert(
+              "Delete failed",
+              error instanceof OverdraftError ? error.message : "Something went wrong. Please try again."
+            );
           }
         },
       },
@@ -304,7 +308,15 @@ export default function AddLoanScreen() {
             required: true,
             validate: (v) => {
               const n = parseFloat(v);
-              return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
+              if (isNaN(n) || n < 0.01) {
+                return "Must be ≥ 0.01";
+              }
+              return (
+                accounts.overdraftError(
+                  [{ accountId: getValues("accountId"), amount: -n }],
+                  isEditing ? (t) => t.loanId === id && t.kind === "loan_out" : undefined
+                )?.message ?? true
+              );
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
@@ -485,7 +497,12 @@ export default function AddLoanScreen() {
             title="From account"
             options={depositAccounts}
             value={value}
-            onChange={onChange}
+            onChange={(accountId) => {
+              onChange(accountId);
+              if (getValues("amount")) {
+                trigger("amount");
+              }
+            }}
           />
         )}
       />

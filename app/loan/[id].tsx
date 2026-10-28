@@ -16,6 +16,7 @@ import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
 import { formatLoanAge } from "@/utils/loans/formatLoanAge";
 import { formatLoanInterest } from "@/utils/loans/formatLoanInterest";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { AccountTransaction } from "@/types";
 
@@ -89,7 +90,7 @@ export default function LoanDetailScreen() {
             await loans.deletePayment(txn.id);
           } catch (e) {
             console.error("Delete payment failed", e);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            Alert.alert("Delete failed", e instanceof OverdraftError ? e.message : "Something went wrong. Please try again.");
           }
         },
       },

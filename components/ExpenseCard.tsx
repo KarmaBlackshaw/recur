@@ -16,6 +16,7 @@ import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { OverdraftError } from "@/utils/accounts/OverdraftError";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import { colors } from "@/constants/theme";
 import type { Expense } from "@/types";
 
@@ -92,11 +93,7 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
       await toggleMonthStatus(expense.id, year, month);
     } catch (e) {
       console.error("Failed to update paid status", e);
-      if (e instanceof OverdraftError) {
-        Alert.alert("Can't mark paid", e.message);
-      } else {
-        Alert.alert("Update failed", "Something went wrong. Please try again.");
-      }
+      alertFailure(e instanceof OverdraftError ? "Can't mark paid" : "Update failed", e);
     }
   }
 

@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from "react";
-import { Alert, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import Feather from "@expo/vector-icons/Feather";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { AccountCard } from "@/components/accounts/AccountCard";
+import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { AppLabel } from "@/components/ui/AppLabel";
@@ -15,7 +16,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { useAccounts } from "@/context/AccountContext";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
-import { OverdraftError } from "@/utils/accounts/OverdraftError";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import type { Account } from "@/types";
 
 interface PayCardFormValues {
@@ -33,6 +34,7 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
     control,
     handleSubmit,
     trigger,
+    getValues,
     formState: { isValid, isSubmitting },
   } = useForm<PayCardFormValues>({
     mode: "onChange",
@@ -48,7 +50,12 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
   // A prefilled bill amount the source can't cover would otherwise disable Pay without saying why
   useEffect(() => {
     trigger("amount");
-  }, []);
+  }, [accounts.transactions]);
+
+  function amountOverdraft({ fromId, amount, fee }: PayCardFormValues) {
+    const total = parseFloat(amount) + (fee === "" ? 0 : parseFloat(fee) || 0);
+    return accounts.overdraftError([{ accountId: fromId, amount: -total }]);
+  }
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -65,7 +72,7 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
       router.back();
     } catch (e) {
       console.error("Card payment failed", e);
-      Alert.alert("Payment failed", e instanceof OverdraftError ? e.message : "Something went wrong. Please try again.");
+      alertFailure("Payment failed", e);
     }
   });
 
@@ -120,21 +127,26 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
               if (isNaN(n) || n < 0.01) {
                 return "Must be ≥ 0.01";
               }
-              const fee = values.fee === "" ? 0 : parseFloat(values.fee) || 0;
-              return accounts.overdraftError([{ accountId: values.fromId, amount: -(n + fee) }])?.message ?? true;
+              return amountOverdraft(values)?.message ?? true;
             },
           }}
-          render={({ field: { value, onChange, onBlur }, fieldState }) => (
-            <AppTextInput
-              label="Amount (₱)"
-              isAmount
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              error={value === "" ? undefined : fieldState.error?.message}
-            />
-          )}
+          render={({ field: { value, onChange, onBlur }, fieldState }) => {
+            const error = value === "" ? undefined : fieldState.error?.message;
+            return (
+              <>
+                <AppTextInput
+                  label="Amount (₱)"
+                  isAmount
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="0.00"
+                  error={error}
+                />
+                <TransferInButton fieldError={error} overdraft={amountOverdraft({ ...getValues(), amount: value })} />
+              </>
+            );
+          }}
         />
         <Controller
           control={control}

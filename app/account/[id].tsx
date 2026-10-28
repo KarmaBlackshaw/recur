@@ -17,6 +17,7 @@ import { colors } from "@/constants/theme";
 import { isBillTbd } from "@/utils/cardBills";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
 import { useRefreshControl } from "@/utils/useRefreshControl";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 import {
   ACCOUNT_TYPE_LABEL,
   type Account,
@@ -226,7 +227,7 @@ export default function AccountDetailScreen() {
             await accounts.deleteTransfer(transferId);
           } catch (e) {
             console.error("Delete transfer failed", e);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            Alert.alert("Delete failed", e instanceof OverdraftError ? e.message : "Something went wrong. Please try again.");
           }
         },
       },

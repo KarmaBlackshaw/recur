@@ -16,6 +16,7 @@ import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
 import { formatLoanAge } from "@/utils/loans/formatLoanAge";
 import { formatLoanInterest } from "@/utils/loans/formatLoanInterest";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { AccountTransaction } from "@/types";
 
@@ -89,7 +90,7 @@ export default function LoanDetailScreen() {
             await loans.deletePayment(txn.id);
           } catch (e) {
             console.error("Delete payment failed", e);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            Alert.alert("Delete failed", e instanceof OverdraftError ? e.message : "Something went wrong. Please try again.");
           }
         },
       },
@@ -133,7 +134,9 @@ export default function LoanDetailScreen() {
 
   const heroAmount = summary.isSettled ? summary.paidTotal : summary.balance;
   const interestLabel = formatLoanInterest(loan.interest);
-  const heroA11yLabel = `${hero.overline} ${formatAmount(heroAmount)}. ${meta}. ${interestLabel}`;
+  const heroA11yLabel = [`${hero.overline} ${formatAmount(heroAmount)}`, meta, interestLabel, loan.note]
+    .filter(Boolean)
+    .join(". ");
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -184,6 +187,7 @@ export default function LoanDetailScreen() {
               </Text>
               <AppText variant="meta" className="mt-1">{meta}</AppText>
               <AppText variant="meta">{interestLabel}</AppText>
+              {loan.note ? <AppText className="mt-2">{loan.note}</AppText> : null}
             </View>
             <StatRow label="Interest so far" value={formatAmount(summary.interestTotal)} />
             <StatRow label="Paid so far" value={formatAmount(summary.paidTotal)} />

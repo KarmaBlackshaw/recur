@@ -16,6 +16,7 @@ import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 import type { Account } from "@/types";
 
 interface TransferFormValues {
@@ -200,7 +201,7 @@ export default function TransferScreen() {
       router.back();
     } catch (e) {
       console.error("Transfer failed", e);
-      Alert.alert("Transfer failed", "Something went wrong. Please try again.");
+      Alert.alert("Transfer failed", e instanceof OverdraftError ? e.message : "Something went wrong. Please try again.");
     }
   });
 
@@ -234,7 +235,7 @@ export default function TransferScreen() {
           <Controller
             control={control}
             name="fromId"
-            rules={{ required: true }}
+            rules={{ required: true, deps: "amount" }}
             render={({ field: { value, onChange } }) => (
               <AccountField
                 label="From"
@@ -280,9 +281,19 @@ export default function TransferScreen() {
           control={control}
           name="amount"
           rules={{
-            validate: (v) => {
+            validate: (v, values) => {
               const n = parseFloat(v);
-              return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
+              if (isNaN(n) || n < 0.01) {
+                return "Must be ≥ 0.01";
+              }
+              const fee = parseOptionalAmount(values.fee) || 0;
+              const income = parseOptionalAmount(values.income) || 0;
+              return (
+                accounts.overdraftError([
+                  { accountId: values.fromId, amount: -(n + fee) },
+                  { accountId: values.incomeAccountId || values.toId, amount: income },
+                ])?.message ?? true
+              );
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
@@ -300,7 +311,7 @@ export default function TransferScreen() {
         <Controller
           control={control}
           name="fee"
-          rules={{ validate: validateOptionalAmount }}
+          rules={{ validate: validateOptionalAmount, deps: "amount" }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
             <AppTextInput
               label="Transfer fee (₱)"
@@ -325,7 +336,7 @@ export default function TransferScreen() {
             <Controller
               control={control}
               name="income"
-              rules={{ validate: validateOptionalAmount }}
+              rules={{ validate: validateOptionalAmount, deps: "amount" }}
               render={({ field: { value, onChange, onBlur }, fieldState }) => (
                 <AppTextInput
                   label="Amount earned (₱)"
@@ -346,6 +357,7 @@ export default function TransferScreen() {
             <Controller
               control={control}
               name="incomeAccountId"
+              rules={{ deps: "amount" }}
               render={({ field: { value, onChange } }) => (
                 <AccountField
                   label="Deposit to"

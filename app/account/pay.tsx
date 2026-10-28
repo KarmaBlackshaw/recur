@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -15,6 +15,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { useAccounts } from "@/context/AccountContext";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 import type { Account } from "@/types";
 
 interface PayCardFormValues {
@@ -31,6 +32,7 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
   const {
     control,
     handleSubmit,
+    trigger,
     formState: { isValid, isSubmitting },
   } = useForm<PayCardFormValues>({
     mode: "onChange",
@@ -42,6 +44,11 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
       note: "",
     },
   });
+
+  // A prefilled bill amount the source can't cover would otherwise disable Pay without saying why
+  useEffect(() => {
+    trigger("amount");
+  }, []);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -58,7 +65,7 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
       router.back();
     } catch (e) {
       console.error("Card payment failed", e);
-      Alert.alert("Payment failed", "Something went wrong. Please try again.");
+      Alert.alert("Payment failed", e instanceof OverdraftError ? e.message : "Something went wrong. Please try again.");
     }
   });
 
@@ -77,7 +84,7 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
         <Controller
           control={control}
           name="fromId"
-          rules={{ required: true }}
+          rules={{ required: true, deps: "amount" }}
           render={({ field: { value } }) => {
             const source = sources.find((a) => a.id === value);
             return (
@@ -108,9 +115,13 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
           control={control}
           name="amount"
           rules={{
-            validate: (v) => {
+            validate: (v, values) => {
               const n = parseFloat(v);
-              return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
+              if (isNaN(n) || n < 0.01) {
+                return "Must be ≥ 0.01";
+              }
+              const fee = values.fee === "" ? 0 : parseFloat(values.fee) || 0;
+              return accounts.overdraftError([{ accountId: values.fromId, amount: -(n + fee) }])?.message ?? true;
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
@@ -129,6 +140,7 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
           control={control}
           name="fee"
           rules={{
+            deps: "amount",
             validate: (v) => {
               if (v === "") {
                 return true;

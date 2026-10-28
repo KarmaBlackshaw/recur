@@ -13,7 +13,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { useExpenses } from "@/context/ExpenseContext";
 import { CategoryBottomSheet, CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
 import { AccountPickerSheet, AccountPickerSheetRef } from "@/components/AccountPickerSheet";
-import { useAccounts } from "@/context/AccountContext";
+import { isPaymentFor, useAccounts } from "@/context/AccountContext";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { AppText } from "@/components/ui/AppText";
@@ -24,6 +24,7 @@ import { AppCheckRow } from "@/components/ui/AppCheckRow";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { getDueDateForMonth } from "@/utils/dateHelpers";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 import type { Expense, Recurrence, ExpenseFormValues } from "@/types";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
@@ -67,7 +68,7 @@ export default function AddExpenseScreen() {
   const lastUsedCategory = maxBy(expenses, "createdAt")?.category ?? "Other";
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
-  const { accounts, activeAccounts, isLoading: isAccountsLoading } = useAccounts();
+  const { accounts, activeAccounts, transactions, overdraftError, isLoading: isAccountsLoading } = useAccounts();
   const lastUsedAccountId = maxBy(
     expenses.filter((e) => activeAccounts.some((a) => a.id === e.accountId)),
     "createdAt"
@@ -118,6 +119,25 @@ export default function AddExpenseScreen() {
     ? undefined
     : accounts.find((a) => a.id === accountIdWatched && a.type === "credit");
   const isVariableAmount = !!payCard || isVariableWatched;
+
+  function amountOverdraft(amount: string) {
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount)) {
+      return undefined;
+    }
+    if (isRegular) {
+      return overdraftError(
+        [{ accountId: getValues("accountId"), amount: -parsedAmount }],
+        editingExpense ? isPaymentFor(editingExpense.id, null, null) : undefined
+      );
+    }
+    if (!editingExpense || !isVariableAmount) {
+      return undefined;
+    }
+    const isPaidCycle = isPaymentFor(editingExpense.id, currentYear, currentMonth);
+    const payment = transactions.find(isPaidCycle);
+    return payment && overdraftError([{ accountId: payment.accountId, amount: -parsedAmount }], isPaidCycle);
+  }
   // Ends can't be before this month (or before the plan starts).
   const earliestEnd = dayjs(
     Math.max(new Date(now.getFullYear(), now.getMonth(), 1).getTime(), dayjs(startDateWatched).startOf("month").valueOf())
@@ -163,6 +183,12 @@ export default function AddExpenseScreen() {
     }
   }, [editingExpense?.id]);
 
+  React.useEffect(() => {
+    if (getValues("amount") !== "") {
+      trigger("amount");
+    }
+  }, [accountIdWatched, isVariableAmount]);
+
   const onSubmit = handleSubmit(async (data) => {
     const isVar = isRegular ? false : !!payCard || data.isVariable;
     const parsedAmount = data.amount.trim() !== "" ? parseFloat(data.amount) : null;
@@ -204,8 +230,8 @@ export default function AddExpenseScreen() {
       }
       reset();
       router.back();
-    } catch {
-      Alert.alert("Save failed", "Something went wrong. Please try again.");
+    } catch (e) {
+      Alert.alert("Save failed", e instanceof OverdraftError ? e.message : "Something went wrong. Please try again.");
     }
   });
 
@@ -311,15 +337,17 @@ export default function AddExpenseScreen() {
           name="amount"
           rules={{
             validate: (v) => {
-              if (isVariableAmount) {
-                return true;
+              if (!isVariableAmount) {
+                if (v === "" || v === undefined) {
+                  // A regular expense is money already spent, so it needs an amount.
+                  return isRegular ? "Enter an amount" : true;
+                }
+                const n = parseFloat(v);
+                if (isNaN(n) || n < 0.01) {
+                  return "Must be ≥ 0.01";
+                }
               }
-              if (v === "" || v === undefined) {
-                // A regular expense is money already spent, so it needs an amount.
-                return isRegular ? "Enter an amount" : true;
-              }
-              const n = parseFloat(v);
-              return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
+              return amountOverdraft(v)?.message ?? true;
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (

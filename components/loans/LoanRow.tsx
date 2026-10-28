@@ -15,21 +15,22 @@ interface Props {
 }
 
 export function LoanRow({ loan, summary, accountName, today, onPress }: Props) {
-  const { borrower, lentAt, interest } = loan;
+  const { borrower, lentAt, interest, note } = loan;
   const { isSettled, balance, paidTotal, settledAt } = summary;
   const age = formatLoanAge(lentAt, isSettled ? (settledAt ?? today) : today);
   const meta = isSettled ? "Settled" : `${accountName ?? "Deleted account"} · ${formatLoanInterest(interest)}`;
   const caption = isSettled ? `ran ${age}` : age;
   const amount = formatAmount(isSettled ? paidTotal : balance);
+  const name = note ? `${borrower}, ${note}` : borrower;
   const label = isSettled
-    ? `${borrower}, settled, paid ${amount} over ${age}`
-    : `${borrower}, owes ${amount}, ${age}`;
+    ? `${name}, settled, paid ${amount} over ${age}`
+    : `${name}, owes ${amount}, ${age}`;
 
   return (
     <AppListRow
       icon="user"
       iconTone="accent"
-      title={borrower}
+      title={note || borrower}
       meta={meta}
       amount={amount}
       amountTone={isSettled ? "positive" : "neutral"}

@@ -170,6 +170,7 @@ export default function TransferScreen() {
     watch,
     setValue,
     getValues,
+    trigger,
     formState: { isValid, isSubmitting },
   } = useForm<TransferFormValues>({
     mode: "onChange",
@@ -188,7 +189,11 @@ export default function TransferScreen() {
 
   React.useEffect(() => {
     if (!accounts.isLoading) {
-      reset(toFormValues());
+      // A plain reset drops the field rules, so the trigger below would validate nothing
+      reset(toFormValues(), { keepFieldsRef: true });
+      if (amount) {
+        trigger("amount");
+      }
     }
   }, [accounts.isLoading]);
 

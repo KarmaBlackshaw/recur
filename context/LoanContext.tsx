@@ -191,6 +191,11 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     if (!candidate.isValid) {
       throw new Error("Payment exceeds what's owed");
     }
+    // A smaller repayment, or one moved to another account, lowers the account it was paid into.
+    const error = accounts.overdraftError([{ accountId: p.accountId, amount }], (t) => t.id === txnId);
+    if (error) {
+      throw error;
+    }
     await updateLoanPayment(txnId, { accountId: p.accountId, amount, paidAt: p.paidAt });
     await accounts.reload();
   });

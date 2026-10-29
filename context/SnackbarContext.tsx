@@ -1,8 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Alert, TouchableOpacity, View } from "react-native";
+import { AccessibilityInfo, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, FadeOutDown, useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText } from "@/components/ui/AppText";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 
 const VISIBLE_MS = 5000;
 // Clears the floating tab bar (its bottom inset + 12dp gap + ~60dp bar) with room to spare.
@@ -54,7 +55,7 @@ export function SnackbarProvider({ children }: { children: React.ReactNode }) {
       await onAction();
     } catch (e) {
       console.error("Snackbar action failed", e);
-      Alert.alert("That didn't work", "Something went wrong. Please try again.");
+      alertFailure("That didn't work", e);
     }
   }
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -16,6 +16,8 @@ import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppSelectField } from "@/components/ui/AppSelectField";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { TransferInButton } from "@/components/accounts/TransferInButton";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
@@ -62,7 +64,7 @@ interface FormProps {
 function PaymentForm({ choices, payment }: FormProps) {
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const loans = useLoans();
-  const { accounts, activeAccounts } = useAccounts();
+  const { accounts, activeAccounts, transactions, overdraftError } = useAccounts();
   const depositAccounts = activeAccounts.filter((a) => a.type !== "credit");
   const isEditing = payment != null;
   const today = dayjs().format("YYYY-MM-DD");
@@ -85,6 +87,7 @@ function PaymentForm({ choices, payment }: FormProps) {
     handleSubmit,
     getValues,
     setValue,
+    trigger,
     watch,
     formState: { isValid, isSubmitting, isDirty },
   } = useForm<FormValues>({
@@ -112,6 +115,24 @@ function PaymentForm({ choices, payment }: FormProps) {
     [loan, paidAt, today, loans.paymentsOf]
   );
 
+  // Re-check when balances change, so a transfer in clears the error.
+  useEffect(() => {
+    if (getValues("amount")) {
+      trigger("amount");
+    }
+  }, [transactions]);
+
+  // Only an edit can lower a balance: a smaller repayment, or one moved to another account.
+  function amountOverdraft(amount: string) {
+    if (!payment) {
+      return undefined;
+    }
+    return overdraftError(
+      [{ accountId: getValues("accountId"), amount: parseFloat(amount) }],
+      (t) => t.id === payment.id
+    );
+  }
+
   function validateAmount(value: string, values: FormValues) {
     const parsed = parseFloat(value);
     if (isNaN(parsed) || parsed < 0.01) {
@@ -125,7 +146,7 @@ function PaymentForm({ choices, payment }: FormProps) {
       today,
     });
     if (next.isValid) {
-      return true;
+      return amountOverdraft(value)?.message ?? true;
     }
     const most = formatAmount(maxPaymentOn(target, others, values.paidAt, today));
     const date = dayjs(values.paidAt);
@@ -173,7 +194,7 @@ function PaymentForm({ choices, payment }: FormProps) {
       router.back();
     } catch (e) {
       console.error(isEditing ? "Update payment failed" : "Record payment failed", e);
-      Alert.alert(isEditing ? "Save failed" : "Payment failed", "Something went wrong. Please try again.");
+      alertFailure(isEditing ? "Save failed" : "Payment failed", e);
     }
   });
 
@@ -193,7 +214,7 @@ function PaymentForm({ choices, payment }: FormProps) {
             router.back();
           } catch (e) {
             console.error("Delete payment failed", e);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            alertFailure("Delete failed", e);
           }
         },
       },
@@ -238,16 +259,19 @@ function PaymentForm({ choices, payment }: FormProps) {
           name="amount"
           rules={{ validate: validateAmount }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
-            <AppTextInput
-              autoFocus={!isEditing}
-              label="Amount (₱)"
-              isAmount
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              error={fieldState.isTouched ? fieldState.error?.message : undefined}
-            />
+            <>
+              <AppTextInput
+                autoFocus={!isEditing}
+                label="Amount (₱)"
+                isAmount
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="0.00"
+                error={fieldState.isTouched || amountOverdraft(value) ? fieldState.error?.message : undefined}
+              />
+              <TransferInButton fieldError={fieldState.error?.message} overdraft={amountOverdraft(value)} />
+            </>
           )}
         />
         {max >= 0.01 && (
@@ -314,7 +338,10 @@ function PaymentForm({ choices, payment }: FormProps) {
             title="Paid into"
             options={depositAccounts}
             value={value}
-            onChange={onChange}
+            onChange={(accountId) => {
+              onChange(accountId);
+              revalidateAmount();
+            }}
           />
         )}
       />

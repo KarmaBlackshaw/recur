@@ -21,7 +21,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
-import { OverdraftError } from "@/utils/accounts/OverdraftError";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import type { Account, AccountTransaction, TransferInput } from "@/types";
 
 interface TransferFormValues {
@@ -289,10 +289,7 @@ export default function TransferScreen() {
       router.back();
     } catch (e) {
       console.error(isEditing ? "Update transfer failed" : "Transfer failed", e);
-      Alert.alert(
-        isEditing ? "Save failed" : "Transfer failed",
-        e instanceof OverdraftError ? e.message : "Something went wrong. Please try again."
-      );
+      alertFailure(isEditing ? "Save failed" : "Transfer failed", e);
     }
   });
 
@@ -319,7 +316,7 @@ export default function TransferScreen() {
             } catch (e) {
               setIsDeleting(false);
               console.error("Delete transfer failed", e);
-              Alert.alert("Delete failed", "Something went wrong. Please try again.");
+              alertFailure("Delete failed", e);
             }
           },
         },

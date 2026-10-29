@@ -465,19 +465,26 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
   const restoreMonth = useMemoizedFn(
     async (expense: Expense, year: number, month: number, previous: MonthState, previousTxn?: AccountTransaction) => {
+      const current = monthStateOf(expense.id, year, month);
       await writeMonth(expense.id, year, month, previous);
-      if (previousTxn) {
-        await accounts.syncPayment({
-          expenseId: expense.id,
-          accountId: previousTxn.accountId,
-          cycleYear: year,
-          cycleMonth: month,
-          amount: Math.abs(previousTxn.amount),
-          note: previousTxn.note ?? paymentNote(expense),
-          createdAt: previousTxn.createdAt,
-        });
-      } else {
-        await accounts.removePayment(expense.id, year, month);
+      try {
+        if (previousTxn) {
+          await accounts.syncPayment({
+            expenseId: expense.id,
+            accountId: previousTxn.accountId,
+            cycleYear: year,
+            cycleMonth: month,
+            amount: Math.abs(previousTxn.amount),
+            note: previousTxn.note ?? paymentNote(expense),
+            createdAt: previousTxn.createdAt,
+          });
+        } else {
+          await accounts.removePayment(expense.id, year, month);
+        }
+      } catch (err) {
+        // Restoring a payment can overdraw its account; leave the month as it was.
+        await writeMonth(expense.id, year, month, current);
+        throw err;
       }
     }
   );

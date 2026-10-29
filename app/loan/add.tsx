@@ -81,7 +81,7 @@ function toLoanInput(values: LoanFormValues): LoanInput | undefined {
 }
 
 export default function AddLoanScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, borrower } = useLocalSearchParams<{ id?: string; borrower?: string }>();
   const loans = useLoans();
   const accounts = useAccounts();
   const editing = id ? loans.loans.find((l) => l.id === id) : undefined;
@@ -108,7 +108,7 @@ export default function AddLoanScreen() {
     }
     const lastAccountId = maxBy(loans.loans, "lentAt")?.accountId;
     return {
-      borrower: "",
+      borrower: borrower ?? "",
       amount: "",
       accountId: depositAccounts.find((a) => a.id === lastAccountId)?.id ?? CASH_ACCOUNT_ID,
       lentAt: dayjs().startOf("day").toISOString(),
@@ -296,7 +296,7 @@ export default function AddLoanScreen() {
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
             <AppCombobox
-              autoFocus={!isEditing}
+              autoFocus={!isEditing && !borrower}
               label="Borrower"
               items={borrowerNames}
               onPick={pickBorrower}
@@ -329,6 +329,7 @@ export default function AddLoanScreen() {
             <>
               <AppTextInput
                 ref={amountRef}
+                autoFocus={!isEditing && borrower != null}
                 label="Amount (₱)"
                 isAmount
                 value={value}

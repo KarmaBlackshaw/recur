@@ -24,7 +24,6 @@ import { colors } from "@/constants/theme";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { HomeBandSlot } from "@/types";
 
-const UPCOMING_LIMIT = 5;
 const NEXT_MONTH_LOOKAHEAD_DAYS = 7;
 const ACTIVITY_LIMIT = 10;
 // How many months back an unpaid due or card bill stays in Overdue after its own month has ended.
@@ -39,8 +38,7 @@ export default function HomeScreen() {
   const year = today.getFullYear();
   const month = today.getMonth();
 
-  // Unpaid recurring cycles, split by urgency. Overdue always shows in full;
-  // each Upcoming band lists its next UPCOMING_LIMIT dues but counts and totals the whole month.
+  // Unpaid recurring cycles, split by urgency.
   // Keyed per cycle: near month end the same expense can be due in both Upcoming months.
   const dueEntry = (e: (typeof expenses)[number], y: number, m: number): DayEntry => ({
     key: monthKey(e.id, y, m),
@@ -112,7 +110,7 @@ export default function HomeScreen() {
         label: monthStart.format("MMMM"),
         caption: `${remaining.length} left`,
         total: sumBy(remaining, "amount"),
-        data: sortBy(entries, "effDate").slice(0, UPCOMING_LIMIT),
+        data: sortBy(entries, "effDate"),
       };
     };
     return [band(dayjs(today), "current"), band(next, "next")].filter((b) => b.data.length > 0);

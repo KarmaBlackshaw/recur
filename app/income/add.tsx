@@ -8,6 +8,7 @@ import { Controller, useForm } from "react-hook-form";
 import Feather from "@expo/vector-icons/Feather";
 import { CategoryBottomSheet, CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
 import { AccountPickerSheet, AccountPickerSheetRef } from "@/components/AccountPickerSheet";
+import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { useAccounts } from "@/context/AccountContext";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
@@ -16,7 +17,7 @@ import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
-import { OverdraftError } from "@/utils/accounts/OverdraftError";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import type { AccountTransaction } from "@/types";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
@@ -86,6 +87,19 @@ export default function AddIncomeScreen() {
     }
   }, [isLoading, editingIncome?.id]);
 
+  React.useEffect(() => {
+    if (getValues("amount")) {
+      trigger("amount");
+    }
+  }, [transactions]);
+
+  function amountOverdraft(amount: string) {
+    if (!isEditing) {
+      return undefined;
+    }
+    return overdraftError([{ accountId: getValues("accountId"), amount: parseFloat(amount) }], (t) => t.id === id);
+  }
+
   const onSubmit = handleSubmit(async (data) => {
     const input = {
       accountId: data.accountId,
@@ -105,7 +119,7 @@ export default function AddIncomeScreen() {
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Save failed", error instanceof OverdraftError ? error.message : "Something went wrong. Please try again.");
+      alertFailure("Save failed", error);
     }
   });
 
@@ -124,10 +138,7 @@ export default function AddIncomeScreen() {
             router.back();
           } catch (error) {
             console.error(error);
-            Alert.alert(
-              "Delete failed",
-              error instanceof OverdraftError ? error.message : "Something went wrong. Please try again."
-            );
+            alertFailure("Delete failed", error);
           }
         },
       },
@@ -209,23 +220,23 @@ export default function AddIncomeScreen() {
               if (isNaN(n) || n < 0.01) {
                 return "Must be ≥ 0.01";
               }
-              if (!isEditing) {
-                return true;
-              }
-              return overdraftError([{ accountId: getValues("accountId"), amount: n }], (t) => t.id === id)?.message ?? true;
+              return amountOverdraft(v)?.message ?? true;
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
-            <AppTextInput
-              autoFocus
-              label="Amount (₱)"
-              isAmount
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              error={fieldState.error?.message}
-            />
+            <>
+              <AppTextInput
+                autoFocus
+                label="Amount (₱)"
+                isAmount
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="0.00"
+                error={fieldState.error?.message}
+              />
+              <TransferInButton fieldError={fieldState.error?.message} overdraft={amountOverdraft(value)} />
+            </>
           )}
         />
 

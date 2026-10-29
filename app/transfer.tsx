@@ -131,7 +131,7 @@ function IncomeCategoryField({ value, onChange }: IncomeCategoryFieldProps) {
 }
 
 export default function TransferScreen() {
-  const { accountId, amount } = useLocalSearchParams<{ accountId?: string; amount?: string }>();
+  const { accountId, toAccountId, amount } = useLocalSearchParams<{ accountId?: string; toAccountId?: string; amount?: string }>();
   const accounts = useAccounts();
   const sources = accounts.activeAccounts.filter((a) => a.type !== "credit");
   const [isIncomeOpen, setIsIncomeOpen] = useState(false);
@@ -139,8 +139,14 @@ export default function TransferScreen() {
   function toFormValues(): TransferFormValues {
     const account = accounts.accounts.find((a) => a.id === accountId);
     const isSource = account == null || account.type !== "credit";
-    const from = isSource ? account?.id ?? sources[0]?.id ?? "" : sources[0]?.id ?? "";
-    const to = isSource ? accounts.activeAccounts.find((a) => a.id !== from)?.id ?? "" : account.id;
+    const richestOther = maxBy(
+      sources.filter((a) => a.id !== toAccountId),
+      (a) => accounts.getBalance(a.id)
+    );
+    const from = toAccountId
+      ? richestOther?.id ?? ""
+      : isSource ? account?.id ?? sources[0]?.id ?? "" : sources[0]?.id ?? "";
+    const to = toAccountId ?? (isSource ? accounts.activeAccounts.find((a) => a.id !== from)?.id ?? "" : account.id);
     const lastTransferIncome = maxBy(
       accounts.transactions.filter((t) => t.kind === "income" && t.transferId != null),
       "createdAt"
@@ -164,6 +170,7 @@ export default function TransferScreen() {
     watch,
     setValue,
     getValues,
+    trigger,
     formState: { isValid, isSubmitting },
   } = useForm<TransferFormValues>({
     mode: "onChange",
@@ -182,7 +189,11 @@ export default function TransferScreen() {
 
   React.useEffect(() => {
     if (!accounts.isLoading) {
-      reset(toFormValues());
+      // A plain reset drops the field rules, so the trigger below would validate nothing
+      reset(toFormValues(), { keepFieldsRef: true });
+      if (amount) {
+        trigger("amount");
+      }
     }
   }, [accounts.isLoading]);
 

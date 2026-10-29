@@ -4,7 +4,6 @@ import { maxBy } from "@/utils/collections";
 import {
   View,
   TouchableOpacity,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -21,10 +20,11 @@ import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppCheckRow } from "@/components/ui/AppCheckRow";
+import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { getDueDateForMonth } from "@/utils/dateHelpers";
-import { OverdraftError } from "@/utils/accounts/OverdraftError";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import type { Expense, Recurrence, ExpenseFormValues } from "@/types";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
@@ -187,7 +187,7 @@ export default function AddExpenseScreen() {
     if (getValues("amount") !== "") {
       trigger("amount");
     }
-  }, [accountIdWatched, isVariableAmount]);
+  }, [accountIdWatched, isVariableAmount, transactions]);
 
   const onSubmit = handleSubmit(async (data) => {
     const isVar = isRegular ? false : !!payCard || data.isVariable;
@@ -231,7 +231,7 @@ export default function AddExpenseScreen() {
       reset();
       router.back();
     } catch (e) {
-      Alert.alert("Save failed", e instanceof OverdraftError ? e.message : "Something went wrong. Please try again.");
+      alertFailure("Save failed", e);
     }
   });
 
@@ -351,16 +351,19 @@ export default function AddExpenseScreen() {
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
-            <AppTextInput
-              autoFocus
-              label={isVariableAmount ? "This Month's Amount (₱)" : "Amount (₱)"}
-              isAmount
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              error={fieldState.error?.message}
-            />
+            <>
+              <AppTextInput
+                autoFocus
+                label={isVariableAmount ? "This Month's Amount (₱)" : "Amount (₱)"}
+                isAmount
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="0.00"
+                error={fieldState.error?.message}
+              />
+              <TransferInButton fieldError={fieldState.error?.message} overdraft={amountOverdraft(value)} />
+            </>
           )}
         />
 

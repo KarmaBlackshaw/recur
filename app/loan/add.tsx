@@ -9,6 +9,7 @@ import Feather from "@expo/vector-icons/Feather";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
+import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { AppButton } from "@/components/ui/AppButton";
@@ -22,7 +23,7 @@ import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { sanitizeAmount } from "@/utils/amountInput";
 import { formatAmount } from "@/utils/dateHelpers";
-import { OverdraftError } from "@/utils/accounts/OverdraftError";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
@@ -137,6 +138,19 @@ export default function AddLoanScreen() {
     }
   }, [isLoading, editing?.id]);
 
+  useEffect(() => {
+    if (getValues("amount")) {
+      trigger("amount");
+    }
+  }, [accounts.transactions]);
+
+  function amountOverdraft(amount: string) {
+    return accounts.overdraftError(
+      [{ accountId: getValues("accountId"), amount: -parseFloat(amount) }],
+      isEditing ? (t) => t.loanId === id && t.kind === "loan_out" : undefined
+    );
+  }
+
   const values = watch();
   const candidate = toLoanInput(values);
 
@@ -184,7 +198,7 @@ export default function AddLoanScreen() {
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Save failed", error instanceof OverdraftError ? error.message : "Something went wrong. Please try again.");
+      alertFailure("Save failed", error);
     }
   });
 
@@ -209,10 +223,7 @@ export default function AddLoanScreen() {
             router.dismissTo("/loans");
           } catch (error) {
             console.error(error);
-            Alert.alert(
-              "Delete failed",
-              error instanceof OverdraftError ? error.message : "Something went wrong. Please try again."
-            );
+            alertFailure("Delete failed", error);
           }
         },
       },
@@ -311,25 +322,23 @@ export default function AddLoanScreen() {
               if (isNaN(n) || n < 0.01) {
                 return "Must be ≥ 0.01";
               }
-              return (
-                accounts.overdraftError(
-                  [{ accountId: getValues("accountId"), amount: -n }],
-                  isEditing ? (t) => t.loanId === id && t.kind === "loan_out" : undefined
-                )?.message ?? true
-              );
+              return amountOverdraft(v)?.message ?? true;
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
-            <AppTextInput
-              ref={amountRef}
-              label="Amount (₱)"
-              isAmount
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              error={fieldState.error?.message}
-            />
+            <>
+              <AppTextInput
+                ref={amountRef}
+                label="Amount (₱)"
+                isAmount
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="0.00"
+                error={fieldState.error?.message}
+              />
+              <TransferInButton fieldError={fieldState.error?.message} overdraft={amountOverdraft(value)} />
+            </>
           )}
         />
 

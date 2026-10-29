@@ -1,11 +1,14 @@
 import React, { useMemo, useRef } from "react";
-import { View, SectionList } from "react-native";
+import { View, SectionList, TouchableOpacity } from "react-native";
+import { router } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import sumBy from "lodash/sumBy";
 import { CardBillRow } from "@/components/accounts/CardBillRow";
 import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BandHeader } from "@/components/BandHeader";
+import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
 import type { ActivityEntry, LedgerEntry } from "@/components/DayGroupedExpenseList";
@@ -13,11 +16,24 @@ import type { CardBill, FeatherIconName, HomeBandSlot } from "@/types";
 
 export type BillEntry = { key: string; bill: CardBill; effDate: Date; amount: number };
 export type HomeEntry = LedgerEntry | BillEntry;
-export type UpcomingBand = { key: string; slot: HomeBandSlot; label: string; caption: string; total: number; data: HomeEntry[] };
+// `count` is every due left that month (the "N left" caption); `data` holds only the first few rows.
+export type UpcomingBand = {
+  key: string;
+  slot: HomeBandSlot;
+  label: string;
+  caption: string;
+  total: number;
+  count: number;
+  data: HomeEntry[];
+};
+
+// A link row under a section, e.g. "See all 7 in Recurring".
+type SectionFooter = { label: string; onPress: () => void };
 
 // Home has three kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each row shows its own date);
 // Recent activity mirrors the Activity tab's All list — day-grouped, no subtotals
 // (it mixes money in and out), with the band label on the first day only.
+// A "node" section carries no rows: its header renders `afterDue` (the loans row) between the two.
 type FlatSection = {
   kind: "flat";
   key: string;
@@ -29,6 +45,7 @@ type FlatSection = {
   caption?: string;
   slot?: HomeBandSlot;
   isCollapsed?: boolean;
+  footer?: SectionFooter;
   data: HomeEntry[];
 };
 type DaySection = {
@@ -38,9 +55,16 @@ type DaySection = {
   bandCount?: number;
   date: Date;
   total: number;
+  footer?: SectionFooter;
   data: ActivityEntry[];
 };
-type HomeSection = FlatSection | DaySection;
+type NodeSection = {
+  kind: "node";
+  key: string;
+  footer?: SectionFooter;
+  data: HomeEntry[];
+};
+type HomeSection = FlatSection | DaySection | NodeSection;
 
 interface Props {
   overdue: HomeEntry[];
@@ -48,9 +72,28 @@ interface Props {
   recentActivity: ActivityEntry[];
   collapsedSlots: HomeBandSlot[];
   onToggleSlot: (slot: HomeBandSlot) => void;
+  // Rendered between the due bands and Recent activity.
+  afterDue?: React.ReactNode;
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
   refreshControl?: React.ComponentProps<typeof SectionList>["refreshControl"];
+}
+
+function FooterLink({ label, onPress }: SectionFooter) {
+  return (
+    <TouchableOpacity
+      className="flex-row items-center justify-between px-5 min-h-[44px]"
+      activeOpacity={0.7}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <AppText variant="body-bold" className="text-[13px] text-secondary">
+        {label}
+      </AppText>
+      <Feather name="chevron-right" size={16} color={colors.textMuted} />
+    </TouchableOpacity>
+  );
 }
 
 export function HomeExpenseSections({
@@ -59,11 +102,13 @@ export function HomeExpenseSections({
   recentActivity,
   collapsedSlots,
   onToggleSlot,
+  afterDue,
   ListHeaderComponent,
   ListEmptyComponent,
   refreshControl,
 }: Props) {
   const billSheetRef = useRef<CardBillSheetRef>(null);
+  const hasAfterDue = Boolean(afterDue);
   const sections = useMemo<HomeSection[]>(() => {
     const out: HomeSection[] = [];
 
@@ -80,8 +125,10 @@ export function HomeExpenseSections({
       });
     }
 
-    for (const { key, slot, label, caption, total, data } of upcoming) {
+    for (const { key, slot, label, caption, total, count, data } of upcoming) {
       const isCollapsed = collapsedSlots.includes(slot);
+      // The band lists its next few dues; a link leads to the rest once some are left out.
+      const hasMore = !isCollapsed && count > data.length;
       out.push({
         kind: "flat",
         key,
@@ -92,19 +139,25 @@ export function HomeExpenseSections({
         total,
         slot,
         isCollapsed,
+        footer: hasMore ? { label: `See all ${count} in Recurring`, onPress: () => router.navigate("/recurring") } : undefined,
         data: isCollapsed ? [] : data,
       });
+    }
+
+    if (hasAfterDue) {
+      out.push({ kind: "node", key: "after-due", data: [] });
     }
 
     if (recentActivity.length) {
       const days: DaySection[] = groupEntriesByDay(recentActivity).map((g) => ({ kind: "day", ...g }));
       days[0].band = "Recent activity";
       days[0].bandCount = recentActivity.length;
+      days[days.length - 1].footer = { label: "All activity", onPress: () => router.navigate("/expenses") };
       out.push(...days);
     }
 
     return out;
-  }, [overdue, upcoming, recentActivity, collapsedSlots]);
+  }, [overdue, upcoming, recentActivity, collapsedSlots, hasAfterDue]);
 
   return (
     <>
@@ -123,6 +176,9 @@ export function HomeExpenseSections({
         }
         renderSectionHeader={({ section }) => {
           const s = section as unknown as HomeSection;
+          if (s.kind === "node") {
+            return <View className="pt-3">{afterDue}</View>;
+          }
           if (s.kind === "flat") {
             const { slot } = s;
             return (
@@ -146,6 +202,10 @@ export function HomeExpenseSections({
               <DayHeaderRow date={s.date} />
             </View>
           );
+        }}
+        renderSectionFooter={({ section }) => {
+          const { footer } = section as unknown as HomeSection;
+          return footer ? <FooterLink label={footer.label} onPress={footer.onPress} /> : null;
         }}
         stickySectionHeadersEnabled={false}
         contentContainerClassName="pb-[140px]"

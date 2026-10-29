@@ -40,10 +40,10 @@ name: Card bill — Charged badge, overdue bill, override, partial + full paymen
 - assertVisible: "BPI Gold bill, ₱549.00 estimated, due .*, overdue"
 - assertNotVisible: "Use estimate"
 
-# Pay bill → TransferSheet prefilled with remaining; pay partial
+# Pay bill → Pay bill screen prefilled with remaining; pay partial
 - tapOn: "Pay bill"
 - extendedWaitUntil:
-    visible: "From"
+    visible: "Pay BPI Gold bill"
     timeout: 5000
 - assertVisible: "549.00"
 - assertVisible:
@@ -55,9 +55,7 @@ name: Card bill — Charged badge, overdue bill, override, partial + full paymen
 - eraseText: 12
 - inputText: "200"
 - hideKeyboard
-- tapOn:
-    text: "Transfer"
-    index: 1
+- tapOn: "Pay bill"
 - assertVisible: "BPI Gold bill, ₱549.00 estimated, due .*, overdue, ₱349.00 left"
 - assertVisible: "₱349.00 left"
 - runFlow: subflows/tab-activity.yaml
@@ -69,12 +67,10 @@ name: Card bill — Charged badge, overdue bill, override, partial + full paymen
 - tapOn: "BPI Gold bill,.*"
 - tapOn: "Pay bill"
 - extendedWaitUntil:
-    visible: "From"
+    visible: "Pay BPI Gold bill"
     timeout: 5000
 - assertVisible: "349.00"
-- tapOn:
-    text: "Transfer"
-    index: 1
+- tapOn: "Pay bill"
 - assertNotVisible: "BPI Gold bill,.*"
 - assertNotVisible: "OVERDUE · .*"
 - runFlow: subflows/tab-activity.yaml

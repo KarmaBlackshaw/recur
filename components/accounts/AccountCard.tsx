@@ -22,6 +22,8 @@ interface Props {
   previewBalance?: number;
   onPress?: () => void;
   isCompact?: boolean;
+  // Picker state: a white ring and a check mark on the chosen account.
+  isSelected?: boolean;
 }
 
 const TYPE_META: Record<AccountType, { icon: IoniconName; chip: string }> = {
@@ -41,7 +43,7 @@ function wholeAmount(amount: number): string {
   return `₱${Math.round(amount).toLocaleString("en-PH")}`;
 }
 
-export function AccountCard({ account, index = 0, previewBalance, onPress, isCompact = false }: Props) {
+export function AccountCard({ account, index = 0, previewBalance, onPress, isCompact = false, isSelected = false }: Props) {
   const { getBalance, interestEstimate } = useAccounts();
   const isReducedMotion = useReducedMotion();
   const meta = TYPE_META[account.type];
@@ -64,7 +66,7 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
 
   // Keep borderWidth explicit. On Android, removing it from this overflow-hidden view leaves NaN
   // border insets, and the padding-box clip then hides every child (issue #32).
-  const borderClass = isNegative ? "border-2 border-overdue" : "border-0";
+  const borderClass = isSelected ? "border-2 border-white" : isNegative ? "border-2 border-overdue" : "border-0";
 
   const subtitle = [
     meta.chip,
@@ -112,6 +114,7 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
       onPress={onPress ?? (() => router.push(`/account/${account.id}`))}
       accessibilityRole={isPreview ? undefined : "button"}
       accessibilityLabel={labelParts.join(", ")}
+      accessibilityState={onPress ? { selected: isSelected } : undefined}
       accessibilityHint={isPreview || onPress ? undefined : "Opens account details"}
       accessibilityActions={isPreview || onPress ? undefined : ACCESSIBILITY_ACTIONS}
       onAccessibilityAction={handleAccessibilityAction}
@@ -141,6 +144,7 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
               </View>
             )}
             <AppText variant="body-bold" className="flex-1" numberOfLines={1}>{account.name}</AppText>
+            {isSelected && <Feather name="check-circle" size={18} color={colors.text} />}
           </View>
           <AppText variant="meta" className={`${isCompact ? "mt-1" : "mt-2"} text-white/75`} numberOfLines={1}>{subtitle}</AppText>
         </View>

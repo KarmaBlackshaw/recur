@@ -57,6 +57,9 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
     <BottomSheetModal
       ref={sheetRef}
       snapPoints={snapPoints}
+      // gorhom makes the sheet one accessible element by default, which hides every control inside it from
+      // VoiceOver / TalkBack.
+      accessible={false}
       backgroundStyle={{ backgroundColor: colors.surface }}
       handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
       backdropComponent={renderBackdrop}

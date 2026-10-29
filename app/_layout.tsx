@@ -16,9 +16,11 @@ import * as Notifications from "expo-notifications";
 import { ExpenseProvider } from "@/context/ExpenseContext";
 import { AccountProvider } from "@/context/AccountContext";
 import { LoanProvider } from "@/context/LoanContext";
+import { SnackbarProvider } from "@/context/SnackbarContext";
+import { PayFlowProvider } from "@/context/PayFlowContext";
+import { NotificationRouter } from "@/components/NotificationRouter";
 import { colors } from "@/constants/theme";
-import { requestPermissions } from "@/utils/notifications";
-import { getPreference, setPreference } from "@/db/preferences";
+import { registerNotificationCategories } from "@/utils/notifications";
 import "@/global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -50,16 +52,13 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
+  // Permission is asked after the first recurring bill is saved (utils/reminderPermission.ts), not at launch.
   useMount(async () => {
-    const asked = await getPreference('notificationsPermissionAsked');
-    if (asked !== null) {
-      return;
+    try {
+      await registerNotificationCategories();
+    } catch (e) {
+      console.error("Registering notification actions failed", e);
     }
-    const granted = await requestPermissions();
-    if (!granted) {
-      await setPreference('notificationsEnabled', 'false');
-    }
-    await setPreference('notificationsPermissionAsked', 'true');
   });
 
   if (!fontsLoaded && !fontError) {
@@ -72,14 +71,19 @@ export default function RootLayout() {
         <AccountProvider>
           <LoanProvider>
             <ExpenseProvider>
-              <BottomSheetModalProvider>
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: colors.background },
-                  }}
-                />
-              </BottomSheetModalProvider>
+              <SnackbarProvider>
+                <BottomSheetModalProvider>
+                  <PayFlowProvider>
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: colors.background },
+                      }}
+                    />
+                    <NotificationRouter />
+                  </PayFlowProvider>
+                </BottomSheetModalProvider>
+              </SnackbarProvider>
             </ExpenseProvider>
           </LoanProvider>
         </AccountProvider>

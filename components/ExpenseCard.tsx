@@ -1,19 +1,17 @@
-import React, { useRef } from "react";
-import { View, TouchableOpacity, Alert, type AccessibilityActionEvent } from "react-native";
+import React from "react";
+import { type AccessibilityActionEvent } from "react-native";
 import { router } from "expo-router";
-import { Pressable } from "react-native-gesture-handler";
-import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
-import { Feather } from "@expo/vector-icons";
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
-import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
-import { AppText } from "@/components/ui/AppText";
 import dayjs from "dayjs";
+import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
+import { SwipeableRow, type SwipeAction } from "@/components/ui/SwipeableRow";
 import { formatDueDate, formatDaysLate, getDueDateForMonth, isOverdueOn, formatAmount, cycleStateOn, formatMonth, nextCycleDueDate } from "@/utils/dateHelpers";
 import { categoryIcon } from "@/utils/categories";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
+import { usePayFlow } from "@/context/PayFlowContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
-import { colors } from "@/constants/theme";
+import { useDeleteExpense } from "@/utils/useDeleteExpense";
 import type { Expense } from "@/types";
 
 interface Props {
@@ -23,13 +21,34 @@ interface Props {
   onPress?: () => void;
   compact?: boolean;   // ledger row under a day header: no pay toggle, caption only flags card-account status
   hideDate?: boolean;  // caption shows the status word instead of the date
+  canQuickPay?: boolean; // unpaid rows get a trailing pay circle (Home and Recurring due lists)
+  isSwipeHintShown?: boolean; // peek the Pay swipe once to teach it
 }
 
-export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compact = false, hideDate = false }: Props) {
-  const { getMonthStatus, toggleMonthStatus, deleteExpense, getDisplayAmount, getMonthPaidAt, paidCycles } = useExpenses();
-  const { accounts, transactions, isCharged, isCardAccount } = useAccounts();
+// Where tapping an expense goes: a recurring bill opens its bill screen for that month, a one-off its editor.
+export function openExpense(expense: Expense, year: number, month: number) {
+  if (expense.recurrence === "one-off") {
+    router.push({ pathname: "/expense/add", params: { id: expense.id } });
+    return;
+  }
+  router.push({ pathname: "/expense/[id]", params: { id: expense.id, year, month } });
+}
+
+export function ExpenseCard({
+  expense,
+  index = 0,
+  referenceDate,
+  onPress,
+  compact = false,
+  hideDate = false,
+  canQuickPay = false,
+  isSwipeHintShown = false,
+}: Props) {
+  const { getMonthStatus, getDisplayAmount, getMonthPaidAt } = useExpenses();
+  const { accounts, isCharged, isCardAccount } = useAccounts();
+  const payFlow = usePayFlow();
+  const confirmDelete = useDeleteExpense();
   const accountName = accounts.find((a) => a.id === expense.accountId)?.name;
-  const swipeRef = useRef<SwipeableMethods>(null);
   const isReducedMotion = useReducedMotion();
   const refDate = referenceDate ?? new Date();
   const year = refDate.getFullYear();
@@ -83,43 +102,25 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
   const caption = compact || hideDate
     ? (!compact || isCardAccount(expense.accountId) ? statusLabel : undefined)
     : isPaid && !isInactive ? `${statusLabel} ${dateText}` : dateText;
-  const canToggle = !compact && !isInactive;
+  // One-offs are money already spent: they have no month to pay or unpay.
+  const canToggle = !compact && !isInactive && !isRegular;
+  const hasPayCircle = canQuickPay && canToggle && !isPaid;
 
-  function handleToggle() {
-    toggleMonthStatus(expense.id, year, month);
+  function togglePaid() {
+    if (isPaid) {
+      payFlow.unpay(expense, year, month);
+    } else {
+      payFlow.pay(expense, year, month);
+    }
   }
 
   function handleDelete() {
-    swipeRef.current?.close();
-    const confirmDelete = { text: "Delete", style: "destructive" as const, onPress: () => deleteExpense(expense.id) };
-    const paidMonths = isRegular ? 0 : paidCycles.filter((c) => c.expenseId === expense.id).length;
-    if (paidMonths === 0) {
-      Alert.alert("Delete expense", `Remove "${title}"?`, [{ text: "Cancel", style: "cancel" }, confirmDelete]);
-      return;
-    }
-    // Deleting a recurring expense drops its paid months from Activity and the totals, while the payments it
-    // made stay in the account balances, so offer ending it instead.
-    const hasPayments = transactions.some((t) => t.kind === "payment" && t.expenseId === expense.id);
-    const history = `Its ${paidMonths} paid ${paidMonths === 1 ? "month leaves" : "months leave"} Activity and the totals.`;
-    const balances = hasPayments ? " The payments stay in your account balances." : "";
-    Alert.alert(
-      `Delete "${title}"?`,
-      `${history}${balances}\n\nTo stop it and keep the history, set an end month instead.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Set end month",
-          onPress: () =>
-            router.push({ pathname: "/expense/add", params: { id: expense.id, year, month, endPrompt: "1" } }),
-        },
-        confirmDelete,
-      ]
-    );
+    confirmDelete(expense, year, month);
   }
 
   function handleAccessibilityAction({ nativeEvent }: AccessibilityActionEvent) {
     if (nativeEvent.actionName === "toggle") {
-      handleToggle();
+      togglePaid();
     }
     if (nativeEvent.actionName === "delete") {
       handleDelete();
@@ -131,64 +132,36 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
     { name: "delete", label: "Delete" },
   ];
 
-  function handleSwipeToggle() {
-    swipeRef.current?.close();
-    handleToggle();
-  }
-
-  // RNGH Pressable, not TouchableOpacity: the swipeable's full-width right-actions layer sits on top
-  // and swallows RN touches on the left side; RNGH's own hit-testing passes through it.
-  function renderLeftActions() {
-    return (
-      <Pressable onPress={handleSwipeToggle} accessibilityRole="button" accessibilityLabel={isPaid ? "Mark unpaid" : "Mark paid"}>
-        <View className="flex-1 justify-center items-center gap-1 w-20 my-1.5 ml-5 rounded-2xl bg-paid/15">
-          <Feather name={isPaid ? "rotate-ccw" : "check"} size={20} color={colors.paid} />
-          <AppText variant="meta" className="text-paid">{isPaid ? "Unpay" : "Pay"}</AppText>
-        </View>
-      </Pressable>
-    );
-  }
-
-  function renderRightActions() {
-    return (
-      <TouchableOpacity
-        className="justify-center items-center gap-1 w-20 my-1.5 mr-5 rounded-2xl bg-overdue/15"
-        onPress={handleDelete}
-        accessibilityRole="button"
-        accessibilityLabel="Delete"
-      >
-        <Feather name="trash-2" size={20} color={colors.overdue} />
-        <AppText variant="meta" className="text-overdue">Delete</AppText>
-      </TouchableOpacity>
-    );
-  }
+  const leftAction: SwipeAction | undefined = canToggle
+    ? { label: isPaid ? "Unpay" : "Pay", icon: isPaid ? "rotate-ccw" : "check", tone: "positive", onPress: togglePaid }
+    : undefined;
+  const rightAction: SwipeAction = { label: "Delete", icon: "trash-2", tone: "negative", onPress: handleDelete };
 
   return (
-    <ReanimatedSwipeable
-      ref={swipeRef}
-      renderLeftActions={canToggle ? renderLeftActions : undefined}
-      renderRightActions={renderRightActions}
-      overshootLeft={false}
-      overshootRight={false}
-    >
+    <SwipeableRow leftAction={leftAction} rightAction={rightAction} isHintShown={isSwipeHintShown}>
       <Animated.View entering={isReducedMotion ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}>
         <AppListRow
           icon={categoryIcon(expense.category)}
           iconTone={overdueFlag ? "negative" : "neutral"}
           title={title}
           meta={[isCategoryTitle ? null : expense.category, accountName].filter(Boolean).join(" · ") || undefined}
-          metaIcon={expense.reminderDaysBefore != null ? "bell" : undefined}
+          metaIcon={expense.reminderDaysBefore === 0 && !isRegular ? "bell-off" : undefined}
           amount={amountText}
           caption={caption}
           captionTone={statusTone}
           isMuted={isInactive}
-          onPress={onPress ?? (() => router.push({ pathname: "/expense/add", params: { id: expense.id } }))}
+          accessory={hasPayCircle ? "circle" : undefined}
+          onAccessoryPress={hasPayCircle ? () => payFlow.pay(expense, year, month) : undefined}
+          onAccessoryLongPress={hasPayCircle ? () => payFlow.openPaySheet(expense, year, month) : undefined}
+          accessoryLabel={`Mark ${title} paid`}
+          accessoryTone={overdueFlag ? "negative" : "neutral"}
+          onPress={onPress ?? (() => openExpense(expense, year, month))}
           accessibilityLabel={`${isCategoryTitle ? title : `${title}, ${expense.category}`}${accountName != null ? `, from ${accountName}` : ""}, ${amountText}, ${statusLabel}, ${dateText}`}
-          accessibilityHint="Opens editor"
+          accessibilityHint={isRegular ? "Opens editor" : "Opens the bill"}
           accessibilityActions={accessibilityActions}
           onAccessibilityAction={handleAccessibilityAction}
         />
       </Animated.View>
-    </ReanimatedSwipeable>
+    </SwipeableRow>
   );
 }

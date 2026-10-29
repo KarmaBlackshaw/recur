@@ -12,7 +12,7 @@ import useAsyncEffect from "ahooks/es/useAsyncEffect";
 import useMemoizedFn from "ahooks/es/useMemoizedFn";
 import sortBy from "lodash/sortBy";
 import dayjs from "dayjs";
-import type { Expense, Status, MonthStatus, HomeBandSlot } from "@/types";
+import type { AccountTransaction, Expense, Status, MonthStatus, HomeBandSlot } from "@/types";
 import * as expensesDB from "@/db/expenses";
 import * as preferencesDB from "@/db/preferences";
 import * as monthsDB from "@/db/expenseMonths";
@@ -35,6 +35,17 @@ interface MonthState {
   amount: number | null;
   paidAt: string | null;
 }
+
+// What paying a month records. Anything left out falls back to the expense: its amount (or the month's own amount
+// for variable bills), now, and its Pay from account.
+export interface PayDetails {
+  amount?: number | null;
+  paidAt?: string;
+  accountId?: string | null;
+}
+
+// Puts a month back exactly as it was before a pay/unpay, payment transaction included.
+export type UndoMonth = () => Promise<void>;
 
 type Action =
   | { type: "LOAD"; payload: Expense[] }
@@ -142,6 +153,9 @@ interface ExpenseContextValue {
   resolveAmount: (expense: Expense, year: number, month: number) => number;
   getMonthPaidAt: (id: string, year: number, month: number) => string | null;
   toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
+  // Recurring months only. Both throw when the write fails (the month is left as it was).
+  payMonth: (id: string, year: number, month: number, details?: PayDetails) => Promise<UndoMonth>;
+  unpayMonth: (id: string, year: number, month: number) => Promise<UndoMonth>;
   reloadAll: () => Promise<void>;
   rescheduleNotifications: () => void;
 }
@@ -427,6 +441,90 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_MONTH", payload: { expenseId, year, month, ...next } });
   });
 
+  const monthStateOf = (id: string, year: number, month: number): MonthState => {
+    const k = monthKey(id, year, month);
+    return {
+      status: state.monthStatuses[k] ?? "unpaid",
+      amount: state.monthAmounts[k] ?? null,
+      paidAt: state.monthPaidAts[k] ?? null,
+    };
+  };
+
+  const paymentTxnOf = (id: string, year: number, month: number) =>
+    accounts.transactions.find(
+      (t) => t.kind === "payment" && t.expenseId === id && t.cycleYear === year && t.cycleMonth === month
+    );
+
+  const recurringExpense = (id: string): Expense => {
+    const expense = state.expenses.find((e) => e.id === id);
+    if (!expense || expense.recurrence === "one-off") {
+      throw new Error("Only recurring expenses have months to pay");
+    }
+    return expense;
+  };
+
+  const restoreMonth = useMemoizedFn(
+    async (expense: Expense, year: number, month: number, previous: MonthState, previousTxn?: AccountTransaction) => {
+      await writeMonth(expense.id, year, month, previous);
+      if (previousTxn) {
+        await accounts.syncPayment({
+          expenseId: expense.id,
+          accountId: previousTxn.accountId,
+          cycleYear: year,
+          cycleMonth: month,
+          amount: Math.abs(previousTxn.amount),
+          note: previousTxn.note ?? paymentNote(expense),
+          createdAt: previousTxn.createdAt,
+        });
+      } else {
+        await accounts.removePayment(expense.id, year, month);
+      }
+    }
+  );
+
+  const payMonth = useMemoizedFn(
+    async (id: string, year: number, month: number, details: PayDetails = {}): Promise<UndoMonth> => {
+      const expense = recurringExpense(id);
+      const previous = monthStateOf(id, year, month);
+      const previousTxn = paymentTxnOf(id, year, month);
+      // Variable months keep their own amount. A fixed expense's paid month records what it cost, so a later
+      // edit doesn't rewrite paid history.
+      const amount = details.amount !== undefined ? details.amount : expense.isVariable ? previous.amount : expense.amount;
+      const paidAt = details.paidAt ?? new Date().toISOString();
+      await writeMonth(id, year, month, { status: "paid", amount, paidAt });
+      try {
+        await accounts.syncPayment({
+          expenseId: id,
+          accountId: details.accountId !== undefined ? details.accountId : expense.accountId,
+          cycleYear: year,
+          cycleMonth: month,
+          amount,
+          note: paymentNote(expense),
+          createdAt: paidAt,
+        });
+      } catch (err) {
+        await writeMonth(id, year, month, previous);
+        throw err;
+      }
+      return () => restoreMonth(expense, year, month, previous, previousTxn);
+    }
+  );
+
+  const unpayMonth = useMemoizedFn(async (id: string, year: number, month: number): Promise<UndoMonth> => {
+    const expense = recurringExpense(id);
+    const previous = monthStateOf(id, year, month);
+    const previousTxn = paymentTxnOf(id, year, month);
+    // A fixed expense's month follows the expense again once unpaid; variable months keep their own amount.
+    await writeMonth(id, year, month, { status: "unpaid", amount: expense.isVariable ? previous.amount : null, paidAt: null });
+    try {
+      await accounts.removePayment(id, year, month);
+    } catch (err) {
+      await writeMonth(id, year, month, previous);
+      throw err;
+    }
+    return () => restoreMonth(expense, year, month, previous, previousTxn);
+  });
+
   const toggleMonthStatus = useMemoizedFn(
     async (id: string, year: number, month: number): Promise<void> => {
       const expense = state.expenses.find((e) => e.id === id);
@@ -459,34 +557,14 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       } else {
-        const k = monthKey(id, year, month);
-        const previous: MonthState = {
-          status: state.monthStatuses[k] ?? "unpaid",
-          amount: state.monthAmounts[k] ?? null,
-          paidAt: state.monthPaidAts[k] ?? null,
-        };
-        const status: Status = previous.status === "unpaid" ? "paid" : "unpaid";
-        // Variable months keep their own amount. A fixed expense's paid month records its amount, so a later
-        // edit doesn't rewrite it, and follows the expense again once unpaid.
-        const amount = expense.isVariable ? previous.amount : status === "paid" ? expense.amount : null;
-        await writeMonth(id, year, month, { status, amount, paidAt: status === "paid" ? new Date().toISOString() : null });
         try {
-          if (status === "paid") {
-            await accounts.syncPayment({
-              expenseId: id,
-              accountId: expense.accountId,
-              cycleYear: year,
-              cycleMonth: month,
-              amount,
-              note: paymentNote(expense),
-            });
+          if (monthStateOf(id, year, month).status === "paid") {
+            await unpayMonth(id, year, month);
           } else {
-            await accounts.removePayment(id, year, month);
+            await payMonth(id, year, month);
           }
         } catch (err) {
           console.error("Failed to sync payment, reverting status", err);
-          await writeMonth(id, year, month, previous);
-          return;
         }
       }
     }
@@ -532,6 +610,8 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       resolveAmount,
       getMonthPaidAt,
       toggleMonthStatus,
+      payMonth,
+      unpayMonth,
       reloadAll,
       rescheduleNotifications,
     }),

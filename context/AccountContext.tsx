@@ -88,6 +88,8 @@ interface AccountContextValue {
   updateIncome: (id: string, input: IncomeInput) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
   transfer: (input: TransferInput) => Promise<void>;
+  // Rewrites an existing transfer (all its rows) from the edited input, keeping its id.
+  updateTransfer: (transferId: string, input: TransferInput) => Promise<void>;
   deleteTransfer: (transferId: string) => Promise<void>;
   syncPayment: (p: PaymentSync) => Promise<void>;
   removePayment: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => Promise<void>;
@@ -368,7 +370,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.id === id });
   });
 
-  const transfer = useMemoizedFn(async ({ fromId, toId, amount, fee, income, incomeCategory, incomeAccountId, note }: TransferInput) => {
+  const buildTransferRows = (
+    { fromId, toId, amount, fee, income, incomeCategory, incomeAccountId, note, createdAt: when }: TransferInput,
+    transferId: string
+  ): Omit<AccountTransaction, "id">[] => {
     const from = state.accounts.find((a) => a.id === fromId);
     const to = state.accounts.find((a) => a.id === toId);
     if (!from || !to) {
@@ -391,8 +396,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (incomeValue > 0 && (incomeAccount == null || incomeAccount.archivedAt || incomeAccount.type === "credit" || to.type === "credit")) {
       throw new Error("Invalid transfer income");
     }
-    const transferId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const createdAt = new Date().toISOString();
+    const createdAt = when ?? new Date().toISOString();
     const rows: Omit<AccountTransaction, "id">[] = [
       {
         ...emptyTxnFields(),
@@ -436,10 +440,24 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         createdAt,
       });
     }
-    const txns = await transactionsDB.insertMany(rows);
+    return rows;
+  };
+
+  const transfer = useMemoizedFn(async (input: TransferInput) => {
+    const transferId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const txns = await transactionsDB.insertMany(buildTransferRows(input, transferId));
     dispatch({ type: "ADD_TRANSACTIONS", payload: txns });
-    if (incomeValue > 0) {
-      await touchCategory(incomeCategory, undefined, "income");
+    if (round(input.income, 2) > 0) {
+      await touchCategory(input.incomeCategory, undefined, "income");
+    }
+  });
+
+  const updateTransfer = useMemoizedFn(async (transferId: string, input: TransferInput) => {
+    const txns = await transactionsDB.replaceTransfer(transferId, buildTransferRows(input, transferId));
+    dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.transferId === transferId });
+    dispatch({ type: "ADD_TRANSACTIONS", payload: txns });
+    if (round(input.income, 2) > 0) {
+      await touchCategory(input.incomeCategory, undefined, "income");
     }
   });
 
@@ -578,6 +596,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       updateIncome,
       deleteIncome,
       transfer,
+      updateTransfer,
       deleteTransfer,
       syncPayment,
       removePayment,

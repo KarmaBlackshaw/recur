@@ -186,4 +186,5 @@ export interface TransferInput {
   incomeCategory: string;
   incomeAccountId: string;  // where the income lands — usually To
   note: string | null;
+  createdAt?: string;       // when it happened; defaults to now
 }

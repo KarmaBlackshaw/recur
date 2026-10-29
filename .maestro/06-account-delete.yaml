@@ -14,9 +14,9 @@ name: Account delete — its income leaves the Income list
 - inputText: "BPI Savings"
 - hideKeyboard
 - scrollUntilVisible:
-    element: "Save Account"
+    element: "Save account"
     direction: DOWN
-- tapOn: "Save Account"
+- tapOn: "Save account"
 - extendedWaitUntil:
     visible: "BPI Savings, debit.*"
     timeout: 10000
@@ -33,9 +33,9 @@ name: Account delete — its income leaves the Income list
 - tapOn: "BPI Savings, debit.*"
 - tapOn: "Edit"
 - scrollUntilVisible:
-    element: "Delete Account"
+    element: "Delete account"
     direction: DOWN
-- tapOn: "Delete Account"
+- tapOn: "Delete account"
 - assertVisible: "Delete BPI Savings?"
 - tapOn: "DELETE|Delete"
 - extendedWaitUntil:

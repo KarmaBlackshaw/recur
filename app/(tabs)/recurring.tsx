@@ -25,6 +25,7 @@ interface Band {
   label: string;
   icon: FeatherIconName;
   accent: string;
+  canQuickPay: boolean; // rows still to pay get the trailing pay circle
   total?: number;
   data: DayEntry[];
 }
@@ -32,10 +33,10 @@ interface Band {
 // Rank order. "Not due" holds plans with no cycle this month (not started, ended, or a yearly plan
 // outside its month): listed so they stay easy to find, but never totalled.
 const BANDS: Omit<Band, "total" | "data">[] = [
-  { key: "overdue", label: "Overdue", icon: "alert-triangle", accent: colors.overdue },
-  { key: "unpaid", label: "Unpaid", icon: "circle", accent: colors.secondary },
-  { key: "paid", label: "Paid", icon: "check-circle", accent: colors.paid },
-  { key: "not-due", label: "Not due", icon: "pause-circle", accent: colors.textMuted },
+  { key: "overdue", label: "Overdue", icon: "alert-triangle", accent: colors.overdue, canQuickPay: true },
+  { key: "unpaid", label: "Unpaid", icon: "circle", accent: colors.secondary, canQuickPay: true },
+  { key: "paid", label: "Paid", icon: "check-circle", accent: colors.paid, canQuickPay: false },
+  { key: "not-due", label: "Not due", icon: "pause-circle", accent: colors.textMuted, canQuickPay: false },
 ];
 const NOT_DUE_RANK = 3;
 
@@ -118,21 +119,12 @@ export default function RecurringScreen() {
               count={section.data.length}
             />
           )}
-          renderItem={({ item, index }) => (
+          renderItem={({ item, index, section }) => (
             <ExpenseCard
               expense={item.expense}
               index={index}
               referenceDate={item.refDate}
-              onPress={() =>
-                router.push({
-                  pathname: "/expense/add",
-                  params: {
-                    id: item.expense.id,
-                    year: item.refDate.getFullYear(),
-                    month: item.refDate.getMonth(),
-                  },
-                })
-              }
+              canQuickPay={section.canQuickPay}
             />
           )}
           stickySectionHeadersEnabled={false}

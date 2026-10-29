@@ -5,13 +5,10 @@ import dayjs from "dayjs";
 import { formatAmount } from "@/utils/dateHelpers";
 import { colors } from "@/constants/theme";
 
-// Weekend accent: Sun red, Sat indigo, weekdays muted (mirrors the reference ledger).
+// Weekends in periwinkle, weekdays muted. Coral stays reserved for "late".
 export function weekdayColor(date: Date): string {
   const d = dayjs(date).day();
-  if (d === 0) {
-    return colors.overdue;
-  }
-  if (d === 6) {
+  if (d === 0 || d === 6) {
     return colors.secondary;
   }
   return colors.textMuted;

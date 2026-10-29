@@ -1,4 +1,4 @@
-# env: NAME, CUTOFF, DUE
+# env: NAME, CUTOFF, DUE (days of the month, picked from the day grid)
 appId: com.erniejeash.recur
 ---
 - runFlow: tab-accounts.yaml
@@ -14,22 +14,18 @@ appId: com.erniejeash.recur
 - hideKeyboard
 - tapOn: "Credit card"
 - scrollUntilVisible:
-    element: "Due day.*"
+    element: "Due day, .*"
     direction: DOWN
-- tapOn:
-    text: "Cut-off day.*"
-    index: 1
-- inputText: ${CUTOFF}
-- hideKeyboard
-- tapOn:
-    text: "Due day.*"
-    index: 1
-- inputText: ${DUE}
-- hideKeyboard
+- tapOn: "Cut-off day, .*"
+- tapOn: "The ${CUTOFF}(st|nd|rd|th)"
+- waitForAnimationToEnd
+- tapOn: "Due day, .*"
+- tapOn: "The ${DUE}(st|nd|rd|th)"
+- waitForAnimationToEnd
 - scrollUntilVisible:
-    element: "Save Account"
+    element: "Save account"
     direction: DOWN
-- tapOn: "Save Account"
+- tapOn: "Save account"
 - extendedWaitUntil:
     visible: "${NAME}, credit card.*"
     timeout: 10000

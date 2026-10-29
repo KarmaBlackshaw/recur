@@ -7,11 +7,14 @@ A recurring expenses tracker built with React Native and Expo. Track monthly bil
 - Track expenses by recurrence: monthly, yearly, or one-off, with optional start and end months
 - Due day anchoring with smart month-end clamping
 - Overdue detection with visual warnings
-- Mark paid / reset per cycle
-- KPI summary row: Total, Paid, Unpaid
-- Custom categories with icon picker
+- Pay a bill from the list (pay circle or a full swipe) with Undo; a Pay sheet records the real amount, date and account
+- A bill screen per recurring expense: this month's status, payment history, edit and delete
+- Home summary: left to pay this month, paid of total, overdue count
+- Activity search across months, with lending kept separate from spending
+- Editable, backdatable transfers and loan payments
+- Reminders that name the bill, with a Mark paid action
+- Custom categories, created right from the category picker
 - Month-by-month navigation
-- Swipe-to-delete with confirmation
 
 ## Stack
 

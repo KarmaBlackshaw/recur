@@ -20,6 +20,15 @@ export function TransferRow({ entry }: { entry: TransferEntry }) {
   const feeText = fee > 0 ? `fee ${formatAmount(fee)}` : null;
   const meta = [customNote, earnedLabel].filter(Boolean).join(" · ") || "Transfer";
   const details = [customNote, feeText, earnedLabel].filter(Boolean).join(", ") || "Transfer";
+  const { transferId } = transfer;
+
+  function open() {
+    if (transferId) {
+      router.push({ pathname: "/transfer", params: { id: transferId } });
+      return;
+    }
+    router.push({ pathname: "/account/[id]", params: { id: transfer.accountId } });
+  }
 
   return (
     <AppListRow
@@ -29,9 +38,9 @@ export function TransferRow({ entry }: { entry: TransferEntry }) {
       amount={formatAmount(amount)}
       amountTone="muted"
       caption={feeText ?? undefined}
-      onPress={() => router.push({ pathname: "/account/[id]", params: { id: transfer.accountId } })}
+      onPress={open}
       accessibilityLabel={`Transfer from ${source} to ${destination}, ${formatAmount(amount)}, ${details}`}
-      accessibilityHint="Opens account details"
+      accessibilityHint={transferId ? "Opens the transfer" : "Opens account details"}
     />
   );
 }

@@ -1,10 +1,9 @@
 import React from "react";
-import { View, FlatList, TouchableOpacity, useWindowDimensions } from "react-native";
+import { View, FlatList, useWindowDimensions } from "react-native";
 import useBoolean from "ahooks/es/useBoolean";
 import chunk from "lodash/chunk";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
 import { useAccounts } from "@/context/AccountContext";
 import { AccountCard } from "@/components/accounts/AccountCard";
 import { NetWorthHero } from "@/components/accounts/NetWorthHero";
@@ -67,17 +66,8 @@ export default function AccountsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center justify-between pl-5 pr-2 pt-2 pb-1">
+      <View className="px-5 pt-2 pb-1">
         <AppText variant="display">Accounts</AppText>
-        <TouchableOpacity
-          onPress={openAddAccount}
-          activeOpacity={0.7}
-          className="size-11 items-center justify-center rounded-full"
-          accessibilityRole="button"
-          accessibilityLabel="Add account"
-        >
-          <Feather name="plus" size={24} color={colors.text} />
-        </TouchableOpacity>
       </View>
 
       {accounts.length === 0 ? (

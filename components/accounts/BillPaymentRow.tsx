@@ -9,10 +9,19 @@ interface Props {
 }
 
 export function BillPaymentRow({ entry }: Props) {
-  const { account, sourceName, amount, fee } = entry;
+  const { payment, account, sourceName, amount, fee } = entry;
   const title = `${account.name} bill`;
   const source = sourceName ? `from ${sourceName}` : "Bill payment";
   const feeText = fee > 0 ? `fee ${formatAmount(fee)}` : null;
+  const { transferId } = payment;
+
+  function open() {
+    if (transferId) {
+      router.push({ pathname: "/transfer", params: { id: transferId } });
+      return;
+    }
+    router.push({ pathname: "/account/[id]", params: { id: account.id } });
+  }
 
   return (
     <AppListRow
@@ -22,9 +31,9 @@ export function BillPaymentRow({ entry }: Props) {
       meta={source}
       amount={formatAmount(amount)}
       caption={feeText ?? undefined}
-      onPress={() => router.push({ pathname: "/account/[id]", params: { id: account.id } })}
+      onPress={open}
       accessibilityLabel={`${title} payment, ${formatAmount(amount)}, ${[source, feeText].filter(Boolean).join(", ")}`}
-      accessibilityHint="Opens account details"
+      accessibilityHint={transferId ? "Opens the payment" : "Opens account details"}
     />
   );
 }

@@ -61,6 +61,7 @@ export const AdjustBalanceSheet = forwardRef<AdjustBalanceSheetRef, { account: A
     return (
       <BottomSheetModal
         ref={sheetRef}
+        accessible={false}
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
         backgroundStyle={{ backgroundColor: colors.surface }}

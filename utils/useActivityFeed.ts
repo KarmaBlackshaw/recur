@@ -15,10 +15,12 @@ import { useLoanActivity, type LoanActivityEntry } from "@/utils/useLoanActivity
 
 export interface ActivityFeed {
   all: ActivityEntry[];
-  paid: (LedgerEntry | LoanActivityEntry)[];
+  paid: LedgerEntry[];
   charged: DayEntry[];
-  income: (IncomeEntry | InterestEntry | LoanActivityEntry)[];
+  income: (IncomeEntry | InterestEntry)[];
   transfers: TransferEntry[];
+  // Money lent and repaid. Kept out of paid and income: lending moves money you still own (net worth counts it).
+  loans: LoanActivityEntry[];
 }
 
 // Every activity row across all time, newest first. Home shows the latest
@@ -36,7 +38,6 @@ export function useActivityFeed(): ActivityFeed {
       [
         ...ledger.filter((it) => !it.isCard).map((it) => ({ ...it, compact: true })),
         ...billPayments,
-        ...loanActivity.filter(({ loanTxn }) => loanTxn.kind === "loan_out"),
       ],
       "effDate",
       "desc"
@@ -51,12 +52,11 @@ export function useActivityFeed(): ActivityFeed {
           .filter((t) => t.kind === "income" && (t.transferId == null || !liveTransferIds.has(t.transferId)))
           .map((t) => ({ key: t.id, income: t, effDate: new Date(t.createdAt), amount: t.amount })),
         ...interestCredits,
-        ...loanActivity.filter(({ loanTxn }) => loanTxn.kind === "loan_in"),
       ],
       "effDate",
       "desc"
     );
-    const all = orderBy([...paid, ...charged, ...income, ...transfers], "effDate", "desc");
-    return { all, paid, charged, income, transfers };
+    const all = orderBy([...paid, ...charged, ...income, ...transfers, ...loanActivity], "effDate", "desc");
+    return { all, paid, charged, income, transfers, loans: loanActivity };
   }, [ledger, billPayments, transfers, loanActivity, interestCredits, transactions]);
 }

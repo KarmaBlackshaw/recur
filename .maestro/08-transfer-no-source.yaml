@@ -1,8 +1,8 @@
 appId: com.erniejeash.recur
-name: Pay bill — only debit/cash accounts are offered as the transfer source
+name: Pay bill — only debit/cash accounts are offered as the payment source
 # The plan's M11 case ("only credit cards exist → Transfer disabled") can't be reached from the UI:
 # the built-in Cash account is always present and has no Edit/Delete. This flow pins what is reachable:
-# with only credit cards added, From lists Cash alone and no card.
+# with only credit cards added, Pay from lists Cash alone and no card.
 ---
 - runFlow: subflows/launch-fresh.yaml
 - runFlow:
@@ -25,17 +25,12 @@ name: Pay bill — only debit/cash accounts are offered as the transfer source
 - tapOn: "BPI Gold bill,.*"
 - tapOn: "Pay bill"
 - extendedWaitUntil:
-    visible: "From"
+    visible: "Pay from, Cash, .*"
     timeout: 5000
 - assertVisible:
-    text: "Cash, .*"
-    below: "From"
-    above: "To"
-- assertNotVisible:
-    text: "Metro Card, .*"
-    below: "From"
-    above: "To"
-- assertVisible:
-    text: "Transfer"
+    text: "Pay bill"
     index: 1
     enabled: true
+- tapOn: "Pay from, Cash, .*"
+- assertVisible: "Cash, cash, .*"
+- assertNotVisible: "Metro Card, .*"

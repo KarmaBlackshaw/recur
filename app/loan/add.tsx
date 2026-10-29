@@ -9,6 +9,7 @@ import Feather from "@expo/vector-icons/Feather";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
+import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { AppButton } from "@/components/ui/AppButton";
@@ -22,6 +23,7 @@ import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { sanitizeAmount } from "@/utils/amountInput";
 import { formatAmount } from "@/utils/dateHelpers";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
@@ -79,7 +81,7 @@ function toLoanInput(values: LoanFormValues): LoanInput | undefined {
 }
 
 export default function AddLoanScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, borrower } = useLocalSearchParams<{ id?: string; borrower?: string }>();
   const loans = useLoans();
   const accounts = useAccounts();
   const editing = id ? loans.loans.find((l) => l.id === id) : undefined;
@@ -106,7 +108,7 @@ export default function AddLoanScreen() {
     }
     const lastAccountId = maxBy(loans.loans, "lentAt")?.accountId;
     return {
-      borrower: "",
+      borrower: borrower ?? "",
       amount: "",
       accountId: depositAccounts.find((a) => a.id === lastAccountId)?.id ?? CASH_ACCOUNT_ID,
       lentAt: dayjs().startOf("day").toISOString(),
@@ -135,6 +137,19 @@ export default function AddLoanScreen() {
       reset(toFormValues(editing));
     }
   }, [isLoading, editing?.id]);
+
+  useEffect(() => {
+    if (getValues("amount")) {
+      trigger("amount");
+    }
+  }, [accounts.transactions]);
+
+  function amountOverdraft(amount: string) {
+    return accounts.overdraftError(
+      [{ accountId: getValues("accountId"), amount: -parseFloat(amount) }],
+      isEditing ? (t) => t.loanId === id && t.kind === "loan_out" : undefined
+    );
+  }
 
   const values = watch();
   const candidate = toLoanInput(values);
@@ -183,7 +198,7 @@ export default function AddLoanScreen() {
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Save failed", "Something went wrong. Please try again.");
+      alertFailure("Save failed", error);
     }
   });
 
@@ -208,7 +223,7 @@ export default function AddLoanScreen() {
             router.dismissTo("/loans");
           } catch (error) {
             console.error(error);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            alertFailure("Delete failed", error);
           }
         },
       },
@@ -281,7 +296,7 @@ export default function AddLoanScreen() {
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
             <AppCombobox
-              autoFocus={!isEditing}
+              autoFocus={!isEditing && !borrower}
               label="Borrower"
               items={borrowerNames}
               onPick={pickBorrower}
@@ -304,20 +319,27 @@ export default function AddLoanScreen() {
             required: true,
             validate: (v) => {
               const n = parseFloat(v);
-              return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
+              if (isNaN(n) || n < 0.01) {
+                return "Must be ≥ 0.01";
+              }
+              return amountOverdraft(v)?.message ?? true;
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
-            <AppTextInput
-              ref={amountRef}
-              label="Amount (₱)"
-              isAmount
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              error={fieldState.error?.message}
-            />
+            <>
+              <AppTextInput
+                ref={amountRef}
+                autoFocus={!isEditing && borrower != null}
+                label="Amount (₱)"
+                isAmount
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="0.00"
+                error={fieldState.error?.message}
+              />
+              <TransferInButton fieldError={fieldState.error?.message} overdraft={amountOverdraft(value)} />
+            </>
           )}
         />
 
@@ -485,7 +507,12 @@ export default function AddLoanScreen() {
             title="From account"
             options={depositAccounts}
             value={value}
-            onChange={onChange}
+            onChange={(accountId) => {
+              onChange(accountId);
+              if (getValues("amount")) {
+                trigger("amount");
+              }
+            }}
           />
         )}
       />

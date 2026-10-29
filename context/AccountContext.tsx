@@ -14,6 +14,8 @@ import { touchCategory } from "@/db/categories";
 import { accrueInterest, PERIODS_PER_YEAR } from "@/utils/interest";
 import { computeBill, unsettledDebitIds } from "@/utils/cardBills";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { findOverdraft, type TBalanceChange } from "@/utils/accounts/findOverdraft";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 
 interface State {
   accounts: Account[];
@@ -76,6 +78,10 @@ interface AccountContextValue {
   billOverrides: CardBillOverride[];
   isLoading: boolean;
   getBalance: (accountId: string) => number;
+  overdraftError: (
+    changes: TBalanceChange[],
+    isReplaced?: (transaction: AccountTransaction) => boolean
+  ) => OverdraftError | undefined;
   netWorth: { assets: number; owed: number; net: number };
   interestEstimate: (account: Account) => InterestEstimate | null;
   addAccount: (input: AccountInput, openingBalance: number) => Promise<Account>;
@@ -111,7 +117,7 @@ function sumAmounts(transactions: AccountTransaction[]): number {
   return transactions.reduce((sum, t) => sum + t.amount, 0);
 }
 
-function isPaymentFor(expenseId: string, cycleYear: number | null, cycleMonth: number | null) {
+export function isPaymentFor(expenseId: string, cycleYear: number | null, cycleMonth: number | null) {
   return (t: AccountTransaction) =>
     t.kind === "payment" && t.expenseId === expenseId && t.cycleYear === cycleYear && t.cycleMonth === cycleMonth;
 }
@@ -214,6 +220,13 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   }, [state.transactions]);
 
   const getBalance = useMemoizedFn((accountId: string) => round(balances[accountId] ?? 0, 2));
+
+  const overdraftError = useMemoizedFn(
+    (changes: TBalanceChange[], isReplaced?: (transaction: AccountTransaction) => boolean) => {
+      const overdraft = findOverdraft({ accounts: state.accounts, transactions: state.transactions, changes, isReplaced });
+      return overdraft && new OverdraftError(overdraft);
+    }
+  );
 
   const netWorth = useMemo(() => {
     let assets = 0;
@@ -345,6 +358,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Income not found");
     }
     const amount = round(input.amount, 2);
+    const error = overdraftError([{ accountId: input.accountId, amount }], (t) => t.id === id);
+    if (error) {
+      throw error;
+    }
     await transactionsDB.updateIncome(id, { ...input, amount });
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.id === id });
     dispatch({
@@ -364,6 +381,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   });
 
   const deleteIncome = useMemoizedFn(async (id: string) => {
+    const error = overdraftError([], (t) => t.id === id);
+    if (error) {
+      throw error;
+    }
     await transactionsDB.remove(id);
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.id === id });
   });
@@ -436,6 +457,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         createdAt,
       });
     }
+    const error = overdraftError(rows);
+    if (error) {
+      throw error;
+    }
     const txns = await transactionsDB.insertMany(rows);
     dispatch({ type: "ADD_TRANSACTIONS", payload: txns });
     if (incomeValue > 0) {
@@ -444,6 +469,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   });
 
   const deleteTransfer = useMemoizedFn(async (transferId: string) => {
+    const error = overdraftError([], (t) => t.transferId === transferId);
+    if (error) {
+      throw error;
+    }
     await transactionsDB.removeTransfer(transferId);
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.transferId === transferId });
   });
@@ -468,6 +497,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
             createdAt: p.createdAt ?? existing?.createdAt ?? new Date().toISOString(),
           }
         : null;
+    const error = txn && overdraftError([txn], isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth));
+    if (error) {
+      throw error;
+    }
     const inserted = await transactionsDB.replacePayment(p.expenseId, p.cycleYear, p.cycleMonth, txn);
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth) });
     if (inserted) {
@@ -566,6 +599,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       billOverrides: state.billOverrides,
       isLoading: state.isLoading,
       getBalance,
+      overdraftError,
       netWorth,
       interestEstimate,
       addAccount,

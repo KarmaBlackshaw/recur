@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { SectionList, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
@@ -9,6 +9,7 @@ import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppFab } from "@/components/ui/AppFab";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LoanRow } from "@/components/loans/LoanRow";
 import { colors } from "@/constants/theme";
@@ -21,6 +22,7 @@ export default function BorrowerLoansScreen() {
   const loans = useLoans();
   const accounts = useAccounts();
   const refreshControl = useRefreshControl();
+  const insets = useSafeAreaInsets();
   const today = dayjs().format("YYYY-MM-DD");
 
   const { active, settled } = useMemo(() => {
@@ -100,7 +102,7 @@ export default function BorrowerLoansScreen() {
         sections={sections}
         keyExtractor={({ id }) => id}
         stickySectionHeadersEnabled={false}
-        contentContainerClassName="pb-12"
+        contentContainerClassName="pb-[96px]"
         refreshControl={refreshControl}
         ListHeaderComponent={
           <View
@@ -127,6 +129,14 @@ export default function BorrowerLoansScreen() {
           </AppText>
         )}
         renderItem={renderItem}
+      />
+
+      <AppFab
+        icon="plus"
+        className="absolute right-5"
+        style={{ bottom: insets.bottom + 12 }}
+        onPress={() => router.push({ pathname: "/loan/add", params: { borrower: name } })}
+        accessibilityLabel={`Add loan for ${name}`}
       />
     </SafeAreaView>
   );

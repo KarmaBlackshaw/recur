@@ -17,6 +17,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
+import { isBillTbd } from "@/utils/cardBills";
 import type { CardBill } from "@/types";
 
 export interface CardBillSheetRef {
@@ -52,11 +53,13 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
   const statementOf = (b: CardBill) =>
     accounts.getCardBills(b.year, b.month).find((s) => s.account.id === b.account.id) ?? b;
   const bill = selected && statementOf(selected);
+  // A TBD bill starts blank: a prefilled "0.00" let one tap on Save mark it paid and drop it off Home.
+  const amountField = (b: CardBill) => (isBillTbd(b) ? "" : b.amount.toFixed(2));
 
   useImperativeHandle(ref, () => ({
     present: (next) => {
       setSelected(next);
-      reset({ amount: statementOf(next).amount.toFixed(2) });
+      reset({ amount: amountField(statementOf(next)) });
       sheetRef.current?.present();
     },
   }));
@@ -67,7 +70,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     }
     try {
       await accounts.setBillAmount(bill.account.id, bill.year, bill.month, amount);
-      reset({ amount: (amount ?? bill.estimate).toFixed(2) });
+      reset({ amount: amountField({ ...bill, amount: amount ?? bill.estimate, isEstimate: amount == null }) });
     } catch (e) {
       console.error("Save bill amount failed", e);
       Alert.alert("Save failed", "Something went wrong. Please try again.");
@@ -85,7 +88,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     sheetRef.current?.dismiss();
     const typed = parseFloat(getValues("amount"));
     const amount = isValid && !isNaN(typed) ? Math.max(0, round(typed - bill.paid, 2)) : bill.remaining;
-    router.push({ pathname: "/transfer", params: { accountId: bill.account.id, amount: amount.toFixed(2) } });
+    router.push({ pathname: "/account/pay", params: { id: bill.account.id, amount: amount.toFixed(2) } });
   }
 
   const renderBackdrop = useCallback(

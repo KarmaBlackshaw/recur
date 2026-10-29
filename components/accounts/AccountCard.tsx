@@ -35,6 +35,11 @@ const ACCESSIBILITY_ACTIONS = [
   { name: "transfer", label: "Transfer" },
 ];
 
+const CARD_ACCESSIBILITY_ACTIONS = [
+  { name: "adjust", label: "Adjust balance" },
+  { name: "transfer", label: "Pay bill" },
+];
+
 function wholeAmount(amount: number): string {
   return `₱${Math.round(amount).toLocaleString("en-PH")}`;
 }
@@ -112,7 +117,9 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
       accessibilityRole={isPressable ? "button" : undefined}
       accessibilityLabel={labelParts.join(", ")}
       accessibilityHint={!isPressable || onPress ? undefined : "Opens account details"}
-      accessibilityActions={!isPressable || onPress ? undefined : ACCESSIBILITY_ACTIONS}
+      accessibilityActions={
+        !isPressable || onPress ? undefined : isCredit ? CARD_ACCESSIBILITY_ACTIONS : ACCESSIBILITY_ACTIONS
+      }
       onAccessibilityAction={handleAccessibilityAction}
     >
       <Animated.View

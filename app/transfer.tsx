@@ -16,6 +16,7 @@ import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 import type { Account } from "@/types";
 
 interface TransferFormValues {
@@ -130,7 +131,7 @@ function IncomeCategoryField({ value, onChange }: IncomeCategoryFieldProps) {
 }
 
 export default function TransferScreen() {
-  const { accountId, amount } = useLocalSearchParams<{ accountId?: string; amount?: string }>();
+  const { accountId, toAccountId, amount } = useLocalSearchParams<{ accountId?: string; toAccountId?: string; amount?: string }>();
   const accounts = useAccounts();
   const sources = accounts.activeAccounts.filter((a) => a.type !== "credit");
   const [isIncomeOpen, setIsIncomeOpen] = useState(false);
@@ -138,8 +139,14 @@ export default function TransferScreen() {
   function toFormValues(): TransferFormValues {
     const account = accounts.accounts.find((a) => a.id === accountId);
     const isSource = account == null || account.type !== "credit";
-    const from = isSource ? account?.id ?? sources[0]?.id ?? "" : sources[0]?.id ?? "";
-    const to = isSource ? accounts.activeAccounts.find((a) => a.id !== from)?.id ?? "" : account.id;
+    const richestOther = maxBy(
+      sources.filter((a) => a.id !== toAccountId),
+      (a) => accounts.getBalance(a.id)
+    );
+    const from = toAccountId
+      ? richestOther?.id ?? ""
+      : isSource ? account?.id ?? sources[0]?.id ?? "" : sources[0]?.id ?? "";
+    const to = toAccountId ?? (isSource ? accounts.activeAccounts.find((a) => a.id !== from)?.id ?? "" : account.id);
     const lastTransferIncome = maxBy(
       accounts.transactions.filter((t) => t.kind === "income" && t.transferId != null),
       "createdAt"
@@ -163,6 +170,7 @@ export default function TransferScreen() {
     watch,
     setValue,
     getValues,
+    trigger,
     formState: { isValid, isSubmitting },
   } = useForm<TransferFormValues>({
     mode: "onChange",
@@ -181,7 +189,11 @@ export default function TransferScreen() {
 
   React.useEffect(() => {
     if (!accounts.isLoading) {
-      reset(toFormValues());
+      // A plain reset drops the field rules, so the trigger below would validate nothing
+      reset(toFormValues(), { keepFieldsRef: true });
+      if (amount) {
+        trigger("amount");
+      }
     }
   }, [accounts.isLoading]);
 
@@ -200,7 +212,7 @@ export default function TransferScreen() {
       router.back();
     } catch (e) {
       console.error("Transfer failed", e);
-      Alert.alert("Transfer failed", "Something went wrong. Please try again.");
+      Alert.alert("Transfer failed", e instanceof OverdraftError ? e.message : "Something went wrong. Please try again.");
     }
   });
 
@@ -234,7 +246,7 @@ export default function TransferScreen() {
           <Controller
             control={control}
             name="fromId"
-            rules={{ required: true }}
+            rules={{ required: true, deps: "amount" }}
             render={({ field: { value, onChange } }) => (
               <AccountField
                 label="From"
@@ -280,9 +292,19 @@ export default function TransferScreen() {
           control={control}
           name="amount"
           rules={{
-            validate: (v) => {
+            validate: (v, values) => {
               const n = parseFloat(v);
-              return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
+              if (isNaN(n) || n < 0.01) {
+                return "Must be ≥ 0.01";
+              }
+              const fee = parseOptionalAmount(values.fee) || 0;
+              const income = parseOptionalAmount(values.income) || 0;
+              return (
+                accounts.overdraftError([
+                  { accountId: values.fromId, amount: -(n + fee) },
+                  { accountId: values.incomeAccountId || values.toId, amount: income },
+                ])?.message ?? true
+              );
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
@@ -300,7 +322,7 @@ export default function TransferScreen() {
         <Controller
           control={control}
           name="fee"
-          rules={{ validate: validateOptionalAmount }}
+          rules={{ validate: validateOptionalAmount, deps: "amount" }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
             <AppTextInput
               label="Transfer fee (₱)"
@@ -325,7 +347,7 @@ export default function TransferScreen() {
             <Controller
               control={control}
               name="income"
-              rules={{ validate: validateOptionalAmount }}
+              rules={{ validate: validateOptionalAmount, deps: "amount" }}
               render={({ field: { value, onChange, onBlur }, fieldState }) => (
                 <AppTextInput
                   label="Amount earned (₱)"
@@ -346,6 +368,7 @@ export default function TransferScreen() {
             <Controller
               control={control}
               name="incomeAccountId"
+              rules={{ deps: "amount" }}
               render={({ field: { value, onChange } }) => (
                 <AccountField
                   label="Deposit to"

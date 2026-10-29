@@ -1,18 +1,22 @@
-import React, { useRef } from "react";
-import { View, TouchableOpacity, Alert, type AccessibilityActionEvent } from "react-native";
+import React from "react";
+import { View, Alert, type AccessibilityActionEvent } from "react-native";
 import { router } from "expo-router";
 import { Pressable } from "react-native-gesture-handler";
-import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
+import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
+import type { SharedValue } from "react-native-reanimated";
 import Feather from "@expo/vector-icons/Feather";
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { AppText } from "@/components/ui/AppText";
+import { SwipeDeleteRow } from "@/components/ui/SwipeDeleteRow";
 import dayjs from "dayjs";
 import { formatDueDate, formatDaysLate, getDueDateForMonth, isOverdueOn, formatAmount, cycleStateOn, formatMonth, nextCycleDueDate } from "@/utils/dateHelpers";
 import { categoryIcon } from "@/utils/categories";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import { colors } from "@/constants/theme";
 import type { Expense } from "@/types";
 
@@ -29,7 +33,6 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
   const { getMonthStatus, toggleMonthStatus, deleteExpense, getDisplayAmount, getMonthPaidAt, paidCycles } = useExpenses();
   const { accounts, transactions, isCharged, isCardAccount } = useAccounts();
   const accountName = accounts.find((a) => a.id === expense.accountId)?.name;
-  const swipeRef = useRef<SwipeableMethods>(null);
   const isReducedMotion = useReducedMotion();
   const refDate = referenceDate ?? new Date();
   const year = refDate.getFullYear();
@@ -85,12 +88,16 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
     : isPaid && !isInactive ? `${statusLabel} ${dateText}` : dateText;
   const canToggle = !compact && !isInactive;
 
-  function handleToggle() {
-    toggleMonthStatus(expense.id, year, month);
+  async function handleToggle() {
+    try {
+      await toggleMonthStatus(expense.id, year, month);
+    } catch (e) {
+      console.error("Failed to update paid status", e);
+      alertFailure(e instanceof OverdraftError ? "Can't mark paid" : "Update failed", e);
+    }
   }
 
   function handleDelete() {
-    swipeRef.current?.close();
     const confirmDelete = { text: "Delete", style: "destructive" as const, onPress: () => deleteExpense(expense.id) };
     const paidMonths = isRegular ? 0 : paidCycles.filter((c) => c.expenseId === expense.id).length;
     if (paidMonths === 0) {
@@ -131,14 +138,14 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
     { name: "delete", label: "Delete" },
   ];
 
-  function handleSwipeToggle() {
-    swipeRef.current?.close();
-    handleToggle();
-  }
-
   // RNGH Pressable, not TouchableOpacity: the swipeable's full-width right-actions layer sits on top
   // and swallows RN touches on the left side; RNGH's own hit-testing passes through it.
-  function renderLeftActions() {
+  function renderLeftActions(_progress: SharedValue<number>, _translation: SharedValue<number>, methods: SwipeableMethods) {
+    function handleSwipeToggle() {
+      methods.close();
+      handleToggle();
+    }
+
     return (
       <Pressable onPress={handleSwipeToggle} accessibilityRole="button" accessibilityLabel={isPaid ? "Mark unpaid" : "Mark paid"}>
         <View className="flex-1 justify-center items-center gap-1 w-20 my-1.5 ml-5 rounded-2xl bg-paid/15">
@@ -149,28 +156,8 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
     );
   }
 
-  function renderRightActions() {
-    return (
-      <TouchableOpacity
-        className="justify-center items-center gap-1 w-20 my-1.5 mr-5 rounded-2xl bg-overdue/15"
-        onPress={handleDelete}
-        accessibilityRole="button"
-        accessibilityLabel="Delete"
-      >
-        <Feather name="trash-2" size={20} color={colors.overdue} />
-        <AppText variant="meta" className="text-overdue">Delete</AppText>
-      </TouchableOpacity>
-    );
-  }
-
   return (
-    <ReanimatedSwipeable
-      ref={swipeRef}
-      renderLeftActions={canToggle ? renderLeftActions : undefined}
-      renderRightActions={renderRightActions}
-      overshootLeft={false}
-      overshootRight={false}
-    >
+    <SwipeDeleteRow onDelete={handleDelete} renderLeftActions={canToggle ? renderLeftActions : undefined}>
       <Animated.View entering={isReducedMotion ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}>
         <AppListRow
           icon={categoryIcon(expense.category)}
@@ -189,6 +176,6 @@ export function ExpenseCard({ expense, index = 0, referenceDate, onPress, compac
           onAccessibilityAction={handleAccessibilityAction}
         />
       </Animated.View>
-    </ReanimatedSwipeable>
+    </SwipeDeleteRow>
   );
 }

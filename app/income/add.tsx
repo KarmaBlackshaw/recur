@@ -8,6 +8,7 @@ import { Controller, useForm } from "react-hook-form";
 import Feather from "@expo/vector-icons/Feather";
 import { CategoryBottomSheet, CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
 import { AccountPickerSheet, AccountPickerSheetRef } from "@/components/AccountPickerSheet";
+import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { useAccounts } from "@/context/AccountContext";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
@@ -16,6 +17,7 @@ import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import type { AccountTransaction } from "@/types";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
@@ -30,7 +32,8 @@ interface IncomeFormValues {
 
 export default function AddIncomeScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { accounts, activeAccounts, transactions, isLoading, addIncome, updateIncome, deleteIncome } = useAccounts();
+  const { accounts, activeAccounts, transactions, isLoading, overdraftError, addIncome, updateIncome, deleteIncome } =
+    useAccounts();
   const incomes = transactions.filter((t) => t.kind === "income");
   const editingIncome = id ? incomes.find((t) => t.id === id) : undefined;
   const isEditing = editingIncome != null;
@@ -70,6 +73,8 @@ export default function AddIncomeScreen() {
     control,
     handleSubmit,
     reset,
+    getValues,
+    trigger,
     formState: { isValid, isSubmitting, errors },
   } = useForm<IncomeFormValues>({
     mode: "onChange",
@@ -81,6 +86,19 @@ export default function AddIncomeScreen() {
       reset(toFormValues(editingIncome));
     }
   }, [isLoading, editingIncome?.id]);
+
+  React.useEffect(() => {
+    if (getValues("amount")) {
+      trigger("amount");
+    }
+  }, [transactions]);
+
+  function amountOverdraft(amount: string) {
+    if (!isEditing) {
+      return undefined;
+    }
+    return overdraftError([{ accountId: getValues("accountId"), amount: parseFloat(amount) }], (t) => t.id === id);
+  }
 
   const onSubmit = handleSubmit(async (data) => {
     const input = {
@@ -101,7 +119,7 @@ export default function AddIncomeScreen() {
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Save failed", "Something went wrong. Please try again.");
+      alertFailure("Save failed", error);
     }
   });
 
@@ -120,7 +138,7 @@ export default function AddIncomeScreen() {
             router.back();
           } catch (error) {
             console.error(error);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            alertFailure("Delete failed", error);
           }
         },
       },
@@ -199,20 +217,26 @@ export default function AddIncomeScreen() {
             required: true,
             validate: (v) => {
               const n = parseFloat(v);
-              return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
+              if (isNaN(n) || n < 0.01) {
+                return "Must be ≥ 0.01";
+              }
+              return amountOverdraft(v)?.message ?? true;
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
-            <AppTextInput
-              autoFocus
-              label="Amount (₱)"
-              isAmount
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              error={fieldState.error?.message}
-            />
+            <>
+              <AppTextInput
+                autoFocus
+                label="Amount (₱)"
+                isAmount
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="0.00"
+                error={fieldState.error?.message}
+              />
+              <TransferInButton fieldError={fieldState.error?.message} overdraft={amountOverdraft(value)} />
+            </>
           )}
         />
 
@@ -313,7 +337,12 @@ export default function AddIncomeScreen() {
             title="Deposit to"
             options={depositAccounts}
             value={value}
-            onChange={onChange}
+            onChange={(accountId) => {
+              onChange(accountId);
+              if (getValues("amount")) {
+                trigger("amount");
+              }
+            }}
           />
         )}
       />

@@ -145,14 +145,14 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Scroll views keep 140dp of bottom padding so the floating tab bar never covers the last row.
 - Touch targets are at least 44dp.
 - Money lists sort by date. Home opens on a summary card (left to pay this month, a paid-of-total bar, the overdue
-  count), then Overdue, this month, and next month once it is at most 7 days away. Upcoming bands show 5 rows with a
-  "See all N in Recurring" row; a single "Owed to you" row sits between the due bands and Recent activity, which
-  ends with "All activity". New users get a three-step "Get started" checklist; a backup nudge appears when the last
-  backup is over 30 days old.
-- Home Overdue also lists unpaid dues from the last 3 months; their caption keeps counting "N days late".
+  count), then Overdue, this month, and next month once it is at most 7 days away. A single "Owed to you" row sits
+  between the due bands and Recent activity, which ends with "All activity". New users get a three-step "Get started"
+  checklist; a backup nudge appears when the last backup is over 30 days old.
+- Home Overdue also lists unpaid dues and card bills from the last 3 months; their caption keeps counting "N days late".
 - The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)
-  and Owed under a hairline.
+  and Owed under a hairline. The header's layers toggle (saved, carried in backups) groups active accounts into a
+  band per bank, in account order, with accounts that have no bank last under "Other".
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

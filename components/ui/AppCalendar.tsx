@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
-import range from "lodash/range";
+import { range } from "@/utils/collections";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 

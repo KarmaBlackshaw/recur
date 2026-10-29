@@ -2,10 +2,9 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { Alert, SectionList, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
-import groupBy from "lodash/groupBy";
-import orderBy from "lodash/orderBy";
+import { groupBy, orderBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useLoans } from "@/context/LoanContext";
@@ -15,12 +14,21 @@ import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { openExpense } from "@/components/ExpenseCard";
 import { TransactionRow } from "@/components/accounts/TransactionRow";
 import { AdjustBalanceSheet, type AdjustBalanceSheetRef } from "@/components/accounts/AdjustBalanceSheet";
+import { AccountCard } from "@/components/accounts/AccountCard";
+import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
+import { isBillTbd } from "@/utils/cardBills";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
-import { signedAmount } from "@/utils/signedAmount";
 import { useRefreshControl } from "@/utils/useRefreshControl";
-import { ACCOUNT_TYPE_LABEL, INTEREST_PERIOD_UNIT, type Account, type AccountTransaction, type FeatherIconName, type InterestEstimate } from "@/types";
+import { alertFailure } from "@/utils/accounts/alertFailure";
+import {
+  ACCOUNT_TYPE_LABEL,
+  type Account,
+  type AccountTransaction,
+  type CardBill,
+  type FeatherIconName,
+} from "@/types";
 
 function ActionButton({ icon, label, onPress, disabled }: {
   icon: FeatherIconName;
@@ -44,67 +52,82 @@ function ActionButton({ icon, label, onPress, disabled }: {
   );
 }
 
-function DetailRow({ label, value, isAlert }: { label: string; value: string; isAlert?: boolean }) {
+function DetailRow({ label, value, isAlert, onPress }: {
+  label: string;
+  value: string;
+  isAlert?: boolean;
+  onPress?: () => void;
+}) {
+  const valueText = (
+    <AppText variant="body-bold" className={`text-sm ${isAlert ? "text-overdue" : "text-white"}`}>{value}</AppText>
+  );
+  if (!onPress) {
+    return (
+      <View className="flex-row justify-between py-1.5">
+        <AppText variant="meta">{label}</AppText>
+        {valueText}
+      </View>
+    );
+  }
   return (
-    <View className="flex-row justify-between py-1.5">
+    <TouchableOpacity
+      className="flex-row items-center justify-between py-1.5"
+      onPress={onPress}
+      activeOpacity={0.7}
+      hitSlop={{ top: 6, bottom: 6 }}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${value}`}
+      accessibilityHint="Opens the bill"
+    >
       <AppText variant="meta">{label}</AppText>
-      <AppText variant="body-bold" className={`text-sm ${isAlert ? "text-overdue" : "text-white"}`}>{value}</AppText>
-    </View>
+      <View className="flex-row items-center gap-1">
+        {valueText}
+        <Feather name="chevron-right" size={16} color={colors.textMuted} />
+      </View>
+    </TouchableOpacity>
   );
 }
 
-function BalanceHeader({ account, balance, interest }: {
+function billState(bill: CardBill) {
+  if (isBillTbd(bill)) {
+    return "TBD";
+  }
+  if (bill.isPaid && bill.amount > 0) {
+    return "Paid";
+  }
+  return bill.paid > 0 ? `${formatAmount(bill.remaining)} left` : formatAmount(bill.remaining);
+}
+
+function CreditDetails({ account, balance, dueBill, onDueBillPress }: {
   account: Account;
   balance: number;
-  interest: InterestEstimate | null;
+  dueBill?: CardBill;
+  onDueBillPress: () => void;
 }) {
-  const isCredit = account.type === "credit";
-  const available = isCredit && account.creditLimit != null ? account.creditLimit - balance : null;
-  const isAlert = isCredit ? available != null && available < 0 : balance < 0;
-  const caption = isCredit ? "Owed" : "Balance";
+  const available = account.creditLimit != null ? account.creditLimit - balance : null;
+  const isActive = account.archivedAt == null;
+  const dueDate = account.dueDay != null ? dayjs(nextOccurrence(account.dueDay)).format("MMM D") : "";
 
   return (
-    <View
-      className={`mx-5 mb-4 rounded-2xl p-4 border ${isAlert ? "bg-overdue/[0.06] border-overdue/30" : "bg-surface border-border"}`}
-      accessible
-      accessibilityLabel={`${ACCOUNT_TYPE_LABEL[account.type]}, ${caption} ${signedAmount(balance)}${isAlert ? (isCredit ? ", over limit" : ", overdrawn") : ""}`}
-    >
-      <AppText variant="overline">{caption}</AppText>
-      <View className="flex-row items-center gap-2 mt-1">
-        {isAlert && <Feather name="alert-triangle" size={20} color={colors.overdue} />}
-        <AppText
-          variant="display"
-          className={`text-[34px] ${isAlert && !isCredit ? "text-overdue" : "text-white"}`}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.6}
-        >
-          {signedAmount(balance)}
-        </AppText>
-      </View>
-      {interest && (
-        <View className="flex-row items-center gap-1.5 mt-1">
-          <Feather name="trending-up" size={14} color={colors.paid} />
-          <AppText variant="meta" className="text-paid">+{formatAmount(interest.amount)}/{INTEREST_PERIOD_UNIT[interest.period].short} net interest</AppText>
-        </View>
+    <View className="mx-5 mb-4 rounded-2xl px-4 py-2 bg-surface border border-border">
+      {account.creditLimit != null && <DetailRow label="Limit" value={formatAmount(account.creditLimit)} />}
+      {available != null && (
+        <DetailRow
+          label={available < 0 ? "Over limit by" : "Available"}
+          value={formatAmount(Math.abs(available))}
+          isAlert={available < 0}
+        />
       )}
-      {isCredit && (
-        <View className="mt-3 pt-2 border-t border-border">
-          {account.creditLimit != null && <DetailRow label="Limit" value={formatAmount(account.creditLimit)} />}
-          {available != null && (
-            <DetailRow
-              label={available < 0 ? "Over limit by" : "Available"}
-              value={formatAmount(Math.abs(available))}
-              isAlert={available < 0}
-            />
-          )}
-          {account.statementDay != null && account.archivedAt == null && (
-            <DetailRow label="Next cut-off" value={dayjs(nextOccurrence(account.statementDay)).format("MMM D")} />
-          )}
-          {account.dueDay != null && account.archivedAt == null && (
-            <DetailRow label="Payment due" value={dayjs(nextOccurrence(account.dueDay)).format("MMM D")} />
-          )}
-        </View>
+      {account.statementDay != null && isActive && (
+        <DetailRow label="Next cut-off" value={dayjs(nextOccurrence(account.statementDay)).format("MMM D")} />
+      )}
+      {account.dueDay != null && isActive && (
+        // Opens the bill from here too, so one set from Home (even to ₱0, which hides it there) stays editable.
+        <DetailRow
+          label="Payment due"
+          value={dueBill ? `${dueDate} · ${billState(dueBill)}` : dueDate}
+          onPress={dueBill ? onDueBillPress : undefined}
+        />
       )}
     </View>
   );
@@ -120,10 +143,43 @@ export default function AccountDetailScreen() {
   const isArchived = account?.archivedAt != null;
   const isCredit = account?.type === "credit";
   const adjustRef = useRef<AdjustBalanceSheetRef>(null);
+  const billSheetRef = useRef<CardBillSheetRef>(null);
   const hasPresentedAction = useRef(false);
   const canTransfer =
     !isArchived && accounts.activeAccounts.length > 1 && accounts.activeAccounts.some((a) => a.type !== "credit");
   const isTransferBlocked = !isArchived && !canTransfer;
+
+  const openBill = useMemo(() => {
+    if (!isCredit) {
+      return undefined;
+    }
+    const now = dayjs();
+    const next = now.add(1, "month");
+    const bills = [...accounts.getCardBills(now.year(), now.month()), ...accounts.getCardBills(next.year(), next.month())]
+      .filter((b) => b.account.id === id && !b.isPaid && b.remaining > 0);
+    return orderBy(bills, "dueDate", "asc")[0];
+  }, [accounts.getCardBills, id, isCredit]);
+
+  const dueDay = account?.dueDay;
+  const dueBill = useMemo(() => {
+    if (!isCredit || isArchived || dueDay == null) {
+      return undefined;
+    }
+    const due = dayjs(nextOccurrence(dueDay));
+    return accounts.getCardBills(due.year(), due.month()).find((b) => b.account.id === id);
+  }, [accounts.getCardBills, dueDay, id, isArchived, isCredit]);
+
+  function openPayOrTransfer() {
+    if (!account) {
+      return;
+    }
+    if (!isCredit) {
+      router.push({ pathname: "/transfer", params: { accountId: account.id } });
+      return;
+    }
+    const params = openBill ? { id: account.id, amount: openBill.remaining.toFixed(2) } : { id: account.id };
+    router.push({ pathname: "/account/pay", params });
+  }
 
   const sections = useMemo(() => {
     const own = orderBy(
@@ -147,7 +203,7 @@ export default function AccountDetailScreen() {
       adjustRef.current?.present();
     }
     if (action === "transfer" && canTransfer) {
-      router.push({ pathname: "/transfer", params: { accountId: account.id } });
+      openPayOrTransfer();
     }
   }, [account, action, canTransfer, isArchived]);
 
@@ -174,7 +230,7 @@ export default function AccountDetailScreen() {
             await remove();
           } catch (e) {
             console.error("Delete transaction failed", e);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            alertFailure("Delete failed", e);
           }
         },
       },
@@ -247,11 +303,17 @@ export default function AccountDetailScreen() {
         refreshControl={refreshControl}
         ListHeaderComponent={
           <>
-            <BalanceHeader
-              account={account}
-              balance={accounts.getBalance(account.id)}
-              interest={accounts.interestEstimate(account)}
-            />
+            <View className="flex-row px-5 mb-4">
+              <AccountCard account={account} isStatic />
+            </View>
+            {account.type === "credit" && (
+              <CreditDetails
+                account={account}
+                balance={accounts.getBalance(account.id)}
+                dueBill={dueBill}
+                onDueBillPress={() => dueBill && billSheetRef.current?.present(dueBill)}
+              />
+            )}
             {isArchived && (
               <AppText variant="meta" className="px-5 mb-3">
                 Archived: it no longer shows up when you pick an account, and it has no bills or interest. Its
@@ -267,7 +329,7 @@ export default function AccountDetailScreen() {
                   <ActionButton
                     icon={isCredit ? "credit-card" : "repeat"}
                     label={isCredit ? "Pay bill" : "Transfer"}
-                    onPress={() => router.push({ pathname: "/transfer", params: { accountId: account.id } })}
+                    onPress={openPayOrTransfer}
                     disabled={!canTransfer}
                   />
                 </>
@@ -314,6 +376,7 @@ export default function AccountDetailScreen() {
       />
 
       <AdjustBalanceSheet ref={adjustRef} account={account} />
+      <CardBillSheet ref={billSheetRef} />
     </SafeAreaView>
   );
 }

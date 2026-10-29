@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useRef } from "react";
-import useMount from "ahooks/es/useMount";
+import { useMount } from "@/utils/useMount";
 import { View, TouchableOpacity, Alert, AppState, Linking, Switch, ScrollView } from "react-native";
 import * as Notifications from 'expo-notifications';
 import dayjs from "dayjs";
@@ -11,7 +11,7 @@ import { TimePickerSheet, type TimePickerSheetRef } from '@/components/TimePicke
 import { exportBackup, formatImportSummary, importBackup } from "@/utils/backup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import Constants from "expo-constants";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppText } from "@/components/ui/AppText";

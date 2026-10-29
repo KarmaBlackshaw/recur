@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import dayjs from "dayjs";
-import keyBy from "lodash/keyBy";
-import orderBy from "lodash/orderBy";
+import { keyBy, orderBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import type { AccountTransaction, Loan } from "@/types";

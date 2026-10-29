@@ -6,11 +6,11 @@ import {
   BottomSheetScrollView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { Controller, useForm } from "react-hook-form";
 import { router } from "expo-router";
 import dayjs from "dayjs";
-import round from "lodash/round";
+import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
@@ -49,19 +49,19 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     formState: { isValid, isSubmitting },
   } = useForm<BillFormValues>({ mode: "onChange", defaultValues: { amount: "" } });
 
-  const bill =
-    selected &&
-    (accounts
-      .getCardBills(selected.year, selected.month)
-      .find((b) => b.account.id === selected.account.id) ??
-      selected);
+  // Home's row can leave out what an older open bill still owes; the sheet always shows the full statement.
+  const statementOf = (b: CardBill) =>
+    accounts.getCardBills(b.year, b.month).find((s) => s.account.id === b.account.id) ?? b;
+  const bill = selected && statementOf(selected);
+  // A TBD bill starts blank: a prefilled "0.00" let one tap on Save mark it paid and drop it off Home.
+  const amountField = (b: CardBill) => (isBillTbd(b) ? "" : b.amount.toFixed(2));
   // Once the statement amount is known, paying is the main thing left to do here.
   const isPayable = bill != null && !bill.isPaid && !isBillTbd(bill);
 
   useImperativeHandle(ref, () => ({
     present: (next) => {
       setSelected(next);
-      reset({ amount: next.amount.toFixed(2) });
+      reset({ amount: amountField(statementOf(next)) });
       sheetRef.current?.present();
     },
   }));
@@ -72,7 +72,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     }
     try {
       await accounts.setBillAmount(bill.account.id, bill.year, bill.month, amount);
-      reset({ amount: (amount ?? bill.estimate).toFixed(2) });
+      reset({ amount: amountField({ ...bill, amount: amount ?? bill.estimate, isEstimate: amount == null }) });
     } catch (e) {
       console.error("Save bill amount failed", e);
       Alert.alert("Save failed", "Something went wrong. Please try again.");
@@ -90,7 +90,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     sheetRef.current?.dismiss();
     const typed = parseFloat(getValues("amount"));
     const amount = isValid && !isNaN(typed) ? Math.max(0, round(typed - bill.paid, 2)) : bill.remaining;
-    router.push({ pathname: "/transfer", params: { accountId: bill.account.id, amount: amount.toFixed(2) } });
+    router.push({ pathname: "/account/pay", params: { id: bill.account.id, amount: amount.toFixed(2) } });
   }
 
   const renderBackdrop = useCallback(

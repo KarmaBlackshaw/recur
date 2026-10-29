@@ -5,7 +5,7 @@ import ReanimatedSwipeable, {
   SwipeDirection,
   type SwipeableMethods,
 } from "react-native-gesture-handler/ReanimatedSwipeable";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 import { selectionHaptic } from "@/utils/haptics";
@@ -32,7 +32,8 @@ interface Props {
   children: React.ReactNode;
   // Revealed by swiping right. A full swipe fires it straight away.
   leftAction?: SwipeAction;
-  // Revealed by swiping left. Needs a tap, so a stray swipe can't trigger it.
+  // Revealed by swiping left. Needs a tap, so a stray swipe can't trigger it. Icon only: the label is read
+  // to screen readers.
   rightAction?: SwipeAction;
   // Briefly reveals the left action once, to teach the gesture.
   isHintShown?: boolean;
@@ -127,13 +128,12 @@ export function SwipeableRow({ children, leftAction, rightAction, isHintShown = 
     const tone = TONE[rightAction.tone];
     return (
       <TouchableOpacity
-        className={`justify-center items-center gap-1 w-20 my-1.5 mr-5 rounded-2xl ${tone.box}`}
+        className={`justify-center items-center w-20 my-1.5 mr-5 rounded-2xl ${tone.box}`}
         onPress={runRightAction}
         accessibilityRole="button"
         accessibilityLabel={rightAction.label}
       >
         <Feather name={rightAction.icon} size={20} color={tone.glyph} />
-        <AppText variant="meta" className={tone.text}>{rightAction.label}</AppText>
       </TouchableOpacity>
     );
   }

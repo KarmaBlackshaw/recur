@@ -1,12 +1,11 @@
 import React from "react";
 import { Image, View, Text, TouchableOpacity, type AccessibilityActionEvent } from "react-native";
 import { router } from "expo-router";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 import dayjs from "dayjs";
-import { LinearGradient } from "expo-linear-gradient";
-import { cssInterop } from "nativewind";
 import { AppText } from "@/components/ui/AppText";
+import { Ionicon } from "@/components/ui/Ionicon";
 import { useAccounts } from "@/context/AccountContext";
 import { resolveAccountLogo } from "@/utils/accountLogo/resolveAccountLogo";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
@@ -22,6 +21,7 @@ interface Props {
   previewBalance?: number;
   onPress?: () => void;
   isCompact?: boolean;
+  isStatic?: boolean;
   // Picker state: a white ring and a check mark on the chosen account.
   isSelected?: boolean;
 }
@@ -32,23 +32,35 @@ const TYPE_META: Record<AccountType, { icon: IoniconName; chip: string }> = {
   credit: { icon: "card-outline", chip: "Credit" },
 };
 
-cssInterop(LinearGradient, { className: "style" });
-
 const ACCESSIBILITY_ACTIONS = [
   { name: "adjust", label: "Adjust balance" },
   { name: "transfer", label: "Transfer" },
+];
+
+const CARD_ACCESSIBILITY_ACTIONS = [
+  { name: "adjust", label: "Adjust balance" },
+  { name: "transfer", label: "Pay bill" },
 ];
 
 function wholeAmount(amount: number): string {
   return `₱${Math.round(amount).toLocaleString("en-PH")}`;
 }
 
-export function AccountCard({ account, index = 0, previewBalance, onPress, isCompact = false, isSelected = false }: Props) {
+export function AccountCard({
+  account,
+  index = 0,
+  previewBalance,
+  onPress,
+  isCompact = false,
+  isStatic = false,
+  isSelected = false,
+}: Props) {
   const { getBalance, interestEstimate } = useAccounts();
   const isReducedMotion = useReducedMotion();
   const meta = TYPE_META[account.type];
   const bank = findBank(account.bank);
   const isPreview = previewBalance != null;
+  const isPressable = !isPreview && !isStatic;
   const balance = previewBalance ?? getBalance(account.id);
   const isCredit = account.type === "credit";
   const isNegative = !isCredit && balance < 0;
@@ -110,24 +122,27 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
     <TouchableOpacity
       className="flex-1"
       activeOpacity={0.85}
-      disabled={isPreview}
+      disabled={!isPressable}
       onPress={onPress ?? (() => router.push(`/account/${account.id}`))}
-      accessibilityRole={isPreview ? undefined : "button"}
+      accessibilityRole={isPressable ? "button" : undefined}
       accessibilityLabel={labelParts.join(", ")}
       accessibilityState={onPress ? { selected: isSelected } : undefined}
-      accessibilityHint={isPreview || onPress ? undefined : "Opens account details"}
-      accessibilityActions={isPreview || onPress ? undefined : ACCESSIBILITY_ACTIONS}
+      accessibilityHint={!isPressable || onPress ? undefined : "Opens account details"}
+      accessibilityActions={
+        !isPressable || onPress ? undefined : isCredit ? CARD_ACCESSIBILITY_ACTIONS : ACCESSIBILITY_ACTIONS
+      }
       onAccessibilityAction={handleAccessibilityAction}
     >
       <Animated.View
-        entering={isReducedMotion || isPreview ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}
+        entering={isReducedMotion || !isPressable ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}
         className={`grow rounded-3xl overflow-hidden justify-between ${isCompact ? "p-3" : "min-h-[164px] p-4"} ${borderClass}`}
         style={{ backgroundColor: account.color ?? DEFAULT_CARD_COLOR }}
       >
-        <LinearGradient
+        {/* NativeWind has no gradient classes on native, so the sheen is an RN background image. */}
+        <View
           pointerEvents="none"
-          colors={["rgba(255,255,255,0.14)", "rgba(0,0,0,0.3)"]}
           className="absolute inset-0"
+          style={{ experimental_backgroundImage: "linear-gradient(rgba(255,255,255,0.14), rgba(0,0,0,0.3))" }}
         />
 
         <View>
@@ -136,11 +151,11 @@ export function AccountCard({ account, index = 0, previewBalance, onPress, isCom
               <Image source={{ uri: resolveAccountLogo(account.logoUri) }} className="size-9 rounded-xl bg-white" />
             ) : bank ? (
               <View className="size-9 rounded-xl items-center justify-center bg-white">
-                <bank.Logo width={24} height={24} />
+                <Image source={bank.logo} className="size-[24px]" />
               </View>
             ) : (
               <View className="size-9 rounded-xl items-center justify-center bg-white/20">
-                <Ionicons name={account.icon ?? meta.icon} size={18} color={colors.text} />
+                <Ionicon name={account.icon ?? meta.icon} size={18} color={colors.text} />
               </View>
             )}
             <AppText variant="body-bold" className="flex-1" numberOfLines={1}>{account.name}</AppText>

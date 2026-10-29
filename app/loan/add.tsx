@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import maxBy from "lodash/maxBy";
-import orderBy from "lodash/orderBy";
-import uniqBy from "lodash/uniqBy";
+import { maxBy, orderBy, uniqBy } from "@/utils/collections";
 import { View, Alert, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
+import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { AppButton } from "@/components/ui/AppButton";
@@ -22,6 +21,7 @@ import { AppCombobox } from "@/components/ui/AppCombobox";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { sanitizeAmount } from "@/utils/amountInput";
 import { formatAmount } from "@/utils/dateHelpers";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
@@ -154,6 +154,7 @@ export default function AddLoanScreen() {
 
   const {
     control,
+    getValues,
     handleSubmit,
     reset,
     setValue,
@@ -171,6 +172,19 @@ export default function AddLoanScreen() {
       reset(toFormValues(editing));
     }
   }, [isLoading, editing?.id]);
+
+  useEffect(() => {
+    if (getValues("amount")) {
+      trigger("amount");
+    }
+  }, [accounts.transactions]);
+
+  function amountOverdraft(amount: string) {
+    return accounts.overdraftError(
+      [{ accountId: getValues("accountId"), amount: -parseFloat(amount) }],
+      isEditing ? (t) => t.loanId === id && t.kind === "loan_out" : undefined
+    );
+  }
 
   const values = watch();
   const candidate = toLoanInput(values);
@@ -219,7 +233,7 @@ export default function AddLoanScreen() {
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Save failed", "Something went wrong. Please try again.");
+      alertFailure("Save failed", error);
     }
   });
 
@@ -245,7 +259,7 @@ export default function AddLoanScreen() {
             router.dismissTo("/loans");
           } catch (error) {
             console.error(error);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            alertFailure("Delete failed", error);
           }
         },
       },
@@ -322,20 +336,29 @@ export default function AddLoanScreen() {
           name="amount"
           rules={{
             required: true,
-            validate: validateAmount,
+            validate: (v) => {
+              const valid = validateAmount(v);
+              if (valid !== true) {
+                return valid;
+              }
+              return amountOverdraft(v)?.message ?? true;
+            },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
-            <AppTextInput
-              ref={amountRef}
-              autoFocus={!isEditing && prefilledBorrower !== ""}
-              label="Amount (₱)"
-              isAmount
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              error={fieldState.isTouched ? fieldState.error?.message : undefined}
-            />
+            <>
+              <AppTextInput
+                ref={amountRef}
+                autoFocus={!isEditing && prefilledBorrower !== ""}
+                label="Amount (₱)"
+                isAmount
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="0.00"
+                error={fieldState.isTouched || amountOverdraft(value) ? fieldState.error?.message : undefined}
+              />
+              <TransferInButton fieldError={fieldState.error?.message} overdraft={amountOverdraft(value)} />
+            </>
           )}
         />
 
@@ -462,7 +485,12 @@ export default function AddLoanScreen() {
             title="From account"
             options={depositAccounts}
             value={value}
-            onChange={onChange}
+            onChange={(accountId) => {
+              onChange(accountId);
+              if (getValues("amount")) {
+                trigger("amount");
+              }
+            }}
           />
         )}
       />

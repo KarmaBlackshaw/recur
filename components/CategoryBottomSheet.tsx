@@ -2,7 +2,7 @@
 import React, { forwardRef, useRef } from "react";
 import { Alert, Keyboard, TouchableOpacity, View } from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";

@@ -8,9 +8,9 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import useAsyncEffect from "ahooks/es/useAsyncEffect";
-import useMemoizedFn from "ahooks/es/useMemoizedFn";
-import sortBy from "lodash/sortBy";
+import { useAsyncEffect } from "@/utils/useAsyncEffect";
+import { useMemoizedFn } from "@/utils/useMemoizedFn";
+import { sortBy } from "@/utils/collections";
 import dayjs from "dayjs";
 import type { AccountTransaction, Expense, Status, MonthStatus, HomeBandSlot } from "@/types";
 import * as expensesDB from "@/db/expenses";
@@ -330,7 +330,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         console.error("Failed to sync one-off payment, reverting expense", err);
         await expensesDB.update(id, existing);
         dispatch({ type: "UPDATE", payload: existing });
-        return;
+        throw err;
       }
     }
   );
@@ -554,7 +554,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           console.error("Failed to sync payment, reverting status", err);
           await expensesDB.updateStatus(id, expense.status);
           dispatch({ type: "UPDATE", payload: expense });
-          return;
+          throw err;
         }
       } else {
         try {
@@ -565,6 +565,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (err) {
           console.error("Failed to sync payment, reverting status", err);
+          throw err;
         }
       }
     }

@@ -1,7 +1,7 @@
 import React from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 

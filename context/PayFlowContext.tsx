@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useMemo, useRef } from "react";
-import { Alert } from "react-native";
 import dayjs from "dayjs";
 import { PaySheet, type PayConfirmation, type PaySheetRef, type PayTarget } from "@/components/PaySheet";
 import { useExpenses, type UndoMonth } from "@/context/ExpenseContext";
 import { useSnackbar } from "@/context/SnackbarContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { successHaptic } from "@/utils/haptics";
+import { alertFailure } from "@/utils/accounts/alertFailure";
+import { OverdraftError } from "@/utils/accounts/OverdraftError";
 import type { Expense } from "@/types";
 
 interface PayFlowValue {
@@ -40,7 +41,7 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (e) {
       console.error(`Mark ${verb} failed`, e);
-      Alert.alert(`Couldn't mark ${title} ${verb}`, "Something went wrong. Please try again.");
+      alertFailure(e instanceof OverdraftError ? `Can't mark ${title} ${verb}` : `Couldn't mark ${title} ${verb}`, e);
     }
   }
 

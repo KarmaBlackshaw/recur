@@ -1,6 +1,6 @@
 import React, { forwardRef, useImperativeHandle, useRef } from "react";
 import { TouchableOpacity, View } from "react-native";
-import range from "lodash/range";
+import { range } from "@/utils/collections";
 import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppText } from "@/components/ui/AppText";
 import { formatOrdinal } from "@/utils/dateHelpers";

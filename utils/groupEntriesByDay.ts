@@ -1,6 +1,5 @@
 import dayjs from "dayjs";
-import groupBy from "lodash/groupBy";
-import sumBy from "lodash/sumBy";
+import { groupBy, sumBy } from "@/utils/collections";
 
 export function groupEntriesByDay<T extends { effDate: Date; amount: number }>(entries: T[]) {
   const groups = groupBy(entries, (it) => dayjs(it.effDate).format("YYYY-MM-DD"));

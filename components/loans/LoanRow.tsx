@@ -11,21 +11,22 @@ interface Props {
   summary: TLoanSummary;
   accountName: string | undefined;
   today: string;
-  // Defaults to the borrower. Lists already scoped to one borrower title rows by note or amount instead.
+  // Defaults to the note, else the borrower. Lists scoped to one borrower title rows by note or amount instead.
   title?: string;
   onPress: () => void;
 }
 
-export function LoanRow({ loan, summary, accountName, today, title = loan.borrower, onPress }: Props) {
-  const { lentAt, interest } = loan;
+export function LoanRow({ loan, summary, accountName, today, title = loan.note || loan.borrower, onPress }: Props) {
+  const { borrower, lentAt, interest } = loan;
   const { isSettled, balance, paidTotal, settledAt } = summary;
   const age = formatLoanAge(lentAt, isSettled ? (settledAt ?? today) : today);
   const meta = isSettled ? "Settled" : `${accountName ?? "Deleted account"} · ${formatLoanInterest(interest)}`;
   const caption = isSettled ? `ran ${age}` : age;
   const amount = formatAmount(isSettled ? paidTotal : balance);
+  const name = title === borrower ? borrower : `${borrower}, ${title}`;
   const label = isSettled
-    ? `${title}, settled, paid ${amount} over ${age}`
-    : `${title}, owes ${amount}, ${age}`;
+    ? `${name}, settled, paid ${amount} over ${age}`
+    : `${name}, owes ${amount}, ${age}`;
 
   return (
     <AppListRow

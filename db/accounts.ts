@@ -3,7 +3,8 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import type { BankId } from "@/constants/banks";
-import type { Account, AccountInput, AccountType, InterestPeriod, IoniconName } from "@/types";
+import { isIoniconName } from "@/constants/ionicons";
+import type { Account, AccountInput, AccountType, InterestPeriod } from "@/types";
 
 interface AccountRow {
   id: string; name: string; type: string; sort_order: number;
@@ -32,7 +33,7 @@ function toAccount(r: AccountRow): Account {
     dueDay: r.due_day,
     createdAt: r.created_at,
     color: r.color,
-    icon: r.icon as IoniconName | null,
+    icon: isIoniconName(r.icon) ? r.icon : null,
     logoUri: r.logo_uri,
     bank: r.bank as BankId | null,
     archivedAt: r.archived_at,

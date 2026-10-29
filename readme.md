@@ -30,7 +30,7 @@ A recurring expenses tracker built with React Native and Expo. Track monthly bil
 | Bottom sheets | @gorhom/bottom-sheet v5 |
 | Date logic | dayjs |
 | Icons | @expo/vector-icons (Ionicons / Feather) |
-| Fonts | Caveat (headings) + Quicksand (body) |
+| Fonts | Oswald (headings) + Quicksand (body) |
 
 ## Design Tokens
 
@@ -111,6 +111,19 @@ build (`.eas/workflows/build.yml`). Install the latest simulator build with `npx
 To get installable iPhone builds: join the Apple Developer Program, run `npm run build:ipa` once to sign in and
 let EAS create the certificate and profile, register each iPhone with `npx eas-cli device:create`, then switch
 `build_ios` in `.eas/workflows/build.yml` to the `preview` profile.
+
+### App size
+
+Android release builds ship `arm64-v8a` and `armeabi-v7a` only, run R8 and resource shrinking, and leave out
+Fresco's GIF/WebP decoders (`app.json`, `plugins/`). Don't turn on Expo's experimental Metro tree shaking
+(`EXPO_UNSTABLE_TREE_SHAKING`): it drops NativeWind's `global.css` import and the app renders unstyled.
+
+Generated assets, committed alongside their sources:
+
+```bash
+node scripts/subset-fonts.mjs        # Oswald without Cyrillic/Greek + the Ionicons in constants/ionicons.ts
+node scripts/generate-bank-logos.mjs # assets/banks/*.svg → @1x/@2x/@3x PNGs
+```
 
 ## Data Model
 

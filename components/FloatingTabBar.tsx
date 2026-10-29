@@ -3,9 +3,10 @@ import { View, Text, TouchableOpacity, Pressable, useWindowDimensions } from "re
 import Animated, { FadeIn, FadeInDown, FadeOut, useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import type { BottomTabBarProps } from "expo-router/tabs";
 import { AppText } from "@/components/ui/AppText";
+import { AppFab } from "@/components/ui/AppFab";
 import { colors } from "@/constants/theme";
 import type { FeatherIconName } from "@/types";
 
@@ -203,12 +204,11 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
           })}
         </View>
 
-        <TouchableOpacity
+        <AppFab
+          icon={isMenuOpen ? "x" : "plus"}
+          size={tabHeight}
           onPress={isMenuOpen ? () => setIsMenuOpen(false) : handleAdd}
           onLongPress={() => setIsMenuOpen(true)}
-          activeOpacity={0.85}
-          className="rounded-[18px] bg-primary items-center justify-center"
-          accessibilityRole="button"
           accessibilityLabel={fabLabel}
           accessibilityHint="Long press for more actions"
           accessibilityActions={[{ name: "longpress", label: "More actions" }]}
@@ -217,18 +217,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               setIsMenuOpen(true);
             }
           }}
-          style={{
-            width: tabHeight,
-            height: tabHeight,
-            shadowColor: colors.secondary,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.5,
-            shadowRadius: 14,
-            elevation: 10,
-          }}
-        >
-          <Feather name={isMenuOpen ? "x" : "plus"} size={26} color={colors.text} />
-        </TouchableOpacity>
+        />
       </View>
     </>
   );

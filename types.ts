@@ -1,9 +1,10 @@
-import type { Feather, Ionicons } from "@expo/vector-icons";
+import type Feather from "@expo/vector-icons/Feather";
 import type { BankId } from "@/constants/banks";
+import type { IoniconName } from "@/constants/ionicons";
 import type { BillSummary } from "@/utils/cardBills";
 
+export type { IoniconName };
 export type FeatherIconName = keyof typeof Feather.glyphMap;
-export type IoniconName = keyof typeof Ionicons.glyphMap;
 export type Recurrence = 'monthly' | 'yearly' | 'one-off';
 export type Status = 'unpaid' | 'paid';
 export type HomeBandSlot = 'current' | 'next';
@@ -139,6 +140,12 @@ export interface Account {
   bank: BankId | null;
   archivedAt: string | null;   // ISO timestamp. Archived accounts keep their history but leave pickers, bills and interest.
   createdAt: string;
+}
+
+export interface AccountBankGroup {
+  key: BankId | 'other';
+  label: string;
+  accounts: Account[];
 }
 
 export type AccountInput = Omit<Account, 'id' | 'createdAt' | 'sortOrder' | 'interestAccruedThrough' | 'archivedAt'>;

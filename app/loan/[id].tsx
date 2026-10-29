@@ -2,10 +2,9 @@ import React, { useMemo } from "react";
 import { Alert, SectionList, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
-import groupBy from "lodash/groupBy";
-import orderBy from "lodash/orderBy";
+import { groupBy, orderBy } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
@@ -18,6 +17,7 @@ import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
 import { formatLoanAge } from "@/utils/loans/formatLoanAge";
 import { formatLoanInterest } from "@/utils/loans/formatLoanInterest";
+import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { AccountTransaction } from "@/types";
 
@@ -91,7 +91,7 @@ export default function LoanDetailScreen() {
             await loans.deletePayment(txn.id);
           } catch (e) {
             console.error("Delete payment failed", e);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
+            alertFailure("Delete failed", e);
           }
         },
       },
@@ -144,7 +144,9 @@ export default function LoanDetailScreen() {
 
   const heroAmount = summary.isSettled ? summary.paidTotal : summary.balance;
   const interestLabel = formatLoanInterest(loan.interest);
-  const heroA11yLabel = `${hero.overline} ${formatAmount(heroAmount)}. ${meta}. ${interestLabel}`;
+  const heroA11yLabel = [`${hero.overline} ${formatAmount(heroAmount)}`, meta, interestLabel, loan.note]
+    .filter(Boolean)
+    .join(". ");
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -187,6 +189,7 @@ export default function LoanDetailScreen() {
               </Text>
               <AppText variant="meta" className="mt-1">{meta}</AppText>
               <AppText variant="meta">{interestLabel}</AppText>
+              {loan.note ? <AppText className="mt-2">{loan.note}</AppText> : null}
             </View>
             <StatRow label="Interest so far" value={formatAmount(summary.interestTotal)} />
             <StatRow label="Paid so far" value={formatAmount(summary.paidTotal)} />

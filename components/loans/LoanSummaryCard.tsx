@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { router } from "expo-router";
-import sumBy from "lodash/sumBy";
+import { sumBy } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { formatAmount } from "@/utils/dateHelpers";

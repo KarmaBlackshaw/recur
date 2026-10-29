@@ -1,8 +1,8 @@
 import React, { createContext, useCallback, useContext, useMemo, useReducer } from "react";
 import dayjs from "dayjs";
-import useAsyncEffect from "ahooks/es/useAsyncEffect";
-import useMemoizedFn from "ahooks/es/useMemoizedFn";
-import round from "lodash/round";
+import { useAsyncEffect } from "@/utils/useAsyncEffect";
+import { useMemoizedFn } from "@/utils/useMemoizedFn";
+import { round } from "@/utils/round";
 import {
   getAll as getAllLoans,
   insert as insertLoan,
@@ -109,7 +109,12 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
 
   const addLoan = useMemoizedFn(async (input: LoanInput) => {
     assertDepositAccount(input.accountId);
-    const loan = await insertLoan({ ...input, principal: round(input.principal, 2) });
+    const principal = round(input.principal, 2);
+    const error = accounts.overdraftError([{ accountId: input.accountId, amount: -principal }]);
+    if (error) {
+      throw error;
+    }
+    const loan = await insertLoan({ ...input, principal });
     dispatch({ type: "ADD_LOAN", payload: loan });
     await accounts.reload();
   });
@@ -127,12 +132,23 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     if (!candidate.isValid) {
       throw new Error("Payments exceed this loan");
     }
+    const error = accounts.overdraftError(
+      [{ accountId: input.accountId, amount: -next.principal }],
+      (t) => t.loanId === id && t.kind === "loan_out"
+    );
+    if (error) {
+      throw error;
+    }
     await updateLoanRow(id, next);
     dispatch({ type: "UPDATE_LOAN", payload: { ...existing, ...next } });
     await accounts.reload();
   });
 
   const deleteLoan = useMemoizedFn(async (id: string) => {
+    const error = accounts.overdraftError([], (t) => t.loanId === id);
+    if (error) {
+      throw error;
+    }
     await removeLoan(id);
     dispatch({ type: "REMOVE_LOAN", payload: id });
     await accounts.reload();
@@ -180,6 +196,10 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
   });
 
   const deletePayment = useMemoizedFn(async (txnId: string) => {
+    const error = accounts.overdraftError([], (t) => t.id === txnId);
+    if (error) {
+      throw error;
+    }
     await removeTransaction(txnId);
     await accounts.reload();
   });

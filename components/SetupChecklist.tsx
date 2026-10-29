@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { router, useFocusEffect, type Href } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";

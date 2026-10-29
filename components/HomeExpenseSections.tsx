@@ -1,8 +1,8 @@
 import React, { useMemo, useRef } from "react";
 import { View, SectionList, TouchableOpacity } from "react-native";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import sumBy from "lodash/sumBy";
+import Feather from "@expo/vector-icons/Feather";
+import { sumBy } from "@/utils/collections";
 import { CardBillRow } from "@/components/accounts/CardBillRow";
 import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
@@ -16,18 +16,16 @@ import type { CardBill, FeatherIconName, HomeBandSlot } from "@/types";
 
 export type BillEntry = { key: string; bill: CardBill; effDate: Date; amount: number };
 export type HomeEntry = LedgerEntry | BillEntry;
-// `count` is every due left that month (the "N left" caption); `data` holds only the first few rows.
 export type UpcomingBand = {
   key: string;
   slot: HomeBandSlot;
   label: string;
   caption: string;
   total: number;
-  count: number;
   data: HomeEntry[];
 };
 
-// A link row under a section, e.g. "See all 7 in Recurring".
+// A link row under a section, e.g. "All activity".
 type SectionFooter = { label: string; onPress: () => void };
 
 // Home has three kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each row shows its own date);
@@ -125,10 +123,8 @@ export function HomeExpenseSections({
       });
     }
 
-    for (const { key, slot, label, caption, total, count, data } of upcoming) {
+    for (const { key, slot, label, caption, total, data } of upcoming) {
       const isCollapsed = collapsedSlots.includes(slot);
-      // The band lists its next few dues; a link leads to the rest once some are left out.
-      const hasMore = !isCollapsed && count > data.length;
       out.push({
         kind: "flat",
         key,
@@ -139,7 +135,6 @@ export function HomeExpenseSections({
         total,
         slot,
         isCollapsed,
-        footer: hasMore ? { label: `See all ${count} in Recurring`, onPress: () => router.navigate("/recurring") } : undefined,
         data: isCollapsed ? [] : data,
       });
     }

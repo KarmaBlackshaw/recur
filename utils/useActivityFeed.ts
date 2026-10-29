@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import orderBy from "lodash/orderBy";
+import { orderBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
 import type { ActivityEntry, DayEntry, LedgerEntry } from "@/components/DayGroupedExpenseList";
 import {

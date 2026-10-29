@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import sumBy from "lodash/sumBy";
+import { sumBy } from "@/utils/collections";
 import { hasCycleIn } from "@/utils/dateHelpers";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";

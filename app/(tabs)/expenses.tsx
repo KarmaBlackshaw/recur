@@ -1,14 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
-import chunk from "lodash/chunk";
-import keyBy from "lodash/keyBy";
-import sumBy from "lodash/sumBy";
-import useBoolean from "ahooks/es/useBoolean";
-import useSetState from "ahooks/es/useSetState";
+import { chunk, keyBy, sumBy } from "@/utils/collections";
+import { useBoolean } from "@/utils/useBoolean";
+import { useSetState } from "@/utils/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { MonthNavigator } from "@/components/MonthNavigator";

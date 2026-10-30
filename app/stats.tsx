@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { FlatList, TouchableOpacity, View } from "react-native";
+import { FlatList, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
@@ -31,8 +31,8 @@ const PERIODS: { label: string; value: Period }[] = [
 
 const FEES_CATEGORY = "Fees";
 const OTHER_SEGMENT_KEY = "other-categories";
-const DONUT_SIZE = 216;
-const DONUT_THICKNESS = 30;
+const DONUT_RADIUS_RATIO = 0.22;
+const DONUT_THICKNESS_RATIO = 0.3;
 
 function shareLabel(share: number) {
   const percent = Math.round(share * 100);
@@ -66,6 +66,7 @@ function CategoryRow({ row, color }: { row: TCategorySpend; color: string }) {
 export default function StatsScreen() {
   const { loading } = useExpenses();
   const { transactions } = useAccounts();
+  const { width } = useWindowDimensions();
   const ledger = usePaidLedger();
   const params = useLocalSearchParams<{ year?: string; month?: string }>();
   const [{ year, month, period }, setSelected] = useSetState<{ year: number; month: number; period: Period }>({
@@ -97,9 +98,26 @@ export default function StatsScreen() {
   const total = sumBy(rows, "amount");
   const rest = rows.slice(chartHues.length);
   const segments = [
-    ...rows.slice(0, chartHues.length).map(({ category, amount }, index) => ({ key: category, value: amount, color: chartHues[index] })),
-    ...(rest.length > 0 ? [{ key: OTHER_SEGMENT_KEY, value: sumBy(rest, "amount"), color: chartRest }] : []),
+    ...rows.slice(0, chartHues.length).map(({ category, amount, share }, index) => ({
+      key: category,
+      value: amount,
+      color: chartHues[index],
+      label: category,
+      caption: shareLabel(share),
+    })),
+    ...(rest.length > 0
+      ? [
+          {
+            key: OTHER_SEGMENT_KEY,
+            value: sumBy(rest, "amount"),
+            color: chartRest,
+            label: "Others",
+            caption: shareLabel(sumBy(rest, "share")),
+          },
+        ]
+      : []),
   ];
+  const donutRadius = Math.round(width * DONUT_RADIUS_RATIO);
   const periodLabel = dayjs(new Date(year, month, 1)).format(period === "year" ? "YYYY" : "MMMM YYYY");
 
   if (loading) {
@@ -136,8 +154,13 @@ export default function StatsScreen() {
         contentContainerClassName="pb-5"
         ListHeaderComponent={
           rows.length > 0 ? (
-            <View className="items-center py-6">
-              <AppDonutChart segments={segments} size={DONUT_SIZE} thickness={DONUT_THICKNESS}>
+            <View className="items-center pb-2">
+              <AppDonutChart
+                segments={segments}
+                width={width}
+                radius={donutRadius}
+                thickness={Math.round(donutRadius * DONUT_THICKNESS_RATIO)}
+              >
                 <AppText variant="overline">Spent</AppText>
                 <AppText
                   variant="title"

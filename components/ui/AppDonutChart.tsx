@@ -1,66 +1,67 @@
 import React from "react";
 import { View } from "react-native";
-import { maxBy, sumBy } from "@/utils/collections";
+import Svg, { Path, Text as SvgText } from "react-native-svg";
+import { colors } from "@/constants/theme";
+import { layoutDonut } from "@/utils/charts/layoutDonut";
 
-const GAP = 2;
+const AVERAGE_CHAR_WIDTH = 6.2;
+const FONT_SIZE = 11;
+const LINE_OFFSET = 13;
 
 interface TDonutSegment {
   key: string;
   value: number;
   color: string;
+  label: string;
+  caption: string;
 }
 
 interface AppDonutChartProps {
   segments: TDonutSegment[];
-  size: number;
+  width: number;
+  radius: number;
   thickness: number;
   children?: React.ReactNode;
 }
 
-// There's no SVG in this app, so a wedge is a half-disc rotated inside a half-width clip. That clip shows 180° at
-// most, and only the largest segment can pass 180°, so it's painted as the full disc under the others. That disc
-// shows through a translucent segment, so colors must be opaque.
-export function AppDonutChart({ segments, size, thickness, children }: AppDonutChartProps) {
-  const total = sumBy(segments, "value");
-  let angle = 0;
-  const wedges = segments.map((segment) => {
-    const start = angle;
-    const sweep = (segment.value / total) * 360;
-    angle += sweep;
-    return { ...segment, start, sweep };
+export function AppDonutChart({ segments, width, radius, thickness, children }: AppDonutChartProps) {
+  const { height, centerX, centerY, labelWidth, slices } = layoutDonut({
+    values: segments.map(({ value }) => value),
+    width,
+    radius,
+    thickness,
   });
-  const largest = maxBy(wedges, "sweep");
+  const maxChars = Math.floor(labelWidth / AVERAGE_CHAR_WIDTH);
+  const fit = (label: string) => (label.length > maxChars ? `${label.slice(0, maxChars - 1)}…` : label);
+  const holeSize = (radius - thickness) * 2;
 
   return (
-    <View className="items-center justify-center" style={{ width: size, height: size }}>
-      <View className="absolute inset-0 rounded-full" style={{ backgroundColor: largest?.color }} />
-      {wedges
-        .filter((wedge) => wedge !== largest)
-        .map(({ key, color, start, sweep }) => (
-          <View key={key} className="absolute inset-0" style={{ transform: [{ rotate: `${start}deg` }] }}>
-            <View className="absolute top-0 bottom-0 right-0 w-1/2 overflow-hidden">
-              <View
-                className="absolute top-0"
-                style={{ left: -size / 2, width: size, height: size, transform: [{ rotate: `${sweep}deg` }] }}
-              >
-                <View
-                  className="h-full w-1/2"
-                  style={{ backgroundColor: color, borderTopLeftRadius: size / 2, borderBottomLeftRadius: size / 2 }}
-                />
-              </View>
-            </View>
-          </View>
+    <View style={{ width, height }}>
+      <Svg width={width} height={height}>
+        {segments.map(({ key, color }, index) => (
+          <Path key={key} d={slices[index].leaderPath} stroke={color} strokeWidth={1} fill="none" />
         ))}
-      {wedges.length > 1
-        ? wedges.map(({ key, start }) => (
-            <View key={key} className="absolute inset-0 items-center" style={{ transform: [{ rotate: `${start}deg` }] }}>
-              <View className="bg-background" style={{ width: GAP, height: size / 2 }} />
-            </View>
-          ))
-        : null}
+        {segments.map(({ key, color }, index) => (
+          <Path key={key} d={slices[index].arcPath} stroke={color} strokeWidth={thickness} fill="none" />
+        ))}
+        {segments.map(({ key, label, caption }, index) => {
+          const { side, labelX, labelY } = slices[index];
+          const textAnchor = side === "right" ? "start" : "end";
+          return (
+            <React.Fragment key={key}>
+              <SvgText x={labelX} y={labelY - 2} textAnchor={textAnchor} fill={colors.text} fontSize={FONT_SIZE} fontFamily="Quicksand_700Bold">
+                {fit(label)}
+              </SvgText>
+              <SvgText x={labelX} y={labelY - 2 + LINE_OFFSET} textAnchor={textAnchor} fill={colors.textSecondary} fontSize={FONT_SIZE} fontFamily="Quicksand_500Medium">
+                {caption}
+              </SvgText>
+            </React.Fragment>
+          );
+        })}
+      </Svg>
       <View
-        className="items-center justify-center rounded-full bg-background"
-        style={{ width: size - thickness * 2, height: size - thickness * 2 }}
+        className="absolute items-center justify-center"
+        style={{ left: centerX - holeSize / 2, top: centerY - holeSize / 2, width: holeSize, height: holeSize }}
       >
         {children}
       </View>

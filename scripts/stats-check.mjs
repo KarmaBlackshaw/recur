@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { DONUT_LABEL_HEIGHT, layoutDonut } from "../utils/charts/layoutDonut.ts";
 import { categoryBreakdown } from "../utils/stats/categoryBreakdown.ts";
 
 const line = (category, amount) => ({ category, amount });
@@ -16,5 +17,34 @@ assert.equal(names(categoryBreakdown([line("Zoo", 50), line("Art", 50)])), "Art,
 const skipped = categoryBreakdown([line("Food", 100), line("Variable", 0), line("Refund", -20)]);
 assert.equal(names(skipped), "Food", "no slice for zero or negative lines");
 assert.equal(skipped[0].share, 1, "skipped lines don't dilute the share");
+
+const layout = (values) => layoutDonut({ values, width: 360, radius: 80, thickness: 24 });
+const labelsOn = (slices, side) => slices.filter((slice) => slice.side === side).map((slice) => slice.labelY).sort((a, b) => a - b);
+
+for (const values of [
+  [33.9, 13.6, 13.4, 10.9, 5.4, 3.3, 19.5],
+  [59, 16, 8, 7, 3, 2, 5],
+  [90, 2, 2, 2, 2, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1],
+]) {
+  const { slices, height } = layout(values);
+  assert.equal(slices.length, values.length);
+  for (const side of ["left", "right"]) {
+    const ys = labelsOn(slices, side);
+    ys.forEach((y, index) => {
+      assert.ok(y >= DONUT_LABEL_HEIGHT / 2 && y <= height - DONUT_LABEL_HEIGHT / 2, `label inside the chart: ${values}`);
+      if (index > 0) {
+        assert.ok(y - ys[index - 1] >= DONUT_LABEL_HEIGHT - 1e-9, `labels don't touch: ${values}`);
+      }
+    });
+  }
+}
+
+const biggestFirst = layout([59, 16, 8, 7, 3, 2, 5]).slices;
+assert.equal(biggestFirst[0].side, "right", "a slice past 180° still labels on its midpoint's side");
+assert.equal(biggestFirst[1].side, "left");
+assert.ok(biggestFirst[0].arcPath.includes(" 0 1 1 "), "over 180° uses the large arc");
+assert.ok(biggestFirst[1].arcPath.includes(" 0 0 1 "), "under 180° doesn't");
+assert.equal(layout([100]).slices[0].arcPath.match(/A /g).length, 2, "a full ring is two arcs: one arc can't close");
 
 console.log("stats-check ok");

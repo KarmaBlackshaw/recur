@@ -10,6 +10,7 @@ import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LoanHistoryRow, type TLoanHistoryItem } from "@/components/loans/LoanHistoryRow";
 import { colors } from "@/constants/theme";
@@ -98,8 +99,17 @@ export default function LoanDetailScreen() {
   }
 
   function renderItem({ item }: { item: TLoanHistoryItem }) {
-    const onDelete = item.kind === "payment" ? () => confirmDeletePayment(item.txn) : undefined;
-    return <LoanHistoryRow item={item} onDelete={onDelete} />;
+    if (item.kind !== "payment" || !loan) {
+      return <LoanHistoryRow item={item} />;
+    }
+    const { txn } = item;
+    return (
+      <LoanHistoryRow
+        item={item}
+        onPress={() => router.push({ pathname: "/loan/pay", params: { id: loan.id, paymentId: txn.id } })}
+        onDelete={() => confirmDeletePayment(txn)}
+      />
+    );
   }
 
   function renderSectionHeader({ section }: { section: { date: Date } }) {
@@ -140,27 +150,19 @@ export default function LoanDetailScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="w-11 h-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Feather name="chevron-left" size={24} color={colors.secondary} />
-        </TouchableOpacity>
-        <View className="flex-1 items-center">
-          <AppText variant="title" numberOfLines={1}>{loan.borrower}</AppText>
-        </View>
-        <TouchableOpacity
-          onPress={() => router.push({ pathname: "/loan/add", params: { id: loan.id } })}
-          className="w-11 h-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Edit loan"
-        >
-          <Feather name="edit-2" size={20} color={colors.secondary} />
-        </TouchableOpacity>
-      </View>
+      <AppFormHeader
+        title={loan.borrower}
+        right={
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: "/loan/add", params: { id: loan.id } })}
+            className="w-11 h-11 items-center justify-center"
+            accessibilityRole="button"
+            accessibilityLabel="Edit loan"
+          >
+            <Feather name="edit-2" size={20} color={colors.secondary} />
+          </TouchableOpacity>
+        }
+      />
 
       <SectionList
         sections={sections}
@@ -194,7 +196,7 @@ export default function LoanDetailScreen() {
             {!summary.isSettled && (
               <AppButton label="Record payment" className="mx-5 mt-3" onPress={() => router.push({ pathname: "/loan/pay", params: { id: loan.id } })} />
             )}
-            <AppLabel className="px-5">History</AppLabel>
+            <AppLabel className="px-5 mt-6">History</AppLabel>
           </>
         }
         renderSectionHeader={renderSectionHeader}

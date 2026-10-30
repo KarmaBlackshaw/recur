@@ -6,8 +6,12 @@ import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
 import { groupBy, orderBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
+import { useExpenses } from "@/context/ExpenseContext";
+import { useLoans } from "@/context/LoanContext";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
+import { AppFormHeader } from "@/components/ui/AppFormHeader";
+import { openExpense } from "@/components/ExpenseCard";
 import { TransactionRow } from "@/components/accounts/TransactionRow";
 import { AdjustBalanceSheet, type AdjustBalanceSheetRef } from "@/components/accounts/AdjustBalanceSheet";
 import { AccountCard } from "@/components/accounts/AccountCard";
@@ -132,15 +136,18 @@ function CreditDetails({ account, balance, dueBill, onDueBillPress }: {
 export default function AccountDetailScreen() {
   const { id, action } = useLocalSearchParams<{ id: string; action?: "adjust" | "transfer" }>();
   const accounts = useAccounts();
+  const { expenses } = useExpenses();
+  const loans = useLoans();
   const refreshControl = useRefreshControl();
   const account = accounts.accounts.find((a) => a.id === id);
   const isArchived = account?.archivedAt != null;
+  const isCredit = account?.type === "credit";
   const adjustRef = useRef<AdjustBalanceSheetRef>(null);
   const billSheetRef = useRef<CardBillSheetRef>(null);
   const hasPresentedAction = useRef(false);
-  const isCredit = account?.type === "credit";
   const canTransfer =
     !isArchived && accounts.activeAccounts.length > 1 && accounts.activeAccounts.some((a) => a.type !== "credit");
+  const isTransferBlocked = !isArchived && !canTransfer;
 
   const openBill = useMemo(() => {
     if (!isCredit) {
@@ -212,26 +219,69 @@ export default function AccountDetailScreen() {
     }
   }
 
-  function confirmDeleteTransfer(transaction: AccountTransaction) {
-    const { transferId } = transaction;
-    if (!transferId) {
-      return;
-    }
-    Alert.alert("Delete transfer?", "Both sides of this transfer and any fee or income recorded with it are removed, and the balances restored.", [
+  function confirmDelete(title: string, message: string, remove: () => Promise<void>) {
+    Alert.alert(title, message, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
           try {
-            await accounts.deleteTransfer(transferId);
+            await remove();
           } catch (e) {
-            console.error("Delete transfer failed", e);
+            console.error("Delete transaction failed", e);
             alertFailure("Delete failed", e);
           }
         },
       },
     ]);
+  }
+
+  // Tapping a row opens what it came from: the transfer, the income, the bill or the loan.
+  function openHandlerFor(transaction: AccountTransaction): (() => void) | undefined {
+    const { transferId, loanId, expenseId } = transaction;
+    if (transferId && (transaction.kind === "transfer" || transaction.kind === "fee" || transaction.kind === "income")) {
+      return () => router.push({ pathname: "/transfer", params: { id: transferId } });
+    }
+    if (transaction.kind === "income") {
+      return () => router.push({ pathname: "/income/add", params: { id: transaction.id } });
+    }
+    if (transaction.kind === "payment") {
+      const expense = expenseId != null ? expenses.find((e) => e.id === expenseId) : undefined;
+      if (!expense) {
+        return undefined;
+      }
+      const createdAt = dayjs(transaction.createdAt);
+      return () =>
+        openExpense(expense, transaction.cycleYear ?? createdAt.year(), transaction.cycleMonth ?? createdAt.month());
+    }
+    if (loanId && (transaction.kind === "loan_out" || transaction.kind === "loan_in")) {
+      return () => router.push({ pathname: "/loan/[id]", params: { id: loanId } });
+    }
+    return undefined;
+  }
+
+  function deleteHandlerFor(transaction: AccountTransaction): (() => void) | undefined {
+    const { transferId } = transaction;
+    if (transferId) {
+      return () =>
+        confirmDelete(
+          "Delete transfer?",
+          "Both sides of this transfer and any fee or income recorded with it are removed, and the balances restored.",
+          () => accounts.deleteTransfer(transferId)
+        );
+    }
+    if (transaction.kind === "income") {
+      return () =>
+        confirmDelete("Delete income?", "This removes it and updates the account balance.", () =>
+          accounts.deleteIncome(transaction.id)
+        );
+    }
+    if (transaction.kind === "loan_in") {
+      return () =>
+        confirmDelete("Delete this payment?", "The balance will go back up.", () => loans.deletePayment(transaction.id));
+    }
+    return undefined;
   }
 
   if (!account) {
@@ -240,23 +290,10 @@ export default function AccountDetailScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="w-11 h-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Feather name="chevron-left" size={24} color={colors.secondary} />
-        </TouchableOpacity>
-        <View className="flex-1 items-center">
-          <AppText variant="title" numberOfLines={1}>{account.name}</AppText>
-          <AppText variant="caption">
-            {isArchived ? `${ACCOUNT_TYPE_LABEL[account.type]} · Archived` : ACCOUNT_TYPE_LABEL[account.type]}
-          </AppText>
-        </View>
-        <View className="w-11" />
-      </View>
+      <AppFormHeader
+        title={account.name}
+        subtitle={isArchived ? `${ACCOUNT_TYPE_LABEL[account.type]} · Archived` : ACCOUNT_TYPE_LABEL[account.type]}
+      />
 
       <SectionList
         sections={sections}
@@ -283,7 +320,7 @@ export default function AccountDetailScreen() {
                 history stays here.
               </AppText>
             )}
-            <View className="flex-row gap-3 px-5 mb-4">
+            <View className={`flex-row gap-3 px-5 ${isTransferBlocked ? "mb-2" : "mb-4"}`}>
               {isArchived ? (
                 <ActionButton icon="rotate-ccw" label="Unarchive" onPress={handleUnarchive} />
               ) : (
@@ -291,7 +328,7 @@ export default function AccountDetailScreen() {
                   <ActionButton icon="sliders" label="Adjust" onPress={() => adjustRef.current?.present()} />
                   <ActionButton
                     icon={isCredit ? "credit-card" : "repeat"}
-                    label={isCredit ? "Pay" : "Transfer"}
+                    label={isCredit ? "Pay bill" : "Transfer"}
                     onPress={openPayOrTransfer}
                     disabled={!canTransfer}
                   />
@@ -305,6 +342,13 @@ export default function AccountDetailScreen() {
                 />
               )}
             </View>
+            {isTransferBlocked && (
+              <AppText variant="meta" className="px-5 mb-3">
+                {isCredit
+                  ? "Add a bank or cash account to pay this card from."
+                  : "Add another account to move money between them."}
+              </AppText>
+            )}
             <AppLabel className="px-5">Transactions</AppLabel>
           </>
         }
@@ -317,7 +361,8 @@ export default function AccountDetailScreen() {
           <TransactionRow
             transaction={item}
             accountType={account.type}
-            onDelete={item.transferId ? () => confirmDeleteTransfer(item) : undefined}
+            onPress={openHandlerFor(item)}
+            onDelete={deleteHandlerFor(item)}
           />
         )}
         ListEmptyComponent={

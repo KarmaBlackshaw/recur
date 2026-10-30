@@ -25,9 +25,9 @@ LAN IP, edit the URL there, or use `adb reverse tcp:8081 tcp:8081` and
 
 | Flow | Covers |
 |------|--------|
-| `01-credit-card-setup` | Cut-off + due day required for credit cards (Save disabled, 1–31 range); 30/31 accepted |
-| `02-card-bill` | Charged badge, overdue bill with "Est.", statement override + "Use estimate", Pay bill prefill, partial ("₱X left") and full payment, badge flips to Paid |
-| `03-kpis` | 2×2 KPI grid values; unpaid card expense in Total/To pay; ₱0 bill hidden on Home |
+| `01-credit-card-setup` | Cut-off + due day required for credit cards (Save disabled, the hint names the missing day, days picked from a 1–31 grid); 30/31 accepted |
+| `02-card-bill` | Charged badge, overdue bill with "Est.", statement override + "Use estimate", Pay bill screen prefill, partial ("₱X left") and full payment, badge flips to Paid |
+| `03-kpis` | Home summary: left to pay, paid of total, charged to cards; unpaid card expense counted; pay circle on Recurring; ₱0 bill hidden on Home |
 | `04-income` | Deposit-to picker has no credit cards; balance increases; double-tap Save → one entry |
 | `05-expense-double-tap` | Double-tap Save on Add Expense → one expense, one debit |
 | `06-account-delete` | Deleting an account removes its income from the Income list |

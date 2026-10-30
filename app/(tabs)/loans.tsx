@@ -79,13 +79,15 @@ export default function LoansScreen() {
   const data: Record<Segment, Loan[]> = { active, settled };
   const query = isSearchOpen ? search.trim().toLowerCase() : "";
   const matches = data[segment].filter(({ borrower }) => borrower.toLowerCase().includes(query));
-  const entries = Object.entries(groupBy(matches, "borrower")).map(([borrower, items]) => ({
+  const groups = Object.entries(groupBy(matches, "borrower")).map(([borrower, items]) => ({
     borrower,
-    loanCount: items.length,
+    loanIds: items.map(({ id }) => id),
     amount: sumBy(items, ({ id }) =>
       segment === "active" ? (loans.summaries[id]?.balance ?? 0) : (loans.summaries[id]?.paidTotal ?? 0)
     ),
   }));
+  // Active: who owes the most first, as on Home. Settled: most recently settled first.
+  const entries = segment === "active" ? orderBy(groups, "amount", "desc") : groups;
   const hero = HERO[segment];
   const totals: Record<Segment, number> = {
     active: sumBy(active, ({ id }) => loans.summaries[id]?.balance ?? 0),
@@ -104,11 +106,22 @@ export default function LoansScreen() {
     searchOpen.toggle();
   }
 
+  // A borrower with a single loan in this segment opens that loan straight away.
+  function openBorrower({ borrower, loanIds }: (typeof entries)[number]) {
+    if (loanIds.length === 1) {
+      router.push({ pathname: "/loan/[id]", params: { id: loanIds[0] } });
+      return;
+    }
+    router.push({ pathname: "/loan/borrower", params: { name: borrower } });
+  }
+
   const renderItem = ({ item }: { item: (typeof entries)[number] }) => (
     <BorrowerRow
-      {...item}
+      borrower={item.borrower}
+      loanCount={item.loanIds.length}
+      amount={item.amount}
       isSettled={segment === "settled"}
-      onPress={() => router.push({ pathname: "/loan/borrower", params: { name: item.borrower } })}
+      onPress={() => openBorrower(item)}
     />
   );
 

@@ -66,13 +66,15 @@ account transactions. Never hand-build another row.
   direction or state.
 - **Title:** Quicksand Bold 14px Ink, one line, truncates first.
 - **Meta:** what or where, Quicksand 10.5px Secondary Graphite, one line, at most one " · " ("Housing · BPI").
-  An optional periwinkle bell before it marks a reminder.
+  An optional periwinkle bell-off before it marks a bill whose reminder is turned off.
 - **Amount:** Oswald 16px. Never truncated.
 - **Caption:** when, or which state, 10.5px under the amount. Upcoming dates read "Today", "Tomorrow",
   "in 4 days", then "Nov 30". Late reads "3 days late" in coral. Settled reads "Paid Oct 21" in the neutral
   tone (the band or KPI already says paid, so a mint caption on every row would only repeat it) or
   "Charged Oct 21" in periwinkle. Ledger rows under a day header carry no date; they only flag "Charged".
-- **Accessory:** optional trailing Muted Graphite glyph: chevron to drill in, trash for deletable rows.
+- **Accessory:** optional trailing Muted Graphite glyph: chevron to drill in. On unpaid bills in Home's due lists,
+  the Recurring tab and a bill's history it is a hollow circle and its own 44dp button: tap marks the bill paid
+  (Undo in the snackbar), long-press opens the Pay sheet. Coral on late bills.
 - **Pressed:** opacity 0.7. A row with `onPress` is a button; without it, one accessible element with the
   full spoken label.
 
@@ -84,19 +86,22 @@ account transactions. Never hand-build another row.
 | accent | Periwinkle 15% | Periwinkle | Periwinkle | card bills and charges, loans, people |
 | muted | white 4% | Secondary Graphite | Muted Graphite | ended or not-due rows, transfer amounts |
 
-- **Swipe (expense rows):** dragging right reveals Pay or Unpay (mint, 80dp); dragging left reveals Delete
-  (coral, 80dp), which confirms with an Alert.
+- **Swipe (`SwipeableRow`):** a full drag right pays or unpays at once (mint, 80dp; Undo in the snackbar). Dragging
+  left reveals Delete (coral, 80dp), which confirms with an Alert; history rows (transfers, income, loan payments)
+  delete the same way. Only one row stays open at a time, and opening one gives a selection haptic. Home peeks the
+  Pay swipe once on the first unpaid row to teach it.
 
 ### Band Header
 Overline label in its signal color, optional count and caption, total on the right. Collapsible bands
 (Home months) add a chevron and announce expanded or collapsed.
 
 ### Day Header
-Day number in Oswald 22px, weekday (Sunday coral, Saturday periwinkle, weekdays muted), month and year,
-optional day total.
+Day number in Oswald 22px, weekday (weekends periwinkle, weekdays muted; coral stays reserved for "late"), month and
+year, optional day total.
 
 ### Cards
-Only where elevation communicates hierarchy: KPI tiles, hero balances, the loan summary, account cards.
+Only where elevation communicates hierarchy: KPI tiles, hero balances (Home's summary, Activity, loans), account
+cards, and Home's setup checklist and backup nudge.
 14dp radius (21dp for account cards), Raised Graphite or a 10% tint, 1px Hairline. Never wrap list rows
 in cards.
 
@@ -105,11 +110,31 @@ Primary: Indigo fill, Ink label. Tonal: Indigo 15% with a Periwinkle label. Ghos
 Destructive: coral. 52dp tall, 10.5dp radius. One primary action per screen.
 
 ### Inputs (`AppTextInput`)
-Label above, coral error text below, Raised Graphite field with a Hairline border, 52dp tall. Every field
-is a react-hook-form `Controller`; Save stays disabled until the form is valid.
+Label above (Quicksand Bold 11px, Muted Graphite at full strength so it clears 4.5:1), coral error text below,
+Raised Graphite field with a Hairline border, 52dp tall. Every field is a react-hook-form `Controller`; Save stays
+disabled until the form is valid, and the hint under it names what's missing ("Enter an amount to save"). Errors
+appear once a field has been touched, never while the first characters are typed.
+
+Fields that open a picker use `AppSelectField` (same frame, value + chevron). Dates use `AppDateField` (Android's
+native dialog, an `AppCalendar` sheet on iOS), months `AppMonthField` (month + year wheel), days of the month
+`AppDayField` (a 1–31 grid: "Every month on the 15th"). Never type a date or day number.
+
+### Form header (`AppFormHeader`)
+Back chevron, centered title in sentence case ("Add expense", "Edit transfer"), and on long forms a periwinkle
+"Save" on the right so it stays reachable above the keyboard. Leaving a dirty form asks "Discard changes?".
+
+### Snackbar (`useSnackbar`)
+Feedback for reversible actions: one line plus an optional action ("Gym marked paid · Undo"), Raised Graphite with
+a Hairline border, above the tab bar, gone after 5s. Never for errors (those are Alerts).
+
+### Pay sheet
+Opened when a bill's amount isn't known, from a bill's Mark paid, or by long-pressing the pay circle: Amount
+(prefilled), Paid on (an `AppDateField`, today by default, no future dates) and Pay from.
 
 ### Sheets
-`@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows.
+`@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes
+`accessible={false}`: gorhom's default makes the whole sheet one element and hides its controls from screen readers.
+A picker opened from a sheet (Pay from, Paid on) stacks over it, and the sheet is still there when the picker closes.
 
 ### Empty and Loading States
 Empty: one large muted glyph, a short title, one plain sentence, and the action that fills it when there
@@ -120,8 +145,10 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Group with headers and whitespace (band headers, day headers), not boxes.
 - Scroll views keep 140dp of bottom padding so the floating tab bar never covers the last row.
 - Touch targets are at least 44dp.
-- Money lists sort by date. Home shows Overdue first, then this month, then next month once it is at most
-  7 days away.
+- Money lists sort by date. Home opens on a summary card (left to pay this month, a paid-of-total bar, the overdue
+  count), then Overdue, this month, and next month once it is at most 7 days away. A single "Owed to you" row sits
+  between the due bands and Recent activity, which ends with "All activity". New users get a three-step "Get started"
+  checklist; a backup nudge appears when the last backup is over 30 days old.
 - Home Overdue also lists unpaid dues and card bills from the last 3 months; their caption keeps counting "N days late".
 - The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)

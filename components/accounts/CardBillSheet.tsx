@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import dayjs from "dayjs";
 import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
+import { InfoRow } from "@/components/accounts/InfoRow";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
@@ -26,15 +27,6 @@ export interface CardBillSheetRef {
 
 interface BillFormValues {
   amount: string;
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row justify-between py-1.5">
-      <AppText variant="meta">{label}</AppText>
-      <AppText variant="body-medium" className="text-sm">{value}</AppText>
-    </View>
-  );
 }
 
 export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet(_props, ref) {

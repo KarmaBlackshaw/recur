@@ -6,13 +6,15 @@ import { InterestRow } from "@/components/accounts/InterestRow";
 import { TransferRow } from "@/components/accounts/TransferRow";
 import { LoanActivityRow } from "@/components/loans/LoanActivityRow";
 import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
+import type { AccountTransaction } from "@/types";
 
 interface Props {
   item: ActivityEntry;
   index: number;
+  onOpenTransfer: (transfer: AccountTransaction) => void;
 }
 
-export function ActivityEntryRow({ item, index }: Props) {
+export function ActivityEntryRow({ item, index, onOpenTransfer }: Props) {
   if ("income" in item) {
     return <IncomeRow entry={item} />;
   }
@@ -20,13 +22,13 @@ export function ActivityEntryRow({ item, index }: Props) {
     return <InterestRow entry={item} />;
   }
   if ("transfer" in item) {
-    return <TransferRow entry={item} />;
+    return <TransferRow entry={item} onPress={() => onOpenTransfer(item.transfer)} />;
   }
   if ("loanTxn" in item) {
     return <LoanActivityRow entry={item} />;
   }
   if ("payment" in item) {
-    return <BillPaymentRow entry={item} />;
+    return <BillPaymentRow entry={item} onPress={() => onOpenTransfer(item.payment)} />;
   }
   return (
     <ExpenseCard

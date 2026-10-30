@@ -6,9 +6,10 @@ import type { BillPaymentEntry } from "@/utils/usePaidLedger";
 
 interface Props {
   entry: BillPaymentEntry;
+  onPress: () => void;
 }
 
-export function BillPaymentRow({ entry }: Props) {
+export function BillPaymentRow({ entry, onPress }: Props) {
   const { payment, account, sourceName, amount, fee } = entry;
   const title = `${account.name} bill`;
   const source = sourceName ? `from ${sourceName}` : "Bill payment";
@@ -17,7 +18,7 @@ export function BillPaymentRow({ entry }: Props) {
 
   function open() {
     if (transferId) {
-      router.push({ pathname: "/transfer", params: { id: transferId } });
+      onPress();
       return;
     }
     router.push({ pathname: "/account/[id]", params: { id: account.id } });
@@ -33,7 +34,7 @@ export function BillPaymentRow({ entry }: Props) {
       caption={feeText ?? undefined}
       onPress={open}
       accessibilityLabel={`${title} payment, ${formatAmount(amount)}, ${[source, feeText].filter(Boolean).join(", ")}`}
-      accessibilityHint={transferId ? "Opens the payment" : "Opens account details"}
+      accessibilityHint={transferId ? "Opens payment details" : "Opens account details"}
     />
   );
 }

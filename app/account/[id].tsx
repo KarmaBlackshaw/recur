@@ -16,12 +16,14 @@ import { TransactionRow } from "@/components/accounts/TransactionRow";
 import { AdjustBalanceSheet, type AdjustBalanceSheetRef } from "@/components/accounts/AdjustBalanceSheet";
 import { AccountCard } from "@/components/accounts/AccountCard";
 import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
+import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { isBillTbd } from "@/utils/cardBills";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { alertFailure } from "@/utils/accounts/alertFailure";
+import { useRevertTransfer } from "@/utils/accounts/useRevertTransfer";
 import {
   ACCOUNT_TYPE_LABEL,
   type Account,
@@ -144,6 +146,8 @@ export default function AccountDetailScreen() {
   const isCredit = account?.type === "credit";
   const adjustRef = useRef<AdjustBalanceSheetRef>(null);
   const billSheetRef = useRef<CardBillSheetRef>(null);
+  const transferSheetRef = useRef<TransferSheetRef>(null);
+  const revertTransfer = useRevertTransfer();
   const hasPresentedAction = useRef(false);
   const canTransfer =
     !isArchived && accounts.activeAccounts.length > 1 && accounts.activeAccounts.some((a) => a.type !== "credit");
@@ -241,7 +245,7 @@ export default function AccountDetailScreen() {
   function openHandlerFor(transaction: AccountTransaction): (() => void) | undefined {
     const { transferId, loanId, expenseId } = transaction;
     if (transferId && (transaction.kind === "transfer" || transaction.kind === "fee" || transaction.kind === "income")) {
-      return () => router.push({ pathname: "/transfer", params: { id: transferId } });
+      return () => transferSheetRef.current?.present(transaction);
     }
     if (transaction.kind === "income") {
       return () => router.push({ pathname: "/income/add", params: { id: transaction.id } });
@@ -264,12 +268,7 @@ export default function AccountDetailScreen() {
   function deleteHandlerFor(transaction: AccountTransaction): (() => void) | undefined {
     const { transferId } = transaction;
     if (transferId) {
-      return () =>
-        confirmDelete(
-          "Delete transfer?",
-          "Both sides of this transfer and any fee or income recorded with it are removed, and the balances restored.",
-          () => accounts.deleteTransfer(transferId)
-        );
+      return () => revertTransfer(transferId);
     }
     if (transaction.kind === "income") {
       return () =>
@@ -377,6 +376,7 @@ export default function AccountDetailScreen() {
 
       <AdjustBalanceSheet ref={adjustRef} account={account} />
       <CardBillSheet ref={billSheetRef} />
+      <TransferSheet ref={transferSheetRef} />
     </SafeAreaView>
   );
 }

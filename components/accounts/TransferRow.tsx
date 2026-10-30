@@ -1,4 +1,5 @@
 import React from "react";
+import { router } from "expo-router";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { customTransferNote } from "@/utils/accounts/customTransferNote";
 import { formatAmount } from "@/utils/dateHelpers";
@@ -19,6 +20,15 @@ export function TransferRow({ entry, onPress }: { entry: TransferEntry; onPress:
   const feeText = fee > 0 ? `fee ${formatAmount(fee)}` : null;
   const meta = [customNote, earnedLabel].filter(Boolean).join(" · ") || "Transfer";
   const details = [customNote, feeText, earnedLabel].filter(Boolean).join(", ") || "Transfer";
+  const { transferId } = transfer;
+
+  function open() {
+    if (transferId) {
+      onPress();
+      return;
+    }
+    router.push({ pathname: "/account/[id]", params: { id: transfer.accountId } });
+  }
 
   return (
     <AppListRow
@@ -28,9 +38,9 @@ export function TransferRow({ entry, onPress }: { entry: TransferEntry; onPress:
       amount={formatAmount(amount)}
       amountTone="muted"
       caption={feeText ?? undefined}
-      onPress={onPress}
+      onPress={open}
       accessibilityLabel={`Transfer from ${source} to ${destination}, ${formatAmount(amount)}, ${details}`}
-      accessibilityHint="Opens transfer details"
+      accessibilityHint={transferId ? "Opens transfer details" : "Opens account details"}
     />
   );
 }

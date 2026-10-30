@@ -114,33 +114,22 @@ export default function AccountsScreen() {
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center justify-between pl-5 pr-2 pt-2 pb-1">
         <AppText variant="display">Accounts</AppText>
-        <View className="flex-row items-center">
-          {accounts.length > 0 && (
-            <TouchableOpacity
-              onPress={toggleGroupByBank}
-              activeOpacity={0.7}
-              className={
-                isGroupedByBank
-                  ? "size-11 items-center justify-center rounded-full bg-primary/20"
-                  : "size-11 items-center justify-center rounded-full"
-              }
-              accessibilityRole="switch"
-              accessibilityState={{ checked: isGroupedByBank }}
-              accessibilityLabel="Group by bank"
-            >
-              <Feather name="layers" size={22} color={isGroupedByBank ? colors.secondary : colors.text} />
-            </TouchableOpacity>
-          )}
+        {accounts.length > 0 && (
           <TouchableOpacity
-            onPress={openAddAccount}
+            onPress={toggleGroupByBank}
             activeOpacity={0.7}
-            className="size-11 items-center justify-center rounded-full"
-            accessibilityRole="button"
-            accessibilityLabel="Add account"
+            className={
+              isGroupedByBank
+                ? "size-11 items-center justify-center rounded-full bg-primary/20"
+                : "size-11 items-center justify-center rounded-full"
+            }
+            accessibilityRole="switch"
+            accessibilityState={{ checked: isGroupedByBank }}
+            accessibilityLabel="Group by bank"
           >
-            <Feather name="plus" size={24} color={colors.text} />
+            <Feather name="layers" size={22} color={isGroupedByBank ? colors.secondary : colors.text} />
           </TouchableOpacity>
-        </View>
+        )}
       </View>
 
       {accounts.length === 0 ? (

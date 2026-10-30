@@ -1,26 +1,30 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useIsFocused } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
 import { range, sortBy, sumBy } from "@/utils/collections";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
-import { KpiRow } from "@/components/kpi/KpiRow";
-import { LoanSummaryCard } from "@/components/loans/LoanSummaryCard";
+import { HomeSummary } from "@/components/HomeSummary";
+import { SetupChecklist, useSetupChecklist } from "@/components/SetupChecklist";
+import { BackupNudge } from "@/components/BackupNudge";
+import { LoanSummaryCard, useOwedToYou } from "@/components/loans/LoanSummaryCard";
 import { type DayEntry } from "@/components/DayGroupedExpenseList";
 import { HomeExpenseSections, type HomeEntry, type UpcomingBand } from "@/components/HomeExpenseSections";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
-import { isOverdueOn, hasCycleIn, getDueDateForMonth, getGreeting, getFormattedDate } from "@/utils/dateHelpers";
+import { isOverdueOn, hasCycleIn, getDueDateForMonth, getGreeting } from "@/utils/dateHelpers";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { useLingeringEntries } from "@/utils/useLingeringEntries";
 import { openCardBills } from "@/utils/cardBills";
 import { monthKey } from "@/utils/monthKey";
 import { useToday } from "@/utils/useToday";
 import { colors } from "@/constants/theme";
+import { PREF_SWIPE_HINT_SEEN } from "@/constants/preferences";
+import { getPreference, setPreference } from "@/db/preferences";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { HomeBandSlot } from "@/types";
 
@@ -28,24 +32,74 @@ const NEXT_MONTH_LOOKAHEAD_DAYS = 7;
 const ACTIVITY_LIMIT = 10;
 // How many months back an unpaid due or card bill stays in Overdue after its own month has ended.
 const OVERDUE_LOOKBACK_MONTHS = 3;
+// "Due this week" is today and the six days after it: the rows Upcoming captions "Today" to "in 6 days".
+const DUE_SOON_DAYS = 7;
+// Past this many expenses the user is set up; the checklist stops appearing above the due list.
+const SETUP_EXPENSE_LIMIT = 3;
+
+// The first due row Home ever shows peeks its Pay swipe once to teach it. The pref makes it once ever, not per launch.
+function useSwipeHintKey(candidateKey: string | undefined): string | null {
+  const [isHintDue, setIsHintDue] = useState(false);
+  const [hintKey, setHintKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+    async function load() {
+      const seen = await getPreference(PREF_SWIPE_HINT_SEEN);
+      if (isActive && seen === null) {
+        setIsHintDue(true);
+      }
+    }
+    load();
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHintDue || candidateKey === undefined) {
+      return;
+    }
+    setIsHintDue(false);
+    setHintKey(candidateKey);
+    async function markSeen() {
+      await setPreference(PREF_SWIPE_HINT_SEEN, "true");
+    }
+    markSeen();
+  }, [isHintDue, candidateKey]);
+
+  return hintKey;
+}
+
+function withSwipeHint(entries: HomeEntry[], hintKey: string | null): HomeEntry[] {
+  if (hintKey === null) {
+    return entries;
+  }
+  return entries.map((e) => ("expense" in e && e.key === hintKey ? { ...e, isSwipeHintShown: true } : e));
+}
 
 export default function HomeScreen() {
   const { expenses, loading, userName, getMonthStatus, resolveAmount, collapsedHomeBands, toggleHomeBand } = useExpenses();
   const accounts = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
+  const owed = useOwedToYou();
+  const setup = useSetupChecklist();
+  const isFocused = useIsFocused();
   const today = useToday();
   const year = today.getFullYear();
   const month = today.getMonth();
 
   // Unpaid recurring cycles, split by urgency.
   // Keyed per cycle: near month end the same expense can be due in both Upcoming months.
+  // Every due row can be paid in place (the trailing pay circle and the Pay swipe).
   const dueEntry = (e: (typeof expenses)[number], y: number, m: number): DayEntry => ({
     key: monthKey(e.id, y, m),
     expense: e,
     effDate: getDueDateForMonth(e.dueDay, y, m),
     refDate: new Date(y, m, 1),
     amount: resolveAmount(e, y, m),
+    canQuickPay: true,
   });
 
   // Next month too: a new card's first bill is due next month.
@@ -121,6 +175,33 @@ export default function HomeScreen() {
     return feed.all.filter(({ effDate }) => effDate <= endToday).slice(0, ACTIVITY_LIMIT);
   }, [feed, today]);
 
+  // The Pay swipe hint goes on the first due row in view: Overdue, else the first expanded Upcoming band. Only while
+  // Home is on screen, so the peek isn't spent behind another screen.
+  const swipeHintCandidate = useMemo(() => {
+    const expanded = upcoming.filter((b) => !collapsedHomeBands.includes(b.slot));
+    return [...overdue, ...expanded.flatMap((b) => b.data)].find((e) => "expense" in e && !isPaidNow(e))?.key;
+  }, [overdue, upcoming, collapsedHomeBands, getMonthStatus]);
+  const swipeHintKey = useSwipeHintKey(isFocused && !loading ? swipeHintCandidate : undefined);
+  const overdueRows = useMemo(() => withSwipeHint(overdue, swipeHintKey), [overdue, swipeHintKey]);
+  const upcomingRows = useMemo(
+    () => (swipeHintKey === null ? upcoming : upcoming.map((b) => ({ ...b, data: withSwipeHint(b.data, swipeHintKey) }))),
+    [upcoming, swipeHintKey]
+  );
+
+  // Just-paid rows still lingering in the lists don't count.
+  const overdueCount = overdue.filter((e) => !isPaidNow(e)).length;
+  const dueThisWeekCount = upcomingWithPaid.filter(
+    (e) => !isPaidNow(e) && dayjs(e.effDate).diff(today, "day") < DUE_SOON_DAYS
+  ).length;
+
+  const hasExpenses = expenses.length > 0;
+  // Mirrors the sections HomeExpenseSections builds: with none, the list shows its empty state instead.
+  const hasListContent = overdue.length > 0 || upcoming.length > 0 || owed != null || recentActivity.length > 0;
+  const isSummaryShown = hasExpenses || openBills.length > 0;
+  // With nothing listed yet the checklist is Home's empty state. It stays under the summary only while someone is
+  // still setting up, so it never pushes an established user's due list down.
+  const isChecklistInHeader = setup.isShown && (hasExpenses || hasListContent) && expenses.length < SETUP_EXPENSE_LIMIT;
+
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-background">
@@ -132,15 +213,16 @@ export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
-      <View className="flex-row justify-between items-start px-5 pt-2 pb-3">
-        <View>
-          <AppText variant="overline">
-            {getFormattedDate().toUpperCase()}
-          </AppText>
-          <AppText variant="display" className="tracking-wide">
-            {getGreeting(userName)}
-          </AppText>
-        </View>
+      <View className="flex-row items-center justify-between gap-3 px-5 pt-2 pb-2">
+        <AppText
+          variant="overline"
+          className="flex-1"
+          numberOfLines={1}
+          accessibilityRole="header"
+          accessibilityLabel={`${getGreeting(userName)}. ${dayjs(today).format("dddd, MMMM D")}`}
+        >
+          {`${getGreeting(userName)} · ${dayjs(today).format("ddd, MMM D")}`.toUpperCase()}
+        </AppText>
         <TouchableOpacity
           className="w-11 h-11 rounded-full bg-white/[0.07] items-center justify-center"
           accessibilityRole="button"
@@ -152,32 +234,41 @@ export default function HomeScreen() {
       </View>
 
       <HomeExpenseSections
-        overdue={overdue}
-        upcoming={upcoming}
+        overdue={overdueRows}
+        upcoming={upcomingRows}
         recentActivity={recentActivity}
         collapsedSlots={collapsedHomeBands}
         onToggleSlot={toggleHomeBand}
+        afterDue={owed ? <LoanSummaryCard total={owed.total} people={owed.people} /> : undefined}
         refreshControl={refreshControl}
         ListHeaderComponent={
           <View>
-            <AppText variant="overline" className="px-5 pt-2 pb-1">
-              This Month
-            </AppText>
-            <KpiRow year={year} month={month} />
-            <LoanSummaryCard />
+            {isSummaryShown ? (
+              <HomeSummary year={year} month={month} overdueCount={overdueCount} dueThisWeekCount={dueThisWeekCount} />
+            ) : null}
+            {isChecklistInHeader ? (
+              <SetupChecklist steps={setup.steps} hasExpenses={hasExpenses} onDismiss={setup.dismiss} />
+            ) : null}
+            {hasExpenses ? <BackupNudge /> : null}
           </View>
         }
         ListEmptyComponent={
-          expenses.length === 0 ? (
-            <EmptyState onAdd={() => router.push("/expense/add?type=regular")} />
-          ) : (
-            <View className="mx-5 mt-1 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-border">
+          hasExpenses ? (
+            <View className="mx-5 mt-3 flex-row items-center gap-2 bg-surface rounded-2xl px-4 py-3.5 border border-border">
               <Feather name="inbox" size={15} color={colors.textMuted} />
               <AppText variant="meta" className="shrink">
                 Nothing due and no recent activity
               </AppText>
             </View>
-          )
+          ) : setup.isShown ? (
+            <SetupChecklist steps={setup.steps} hasExpenses={false} onDismiss={setup.dismiss} />
+          ) : setup.isLoaded ? (
+            <EmptyState
+              onAdd={() => router.push("/expense/add?type=recurring")}
+              secondaryLabel="Log an expense"
+              onSecondary={() => router.push("/expense/add?type=regular")}
+            />
+          ) : null
         }
       />
     </SafeAreaView>

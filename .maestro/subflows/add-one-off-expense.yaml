@@ -4,24 +4,26 @@ appId: com.erniejeash.recur
 - runFlow: tab-accounts.yaml
 - tapOn: "Add expense"
 - extendedWaitUntil:
-    visible: "Save Expense"
+    visible: "Save expense"
     timeout: 5000
 - runFlow:
     when:
       true: ${BACKDATE == 'true'}
     commands:
-      - tapOn: "Paid date.*"
+      - tapOn: "Paid date, .*"
       - tapOn: "01 .*"
       - tapOn: "OK"
 - tapOn: "Amount.*"
 - inputText: ${AMOUNT}
 - hideKeyboard
-- tapOn: "Pay from.*"
+- tapOn: "Pay from, .*"
 - tapOn: "${ACCOUNT}, .*"
-- tapOn: "Notes"
+- tapOn:
+    text: "Name"
+    index: 1
 - inputText: ${NOTE}
 - hideKeyboard
-- tapOn: "Save Expense"
+- tapOn: "Save expense"
 - extendedWaitUntil:
     visible: "NET WORTH"
     timeout: 10000

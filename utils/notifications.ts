@@ -3,13 +3,27 @@ import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import dayjs from 'dayjs';
 import { groupBy, range, sortBy, sumBy, uniq } from '@/utils/collections';
 import { getDueDateForMonth, hasCycleIn } from '@/utils/dateHelpers';
+import { expenseTitle } from '@/utils/expenseHelpers';
 import type { CardBill, Expense, Status } from '@/types';
 
+// The bill a reminder is about, so tapping it (or its Mark paid action) can open that bill.
+export interface ReminderTarget {
+  expenseId: string;
+  year: number;
+  month: number;
+}
+
 export interface Reminder {
+  title: string;
   amount: number | null;
   dueDate: Date;
   daysBefore: number;
+  target?: ReminderTarget;
 }
+
+// Single-bill reminders carry a "Mark paid" action that opens the bill's Pay sheet.
+export const BILL_DUE_CATEGORY = 'bill-due';
+export const MARK_PAID_ACTION = 'mark-paid';
 
 // Reminders are scheduled a year ahead so they keep arriving even when the app isn't opened for a while;
 // every launch reschedules them with current amounts.
@@ -31,13 +45,14 @@ export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
-function pesoTotal(group: { amount: number | null }[]): string | undefined {
-  const withAmount = group.filter((e) => e.amount != null);
-  if (withAmount.length === 0) {
-    return undefined;
-  }
-  const total = sumBy(withAmount, 'amount');
-  return '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' total';
+export async function registerNotificationCategories(): Promise<void> {
+  await Notifications.setNotificationCategoryAsync(BILL_DUE_CATEGORY, [
+    { identifier: MARK_PAID_ACTION, buttonTitle: 'Mark paid', options: { opensAppToForeground: true } },
+  ]);
+}
+
+function peso(amount: number): string {
+  return '₱' + amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function dueLabel(daysBefore: number): string {
@@ -50,13 +65,27 @@ function dueLabel(daysBefore: number): string {
   return `in ${daysBefore} days`;
 }
 
-// Grouped summary content for a set of expenses that all fire together.
-// `label` is the caller-computed "due …" phrase (dev test passes 'soon').
-export function buildSummaryContent(group: { amount: number | null }[], label: string): { title: string; body?: string } {
-  const count = group.length;
+// "Netflix", "Netflix and Spotify", "Netflix, Spotify and 2 more".
+function namesOf(titles: string[]): string {
+  if (titles.length <= 2) {
+    return titles.join(' and ');
+  }
+  return `${titles.slice(0, 2).join(', ')} and ${titles.length - 2} more`;
+}
+
+// Content for a set of bills that all fire together. `label` is the "due …" phrase (dev test passes 'soon').
+export function buildSummaryContent(
+  group: { title: string; amount: number | null }[],
+  label: string
+): { title: string; body?: string } {
+  const withAmount = group.filter((r) => r.amount != null);
+  const total = sumBy(withAmount, (r) => r.amount ?? 0);
+  if (group.length === 1) {
+    return { title: `${group[0].title} due ${label}`, body: withAmount.length ? peso(total) : undefined };
+  }
   return {
-    title: `${count} payment${count === 1 ? '' : 's'} due ${label}`,
-    body: pesoTotal(group),
+    title: `${namesOf(group.map((r) => r.title))} due ${label}`,
+    body: withAmount.length ? `${peso(total)} total` : undefined,
   };
 }
 
@@ -69,24 +98,28 @@ export function getExpenseReminders(
   const months = upcomingMonths(now);
   const reminders: Reminder[] = [];
   for (const expense of expenses) {
+    // 0 days before means the reminder is off for this bill.
     if (expense.reminderDaysBefore === 0) {
       continue;
     }
     const daysBefore = expense.reminderDaysBefore ?? 1;
-    const cycles = expense.recurrence === 'one-off' ? [months[0]] : months;
+    const isOneOff = expense.recurrence === 'one-off';
+    const cycles = isOneOff ? [months[0]] : months;
     for (const cycle of cycles) {
       const year = cycle.year();
       const month = cycle.month();
-      if (expense.recurrence !== 'one-off' && !hasCycleIn(expense, year, month)) {
+      if (!isOneOff && !hasCycleIn(expense, year, month)) {
         continue;
       }
       if (getMonthStatus(expense.id, year, month) !== 'unpaid') {
         continue;
       }
       reminders.push({
+        title: expenseTitle(expense),
         amount: getDisplayAmount(expense, year, month),
         dueDate: getDueDateForMonth(expense.dueDay, year, month),
         daysBefore,
+        target: isOneOff ? undefined : { expenseId: expense.id, year, month },
       });
     }
   }
@@ -101,7 +134,7 @@ export function getUnpaidBillReminders(
   return upcomingMonths(now)
     .flatMap((month) => getCardBills(month.year(), month.month()))
     .filter((bill) => !bill.isPaid && bill.remaining > 0)
-    .map((bill) => ({ amount: bill.remaining, dueDate: bill.dueDate, daysBefore: 1 }));
+    .map((bill) => ({ title: `${bill.account.name} bill`, amount: bill.remaining, dueDate: bill.dueDate, daysBefore: 1 }));
 }
 
 export async function scheduleAllNotifications(reminders: Reminder[], reminderTime: string): Promise<void> {
@@ -128,8 +161,13 @@ export async function scheduleAllNotifications(reminders: Reminder[], reminderTi
     for (const [fireTime, group] of soonest) {
       const leads = uniq(group.map((g) => g.reminder.daysBefore));
       const label = leads.length === 1 ? dueLabel(leads[0]) : 'soon';
+      const single = group.length === 1 ? group[0].reminder : null;
       await Notifications.scheduleNotificationAsync({
-        content: buildSummaryContent(group.map((g) => g.reminder), label),
+        content: {
+          ...buildSummaryContent(group.map((g) => g.reminder), label),
+          data: single?.target ? { ...single.target } : {},
+          categoryIdentifier: single?.target ? BILL_DUE_CATEGORY : undefined,
+        },
         trigger: { type: SchedulableTriggerInputTypes.DATE, date: new Date(Number(fireTime)) },
       });
     }

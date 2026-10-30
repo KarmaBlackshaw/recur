@@ -19,6 +19,8 @@ export interface DayEntry {
   amount: number;
   compact?: boolean;
   hideDate?: boolean;
+  canQuickPay?: boolean;       // unpaid due rows get the trailing pay circle (Home)
+  isSwipeHintShown?: boolean;  // this row peeks its Pay swipe once
 }
 
 export type LedgerEntry = DayEntry | BillPaymentEntry;

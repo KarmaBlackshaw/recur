@@ -26,7 +26,7 @@ export function BorrowerRow({ borrower, loanCount, amount, isSettled, onPress }:
       accessory="chevron-right"
       onPress={onPress}
       accessibilityLabel={label}
-      accessibilityHint="Opens this person's loans"
+      accessibilityHint={loanCount === 1 ? "Opens the loan" : "Opens this person's loans"}
     />
   );
 }

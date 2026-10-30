@@ -17,8 +17,8 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/dateHelpers";
 import { isBillTbd } from "@/utils/cardBills";
+import { formatAmount } from "@/utils/dateHelpers";
 import type { CardBill } from "@/types";
 
 export interface CardBillSheetRef {
@@ -47,6 +47,8 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
   const bill = selected && statementOf(selected);
   // A TBD bill starts blank: a prefilled "0.00" let one tap on Save mark it paid and drop it off Home.
   const amountField = (b: CardBill) => (isBillTbd(b) ? "" : b.amount.toFixed(2));
+  // Once the statement amount is known, paying is the main thing left to do here.
+  const isPayable = bill != null && !bill.isPaid && !isBillTbd(bill);
 
   useImperativeHandle(ref, () => ({
     present: (next) => {
@@ -94,6 +96,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     <>
       <BottomSheetModal
         ref={sheetRef}
+        accessible={false}
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
         backgroundStyle={{ backgroundColor: colors.surface }}
@@ -135,25 +138,34 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
                     onChangeText={onChange}
                     onBlur={onBlur}
                     placeholder="0.00"
-                    error={fieldState.error?.message}
+                    error={fieldState.isTouched ? fieldState.error?.message : undefined}
                   />
                 )}
               />
-              <AppButton
-                label="Save amount"
-                onPress={onSave}
-                disabled={!isValid}
-                loading={isSubmitting}
-                className="mt-2"
-              />
-              {!bill.isEstimate && (
-                <AppButton label="Use estimate" variant="ghost" onPress={() => saveAmount(null)} className="mt-2" />
-              )}
-              <View className="mt-4 border-t border-border pt-2">
+              <View className="mt-2 border-t border-border pt-2">
                 <InfoRow label="Paid" value={formatAmount(bill.paid)} />
                 <InfoRow label="Remaining" value={formatAmount(bill.remaining)} />
               </View>
-              {!bill.isPaid && <AppButton label="Pay bill" variant="tonal" onPress={payBill} className="mt-4" />}
+              <View className="mt-4 gap-2">
+                {isPayable ? (
+                  <>
+                    <AppButton label="Pay bill" onPress={payBill} />
+                    <AppButton
+                      label="Save amount"
+                      variant="tonal"
+                      onPress={onSave}
+                      disabled={!isValid}
+                      loading={isSubmitting}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <AppButton label="Save amount" onPress={onSave} disabled={!isValid} loading={isSubmitting} />
+                    {!bill.isPaid && <AppButton label="Pay bill" variant="tonal" onPress={payBill} />}
+                  </>
+                )}
+                {!bill.isEstimate && <AppButton label="Use estimate" variant="ghost" onPress={() => saveAmount(null)} />}
+              </View>
             </View>
           </BottomSheetScrollView>
         ) : null}

@@ -5,15 +5,17 @@ name: Add Expense — double-tap Save creates exactly one expense
 - runFlow: subflows/tab-accounts.yaml
 - tapOn: "Add expense"
 - extendedWaitUntil:
-    visible: "Save Expense"
+    visible: "Save expense"
     timeout: 5000
 - tapOn: "Amount.*"
 - inputText: "100"
 - hideKeyboard
-- tapOn: "Notes"
+- tapOn:
+    text: "Name"
+    index: 1
 - inputText: "Groceries"
 - hideKeyboard
-- doubleTapOn: "Save Expense"
+- doubleTapOn: "Save expense"
 - extendedWaitUntil:
     visible: "NET WORTH"
     timeout: 10000

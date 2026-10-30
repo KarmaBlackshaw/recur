@@ -14,6 +14,7 @@ import { getPreference, setPreference } from '@/db/preferences';
 import { backfillExpenseHistory, getDB } from '@/db/schema';
 import { withWriteTransaction } from '@/db/withWriteTransaction';
 import { CASH_ACCOUNT_ID } from '@/constants/accounts';
+import { PREF_LAST_BACKUP_AT } from '@/constants/preferences';
 import { LOGO_DIR } from '@/utils/accountLogo/logoDir';
 import { resolveAccountLogo } from '@/utils/accountLogo/resolveAccountLogo';
 import {
@@ -368,6 +369,8 @@ export async function exportBackup(): Promise<void> {
     mimeType: 'application/json',
     dialogTitle: 'Export Recur Backup',
   });
+  // The share sheet can't tell whether the file was saved anywhere, so closing it counts as a backup.
+  await setPreference(PREF_LAST_BACKUP_AT, new Date().toISOString());
 }
 
 // Merges a backup into this device, all or nothing: every row goes in through one transaction, and anything

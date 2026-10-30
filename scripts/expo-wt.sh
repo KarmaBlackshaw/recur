@@ -15,6 +15,7 @@
 #   SIM="iPhone 17 Pro" expo-wt --ios  # pick the simulator by name or UDID
 # One emulator: the last worktree you run is the one you see.
 # One emulator per worktree: `emulator -avd <avd> -read-only &`, then `-s <serial>`.
+# Emulators started with -no-window (an agent's QA instance) are only used when named with -s.
 # Needs a debuggable (debug) build: the pref is written with `run-as`.
 # iOS needs the debug app installed once: `npx expo run:ios -d "<simulator>"`. Its prebuilt React Native
 # ignores the build-time port, so expo-wt sets the "Configure Bundler" location (RCT_jsLocation) instead.
@@ -31,7 +32,7 @@ while [ $# -gt 0 ]; do
     --ios)       IOS=true ;;
     --attach)    ATTACH=true ;;
     --port)      PRINT_PORT=true ;;
-    -h|--help)   grep '^#' "$0" | sed -n '2,20p' | cut -c3-; exit 0 ;;
+    -h|--help)   grep '^#' "$0" | sed -n '2,21p' | cut -c3-; exit 0 ;;
     *)           EXPO_ARGS+=("$1") ;;
   esac
   shift
@@ -96,8 +97,20 @@ fi
 ADB=$(command -v adb || echo /opt/homebrew/share/android-commandlinetools/platform-tools/adb)
 PKG=$(node -p "require('$ROOT/app.json').expo.android.package")
 
+headless_serials() {
+  local pid
+  for pid in $(pgrep -f 'qemu-system.*-no-window' || true); do
+    lsof -nP -a -p "$pid" -iTCP -sTCP:LISTEN -Fn 2>/dev/null | sed -nE 's/^n.*:(5[56][0-9]{2})$/emulator-\1/p'
+  done
+  return 0
+}
+
+visible_devices() {
+  "$ADB" devices | awk 'NR>1 && $2=="device" {print $1}' | grep -vxF "$(headless_serials)" || true
+}
+
 if ! $IOS && [ -z "$SERIAL" ]; then
-  DEVICES=$("$ADB" devices | awk 'NR>1 && $2=="device" {print $1}')
+  DEVICES=$(visible_devices)
   COUNT=$(printf '%s' "$DEVICES" | grep -c . || true)
   if [ "$COUNT" -eq 0 ]; then
     EMULATOR=$(command -v emulator || echo /opt/homebrew/share/android-commandlinetools/emulator/emulator)
@@ -106,13 +119,19 @@ if ! $IOS && [ -z "$SERIAL" ]; then
       echo "expo-wt: no device attached and no AVD found" >&2
       exit 1
     fi
-    echo "expo-wt: no device attached, booting ${AVD}…"
-    nohup "$EMULATOR" -avd "$AVD" >/dev/null 2>&1 &
-    "$ADB" wait-for-device
-    until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
+    echo "expo-wt: no visible device attached, booting ${AVD}…"
+    # A running -no-window instance holds the AVD, so this one has to share it read-only.
+    HEADLESS=$(headless_serials)
+    nohup "$EMULATOR" -avd "$AVD" ${HEADLESS:+-read-only} >/dev/null 2>&1 &
+    EMULATOR_PID=$!
+    until [ -n "$(visible_devices)" ]; do
+      kill -0 "$EMULATOR_PID" 2>/dev/null || { echo "expo-wt: $AVD failed to boot, a headless instance may hold it without -read-only" >&2; exit 1; }
       sleep 1
     done
-    DEVICES=$("$ADB" devices | awk 'NR>1 && $2=="device" {print $1}')
+    DEVICES=$(visible_devices)
+    until [ "$("$ADB" -s "$DEVICES" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
+      sleep 1
+    done
     COUNT=1
   fi
   if [ "$COUNT" -gt 1 ]; then

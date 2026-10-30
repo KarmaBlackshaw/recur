@@ -3,6 +3,7 @@ import { View, SectionList } from "react-native";
 import { sumBy } from "@/utils/collections";
 import { CardBillRow } from "@/components/accounts/CardBillRow";
 import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
+import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BandHeader } from "@/components/BandHeader";
@@ -64,6 +65,7 @@ export function HomeExpenseSections({
   refreshControl,
 }: Props) {
   const billSheetRef = useRef<CardBillSheetRef>(null);
+  const transferSheetRef = useRef<TransferSheetRef>(null);
   const sections = useMemo<HomeSection[]>(() => {
     const out: HomeSection[] = [];
 
@@ -118,7 +120,11 @@ export function HomeExpenseSections({
           "bill" in item ? (
             <CardBillRow bill={item.bill} onPress={() => billSheetRef.current?.present(item.bill)} />
           ) : (
-            <ActivityEntryRow item={item} index={index} />
+            <ActivityEntryRow
+              item={item}
+              index={index}
+              onOpenTransfer={(transfer) => transferSheetRef.current?.present(transfer)}
+            />
           )
         }
         renderSectionHeader={({ section }) => {
@@ -152,6 +158,7 @@ export function HomeExpenseSections({
         showsVerticalScrollIndicator={false}
       />
       <CardBillSheet ref={billSheetRef} />
+      <TransferSheet ref={transferSheetRef} />
     </>
   );
 }

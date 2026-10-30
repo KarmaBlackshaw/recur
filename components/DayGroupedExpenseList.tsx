@@ -1,7 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { SectionList } from "react-native";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
+import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
 import type { BillPaymentEntry, IncomeEntry, InterestEntry, TransferEntry } from "@/utils/usePaidLedger";
 import type { LoanActivityEntry } from "@/utils/useLoanActivity";
@@ -45,6 +46,7 @@ interface Props {
 }
 
 export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals = true, ListHeaderComponent, ListEmptyComponent, refreshControl }: Props) {
+  const transferSheetRef = useRef<TransferSheetRef>(null);
   const sections = useMemo(() => {
     if (!grouped) {
       return [{ key: "all", date: entries[0]?.effDate ?? new Date(), total: 0, data: entries }];
@@ -53,24 +55,33 @@ export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals =
   }, [entries, grouped]);
 
   return (
-    <SectionList
-      sections={sections}
-      keyExtractor={(item) => item.key}
-      ListHeaderComponent={ListHeaderComponent}
-      ListEmptyComponent={ListEmptyComponent}
-      refreshControl={refreshControl}
-      renderItem={({ item, index }) => <ActivityEntryRow item={item} index={index} />}
-      renderSectionHeader={
-        grouped
-          ? ({ section }) => {
-              const s = section as unknown as DaySection;
-              return <DayHeaderRow date={s.date} total={showDayTotals ? s.total : undefined} />;
-            }
-          : undefined
-      }
-      stickySectionHeadersEnabled={false}
-      contentContainerClassName="pb-[140px]"
-      showsVerticalScrollIndicator={false}
-    />
+    <>
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.key}
+        ListHeaderComponent={ListHeaderComponent}
+        ListEmptyComponent={ListEmptyComponent}
+        refreshControl={refreshControl}
+        renderItem={({ item, index }) => (
+          <ActivityEntryRow
+            item={item}
+            index={index}
+            onOpenTransfer={(transfer) => transferSheetRef.current?.present(transfer)}
+          />
+        )}
+        renderSectionHeader={
+          grouped
+            ? ({ section }) => {
+                const s = section as unknown as DaySection;
+                return <DayHeaderRow date={s.date} total={showDayTotals ? s.total : undefined} />;
+              }
+            : undefined
+        }
+        stickySectionHeadersEnabled={false}
+        contentContainerClassName="pb-[140px]"
+        showsVerticalScrollIndicator={false}
+      />
+      <TransferSheet ref={transferSheetRef} />
+    </>
   );
 }

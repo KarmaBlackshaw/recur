@@ -29,9 +29,10 @@ interface Props {
   transaction: AccountTransaction;
   accountType: AccountType;
   onDelete?: () => void;
+  onPress?: () => void;
 }
 
-export function TransactionRow({ transaction, accountType, onDelete }: Props) {
+export function TransactionRow({ transaction, accountType, onDelete, onPress }: Props) {
   const label = TRANSACTION_KIND_LABEL[transaction.kind];
   const icon = categoryIcon(transaction.category, KIND_ICON[transaction.kind]);
   const isMoneyIn = accountType === "credit" ? transaction.amount < 0 : transaction.amount > 0;
@@ -56,6 +57,7 @@ export function TransactionRow({ transaction, accountType, onDelete }: Props) {
         amount={signed}
         amountTone={isMoneyIn ? "positive" : "neutral"}
         caption={time}
+        onPress={onPress}
         accessibilityLabel={`${label}, ${signed}, ${details}`}
         accessibilityActions={onDelete ? [{ name: "delete", label: "Delete" }] : undefined}
         onAccessibilityAction={onDelete ? handleAccessibilityAction : undefined}

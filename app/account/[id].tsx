@@ -12,16 +12,16 @@ import { TransactionRow } from "@/components/accounts/TransactionRow";
 import { AdjustBalanceSheet, type AdjustBalanceSheetRef } from "@/components/accounts/AdjustBalanceSheet";
 import { AccountCard } from "@/components/accounts/AccountCard";
 import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
+import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { isBillTbd } from "@/utils/cardBills";
 import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
 import { useRefreshControl } from "@/utils/useRefreshControl";
-import { alertFailure } from "@/utils/accounts/alertFailure";
+import { useRevertTransfer } from "@/utils/accounts/useRevertTransfer";
 import {
   ACCOUNT_TYPE_LABEL,
   type Account,
-  type AccountTransaction,
   type CardBill,
   type FeatherIconName,
 } from "@/types";
@@ -137,6 +137,8 @@ export default function AccountDetailScreen() {
   const isArchived = account?.archivedAt != null;
   const adjustRef = useRef<AdjustBalanceSheetRef>(null);
   const billSheetRef = useRef<CardBillSheetRef>(null);
+  const transferSheetRef = useRef<TransferSheetRef>(null);
+  const revertTransfer = useRevertTransfer();
   const hasPresentedAction = useRef(false);
   const isCredit = account?.type === "credit";
   const canTransfer =
@@ -210,28 +212,6 @@ export default function AccountDetailScreen() {
       console.error("Unarchive account failed", e);
       Alert.alert("Unarchive failed", "Something went wrong. Please try again.");
     }
-  }
-
-  function confirmDeleteTransfer(transaction: AccountTransaction) {
-    const { transferId } = transaction;
-    if (!transferId) {
-      return;
-    }
-    Alert.alert("Delete transfer?", "Both sides of this transfer and any fee or income recorded with it are removed, and the balances restored.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await accounts.deleteTransfer(transferId);
-          } catch (e) {
-            console.error("Delete transfer failed", e);
-            alertFailure("Delete failed", e);
-          }
-        },
-      },
-    ]);
   }
 
   if (!account) {
@@ -313,13 +293,17 @@ export default function AccountDetailScreen() {
             {dayjs(section.date).format("ddd, MMM D, YYYY")}
           </AppText>
         )}
-        renderItem={({ item }) => (
-          <TransactionRow
-            transaction={item}
-            accountType={account.type}
-            onDelete={item.transferId ? () => confirmDeleteTransfer(item) : undefined}
-          />
-        )}
+        renderItem={({ item }) => {
+          const { transferId } = item;
+          return (
+            <TransactionRow
+              transaction={item}
+              accountType={account.type}
+              onDelete={transferId ? () => revertTransfer(transferId) : undefined}
+              onPress={item.kind === "transfer" ? () => transferSheetRef.current?.present(item) : undefined}
+            />
+          );
+        }}
         ListEmptyComponent={
           <View className="items-center pt-10 px-8 gap-2">
             <Feather name="list" size={40} color={colors.textMuted} />
@@ -332,6 +316,7 @@ export default function AccountDetailScreen() {
 
       <AdjustBalanceSheet ref={adjustRef} account={account} />
       <CardBillSheet ref={billSheetRef} />
+      <TransferSheet ref={transferSheetRef} />
     </SafeAreaView>
   );
 }

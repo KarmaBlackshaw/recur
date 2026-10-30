@@ -5,6 +5,7 @@ const LEADER = 16;
 const VERTICAL_ROOM = 44;
 const SIDE_GUTTER = 8;
 const LABEL_MARGIN = 4;
+const MIN_LABELLED_SHARE = 0.02;
 
 type TDonutSide = "left" | "right";
 
@@ -18,6 +19,7 @@ interface TLayoutDonutOptions {
 }
 
 export interface TDonutSlice {
+  isLabelled: boolean;
   arcPath: string;
   leaderPath: string;
   side: TDonutSide;
@@ -65,7 +67,7 @@ export function layoutDonut({ values, width, radius, thickness }: TLayoutDonutOp
     const start = angle;
     const sweep = (value / total) * 360;
     angle += sweep;
-    return { start, sweep, mid: start + sweep / 2 };
+    return { start, sweep, mid: start + sweep / 2, isLabelled: value / total >= MIN_LABELLED_SHARE };
   });
 
   const edgeOf = (side: TDonutSide) => (side === "right" ? centerX + radius + LEADER : centerX - radius - LEADER);
@@ -76,7 +78,7 @@ export function layoutDonut({ values, width, radius, thickness }: TLayoutDonutOp
   for (const side of SIDES) {
     const indexes = wedges
       .map((_, index) => index)
-      .filter((index) => sideOf(wedges[index].mid) === side)
+      .filter((index) => wedges[index].isLabelled && sideOf(wedges[index].mid) === side)
       .sort((a, b) => desiredY(wedges[a].mid) - desiredY(wedges[b].mid));
     const spread = spreadLabels(
       indexes.map((index) => desiredY(wedges[index].mid)),
@@ -86,7 +88,7 @@ export function layoutDonut({ values, width, radius, thickness }: TLayoutDonutOp
     indexes.forEach((index, order) => labelYs.set(index, spread[order]));
   }
 
-  const slices = wedges.map(({ start, sweep, mid }, index) => {
+  const slices = wedges.map(({ start, sweep, mid, isLabelled }, index) => {
     const side = sideOf(mid);
     const edgeX = edgeOf(side);
     const labelY = labelYs.get(index) ?? centerY;
@@ -97,6 +99,7 @@ export function layoutDonut({ values, width, radius, thickness }: TLayoutDonutOp
         : `M ${point(start + inset, midRadius)} A ${midRadius} ${midRadius} 0 ${sweep - inset * 2 > 180 ? 1 : 0} 1 ${point(start + sweep - inset, midRadius)}`;
     const leaderPath = `M ${point(mid, radius + 1)} C ${point(mid, radius + LEADER)} ${edgeX + (side === "right" ? -LEADER / 2 : LEADER / 2)} ${labelY} ${edgeX} ${labelY}`;
     return {
+      isLabelled,
       arcPath,
       leaderPath,
       side,

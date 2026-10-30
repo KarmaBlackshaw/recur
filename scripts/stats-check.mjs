@@ -19,7 +19,8 @@ assert.equal(names(skipped), "Food", "no slice for zero or negative lines");
 assert.equal(skipped[0].share, 1, "skipped lines don't dilute the share");
 
 const layout = (values) => layoutDonut({ values, width: 360, radius: 80, thickness: 24 });
-const labelsOn = (slices, side) => slices.filter((slice) => slice.side === side).map((slice) => slice.labelY).sort((a, b) => a - b);
+const labelsOn = (slices, side) =>
+  slices.filter((slice) => slice.isLabelled && slice.side === side).map((slice) => slice.labelY).sort((a, b) => a - b);
 
 for (const values of [
   [33.9, 13.6, 13.4, 10.9, 5.4, 3.3, 19.5],
@@ -46,5 +47,9 @@ assert.equal(biggestFirst[1].side, "left");
 assert.ok(biggestFirst[0].arcPath.includes(" 0 1 1 "), "over 180° uses the large arc");
 assert.ok(biggestFirst[1].arcPath.includes(" 0 0 1 "), "under 180° doesn't");
 assert.equal(layout([100]).slices[0].arcPath.match(/A /g).length, 2, "a full ring is two arcs: one arc can't close");
+assert.ok(layout([100]).slices[0].isLabelled, "a single slice keeps its label");
+
+const tinyTail = layout([50000, 12000, 1500, 300, 200, 80]).slices.map((slice) => slice.isLabelled);
+assert.deepEqual(tinyTail, [true, true, true, false, false, false], "slices under 2% get no label or line, so they can't bundle at the top");
 
 console.log("stats-check ok");

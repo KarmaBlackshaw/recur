@@ -38,14 +38,17 @@ export function AppDonutChart({ segments, width, radius, thickness, children }: 
   return (
     <View style={{ width, height }}>
       <Svg width={width} height={height}>
-        {segments.map(({ key, color }, index) => (
-          <Path key={key} d={slices[index].leaderPath} stroke={color} strokeWidth={1} fill="none" />
-        ))}
+        {segments.map(({ key, color }, index) =>
+          slices[index].isLabelled ? <Path key={key} d={slices[index].leaderPath} stroke={color} strokeWidth={1} fill="none" /> : null
+        )}
         {segments.map(({ key, color }, index) => (
           <Path key={key} d={slices[index].arcPath} stroke={color} strokeWidth={thickness} fill="none" />
         ))}
         {segments.map(({ key, label, caption }, index) => {
-          const { side, labelX, labelY } = slices[index];
+          const { isLabelled, side, labelX, labelY } = slices[index];
+          if (!isLabelled) {
+            return null;
+          }
           const textAnchor = side === "right" ? "start" : "end";
           return (
             <React.Fragment key={key}>

@@ -1,8 +1,6 @@
 import React, { useMemo } from "react";
-import { FlatList, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { FlatList, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
-import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
 import { sumBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
@@ -15,7 +13,7 @@ import { AppTabs } from "@/components/ui/AppTabs";
 import { AppText } from "@/components/ui/AppText";
 import { AppUnderlineTabs, type TUnderlineTab } from "@/components/ui/AppUnderlineTabs";
 import { LoadingState } from "@/components/ui/LoadingState";
-import { chartHues, chartRest, colors } from "@/constants/theme";
+import { chartHues, chartRest } from "@/constants/theme";
 import { categoryIcon } from "@/utils/categories";
 import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
@@ -79,12 +77,11 @@ export default function StatsScreen() {
   const { width } = useWindowDimensions();
   const ledger = usePaidLedger();
   const interestCredits = useInterestCredits();
-  const params = useLocalSearchParams<{ year?: string; month?: string; type?: string }>();
   const [{ year, month, period, type }, setSelected] = useSetState<{ year: number; month: number; period: Period; type: StatsType }>({
-    year: Number(params.year ?? dayjs().year()),
-    month: Number(params.month ?? dayjs().month()),
+    year: dayjs().year(),
+    month: dayjs().month(),
     period: "month",
-    type: params.type === "income" ? "income" : "expenses",
+    type: "expenses",
   });
 
   // Card charges count on the day they were charged, so bill payments stay out: they only settle what's already here.
@@ -160,13 +157,8 @@ export default function StatsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center pl-3 pr-2 pt-2 pb-1">
-        <TouchableOpacity onPress={() => router.back()} className="w-11 h-11 items-center justify-center">
-          <Feather name="chevron-left" size={24} color={colors.secondary} />
-        </TouchableOpacity>
-        <AppText variant="title" className="flex-1" numberOfLines={1}>
-          Stats
-        </AppText>
+      <View className="flex-row items-center justify-between pl-5 pr-2 pt-2 pb-1">
+        <AppText variant="display">Stats</AppText>
         <PeriodNavigator
           unit={period}
           year={year}
@@ -183,7 +175,7 @@ export default function StatsScreen() {
         data={rows}
         keyExtractor={({ category }) => category}
         renderItem={({ item, index }) => <CategoryRow row={item} color={chartHues[index] ?? chartRest} />}
-        contentContainerClassName="pb-5"
+        contentContainerClassName="pb-[140px]"
         ListHeaderComponent={
           rows.length > 0 ? (
             <View className="items-center pb-2">

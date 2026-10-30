@@ -17,7 +17,6 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
-import { AppButton } from "@/components/ui/AppButton";
 import { AppChips } from "@/components/ui/AppChips";
 
 type Segment = "all" | "paid" | "charged" | "income" | "transfers";
@@ -158,18 +157,6 @@ export default function ExpensesScreen() {
           {formatAmount(total)}
         </Text>
         <AppText variant="meta">{heroMeta[segment]}</AppText>
-        <AppButton
-          label="Stats"
-          variant="tonal"
-          size="sm"
-          onPress={() =>
-            router.push(`/stats?year=${year}&month=${month}&type=${segment === "income" ? "income" : "expenses"}`, {
-              dangerouslySingular: true,
-            })
-          }
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          className="absolute top-3 right-3"
-        />
       </View>
 
       <DayGroupedExpenseList

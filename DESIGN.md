@@ -111,7 +111,7 @@ is a react-hook-form `Controller`; Save stays disabled until the form is valid.
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows.
 
-### Stats (`app/stats.tsx`)
+### Stats (`app/(tabs)/stats.tsx`)
 Underline tabs (`AppUnderlineTabs`) switch Income and Expenses and show each total, with a Periwinkle underline on the
 active one, since mint and coral stay states. The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so
 a hue says which slice is which row and never belongs to a category. Past the sixth, categories fold into one neutral
@@ -128,6 +128,7 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - One column. 17.5dp side gutters on headers, cards and row content.
 - Group with headers and whitespace (band headers, day headers), not boxes.
 - Scroll views keep 140dp of bottom padding so the floating tab bar never covers the last row.
+- The floating tab bar labels every tab only when the screen is at least 84dp wide per tab and text is at most 1.15× size; otherwise only the active tab is labelled. With six tabs beside the FAB, inactive tabs are narrower than 44dp on phones under about 414dp wide.
 - Touch targets are at least 44dp.
 - Money lists sort by date. Home shows Overdue first, then this month, then next month once it is at most
   7 days away.

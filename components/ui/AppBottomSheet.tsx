@@ -60,6 +60,9 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
       // gorhom makes the sheet one accessible element by default, which hides every control inside it from
       // VoiceOver / TalkBack.
       accessible={false}
+      // A picker opened from a sheet stacks over it. gorhom's default "switch" minimizes the sheet below to restore it
+      // later, but in 5.2.14 onChange overwrites the minimizing status before onClose reads it, so it is dismissed.
+      stackBehavior="push"
       backgroundStyle={{ backgroundColor: colors.surface }}
       handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
       backdropComponent={renderBackdrop}

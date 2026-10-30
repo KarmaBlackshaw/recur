@@ -129,11 +129,12 @@ a Hairline border, above the tab bar, gone after 5s. Never for errors (those are
 
 ### Pay sheet
 Opened when a bill's amount isn't known, from a bill's Mark paid, or by long-pressing the pay circle: Amount
-(prefilled), Paid on (Today / Yesterday / Due date / Other date with an inline calendar) and Pay from.
+(prefilled), Paid on (an `AppDateField`, today by default, no future dates) and Pay from.
 
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes
 `accessible={false}`: gorhom's default makes the whole sheet one element and hides its controls from screen readers.
+A picker opened from a sheet (Pay from, Paid on) stacks over it, and the sheet is still there when the picker closes.
 
 ### Empty and Loading States
 Empty: one large muted glyph, a short title, one plain sentence, and the action that fills it when there

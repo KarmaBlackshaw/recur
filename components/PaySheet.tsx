@@ -4,8 +4,7 @@ import { Controller, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
-import { AppCalendar } from "@/components/ui/AppCalendar";
-import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
+import { AppDateField } from "@/components/ui/AppDateField";
 import { AppSelectField } from "@/components/ui/AppSelectField";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
@@ -44,16 +43,14 @@ interface PayFormValues {
   accountId: string; // "" = no account
 }
 
-type PaidOn = "today" | "yesterday" | "due" | "other";
-
 // How far back to look for a variable bill's last amount to prefill.
 const AMOUNT_LOOKBACK_MONTHS = 12;
 // No fixed snap points: the sheet sizes to the form.
 const CONTENT_HEIGHT_SNAP: string[] = [];
 
 // Today keeps the real time; earlier days count at the end of that day, like a one-off's paid date.
-function paidAtFor(date: Date): string {
-  const day = dayjs(date);
+function paidAtFor(iso: string): string {
+  const day = dayjs(iso);
   return day.isSame(dayjs(), "day") ? new Date().toISOString() : day.endOf("day").toISOString();
 }
 
@@ -61,7 +58,6 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const [target, setTarget] = useState<PayTarget | null>(null);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { getDisplayAmount, getMonthAmount, getMonthPaidAt, getMonthStatus } = useExpenses();
   const { accounts, activeAccounts, transactions } = useAccounts();
   const {
@@ -107,7 +103,6 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
           : usableAccount(expense.accountId);
       reset({ amount: amount != null ? amount.toFixed(2) : "", paidAt, accountId });
       setTarget(next);
-      setIsCalendarOpen(false);
       sheetRef.current?.present();
     },
   }));
@@ -124,36 +119,8 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
     sheetRef.current?.dismiss();
   });
 
-  const paidAt = watch("paidAt");
   const accountId = watch("accountId");
-  const today = dayjs().startOf("day");
   const dueDate = target ? dayjs(getDueDateForMonth(target.expense.dueDay, target.year, target.month)) : null;
-  const isDueChoice = dueDate != null && dueDate.isBefore(today.subtract(1, "day"), "day");
-  const paidDay = paidAt ? dayjs(paidAt).startOf("day") : today;
-  const paidOn: PaidOn = paidDay.isSame(today, "day")
-    ? "today"
-    : paidDay.isSame(today.subtract(1, "day"), "day")
-      ? "yesterday"
-      : isDueChoice && dueDate != null && paidDay.isSame(dueDate, "day")
-        ? "due"
-        : "other";
-  const paidOnOptions: { label: string; value: PaidOn }[] = [
-    { label: "Today", value: "today" },
-    { label: "Yesterday", value: "yesterday" },
-    ...(isDueChoice && dueDate ? [{ label: `Due date, ${dueDate.format("MMM D")}`, value: "due" as const }] : []),
-    { label: paidOn === "other" ? paidDay.format("MMM D") : "Other date", value: "other" },
-  ];
-
-  function choosePaidOn(choice: PaidOn) {
-    if (choice === "other") {
-      setIsCalendarOpen(true);
-      return;
-    }
-    setIsCalendarOpen(false);
-    const day = choice === "today" ? today : choice === "yesterday" ? today.subtract(1, "day") : dueDate ?? today;
-    setValue("paidAt", paidAtFor(day.toDate()), { shouldDirty: true });
-  }
-
   const isPaidAlready = target != null && getMonthStatus(target.expense.id, target.year, target.month) === "paid";
   const accountName = accountId === "" ? "No account" : accounts.find((a) => a.id === accountId)?.name ?? "Deleted account";
   const cycleLabel = target ? dayjs(new Date(target.year, target.month, 1)).format("MMMM") : "";
@@ -198,19 +165,18 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
                 />
               )}
             />
-            <AppRadioGroup label="Paid on" options={paidOnOptions} value={paidOn} onChange={choosePaidOn} />
-            {isCalendarOpen ? (
-              <View className="mt-2">
-                <AppCalendar
-                  value={paidDay.toDate()}
-                  maximumDate={today.toDate()}
-                  onChange={(date) => {
-                    setValue("paidAt", paidAtFor(date), { shouldDirty: true });
-                    setIsCalendarOpen(false);
-                  }}
+            <Controller
+              control={control}
+              name="paidAt"
+              render={({ field: { value, onChange } }) => (
+                <AppDateField
+                  label="Paid on"
+                  value={value}
+                  onChange={(iso) => onChange(paidAtFor(iso))}
+                  maximumDate={new Date()}
                 />
-              </View>
-            ) : null}
+              )}
+            />
             <View className="mt-2">
               <AppSelectField label="Pay from" value={accountName} onPress={() => accountSheetRef.current?.present()} />
             </View>

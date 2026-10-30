@@ -162,7 +162,7 @@ export default function ExpensesScreen() {
           label="Stats"
           variant="tonal"
           size="sm"
-          onPress={() => router.push(`/stats?year=${year}&month=${month}`)}
+          onPress={() => router.push(`/stats?year=${year}&month=${month}`, { dangerouslySingular: true })}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           className="absolute top-3 right-3"
         />

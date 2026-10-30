@@ -8,6 +8,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
+import { router } from "expo-router";
 import { useAccounts } from "@/context/AccountContext";
 import { InfoRow } from "@/components/accounts/InfoRow";
 import { AppButton } from "@/components/ui/AppButton";
@@ -50,6 +51,14 @@ export const TransferSheet = forwardRef<TransferSheetRef>(function TransferSheet
   const incomeAccount = income && income.accountId !== to?.accountId ? accountName(income.accountId) : null;
   const incomeValue = income && [formatAmount(income.amount), income.category, incomeAccount].filter(Boolean).join(" · ");
 
+  function handleEdit() {
+    const transferId = side?.transferId;
+    if (transferId) {
+      sheetRef.current?.dismiss();
+      router.push({ pathname: "/transfer", params: { id: transferId } });
+    }
+  }
+
   function handleRevert() {
     const transferId = side?.transferId;
     if (transferId) {
@@ -67,6 +76,7 @@ export const TransferSheet = forwardRef<TransferSheetRef>(function TransferSheet
   return (
     <BottomSheetModal
       ref={sheetRef}
+      accessible={false}
       backgroundStyle={{ backgroundColor: colors.surface }}
       handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
       backdropComponent={renderBackdrop}
@@ -92,12 +102,14 @@ export const TransferSheet = forwardRef<TransferSheetRef>(function TransferSheet
             {incomeValue && <InfoRow label="Income" value={incomeValue} />}
             <InfoRow label="Date" value={dayjs(side.createdAt).format("MMM D, YYYY, h:mm A")} />
             {note && <InfoRow label="Note" value={note} />}
-            <AppButton
-              label={isBillPayment ? "Revert payment" : "Revert transfer"}
-              variant="destructive"
-              onPress={handleRevert}
-              className="mt-4"
-            />
+            <View className="mt-4 gap-2">
+              <AppButton label={isBillPayment ? "Edit payment" : "Edit transfer"} variant="tonal" onPress={handleEdit} />
+              <AppButton
+                label={isBillPayment ? "Revert payment" : "Revert transfer"}
+                variant="destructive"
+                onPress={handleRevert}
+              />
+            </View>
           </>
         ) : null}
       </BottomSheetView>

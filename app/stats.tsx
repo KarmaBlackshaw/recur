@@ -13,23 +13,33 @@ import { AppDonutChart } from "@/components/ui/AppDonutChart";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { AppText } from "@/components/ui/AppText";
+import { AppUnderlineTabs, type TUnderlineTab } from "@/components/ui/AppUnderlineTabs";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { chartHues, chartRest, colors } from "@/constants/theme";
 import { categoryIcon } from "@/utils/categories";
 import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
 import { categoryBreakdown, type TCategorySpend } from "@/utils/stats/categoryBreakdown";
-import { usePaidLedger } from "@/utils/usePaidLedger";
+import { useInterestCredits, usePaidLedger } from "@/utils/usePaidLedger";
 import { useSetState } from "@/utils/useSetState";
+import type { FeatherIconName } from "@/types";
 
 type Period = "month" | "year";
+type StatsType = "income" | "expenses";
 
 const PERIODS: { label: string; value: Period }[] = [
   { label: "Month", value: "month" },
   { label: "Year", value: "year" },
 ];
 
+const COPY: Record<StatsType, { overline: string; emptyTitle: string; emptyIcon: FeatherIconName; emptyMessage: string }> = {
+  income: { overline: "Received", emptyTitle: "No income", emptyIcon: "arrow-down-left", emptyMessage: "No income in" },
+  expenses: { overline: "Spent", emptyTitle: "Nothing spent", emptyIcon: "pie-chart", emptyMessage: "No expenses in" },
+};
+
 const FEES_CATEGORY = "Fees";
+const INTEREST_CATEGORY = "Interest";
+const UNCATEGORIZED_INCOME = "Other";
 const OTHER_SEGMENT_KEY = "other-categories";
 const DONUT_RADIUS_RATIO = 0.22;
 const DONUT_THICKNESS_RATIO = 0.3;
@@ -68,16 +78,18 @@ export default function StatsScreen() {
   const { transactions } = useAccounts();
   const { width } = useWindowDimensions();
   const ledger = usePaidLedger();
-  const params = useLocalSearchParams<{ year?: string; month?: string }>();
-  const [{ year, month, period }, setSelected] = useSetState<{ year: number; month: number; period: Period }>({
+  const interestCredits = useInterestCredits();
+  const params = useLocalSearchParams<{ year?: string; month?: string; type?: string }>();
+  const [{ year, month, period, type }, setSelected] = useSetState<{ year: number; month: number; period: Period; type: StatsType }>({
     year: Number(params.year ?? dayjs().year()),
     month: Number(params.month ?? dayjs().month()),
     period: "month",
+    type: params.type === "income" ? "income" : "expenses",
   });
 
   // Card charges count on the day they were charged, so bill payments stay out: they only settle what's already here.
   // Loans stay out too: lent money is still yours and counts in net worth.
-  const lines = useMemo(
+  const expenseLines = useMemo(
     () => [
       ...ledger.map(({ expense, amount, effDate }) => ({ category: expense.category, amount, effDate })),
       ...transactions
@@ -87,15 +99,33 @@ export default function StatsScreen() {
     [ledger, transactions]
   );
 
-  const rows = useMemo(
-    () =>
-      categoryBreakdown(
-        lines.filter(({ effDate }) => effDate.getFullYear() === year && (period === "year" || effDate.getMonth() === month))
-      ),
-    [lines, year, month, period]
+  // Loan repayments stay out for the same reason: getting lent money back isn't earning it.
+  const incomeLines = useMemo(
+    () => [
+      ...transactions
+        .filter(({ kind }) => kind === "income")
+        .map(({ category, amount, createdAt }) => ({ category: category ?? UNCATEGORIZED_INCOME, amount, effDate: new Date(createdAt) })),
+      ...interestCredits.map(({ amount, effDate }) => ({ category: INTEREST_CATEGORY, amount, effDate })),
+    ],
+    [transactions, interestCredits]
   );
 
+  const { expenseRows, incomeRows } = useMemo(() => {
+    const isInPeriod = ({ effDate }: { effDate: Date }) =>
+      effDate.getFullYear() === year && (period === "year" || effDate.getMonth() === month);
+    return {
+      expenseRows: categoryBreakdown(expenseLines.filter(isInPeriod)),
+      incomeRows: categoryBreakdown(incomeLines.filter(isInPeriod)),
+    };
+  }, [expenseLines, incomeLines, year, month, period]);
+
+  const rows = type === "income" ? incomeRows : expenseRows;
+  const copy = COPY[type];
   const total = sumBy(rows, "amount");
+  const typeTabs: TUnderlineTab<StatsType>[] = [
+    { label: "Income", detail: formatAmount(sumBy(incomeRows, "amount")), value: "income" },
+    { label: "Expenses", detail: formatAmount(sumBy(expenseRows, "amount")), value: "expenses" },
+  ];
   const rest = rows.slice(chartHues.length);
   const segments = [
     ...rows.slice(0, chartHues.length).map(({ category, amount, share }, index) => ({
@@ -147,6 +177,8 @@ export default function StatsScreen() {
 
       <AppTabs tabs={PERIODS} value={period} onChange={(period) => setSelected({ period })} className="mx-5 mt-1" />
 
+      <AppUnderlineTabs tabs={typeTabs} value={type} onChange={(type) => setSelected({ type })} className="mt-1" />
+
       <FlatList
         data={rows}
         keyExtractor={({ category }) => category}
@@ -161,7 +193,7 @@ export default function StatsScreen() {
                 radius={donutRadius}
                 thickness={Math.round(donutRadius * DONUT_THICKNESS_RATIO)}
               >
-                <AppText variant="overline">Spent</AppText>
+                <AppText variant="overline">{copy.overline}</AppText>
                 <AppText
                   variant="title"
                   className="w-full px-3 text-center"
@@ -176,7 +208,7 @@ export default function StatsScreen() {
             </View>
           ) : null
         }
-        ListEmptyComponent={<EmptyState title="Nothing spent" icon="pie-chart" message={`No expenses in ${periodLabel}`} />}
+        ListEmptyComponent={<EmptyState title={copy.emptyTitle} icon={copy.emptyIcon} message={`${copy.emptyMessage} ${periodLabel}`} />}
       />
     </SafeAreaView>
   );

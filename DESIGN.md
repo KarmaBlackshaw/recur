@@ -112,7 +112,8 @@ is a react-hook-form `Controller`; Save stays disabled until the form is valid.
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows.
 
 ### Stats (`app/stats.tsx`)
-The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so
+Underline tabs (`AppUnderlineTabs`) switch Income and Expenses and show each total, with a Periwinkle underline on the
+active one, since mint and coral stay states. The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so
 a hue says which slice is which row and never belongs to a category. Past the sixth, categories fold into one neutral
 "Others" slice. Every slice has a label in a column beside the ring, tied to it by a thin curved line in its hue; labels
 stack so they never touch, and long names truncate. Row tiles stay neutral with a glyph. Amounts and labels stay in Ink

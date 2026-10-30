@@ -111,6 +111,12 @@ is a react-hook-form `Controller`; Save stays disabled until the form is valid.
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows.
 
+### Stats (`app/stats.tsx`)
+The donut (`AppDonutChart`, built from Views since there is no SVG) and each row's 3dp share bar use `chartHues` by
+rank within the period, biggest first, so a hue says which slice is which row and never belongs to a category. Past
+the sixth, categories fold into one neutral slice. Row tiles stay neutral with a glyph. Amounts and labels stay in Ink
+and Secondary Graphite.
+
 ### Empty and Loading States
 Empty: one large muted glyph, a short title, one plain sentence, and the action that fills it when there
 is one. Loading: `LoadingState` for whole screens only; lists never flash a spinner per row.

@@ -7,7 +7,7 @@ import { sortBy, sumBy } from "@/utils/collections";
 import { useSetState } from "@/utils/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
 import { KpiRow } from "@/components/kpi/KpiRow";
-import { MonthNavigator } from "@/components/MonthNavigator";
+import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { EmptyState } from "@/components/EmptyState";
 import { type DayEntry } from "@/components/DayGroupedExpenseList";
 import { ExpenseCard } from "@/components/ExpenseCard";
@@ -93,7 +93,7 @@ export default function RecurringScreen() {
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center justify-between pl-5 pr-2 pt-2 pb-1">
         <AppText variant="display">Recurring</AppText>
-        <MonthNavigator
+        <PeriodNavigator
           year={year}
           month={month}
           onChange={(year, month) => setSelected({ year, month })}

@@ -58,6 +58,7 @@ interface Expense {
 - Backups (format v5) also carry preferences and account logos. Import runs in one write transaction, so a bad file changes nothing, and only fills preferences that aren't set yet.
 - One-off expenses stay paid permanently.
 - KPI totals (Total / Paid / Unpaid) are computed from the in-memory expenses array — no extra DB query.
+- Stats (`app/stats.tsx`, opened from Activity) groups spending by category: paid expenses and card charges on their pay/charge date (`usePaidLedger`) plus fees. Bill payments stay out because the charges already count, and loans stay out because lent money still counts in net worth.
 - Swipe-to-delete via `react-native-gesture-handler` `Swipeable`. Confirm with `Alert` before deleting.
 
 ## Design Tokens

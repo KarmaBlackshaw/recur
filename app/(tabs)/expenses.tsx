@@ -7,8 +7,9 @@ import { sumBy } from "@/utils/collections";
 import { useSetState } from "@/utils/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
-import { MonthNavigator } from "@/components/MonthNavigator";
+import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type ActivityEntry } from "@/components/DayGroupedExpenseList";
+import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import type { FeatherIconName, TransactionKind } from "@/types";
@@ -16,6 +17,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
+import { AppButton } from "@/components/ui/AppButton";
 import { AppChips } from "@/components/ui/AppChips";
 
 type Segment = "all" | "paid" | "charged" | "income" | "transfers";
@@ -43,10 +45,6 @@ const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: st
   income: { title: "No income", icon: "arrow-down-left", message: "No income in" },
   transfers: { title: "No transfers", icon: "repeat", message: "No transfers in" },
 };
-
-function countLabel(count: number, singular: string, plural: string) {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
 
 export default function ExpensesScreen() {
   const { loading } = useExpenses();
@@ -133,7 +131,7 @@ export default function ExpensesScreen() {
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center justify-between pl-5 pr-2 pt-2 pb-1">
         <AppText variant="display">Activity</AppText>
-        <MonthNavigator
+        <PeriodNavigator
           year={year}
           month={month}
           onChange={(year, month) => setSelected({ year, month })}
@@ -160,6 +158,14 @@ export default function ExpensesScreen() {
           {formatAmount(total)}
         </Text>
         <AppText variant="meta">{heroMeta[segment]}</AppText>
+        <AppButton
+          label="Stats"
+          variant="tonal"
+          size="sm"
+          onPress={() => router.push(`/stats?year=${year}&month=${month}`)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          className="absolute top-3 right-3"
+        />
       </View>
 
       <DayGroupedExpenseList

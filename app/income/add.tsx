@@ -1,26 +1,28 @@
 import React, { useRef } from "react";
-import { useBoolean } from "@/utils/useBoolean";
 import { maxBy } from "@/utils/collections";
-import { View, TouchableOpacity, Alert } from "react-native";
+import { View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import Feather from "@expo/vector-icons/Feather";
 import { CategoryBottomSheet, CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
 import { AccountPickerSheet, AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { useAccounts } from "@/context/AccountContext";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDateField } from "@/components/ui/AppDateField";
+import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
+import { AppSelectField } from "@/components/ui/AppSelectField";
 import { AppText } from "@/components/ui/AppText";
-import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
-import { colors } from "@/constants/theme";
+import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import type { AccountTransaction } from "@/types";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
+
+// Amount is the only field that can be invalid.
+const SAVE_HINT = "Enter an amount to save";
 
 interface IncomeFormValues {
   receivedAt: string;
@@ -40,7 +42,6 @@ export default function AddIncomeScreen() {
   const lastIncome = maxBy(incomes.filter((t) => t.transferId == null), "createdAt");
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
-  const [isDatePickerOpen, datePicker] = useBoolean();
 
   const depositAccounts = activeAccounts.filter((a) => a.type !== "credit");
 
@@ -75,11 +76,12 @@ export default function AddIncomeScreen() {
     reset,
     getValues,
     trigger,
-    formState: { isValid, isSubmitting, errors },
+    formState: { isDirty, isValid, isSubmitting },
   } = useForm<IncomeFormValues>({
     mode: "onChange",
     defaultValues: toFormValues(editingIncome),
   });
+  const { allowLeave } = useDiscardGuard(isDirty);
 
   React.useEffect(() => {
     if (!isLoading) {
@@ -115,7 +117,7 @@ export default function AddIncomeScreen() {
       } else {
         await addIncome(input);
       }
-      reset();
+      allowLeave();
       router.back();
     } catch (error) {
       console.error(error);
@@ -135,6 +137,7 @@ export default function AddIncomeScreen() {
         onPress: async () => {
           try {
             await deleteIncome(id);
+            allowLeave();
             router.back();
           } catch (error) {
             console.error(error);
@@ -145,31 +148,18 @@ export default function AddIncomeScreen() {
     ]);
   }
 
-  const saveHint = Object.keys(errors).length
-    ? "Fix the highlighted fields to save"
-    : "Fill in the required fields to save";
-
-  function handleCancel() {
-    reset();
-    router.back();
-  }
-
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity
-          onPress={handleCancel}
-          className="w-11 h-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Feather name="chevron-left" size={24} color={colors.secondary} />
-        </TouchableOpacity>
-        <AppText variant="title" className="flex-1 text-center" numberOfLines={1} adjustsFontSizeToFit>
-          {isEditing ? "Edit Income" : "Add Income"}
-        </AppText>
-        <View className="w-11" />
-      </View>
+      <AppFormHeader
+        title={isEditing ? "Edit income" : "Add income"}
+        action={{
+          label: "Save",
+          onPress: onSubmit,
+          isDisabled: !isValid || isLoading,
+          isLoading: isSubmitting,
+          accessibilityHint: isValid ? undefined : SAVE_HINT,
+        }}
+      />
 
       <AppFormScrollView
         contentContainerClassName="px-5 pb-5"
@@ -180,33 +170,7 @@ export default function AddIncomeScreen() {
           control={control}
           name="receivedAt"
           render={({ field: { value, onChange } }) => (
-            <>
-              <AppLabel>Received Date</AppLabel>
-              <TouchableOpacity
-                className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
-                onPress={datePicker.setTrue}
-                accessibilityRole="button"
-                accessibilityLabel={`Received date, ${dayjs(value).format("MMM D, YYYY")}`}
-              >
-                <AppText variant="body-medium" className="text-white text-base">
-                  {dayjs(value).format("MMM D, YYYY")}
-                </AppText>
-                <Feather name="calendar" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-              {isDatePickerOpen && (
-                <DateTimePicker
-                  value={dayjs(value).toDate()}
-                  mode="date"
-                  maximumDate={new Date()}
-                  onChange={(event, date) => {
-                    datePicker.setFalse();
-                    if (event.type === "set" && date) {
-                      onChange(dayjs(date).startOf("day").toISOString());
-                    }
-                  }}
-                />
-              )}
-            </>
+            <AppDateField label="Received date" value={value} onChange={onChange} maximumDate={new Date()} />
           )}
         />
 
@@ -214,7 +178,7 @@ export default function AddIncomeScreen() {
           control={control}
           name="amount"
           rules={{
-            required: true,
+            required: "Enter an amount",
             validate: (v) => {
               const n = parseFloat(v);
               if (isNaN(n) || n < 0.01) {
@@ -226,55 +190,38 @@ export default function AddIncomeScreen() {
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
             <>
               <AppTextInput
-                autoFocus
+                autoFocus={!isEditing}
                 label="Amount (₱)"
                 isAmount
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
                 placeholder="0.00"
-                error={fieldState.error?.message}
+                error={fieldState.isTouched || amountOverdraft(value) ? fieldState.error?.message : undefined}
               />
               <TransferInButton fieldError={fieldState.error?.message} overdraft={amountOverdraft(value)} />
             </>
           )}
         />
 
-        <AppLabel>Category</AppLabel>
         <Controller
           control={control}
           name="category"
           render={({ field: { value } }) => (
-            <TouchableOpacity
-              className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
-              onPress={() => categorySheetRef.current?.present()}
-              accessibilityRole="button"
-              accessibilityLabel={`Category, ${value}`}
-            >
-              <AppText variant="body-medium" className="text-white text-base">{value}</AppText>
-              <Feather name="chevron-right" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
+            <AppSelectField label="Category" value={value} onPress={() => categorySheetRef.current?.present()} />
           )}
         />
 
-        <AppLabel>Deposit to</AppLabel>
         <Controller
           control={control}
           name="accountId"
-          render={({ field: { value } }) => {
-            const accountName = accounts.find((a) => a.id === value)?.name ?? "Cash";
-            return (
-              <TouchableOpacity
-                className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
-                onPress={() => accountSheetRef.current?.present()}
-                accessibilityRole="button"
-                accessibilityLabel={`Deposit to, ${accountName}`}
-              >
-                <AppText variant="body-medium" className="text-white text-base">{accountName}</AppText>
-                <Feather name="chevron-right" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-            );
-          }}
+          render={({ field: { value } }) => (
+            <AppSelectField
+              label="Deposit to"
+              value={accounts.find((a) => a.id === value)?.name ?? "Cash"}
+              onPress={() => accountSheetRef.current?.present()}
+            />
+          )}
         />
 
         <Controller
@@ -294,15 +241,15 @@ export default function AddIncomeScreen() {
         />
 
         <AppButton
-          label={isEditing ? "Save Changes" : "Save Income"}
+          label={isEditing ? "Save changes" : "Save income"}
           onPress={onSubmit}
           disabled={!isValid || isLoading}
           loading={isSubmitting}
-          accessibilityHint={isValid ? undefined : saveHint}
+          accessibilityHint={isValid ? undefined : SAVE_HINT}
           className="mt-4"
         />
         {!isValid && (
-          <AppText variant="meta" className="text-center mt-2">{saveHint}</AppText>
+          <AppText variant="meta" className="text-center mt-2">{SAVE_HINT}</AppText>
         )}
         {isEditing && (
           <AppButton

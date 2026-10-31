@@ -2,4 +2,4 @@ appId: com.erniejeash.recur
 ---
 - runFlow:
     file: tab.yaml
-    env: { TAB: "Home", MARKER: "Good (Morning|Afternoon|Evening)" }
+    env: { TAB: "Home", MARKER: "Good (Morning|Afternoon|Evening).*" }

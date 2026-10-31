@@ -92,6 +92,22 @@ export async function replacePayment(
   return inserted;
 }
 
+// Rewrites every row of a transfer (both sides, fee, income) in one write, keeping its transfer id.
+export async function replaceTransfer(
+  transferId: string,
+  ts: Omit<AccountTransaction, "id">[]
+): Promise<AccountTransaction[]> {
+  const db = await getDB();
+  const inserted: AccountTransaction[] = [];
+  await withWriteTransaction(db, async (txn) => {
+    await txn.runAsync("DELETE FROM account_transactions WHERE transfer_id = ?", [transferId]);
+    for (const t of ts) {
+      inserted.push(await insertRow(txn, t));
+    }
+  });
+  return inserted;
+}
+
 export async function removeTransfer(transferId: string): Promise<void> {
   const db = await getDB();
   await db.runAsync("DELETE FROM account_transactions WHERE transfer_id = ?", [transferId]);
@@ -102,6 +118,17 @@ export async function updateIncome(id: string, input: IncomeInput): Promise<void
   await db.runAsync(
     "UPDATE account_transactions SET account_id = ?, amount = ?, category = ?, note = ?, created_at = ? WHERE id = ? AND kind = 'income'",
     [input.accountId, input.amount, input.category, input.note, input.receivedAt, id]
+  );
+}
+
+export async function updateLoanPayment(
+  id: string,
+  p: { accountId: string; amount: number; paidAt: string }
+): Promise<void> {
+  const db = await getDB();
+  await db.runAsync(
+    "UPDATE account_transactions SET account_id = ?, amount = ?, created_at = ? WHERE id = ? AND kind = 'loan_in'",
+    [p.accountId, p.amount, p.paidAt, id]
   );
 }
 

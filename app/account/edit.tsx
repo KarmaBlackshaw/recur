@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { Alert, TouchableOpacity, View } from "react-native";
+import { Alert, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import Feather from "@expo/vector-icons/Feather";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDayField } from "@/components/ui/AppDayField";
+import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
@@ -17,11 +18,11 @@ import { AccountCard } from "@/components/accounts/AccountCard";
 import { CardColorPicker, CardIconPicker, CardLogoPicker, CardTemplatePicker } from "@/components/accounts/CardStylePickers";
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
 import { findBank, type BankId } from "@/constants/banks";
-import { colors } from "@/constants/theme";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
-import { cycleStateOn, formatAmount } from "@/utils/dateHelpers";
+import { cycleStateOn, formatAmount, formatOrdinal } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
 import { netInterestPerPeriod } from "@/utils/interest";
+import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod, type IoniconName } from "@/types";
 
 interface AccountFormValues {
@@ -115,6 +116,27 @@ function validateRequiredDay(v: string): true | string {
   return validateDay(v);
 }
 
+function formatDay(day: number) {
+  return `The ${formatOrdinal(day)}`;
+}
+
+// Errors only show once a field is touched, so the hint under Save names what's still missing.
+function formatSaveHint(values: AccountFormValues) {
+  if (values.name.trim() === "") {
+    return "Enter a name to save";
+  }
+  if (values.type === "credit") {
+    const missingDays = [
+      values.statementDay.trim() === "" ? "cut-off day" : null,
+      values.dueDay.trim() === "" ? "due day" : null,
+    ].filter(Boolean);
+    if (missingDays.length > 0) {
+      return `Pick a ${missingDays.join(" and ")} to save`;
+    }
+  }
+  return "Fix the highlighted fields to save";
+}
+
 function toFormValues(account: Account | undefined): AccountFormValues {
   return {
     name: account?.name ?? "",
@@ -146,8 +168,9 @@ export default function EditAccountScreen() {
     watch,
     setValue,
     getFieldState,
-    formState: { isValid, isSubmitting, errors },
+    formState: { isValid, isSubmitting, isDirty, errors },
   } = useForm<AccountFormValues>({ mode: "onChange", defaultValues: toFormValues(editingAccount) });
+  const { allowLeave } = useDiscardGuard(isDirty);
 
   const [isInterestOpen, setIsInterestOpen] = useState(editingAccount?.interestRate != null);
   const [styleTab, setStyleTab] = useState<CardStyleTab>(editingAccount?.bank ? "template" : "custom");
@@ -234,6 +257,7 @@ export default function EditAccountScreen() {
       } else {
         await accounts.addAccount(input, toNumber(data.openingBalance) ?? 0);
       }
+      allowLeave();
       router.back();
     } catch (e) {
       console.error("Save account failed", e);
@@ -244,6 +268,7 @@ export default function EditAccountScreen() {
   async function archive(id: string) {
     try {
       await accounts.archiveAccount(id);
+      allowLeave();
       router.back();
     } catch (e) {
       console.error("Archive account failed", e);
@@ -254,6 +279,7 @@ export default function EditAccountScreen() {
   async function unarchive(id: string) {
     try {
       await accounts.unarchiveAccount(id);
+      allowLeave();
       router.back();
     } catch (e) {
       console.error("Unarchive account failed", e);
@@ -318,6 +344,7 @@ export default function EditAccountScreen() {
             try {
               await accounts.deleteAccount(editingAccount.id);
               await expenses.reloadAll();
+              allowLeave();
               router.dismissTo("/accounts");
             } catch (e) {
               console.error("Delete account failed", e);
@@ -331,20 +358,16 @@ export default function EditAccountScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="w-11 h-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Feather name="chevron-left" size={24} color={colors.secondary} />
-        </TouchableOpacity>
-        <AppText variant="title" className="flex-1 text-center" numberOfLines={1}>
-          {isEditing ? "Edit Account" : "Add Account"}
-        </AppText>
-        <View className="w-11" />
-      </View>
+      <AppFormHeader
+        title={isEditing ? "Edit account" : "Add account"}
+        action={{
+          label: "Save",
+          onPress: onSubmit,
+          isDisabled: !isValid,
+          isLoading: isSubmitting,
+          accessibilityHint: isValid ? undefined : formatSaveHint(values),
+        }}
+      />
 
       <AppFormScrollView
         contentContainerClassName="px-5 pb-5"
@@ -368,7 +391,7 @@ export default function EditAccountScreen() {
               onBlur={onBlur}
               placeholder="e.g. BPI Savings"
               maxLength={40}
-              error={fieldState.error?.message}
+              error={fieldState.isTouched ? fieldState.error?.message : undefined}
             />
           )}
         />
@@ -400,7 +423,7 @@ export default function EditAccountScreen() {
                 onChangeText={onChange}
                 onBlur={onBlur}
                 placeholder="0.00"
-                error={fieldState.error?.message}
+                error={fieldState.isTouched ? fieldState.error?.message : undefined}
               />
             )}
           />
@@ -427,7 +450,7 @@ export default function EditAccountScreen() {
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder="0"
-                  error={fieldState.error?.message}
+                  error={fieldState.isTouched ? fieldState.error?.message : undefined}
                 />
               )}
             />
@@ -450,7 +473,7 @@ export default function EditAccountScreen() {
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder="20"
-                  error={fieldState.error?.message}
+                  error={fieldState.isTouched ? fieldState.error?.message : undefined}
                 />
               )}
             />
@@ -476,7 +499,7 @@ export default function EditAccountScreen() {
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder="0.00"
-                  error={fieldState.error?.message}
+                  error={fieldState.isTouched ? fieldState.error?.message : undefined}
                 />
               )}
             />
@@ -485,15 +508,15 @@ export default function EditAccountScreen() {
               name="statementDay"
               rules={{ validate: validateRequiredDay }}
               render={({ field: { value, onChange, onBlur }, fieldState }) => (
-                <AppTextInput
-                  label="Cut-off day (1–31)"
+                <AppDayField
+                  label="Cut-off day"
                   value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholder="1"
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  error={fieldState.error?.message}
+                  onChange={(day) => {
+                    onChange(day);
+                    onBlur();
+                  }}
+                  format={formatDay}
+                  error={fieldState.isTouched ? fieldState.error?.message : undefined}
                 />
               )}
             />
@@ -502,15 +525,15 @@ export default function EditAccountScreen() {
               name="dueDay"
               rules={{ validate: validateRequiredDay }}
               render={({ field: { value, onChange, onBlur }, fieldState }) => (
-                <AppTextInput
-                  label="Due day (1–31)"
+                <AppDayField
+                  label="Due day"
                   value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholder="1"
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  error={fieldState.error?.message}
+                  onChange={(day) => {
+                    onChange(day);
+                    onBlur();
+                  }}
+                  format={formatDay}
+                  error={fieldState.isTouched ? fieldState.error?.message : undefined}
                 />
               )}
             />
@@ -547,30 +570,30 @@ export default function EditAccountScreen() {
         )}
 
         <AppButton
-          label={isEditing ? "Save Changes" : "Save Account"}
+          label={isEditing ? "Save changes" : "Save account"}
           onPress={onSubmit}
           disabled={!isValid}
           loading={isSubmitting}
           className="mt-4"
         />
         {!isValid && (
-          <AppText variant="meta" className="text-center mt-2">Fill in the required fields to save</AppText>
+          <AppText variant="meta" className="text-center mt-2">{formatSaveHint(values)}</AppText>
         )}
 
         {editingAccount && editingAccount.id !== CASH_ACCOUNT_ID && (
           editingAccount.archivedAt ? (
             <AppButton
-              label="Unarchive Account"
+              label="Unarchive account"
               variant="tonal"
               onPress={() => unarchive(editingAccount.id)}
               className="mt-3"
             />
           ) : (
-            <AppButton label="Archive Account" variant="ghost" onPress={confirmArchive} className="mt-3" />
+            <AppButton label="Archive account" variant="ghost" onPress={confirmArchive} className="mt-3" />
           )
         )}
         {isEditing && (
-          <AppButton label="Delete Account" variant="destructive" onPress={confirmDelete} className="mt-3" />
+          <AppButton label="Delete account" variant="destructive" onPress={confirmDelete} className="mt-3" />
         )}
 
         <View className="h-8" />

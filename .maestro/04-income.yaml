@@ -11,12 +11,12 @@ name: Income — no credit cards in Deposit-to, balance increases, double-tap Sa
 - tapOn: "Income"
 - tapOn: "Add income"
 - extendedWaitUntil:
-    visible: "Save Income"
+    visible: "Save income"
     timeout: 5000
 - tapOn: "Amount.*"
 - inputText: "5000"
 - hideKeyboard
-- tapOn: "Deposit to.*"
+- tapOn: "Deposit to, .*"
 - assertVisible: "Cash, cash.*"
 - assertNotVisible: "BDO Visa, credit card.*"
 - assertNotVisible: ".*credit card.*"
@@ -24,7 +24,7 @@ name: Income — no credit cards in Deposit-to, balance increases, double-tap Sa
 - tapOn: "Notes"
 - inputText: "October pay"
 - hideKeyboard
-- doubleTapOn: "Save Income"
+- doubleTapOn: "Save income"
 - extendedWaitUntil:
     visible: "RECEIVED THIS MONTH"
     timeout: 10000

@@ -1,16 +1,16 @@
 import React from "react";
 import { router } from "expo-router";
 import { AppListRow } from "@/components/ui/AppListRow";
+import { customTransferNote } from "@/utils/accounts/customTransferNote";
 import { formatAmount } from "@/utils/dateHelpers";
 import type { TransferEntry } from "@/utils/usePaidLedger";
 
-export function TransferRow({ entry }: { entry: TransferEntry }) {
+export function TransferRow({ entry, onPress }: { entry: TransferEntry; onPress: () => void }) {
   const { transfer, fromName, toName, amount, fee, earned, earnedCategory, earnedAccountName } = entry;
   const source = fromName ?? "Deleted account";
   const destination = toName ?? "Deleted account";
   const title = `${source} → ${destination}`;
-  const isAutoNote = transfer.note === `Transfer to ${destination}` || transfer.note === `Transfer from ${source}`;
-  const customNote = isAutoNote ? null : transfer.note;
+  const customNote = customTransferNote(transfer.note, source, destination);
   const earnedLabel =
     earned > 0
       ? [`income ${formatAmount(earned)}`, earnedAccountName && `to ${earnedAccountName}`, earnedCategory && `(${earnedCategory})`]
@@ -20,6 +20,15 @@ export function TransferRow({ entry }: { entry: TransferEntry }) {
   const feeText = fee > 0 ? `fee ${formatAmount(fee)}` : null;
   const meta = [customNote, earnedLabel].filter(Boolean).join(" · ") || "Transfer";
   const details = [customNote, feeText, earnedLabel].filter(Boolean).join(", ") || "Transfer";
+  const { transferId } = transfer;
+
+  function open() {
+    if (transferId) {
+      onPress();
+      return;
+    }
+    router.push({ pathname: "/account/[id]", params: { id: transfer.accountId } });
+  }
 
   return (
     <AppListRow
@@ -29,9 +38,9 @@ export function TransferRow({ entry }: { entry: TransferEntry }) {
       amount={formatAmount(amount)}
       amountTone="muted"
       caption={feeText ?? undefined}
-      onPress={() => router.push({ pathname: "/account/[id]", params: { id: transfer.accountId } })}
+      onPress={open}
       accessibilityLabel={`Transfer from ${source} to ${destination}, ${formatAmount(amount)}, ${details}`}
-      accessibilityHint="Opens account details"
+      accessibilityHint={transferId ? "Opens transfer details" : "Opens account details"}
     />
   );
 }

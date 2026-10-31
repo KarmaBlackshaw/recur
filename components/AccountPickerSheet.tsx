@@ -43,9 +43,13 @@ export const AccountPickerSheet = forwardRef<AccountPickerSheetRef, Props>(
               key={account.id}
               className="p-1.5"
               style={{ width: cardWidth }}
-              accessibilityState={{ selected: account.id === value }}
             >
-              <AccountCard account={account} onPress={() => handleSelect(account.id)} isCompact />
+              <AccountCard
+                account={account}
+                onPress={() => handleSelect(account.id)}
+                isCompact
+                isSelected={account.id === value}
+              />
             </View>
           ))}
         </BottomSheetScrollView>

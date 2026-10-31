@@ -6,43 +6,33 @@ import { colors } from "@/constants/theme";
 import { AppButton } from "@/components/ui/AppButton";
 
 interface Props {
+  unit?: "month" | "year";
   year: number;
   month: number;
   onChange: (year: number, month: number) => void;
 }
 
-export function MonthNavigator({ year, month, onChange }: Props) {
-  const today = dayjs().startOf("day").toDate();
-  const isCurrentMonth =
-    year === today.getFullYear() && month === today.getMonth();
+export function PeriodNavigator({ unit = "month", year, month, onChange }: Props) {
+  const current = dayjs(new Date(year, month, 1));
+  const isCurrentPeriod = current.isSame(dayjs(), unit);
 
-  function prevMonth() {
-    if (month === 0) {
-      onChange(year - 1, 11);
-    } else {
-      onChange(year, month - 1);
-    }
-  }
-
-  function nextMonth() {
-    if (month === 11) {
-      onChange(year + 1, 0);
-    } else {
-      onChange(year, month + 1);
-    }
+  function step(delta: number) {
+    const next = current.add(delta, unit);
+    onChange(next.year(), next.month());
   }
 
   function resetToToday() {
-    if (!isCurrentMonth) {
-      onChange(today.getFullYear(), today.getMonth());
+    if (!isCurrentPeriod) {
+      const today = dayjs();
+      onChange(today.year(), today.month());
     }
   }
 
-  const label = dayjs(new Date(year, month, 1)).format("MMM YYYY");
+  const label = current.format(unit === "year" ? "YYYY" : "MMM YYYY");
 
   return (
     <View className="flex-row items-center justify-between">
-      {!isCurrentMonth && (
+      {!isCurrentPeriod && (
         <AppButton
           label="Today"
           variant="tonal"
@@ -50,15 +40,15 @@ export function MonthNavigator({ year, month, onChange }: Props) {
           onPress={resetToToday}
           hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
           className="mr-1"
-          accessibilityLabel="Back to current month"
+          accessibilityLabel={`Back to current ${unit}`}
         />
       )}
 
       <TouchableOpacity
-        onPress={prevMonth}
+        onPress={() => step(-1)}
         className="w-11 h-11 items-center justify-center"
         accessibilityRole="button"
-        accessibilityLabel="Previous month"
+        accessibilityLabel={`Previous ${unit}`}
       >
         <Feather name="chevron-left" size={20} color={colors.textSecondary} />
       </TouchableOpacity>
@@ -66,15 +56,15 @@ export function MonthNavigator({ year, month, onChange }: Props) {
       <TouchableOpacity
         onPress={resetToToday}
         className="min-h-[44px] justify-center px-2"
-        disabled={isCurrentMonth}
+        disabled={isCurrentPeriod}
         accessibilityRole="button"
-        accessibilityLabel="Jump to current month"
-        accessibilityState={{ disabled: isCurrentMonth }}
+        accessibilityLabel={`Jump to current ${unit}`}
+        accessibilityState={{ disabled: isCurrentPeriod }}
         accessibilityValue={{ text: label }}
       >
         <Text
           className={`text-[15px] tracking-wide font-['Quicksand_600SemiBold'] ${
-            isCurrentMonth ? "text-secondary" : "text-textSecondary"
+            isCurrentPeriod ? "text-secondary" : "text-textSecondary"
           }`}
         >
           {label}
@@ -82,10 +72,10 @@ export function MonthNavigator({ year, month, onChange }: Props) {
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={nextMonth}
+        onPress={() => step(1)}
         className="w-11 h-11 items-center justify-center"
         accessibilityRole="button"
-        accessibilityLabel="Next month"
+        accessibilityLabel={`Next ${unit}`}
       >
         <Feather name="chevron-right" size={20} color={colors.textSecondary} />
       </TouchableOpacity>

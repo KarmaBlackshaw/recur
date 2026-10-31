@@ -1,24 +1,31 @@
-import React, { useMemo } from "react";
-import { View, Text } from "react-native";
+import React, { useMemo, useState } from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
-import { sumBy } from "@/utils/collections";
+import { chunk, keyBy, sumBy } from "@/utils/collections";
+import { useBoolean } from "@/utils/useBoolean";
 import { useSetState } from "@/utils/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
-import { MonthNavigator } from "@/components/MonthNavigator";
+import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type ActivityEntry } from "@/components/DayGroupedExpenseList";
+import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
+import { signedAmount } from "@/utils/signedAmount";
 import { useActivityFeed } from "@/utils/useActivityFeed";
+import { matchesActivity, type ActivitySearchContext } from "@/utils/activitySearch";
 import type { FeatherIconName, TransactionKind } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
 import { AppChips } from "@/components/ui/AppChips";
+import { AppTextInput } from "@/components/ui/AppTextInput";
+import { colors } from "@/constants/theme";
 
-type Segment = "all" | "paid" | "charged" | "income" | "transfers";
+type Segment = "all" | "paid" | "charged" | "income" | "transfers" | "loans";
 
 const SEGMENTS: { label: string; value: Segment }[] = [
   { label: "All", value: "all" },
@@ -26,6 +33,7 @@ const SEGMENTS: { label: string; value: Segment }[] = [
   { label: "Charged", value: "charged" },
   { label: "Income", value: "income" },
   { label: "Transfers", value: "transfers" },
+  { label: "Loans", value: "loans" },
 ];
 
 const HERO: Record<Segment, { overline: string; box: string; text: string }> = {
@@ -34,6 +42,7 @@ const HERO: Record<Segment, { overline: string; box: string; text: string }> = {
   charged: { overline: "Charged this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
   income: { overline: "Received this month", box: "bg-paid/10 border-paid/20", text: "text-paid" },
   transfers: { overline: "Transferred this month", box: "bg-white/[0.04] border-border", text: "text-white" },
+  loans: { overline: "Lent this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
 };
 
 const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: string }> = {
@@ -42,23 +51,46 @@ const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: st
   charged: { title: "Nothing charged", icon: "credit-card", message: "Nothing charged in" },
   income: { title: "No income", icon: "arrow-down-left", message: "No income in" },
   transfers: { title: "No transfers", icon: "repeat", message: "No transfers in" },
+  loans: { title: "No loan activity", icon: "users", message: "Nothing lent or repaid in" },
 };
 
-function countLabel(count: number, singular: string, plural: string) {
-  return `${count} ${count === 1 ? singular : plural}`;
+// A meta line carries at most one " · ", so the parts pair up line by line. Falsy parts drop out.
+function metaLines(...parts: (string | false)[]): string[] {
+  return chunk(parts.filter((part): part is string => Boolean(part)), 2).map((line) => line.join(" · "));
 }
 
 export default function ExpensesScreen() {
   const { loading } = useExpenses();
-  const { isCharged, transactions } = useAccounts();
+  const { accounts, isCharged, transactions } = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
   const params = useLocalSearchParams<{ segment?: Segment }>();
-  const segment = SEGMENTS.find(({ value }) => value === params.segment)?.value ?? "all";
+  // "Charged" only means something once there's a credit card to charge.
+  const segments = accounts.some((a) => a.type === "credit") ? SEGMENTS : SEGMENTS.filter(({ value }) => value !== "charged");
+  const segment = segments.find(({ value }) => value === params.segment)?.value ?? "all";
   const today = dayjs().startOf("day").toDate();
   const [{ year, month }, setSelected] = useSetState({ year: today.getFullYear(), month: today.getMonth() });
+  const [search, setSearch] = useState("");
+  const [isSearchOpen, searchOpen] = useBoolean(false);
+  const query = isSearchOpen ? search.trim() : "";
+  const statsType = segment === "income" ? "income" : "expenses";
 
-  const { byFilter, notPaidOff, fees, transferIncome } = useMemo(() => {
+  function openStats() {
+    router.push(`/stats?year=${year}&month=${month}&type=${statsType}`, { dangerouslySingular: true });
+  }
+
+  const searchContext = useMemo<ActivitySearchContext>(() => {
+    const accountsById = keyBy(accounts, "id");
+    return { accountName: (id) => (id == null ? undefined : accountsById[id]?.name) };
+  }, [accounts]);
+
+  // Search spans every month, newest first (the feed is already sorted).
+  const results = useMemo(
+    () => (query === "" ? [] : feed.all.filter((entry) => matchesActivity(entry, query, searchContext))),
+    [feed.all, query, searchContext]
+  );
+
+  const { byFilter, notPaidOff, fees, transferIncome, lent, repaid } = useMemo(() => {
     const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
     const charged = feed.charged.filter(isInMonth);
     const notPaidOff = sumBy(
@@ -76,50 +108,68 @@ export default function ExpensesScreen() {
       );
     const fees = monthTxnTotal("fee");
     const transfers = feed.transfers.filter(isInMonth);
+    const loans = feed.loans.filter(isInMonth);
     const byFilter: Record<Segment, ActivityEntry[]> = {
       all: feed.all.filter(isInMonth),
       paid: feed.paid.filter(isInMonth),
       charged,
       income: feed.income.filter(isInMonth),
       transfers,
+      loans,
     };
-    return { byFilter, notPaidOff, fees, transferIncome: sumBy(transfers, "earned") };
+    return {
+      byFilter,
+      notPaidOff,
+      fees,
+      transferIncome: sumBy(transfers, "earned"),
+      lent: sumBy(loans.filter(({ loanTxn }) => loanTxn.kind === "loan_out"), "amount"),
+      repaid: sumBy(loans.filter(({ loanTxn }) => loanTxn.kind === "loan_in"), "amount"),
+    };
   }, [feed, transactions, isCharged, year, month]);
 
   const entries = byFilter[segment];
   const moneyIn = sumBy(byFilter.income, "amount") + transferIncome;
   const paidTotal = sumBy(byFilter.paid, "amount") + fees;
+  // Lending stays out of the net: money lent is still yours (net worth counts it as an asset).
   const totals: Record<Segment, number> = {
     all: moneyIn - paidTotal,
     paid: paidTotal,
     charged: sumBy(entries, "amount"),
     income: moneyIn,
     transfers: sumBy(entries, "amount"),
+    loans: lent,
   };
   const total = totals[segment];
   const hero = HERO[segment];
-  const heroMeta: Record<Segment, string> = {
-    all: `${formatAmount(moneyIn)} in · ${formatAmount(paidTotal)} out`,
-    paid: [countLabel(entries.length, "payment", "payments"), fees > 0 ? `incl. ${formatAmount(fees)} fees` : null]
-      .filter(Boolean)
-      .join(" · "),
-    charged: `${formatAmount(notPaidOff)} not yet paid off`,
-    income: [
+  const heroMeta: Record<Segment, string[]> = {
+    all: metaLines(
+      `${formatAmount(moneyIn)} in`,
+      `${formatAmount(paidTotal)} spent`,
+      lent > 0 && `${formatAmount(lent)} lent`,
+      repaid > 0 && `${formatAmount(repaid)} repaid`
+    ),
+    paid: metaLines(countLabel(entries.length, "payment", "payments"), fees > 0 && `incl. ${formatAmount(fees)} fees`),
+    charged: metaLines(`${formatAmount(notPaidOff)} not yet paid off`),
+    income: metaLines(
       countLabel(entries.length, "income", "incomes"),
-      transferIncome > 0 ? `incl. ${formatAmount(transferIncome)} from transfers` : null,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-    transfers: [
+      transferIncome > 0 && `incl. ${formatAmount(transferIncome)} from transfers`
+    ),
+    transfers: metaLines(
       countLabel(entries.length, "transfer", "transfers"),
-      fees > 0 ? `${formatAmount(fees)} fees` : null,
-      transferIncome > 0 ? `${formatAmount(transferIncome)} income` : null,
-    ]
-      .filter(Boolean)
-      .join(" · "),
+      fees > 0 && `${formatAmount(fees)} fees`,
+      transferIncome > 0 && `${formatAmount(transferIncome)} income`
+    ),
+    loans: metaLines(`${formatAmount(repaid)} repaid`, countLabel(entries.length, "entry", "entries")),
   };
   const empty = EMPTY[segment];
   const monthLabel = dayjs(new Date(year, month, 1)).format("MMMM");
+
+  function toggleSearch() {
+    if (isSearchOpen) {
+      setSearch("");
+    }
+    searchOpen.toggle();
+  }
 
   if (loading) {
     return (
@@ -133,41 +183,102 @@ export default function ExpensesScreen() {
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center justify-between pl-5 pr-2 pt-2 pb-1">
         <AppText variant="display">Activity</AppText>
-        <MonthNavigator
-          year={year}
-          month={month}
-          onChange={(year, month) => setSelected({ year, month })}
-        />
+        <View className="flex-row items-center">
+          {query === "" && (
+            <PeriodNavigator
+              year={year}
+              month={month}
+              onChange={(year, month) => setSelected({ year, month })}
+            />
+          )}
+          <TouchableOpacity
+            onPress={toggleSearch}
+            className="w-11 h-11 items-center justify-center"
+            accessibilityRole="button"
+            accessibilityLabel={isSearchOpen ? "Close search" : "Search activity"}
+            accessibilityState={{ expanded: isSearchOpen }}
+          >
+            <Feather name={isSearchOpen ? "x" : "search"} size={20} color={isSearchOpen ? colors.secondary : colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <AppChips
-        chips={SEGMENTS}
-        value={segment}
-        onChange={(next) => router.setParams({ segment: next })}
-        accessibilityLabel="Filter activity"
-        className="mt-1"
-      />
+      {isSearchOpen && (
+        <View className="mx-5 -mt-3">
+          <AppTextInput
+            autoFocus
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search activity"
+            accessibilityLabel="Search activity"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+        </View>
+      )}
 
-      <View className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}>
-        <AppText variant="overline">{hero.overline}</AppText>
-        <Text
-          className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}
-          maxFontSizeMultiplier={1.4}
-        >
-          {formatAmount(total)}
-        </Text>
-        <AppText variant="meta">{heroMeta[segment]}</AppText>
-      </View>
+      {query !== "" ? (
+        <>
+          <AppText variant="meta" className="px-5 pt-2 pb-1" accessibilityLiveRegion="polite">
+            {`${countLabel(results.length, "result", "results")} for "${query}"`}
+          </AppText>
+          <DayGroupedExpenseList
+            entries={results}
+            showDayTotals={false}
+            refreshControl={refreshControl}
+            ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing matches "${query}"`} />}
+          />
+        </>
+      ) : (
+        <>
+          <AppChips
+            chips={segments}
+            value={segment}
+            onChange={(next) => router.setParams({ segment: next })}
+            accessibilityLabel="Filter activity"
+            className="mt-1"
+          />
 
-      <DayGroupedExpenseList
-        entries={entries}
-        showDayTotals={segment !== "all"}
-        refreshControl={refreshControl}
-        ListEmptyComponent={<EmptyState title={empty.title} icon={empty.icon} message={`${empty.message} ${monthLabel}`} />}
-      />
+          <View className={`mx-5 mt-3 mb-1 rounded-2xl border ${hero.box}`}>
+            <View className="px-5 pt-5 pb-3">
+              <AppText variant="overline">{hero.overline}</AppText>
+              <Text
+                className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                maxFontSizeMultiplier={1.4}
+              >
+                {signedAmount(total)}
+              </Text>
+              {heroMeta[segment].map((line) => (
+                <AppText key={line} variant="meta">
+                  {line}
+                </AppText>
+              ))}
+            </View>
+            <TouchableOpacity
+              onPress={openStats}
+              activeOpacity={0.7}
+              className="min-h-[44px] flex-row items-center px-5 border-t border-white/[0.07]"
+            >
+              <Feather name="pie-chart" size={16} color={colors.textSecondary} />
+              <AppText variant="body-bold" className="flex-1 ml-3 text-sm text-white">
+                Stats
+              </AppText>
+              <Feather name="chevron-right" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          <DayGroupedExpenseList
+            entries={entries}
+            // Lent and repaid mix money out and in, so a day's sum means nothing there (as in All).
+            showDayTotals={segment !== "all" && segment !== "loans"}
+            refreshControl={refreshControl}
+            ListEmptyComponent={<EmptyState title={empty.title} icon={empty.icon} message={`${empty.message} ${monthLabel}`} />}
+          />
+        </>
+      )}
     </SafeAreaView>
   );
 }

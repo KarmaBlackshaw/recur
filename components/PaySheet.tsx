@@ -29,8 +29,16 @@ export interface PayConfirmation {
   accountId: string | null;
 }
 
+export interface PaySheetControls {
+  dismiss: () => void;
+}
+
+export interface PaySheetOptions {
+  renderFooter?: (sheet: PaySheetControls) => React.ReactNode;
+}
+
 export interface PaySheetRef {
-  present: (target: PayTarget) => void;
+  present: (target: PayTarget, options?: PaySheetOptions) => void;
 }
 
 interface Props {
@@ -58,6 +66,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const [target, setTarget] = useState<PayTarget | null>(null);
+  const [options, setOptions] = useState<PaySheetOptions>({});
   const { getDisplayAmount, getMonthAmount, getMonthPaidAt, getMonthStatus } = useExpenses();
   const { accounts, activeAccounts, transactions } = useAccounts();
   const {
@@ -66,7 +75,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
     reset,
     watch,
     setValue,
-    formState: { isValid, isSubmitting },
+    formState: { isValid },
   } = useForm<PayFormValues>({ mode: "onChange", defaultValues: { amount: "", paidAt: "", accountId: CASH_ACCOUNT_ID } });
 
   function lastKnownAmount(expense: Expense, year: number, month: number): number | null {
@@ -81,7 +90,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   }
 
   useImperativeHandle(ref, () => ({
-    present: (next) => {
+    present: (next, nextOptions) => {
       const { expense, year, month } = next;
       const isPaid = getMonthStatus(expense.id, year, month) === "paid";
       const payment = transactions.find(
@@ -103,20 +112,21 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
           : usableAccount(expense.accountId);
       reset({ amount: amount != null ? amount.toFixed(2) : "", paidAt, accountId });
       setTarget(next);
+      setOptions(nextOptions ?? {});
       sheetRef.current?.present();
     },
   }));
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onSubmit = handleSubmit((values) => {
     if (!target) {
       return;
     }
-    await onConfirm(target, {
+    const payment: PayConfirmation = {
       amount: parseFloat(values.amount),
       paidAt: values.paidAt,
       accountId: values.accountId === "" ? null : values.accountId,
-    });
-    sheetRef.current?.dismiss();
+    };
+    sheetRef.current?.dismiss(() => onConfirm(target, payment));
   });
 
   const accountId = watch("accountId");
@@ -180,13 +190,14 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
             <View className="mt-2">
               <AppSelectField label="Pay from" value={accountName} onPress={() => accountSheetRef.current?.present()} />
             </View>
-            <AppButton
-              label={isPaidAlready ? "Save payment" : "Mark as paid"}
-              onPress={onSubmit}
-              disabled={!isValid}
-              loading={isSubmitting}
-              className="mt-4"
-            />
+            <View className="mt-4 gap-2">
+              <AppButton
+                label={isPaidAlready ? "Save payment" : "Mark as paid"}
+                onPress={onSubmit}
+                disabled={!isValid}
+              />
+              {options.renderFooter?.({ dismiss: () => sheetRef.current?.dismiss() })}
+            </View>
           </View>
         ) : null}
       </AppBottomSheet>

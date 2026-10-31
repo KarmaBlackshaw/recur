@@ -5,16 +5,17 @@ import { IncomeRow } from "@/components/accounts/IncomeRow";
 import { InterestRow } from "@/components/accounts/InterestRow";
 import { TransferRow } from "@/components/accounts/TransferRow";
 import { LoanActivityRow } from "@/components/loans/LoanActivityRow";
-import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
+import type { ActivityEntry, DayEntry } from "@/components/DayGroupedExpenseList";
 import type { AccountTransaction } from "@/types";
 
 interface Props {
   item: ActivityEntry;
   index: number;
   onOpenTransfer: (transfer: AccountTransaction) => void;
+  onOpenExpense?: (entry: DayEntry) => void;
 }
 
-export function ActivityEntryRow({ item, index, onOpenTransfer }: Props) {
+export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenExpense }: Props) {
   if ("income" in item) {
     return <IncomeRow entry={item} />;
   }
@@ -39,6 +40,7 @@ export function ActivityEntryRow({ item, index, onOpenTransfer }: Props) {
       referenceDate={item.refDate}
       canQuickPay={item.canQuickPay}
       isSwipeHintShown={item.isSwipeHintShown}
+      onPress={onOpenExpense ? () => onOpenExpense(item) : undefined}
     />
   );
 }

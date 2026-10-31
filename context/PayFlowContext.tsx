@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useRef } from "react";
 import dayjs from "dayjs";
-import { PaySheet, type PayConfirmation, type PaySheetRef, type PayTarget } from "@/components/PaySheet";
+import { PaySheet, type PayConfirmation, type PaySheetOptions, type PaySheetRef, type PayTarget } from "@/components/PaySheet";
 import { useExpenses, type UndoMonth } from "@/context/ExpenseContext";
 import { useSnackbar } from "@/context/SnackbarContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
@@ -14,7 +14,8 @@ interface PayFlowValue {
   pay: (expense: Expense, year: number, month: number) => Promise<void>;
   unpay: (expense: Expense, year: number, month: number) => Promise<void>;
   // Always asks: amount, paid-on date and account. Use when the user wants to record details.
-  openPaySheet: (expense: Expense, year: number, month: number) => void;
+  // options.renderFooter adds the opener's own actions under the pay button, for this opening only.
+  openPaySheet: (expense: Expense, year: number, month: number, options?: PaySheetOptions) => void;
 }
 
 const PayFlowContext = createContext<PayFlowValue | null>(null);
@@ -55,7 +56,7 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
         await run(expense, year, month, "paid", () => payMonth(expense.id, year, month));
       },
       unpay: (expense, year, month) => run(expense, year, month, "unpaid", () => unpayMonth(expense.id, year, month)),
-      openPaySheet: (expense, year, month) => sheetRef.current?.present({ expense, year, month }),
+      openPaySheet: (expense, year, month, options) => sheetRef.current?.present({ expense, year, month }, options),
     }),
     [getDisplayAmount, payMonth, unpayMonth, snackbar]
   );

@@ -29,13 +29,20 @@ export async function getAllWithIds(kind: CategoryKind = "expense"): Promise<Cat
   );
 }
 
+interface TTouchCategoryOptions {
+  name: string;
+  kind?: CategoryKind;
+  at?: string;
+  db?: SQLiteDatabase;
+}
+
 // Bump a category's recency. Called whenever an expense is saved with this category.
-export async function touchCategory(
-  name: string,
-  at: string = new Date().toISOString(),
-  kind: CategoryKind = "expense",
-  db?: SQLiteDatabase
-): Promise<void> {
+export async function touchCategory({
+  name,
+  kind = "expense",
+  at = new Date().toISOString(),
+  db,
+}: TTouchCategoryOptions): Promise<void> {
   const conn = db ?? (await getDB());
   await conn.runAsync("UPDATE categories SET last_used_at = ? WHERE name = ? AND kind = ?", [at, name, kind]);
 }

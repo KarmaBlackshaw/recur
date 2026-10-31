@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
-import { insertRow, newId } from "@/db/accountTransactions";
+import { emptyTxnFields, insertRow, newId } from "@/db/accountTransactions";
 import { touchCategory } from "@/db/categories";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
@@ -43,8 +43,8 @@ async function writeLoanOut(txn: TWriteDb, loan: Pick<Loan, "id" | "accountId" |
     return;
   }
   await insertRow(txn, {
-    accountId: loan.accountId, kind: "loan_out", amount: -loan.principal, expenseId: null, cycleYear: null,
-    cycleMonth: null, transferId: null, note: null, category: null, loanId: loan.id, createdAt: loan.lentAt,
+    ...emptyTxnFields(), accountId: loan.accountId, kind: "loan_out", amount: -loan.principal, loanId: loan.id,
+    createdAt: loan.lentAt,
   });
 }
 
@@ -100,8 +100,8 @@ export async function insertPayments(payments: LoanPaymentInput[], excess?: Loan
     }
     for (const p of payments) {
       await insertRow(txn, {
-        accountId: p.accountId, kind: "loan_in", amount: p.amount, expenseId: null, cycleYear: null,
-        cycleMonth: null, transferId: null, note: null, category: null, loanId: p.loanId, createdAt: p.paidAt,
+        ...emptyTxnFields(), accountId: p.accountId, kind: "loan_in", amount: p.amount, loanId: p.loanId,
+        createdAt: p.paidAt,
       });
     }
     if (!excess) {
@@ -112,10 +112,10 @@ export async function insertPayments(payments: LoanPaymentInput[], excess?: Loan
       throw new Error("Nothing to record");
     }
     await insertRow(txn, {
-      accountId: last.accountId, kind: "income", amount: excess.amount, expenseId: null, cycleYear: null,
-      cycleMonth: null, transferId: null, note: null, category: excess.category, loanId: last.loanId, createdAt: last.paidAt,
+      ...emptyTxnFields(), accountId: last.accountId, kind: "income", amount: excess.amount,
+      category: excess.category, loanId: last.loanId, createdAt: last.paidAt,
     });
-    await touchCategory(excess.category, undefined, "income", txn);
+    await touchCategory({ name: excess.category, kind: "income", db: txn });
   });
 }
 

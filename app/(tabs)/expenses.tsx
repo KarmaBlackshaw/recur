@@ -69,7 +69,8 @@ export default function ExpensesScreen() {
   const today = dayjs().startOf("day").toDate();
   const paramYear = Number.parseInt(params.year ?? "", 10);
   const paramMonth = Number.parseInt(params.month ?? "", 10);
-  const year = Number.isNaN(paramYear) ? today.getFullYear() : paramYear;
+  // A year past four digits can't be shown (and past ±275,760 isn't even a Date), so it falls back like a bad month.
+  const year = paramYear >= 1000 && paramYear <= 9999 ? paramYear : today.getFullYear();
   const month = paramMonth >= 0 && paramMonth <= 11 ? paramMonth : today.getMonth();
   const [search, setSearch] = useState("");
   const [isSearchOpen, searchOpen] = useBoolean(false);

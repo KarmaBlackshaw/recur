@@ -3,6 +3,7 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { AppText } from "@/components/ui/AppText";
 import { formatAmount } from "@/utils/dateHelpers";
+import { round } from "@/utils/round";
 import { useMonthTotals } from "@/utils/useMonthTotals";
 
 interface Props {
@@ -16,7 +17,9 @@ interface Props {
 export function HomeSummary({ year, month, overdueCount, dueThisWeekCount }: Props) {
   const { total, paid, unpaid } = useMonthTotals(year, month);
   const ratio = total > 0 ? Math.min(Math.max(paid / total, 0), 1) : 0;
-  const percent = Math.round(ratio * 100);
+  // Agrees with the amount left: 100% only once nothing is left to the cent, never while something is.
+  const isSettled = round(unpaid, 2) <= 0;
+  const percent = total <= 0 ? 0 : isSettled ? 100 : Math.floor(ratio * 100);
   const unpaidText = formatAmount(unpaid);
   const paidText = `${percent}% of ${formatAmount(total)} paid`;
   const statusText =

@@ -111,10 +111,21 @@ follows the hero's rules, so the days add up to "Net this month"; a day with not
 charges, plain transfers or loans) shows no total.
 
 ### Cards
-Only where elevation communicates hierarchy: KPI tiles, hero balances (Home's summary, Activity, loans), account
-cards, and Home's setup checklist and backup nudge.
+Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity, loans, net worth), account
+cards, Home's month card, and Home's setup checklist and backup nudge.
 14dp radius (21dp for account cards), Raised Graphite or a 10% tint, 1px Hairline. Never wrap list rows
 in cards.
+
+### Month card (`components/HomeMonthStats.tsx`)
+One Raised Graphite card at the top of Home, under the greeting, built like the other hero cards. Its lead is Spent
+for the month: an overline naming the figure and the month ("Spent in October") over an Oswald Medium 32px total.
+Received sits beside it (overline, Oswald 17px, Mint above zero). Below a Hairline, 44dp link rows (a 16dp Periwinkle
+glyph, label, Oswald 17px amount, Muted chevron) show Charged (only with a credit card and only while the month has
+charges) and Owed to you (only while someone owes you). Month figures stay above the rows, because Owed to you is a
+standing balance, not a month total. Zero amounts go Secondary Graphite. When nothing was spent, received or charged
+yet (the 1st of a month), the figures give way to the month name and "Nothing spent or received yet", and that block
+is not tappable. Each figure opens the matching Activity chip for the month (Spent: Paid, Received: Income, Charged:
+Charged); Owed to you opens Loans' Active chip. No tiles, progress bars or Hairline-split grids.
 
 ### Buttons (`AppButton`)
 Primary: Indigo fill, Ink label. Tonal: Indigo 15% with a Periwinkle label. Ghost: Hairline outline.
@@ -169,10 +180,10 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Group with headers and whitespace (band headers, day headers), not boxes.
 - Scroll views keep 140dp of bottom padding so the floating tab bar never covers the last row.
 - Touch targets are at least 44dp.
-- Money lists sort by date. Home opens on a summary card (left to pay this month, a paid-of-total bar, the overdue
-  count), then Overdue, this month, and next month once it is at most 7 days away. A single "Owed to you" row sits
-  between the due bands and Recent activity, which ends with "All activity". New users get a three-step "Get started"
-  checklist; a backup nudge appears when the last backup is over 30 days old.
+- Money lists sort by date. Home opens on the month card, then Overdue, this month, and next month once it is at
+  most 7 days away, then Recent activity, which ends with "All activity". New users get a three-step "Get started"
+  checklist, shown in place of the month card until they have three expenses; a backup nudge appears when the last
+  backup is over 30 days old.
 - Home Overdue also lists unpaid dues and card bills from the last 3 months; their caption keeps counting "N days late".
 - The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)

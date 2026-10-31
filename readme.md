@@ -54,8 +54,7 @@ Amounts are in Philippine pesos (₱).
 
 ### Home and Recurring
 
-- Home leads with what's **left to pay this month**, how much you've spent, how many bills are late and how much went
-  on cards.
+- Home leads with what you've **spent this month** and what came in, then how much went on cards and what you're owed.
 - Below that: overdue bills, this month, next month, credit card bills and money owed to you.
 - The Recurring tab steps through any month: total bills, paid, charged to cards and still to pay.
 
@@ -141,6 +140,19 @@ npm start          # Expo dev server
 npm run ios        # iOS simulator
 npm run android    # Android emulator
 ```
+
+#### Several checkouts on Android
+
+```bash
+npm run start:wt                       # this checkout's Metro, on this checkout's own emulator
+npm run start:wt -- -s R5CT30ABCDE     # on another device instead (a phone, or any emulator serial)
+adb -s $(npm run -s start:wt -- --print-serial) logcat   # adb on this checkout's emulator
+npm run start:wt -- --prune            # delete the emulators of checkouts that are gone
+```
+
+Each checkout runs Metro on its own port and owns one emulator, `recur_wt_<checkout>`. The first run clones it
+from your first AVD (or `AVD=<name>`), app and data included, so later runs only boot or reuse it, and other
+checkouts' emulators are left alone.
 
 #### iOS Simulator
 

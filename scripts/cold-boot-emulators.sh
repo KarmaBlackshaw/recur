@@ -1,7 +1,8 @@
 #!/bin/bash
 EMULATOR=/opt/homebrew/share/android-commandlinetools/emulator/emulator
 
-avds=$("$EMULATOR" -list-avds 2>/dev/null)
+# Worktree emulators (<repo>_wt_<worktree>) belong to `npm run start:wt` in their own checkout.
+avds=$("$EMULATOR" -list-avds 2>/dev/null | grep -v '_wt_')
 
 if [ -z "$avds" ]; then
   echo "No AVDs found."

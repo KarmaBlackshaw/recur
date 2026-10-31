@@ -8,6 +8,7 @@ export type FeatherIconName = keyof typeof Feather.glyphMap;
 export type Recurrence = 'monthly' | 'yearly' | 'one-off';
 export type Status = 'unpaid' | 'paid';
 export type HomeBandSlot = 'current' | 'next';
+export type ActivitySegment = "all" | "paid" | "charged" | "income" | "transfers" | "loans";
 
 export interface TOption<T> {
   label: string;

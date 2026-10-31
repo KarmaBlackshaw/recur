@@ -17,7 +17,7 @@ import { netFlow } from "@/utils/activity/netFlow";
 import { loanFlow } from "@/utils/activity/loanFlow";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { matchesActivity, type ActivitySearchContext } from "@/utils/activitySearch";
-import type { FeatherIconName, TransactionKind } from "@/types";
+import type { FeatherIconName, TOption, TransactionKind } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
@@ -28,7 +28,7 @@ import { colors } from "@/constants/theme";
 
 type Segment = "all" | "paid" | "charged" | "income" | "transfers" | "loans";
 
-const SEGMENTS: { label: string; value: Segment }[] = [
+const SEGMENTS: TOption<Segment>[] = [
   { label: "All", value: "all" },
   { label: "Paid", value: "paid" },
   { label: "Charged", value: "charged" },

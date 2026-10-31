@@ -16,11 +16,11 @@ import { AppTextInput } from "@/components/ui/AppTextInput";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { formatAmount } from "@/utils/formatAmount";
 import { colors } from "@/constants/theme";
-import type { Loan } from "@/types";
+import type { Loan, TOption } from "@/types";
 
 type Segment = "active" | "settled";
 
-const SEGMENTS: { label: string; value: Segment }[] = [
+const SEGMENTS: TOption<Segment>[] = [
   { label: "Active", value: "active" },
   { label: "Settled", value: "settled" },
 ];

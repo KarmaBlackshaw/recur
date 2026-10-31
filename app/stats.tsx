@@ -22,12 +22,12 @@ import { formatAmount } from "@/utils/formatAmount";
 import { categoryBreakdown, type TCategorySpend } from "@/utils/stats/categoryBreakdown";
 import { useInterestCredits, usePaidLedger } from "@/utils/usePaidLedger";
 import { useSetState } from "@/utils/useSetState";
-import type { FeatherIconName } from "@/types";
+import type { FeatherIconName, TOption } from "@/types";
 
 type Period = "month" | "year";
 type StatsType = "income" | "expenses";
 
-const PERIODS: { label: string; value: Period }[] = [
+const PERIODS: TOption<Period>[] = [
   { label: "Month", value: "month" },
   { label: "Year", value: "year" },
 ];

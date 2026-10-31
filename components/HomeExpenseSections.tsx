@@ -113,7 +113,7 @@ export function HomeExpenseSections({
   const billSheetRef = useRef<CardBillSheetRef>(null);
   const transferSheetRef = useRef<TransferSheetRef>(null);
   const payFlow = usePayFlow();
-  const { getDisplayAmount, getMonthStatus } = useExpenses();
+  const { getMonthStatus } = useExpenses();
   const hasAfterDue = Boolean(afterDue);
   const sections = useMemo<HomeSection[]>(() => {
     const out: HomeSection[] = [];
@@ -162,18 +162,16 @@ export function HomeExpenseSections({
     return out;
   }, [overdue, upcoming, recentActivity, collapsedSlots, hasAfterDue]);
 
-  function isUnpaidTbdDue(item: ActivityEntry): boolean {
+  function isUnpaidDue(item: ActivityEntry): boolean {
     if (!("expense" in item) || !item.canQuickPay) {
       return false;
     }
     const year = item.refDate.getFullYear();
     const month = item.refDate.getMonth();
-    const isUnpaid = getMonthStatus(item.expense.id, year, month) === "unpaid";
-    const isAmountUnknown = getDisplayAmount(item.expense, year, month) == null;
-    return isUnpaid && isAmountUnknown;
+    return getMonthStatus(item.expense.id, year, month) === "unpaid";
   }
 
-  function askAmount({ expense, refDate }: DayEntry) {
+  function openPay({ expense, refDate }: DayEntry) {
     const year = refDate.getFullYear();
     const month = refDate.getMonth();
     payFlow.openPaySheet(expense, year, month, {
@@ -206,7 +204,7 @@ export function HomeExpenseSections({
               item={item}
               index={index}
               onOpenTransfer={(transfer) => transferSheetRef.current?.present(transfer)}
-              onOpenExpense={isUnpaidTbdDue(item) ? askAmount : undefined}
+              onOpenExpense={isUnpaidDue(item) ? openPay : undefined}
             />
           )
         }

@@ -1,11 +1,12 @@
 import React from "react";
-import { TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
+import dayjs from "dayjs";
 import { router } from "expo-router";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
-import { AMOUNT_TONE, ICON_TONE, type RowTone } from "@/components/ui/AppListRow";
-import { chunk } from "@/utils/collections";
+import { AMOUNT_TONE, ICON_TONE } from "@/components/ui/AppListRow";
+import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
 import { useMonthActivity } from "@/utils/useMonthActivity";
 import type { ActivityFeed } from "@/utils/useActivityFeed";
@@ -19,43 +20,22 @@ interface Props {
   owed: OwedToYou | null;
 }
 
-interface Stat {
+interface LinkRow {
   label: string;
   value: number;
   icon: FeatherIconName;
-  tone: RowTone;
   href: string;
   isShown: boolean;
 }
 
-function StatCell({ label, value, icon, tone: activeTone, href, hasDivider }: Stat & { hasDivider: boolean }) {
-  const tone = value > 0 ? activeTone : "muted";
-  const { tile, glyph } = ICON_TONE[tone];
-
+function FigureLabel({ children }: { children: string }) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={() => router.navigate(href)}
-      className={`flex-1 flex-row items-center gap-3 px-4 py-3 ${hasDivider ? "border-l border-border" : ""}`}
-    >
-      <View className={`w-[36px] h-[36px] rounded-xl items-center justify-center ${tile}`}>
-        <Feather name={icon} size={17} color={glyph} />
-      </View>
-      <View className="flex-1">
-        <AppText variant="meta" numberOfLines={1}>
-          {label}
-        </AppText>
-        <AppText
-          variant="amount"
-          className={AMOUNT_TONE[tone]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.75}
-        >
-          {formatAmount(value)}
-        </AppText>
-      </View>
-    </TouchableOpacity>
+    <View className="flex-row items-center gap-1">
+      <AppText variant="overline" numberOfLines={1} className="shrink">
+        {children}
+      </AppText>
+      <Feather name="chevron-right" size={12} color={colors.textMuted} />
+    </View>
   );
 }
 
@@ -63,29 +43,89 @@ export function HomeMonthStats({ year, month, feed, owed }: Props) {
   const { accounts } = useAccounts();
   const { paidTotal, moneyIn, chargedTotal } = useMonthActivity(feed, year, month);
   const hasCards = accounts.some((a) => a.type === "credit");
+  const monthName = dayjs(new Date(year, month, 1)).format("MMMM");
+  const isQuiet = paidTotal === 0 && moneyIn === 0 && chargedTotal === 0;
   const activityHref = (segment: ActivitySegment) => `/expenses?segment=${segment}&year=${year}&month=${month}`;
 
-  const stats: Stat[] = [
-    { label: "Spent", value: paidTotal, icon: "arrow-up-right", tone: "neutral", href: activityHref("paid"), isShown: true },
-    { label: "Received", value: moneyIn, icon: "arrow-down-left", tone: "positive", href: activityHref("income"), isShown: true },
-    { label: "Charged", value: chargedTotal, icon: "credit-card", tone: "accent", href: activityHref("charged"), isShown: hasCards },
-    { label: "Owed to you", value: owed?.total ?? 0, icon: "users", tone: "accent", href: "/loans?segment=active", isShown: owed != null },
+  const linkRows: LinkRow[] = [
+    {
+      label: "Charged",
+      value: chargedTotal,
+      icon: "credit-card",
+      href: activityHref("charged"),
+      isShown: hasCards && chargedTotal > 0,
+    },
+    {
+      label: "Owed to you",
+      value: owed?.total ?? 0,
+      icon: "users",
+      href: "/loans?segment=active",
+      isShown: owed != null,
+    },
   ];
-
-  const rows = chunk(
-    stats.filter(({ isShown }) => isShown),
-    2
-  );
 
   return (
     <View className="mx-5 mt-3 rounded-2xl border border-border bg-surface">
-      {rows.map((row, rowIndex) => (
-        <View key={row[0].label} className={`flex-row ${rowIndex > 0 ? "border-t border-border" : ""}`}>
-          {row.map((stat, cellIndex) => (
-            <StatCell key={stat.label} {...stat} hasDivider={cellIndex > 0} />
-          ))}
+      {isQuiet ? (
+        <View className="px-5 pt-4 pb-3">
+          <AppText variant="overline">{monthName}</AppText>
+          <AppText variant="body-medium" className="mt-1 text-[14px] text-textSecondary">
+            Nothing spent or received yet
+          </AppText>
         </View>
-      ))}
+      ) : (
+        <View className="flex-row">
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.navigate(activityHref("paid"))}
+            className="flex-1 pl-5 pr-3 pt-4 pb-3"
+          >
+            <FigureLabel>{`Spent in ${monthName}`}</FigureLabel>
+            <Text
+              className={`mt-1 text-[32px] font-oswald-medium ${AMOUNT_TONE[paidTotal > 0 ? "neutral" : "muted"]}`}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+              maxFontSizeMultiplier={1.4}
+            >
+              {formatAmount(paidTotal)}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.navigate(activityHref("income"))}
+            className="shrink-0 items-end pl-3 pr-5 pt-4 pb-3"
+          >
+            <FigureLabel>Received</FigureLabel>
+            <AppText
+              variant="amount"
+              numberOfLines={1}
+              className={`mt-1 ${AMOUNT_TONE[moneyIn > 0 ? "positive" : "muted"]}`}
+            >
+              {formatAmount(moneyIn)}
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      )}
+      {linkRows
+        .filter(({ isShown }) => isShown)
+        .map(({ label, value, icon, href }) => (
+          <TouchableOpacity
+            key={label}
+            activeOpacity={0.7}
+            onPress={() => router.navigate(href)}
+            className="min-h-[44px] flex-row items-center border-t border-border px-5"
+          >
+            <Feather name={icon} size={16} color={ICON_TONE.accent.glyph} />
+            <AppText variant="body-bold" className="ml-3 flex-1 text-sm text-white">
+              {label}
+            </AppText>
+            <AppText variant="amount" numberOfLines={1} className={`mr-2 ${AMOUNT_TONE.accent}`}>
+              {formatAmount(value)}
+            </AppText>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+        ))}
     </View>
   );
 }

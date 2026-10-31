@@ -7,7 +7,6 @@ import dayjs from "dayjs";
 import { range, sortBy, sumBy } from "@/utils/collections";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
-import { HomeSummary } from "@/components/HomeSummary";
 import { HomeMonthStats } from "@/components/HomeMonthStats";
 import { SetupChecklist, useSetupChecklist } from "@/components/SetupChecklist";
 import { BackupNudge } from "@/components/BackupNudge";
@@ -33,8 +32,6 @@ const NEXT_MONTH_LOOKAHEAD_DAYS = 7;
 const ACTIVITY_LIMIT = 10;
 // How many months back an unpaid due or card bill stays in Overdue after its own month has ended.
 const OVERDUE_LOOKBACK_MONTHS = 3;
-// "Due this week" is today and the six days after it: the rows Upcoming captions "Today" to "in 6 days".
-const DUE_SOON_DAYS = 7;
 // Past this many expenses the user is set up; the checklist stops appearing above the due list.
 const SETUP_EXPENSE_LIMIT = 3;
 
@@ -189,20 +186,14 @@ export default function HomeScreen() {
     [upcoming, swipeHintKey]
   );
 
-  // Just-paid rows still lingering in the lists don't count.
-  const overdueCount = overdue.filter((e) => !isPaidNow(e)).length;
-  const dueThisWeekCount = upcomingWithPaid.filter(
-    (e) => !isPaidNow(e) && dayjs(e.effDate).diff(today, "day") < DUE_SOON_DAYS
-  ).length;
-
   const hasExpenses = expenses.length > 0;
   // Mirrors the sections HomeExpenseSections builds: with none, the list shows its empty state instead.
   const hasListContent = overdue.length > 0 || upcoming.length > 0 || recentActivity.length > 0;
-  const isSummaryShown = hasExpenses || openBills.length > 0;
-  // With nothing listed yet the checklist is Home's empty state. It stays under the summary only while someone is
+  // With nothing listed yet the checklist is Home's empty state. It stays above the due list only while someone is
   // still setting up, so it never pushes an established user's due list down.
   const isChecklistInHeader = setup.isShown && (hasExpenses || hasListContent) && expenses.length < SETUP_EXPENSE_LIMIT;
-  const isMonthStatsShown = !isChecklistInHeader && (isSummaryShown || recentActivity.length > 0 || owed != null);
+  const isMonthStatsShown =
+    !isChecklistInHeader && (hasExpenses || openBills.length > 0 || recentActivity.length > 0 || owed != null);
 
   if (loading) {
     return (
@@ -244,9 +235,6 @@ export default function HomeScreen() {
         refreshControl={refreshControl}
         ListHeaderComponent={
           <View>
-            {isSummaryShown ? (
-              <HomeSummary year={year} month={month} overdueCount={overdueCount} dueThisWeekCount={dueThisWeekCount} />
-            ) : null}
             {isMonthStatsShown ? <HomeMonthStats year={year} month={month} feed={feed} owed={owed} /> : null}
             {isChecklistInHeader ? (
               <SetupChecklist steps={setup.steps} hasExpenses={hasExpenses} onDismiss={setup.dismiss} />

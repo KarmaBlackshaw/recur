@@ -138,6 +138,10 @@ Opened when a bill's amount isn't known, from a bill's Mark paid, or by long-pre
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes
 `accessible={false}`: gorhom's default makes the whole sheet one element and hides its controls from screen readers.
 A picker opened from a sheet (Pay from, Paid on) stacks over it, and the sheet is still there when the picker closes.
+Every sheet is an `AppBottomSheet`, which draws the title, Close and backdrop; content lines up with the title at
+`px-4`. An action whose write changes what the open sheet shows (Save balance, Revert transfer) closes the sheet first
+and writes once it's gone. A save that keeps the sheet open, like a card bill's statement amount, updates it in place.
+A sheet whose content can outgrow the space above the keyboard passes `scrollable`.
 
 ### Stats (`app/stats.tsx`)
 A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite

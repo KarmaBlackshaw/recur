@@ -1,22 +1,14 @@
-import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
-import { Alert, TouchableOpacity, View } from "react-native";
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetScrollView,
-  type BottomSheetBackdropProps,
-} from "@gorhom/bottom-sheet";
-import Feather from "@expo/vector-icons/Feather";
+import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { Alert, View } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { router } from "expo-router";
 import dayjs from "dayjs";
 import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
 import { InfoRow } from "@/components/accounts/InfoRow";
+import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
-import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
-import { colors } from "@/constants/theme";
 import { isBillTbd } from "@/utils/cardBills";
 import { formatAmount } from "@/utils/dateHelpers";
 import type { CardBill } from "@/types";
@@ -30,7 +22,7 @@ interface BillFormValues {
 }
 
 export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet(_props, ref) {
-  const sheetRef = useRef<BottomSheetModal>(null);
+  const sheetRef = useRef<AppBottomSheetRef>(null);
   const accounts = useAccounts();
   const [selected, setSelected] = useState<CardBill>();
   const {
@@ -85,91 +77,66 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     router.push({ pathname: "/account/pay", params: { id: bill.account.id, amount: amount.toFixed(2) } });
   }
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.6} />
-    ),
-    []
-  );
-
   return (
-    <>
-      <BottomSheetModal
-        ref={sheetRef}
-        accessible={false}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
-        backdropComponent={renderBackdrop}
-      >
-        {bill ? (
-          <BottomSheetScrollView keyboardShouldPersistTaps="handled">
-            <View className="px-5 pb-16">
-              <View className="flex-row items-center justify-between mb-2">
-                <AppText variant="title" accessibilityRole="header" className="shrink" numberOfLines={1}>
-                  {`${bill.account.name} · ${dayjs(bill.dueDate).format("MMM D")} bill`}
-                </AppText>
-                <TouchableOpacity
-                  className="w-11 h-11 items-center justify-center"
-                  onPress={() => sheetRef.current?.dismiss()}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close"
-                >
-                  <Feather name="x" size={20} color={colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-              <InfoRow label="Cut-off" value={dayjs(bill.cutoff).format("MMM D")} />
-              <InfoRow label="Estimate" value={formatAmount(bill.estimate)} />
-              <Controller
-                control={control}
-                name="amount"
-                rules={{
-                  validate: (v) => {
-                    const n = parseFloat(v);
-                    return (!isNaN(n) && n >= 0) || "Must be ≥ 0";
-                  },
-                }}
-                render={({ field: { value, onChange, onBlur }, fieldState }) => (
-                  <AppTextInput
-                    label="Statement amount (₱)"
-                    isAmount
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    placeholder="0.00"
-                    error={fieldState.isTouched ? fieldState.error?.message : undefined}
-                  />
-                )}
+    <AppBottomSheet
+      ref={sheetRef}
+      title={bill ? `${bill.account.name} · ${dayjs(bill.dueDate).format("MMM D")} bill` : "Card bill"}
+      snapPoints={CONTENT_HEIGHT_SNAP}
+      scrollable
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+    >
+      {bill ? (
+        <View className="px-4 pb-4">
+          <InfoRow label="Cut-off" value={dayjs(bill.cutoff).format("MMM D")} />
+          <InfoRow label="Estimate" value={formatAmount(bill.estimate)} />
+          <Controller
+            control={control}
+            name="amount"
+            rules={{
+              validate: (v) => {
+                const n = parseFloat(v);
+                return (!isNaN(n) && n >= 0) || "Must be ≥ 0";
+              },
+            }}
+            render={({ field: { value, onChange, onBlur }, fieldState }) => (
+              <AppTextInput
+                label="Statement amount (₱)"
+                isAmount
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="0.00"
+                error={fieldState.isTouched ? fieldState.error?.message : undefined}
               />
-              <View className="mt-2 border-t border-border pt-2">
-                <InfoRow label="Paid" value={formatAmount(bill.paid)} />
-                <InfoRow label="Remaining" value={formatAmount(bill.remaining)} />
-              </View>
-              <View className="mt-4 gap-2">
-                {isPayable ? (
-                  <>
-                    <AppButton label="Pay bill" onPress={payBill} />
-                    <AppButton
-                      label="Save amount"
-                      variant="tonal"
-                      onPress={onSave}
-                      disabled={!isValid}
-                      loading={isSubmitting}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <AppButton label="Save amount" onPress={onSave} disabled={!isValid} loading={isSubmitting} />
-                    {!bill.isPaid && <AppButton label="Pay bill" variant="tonal" onPress={payBill} />}
-                  </>
-                )}
-                {!bill.isEstimate && <AppButton label="Use estimate" variant="ghost" onPress={() => saveAmount(null)} />}
-              </View>
-            </View>
-          </BottomSheetScrollView>
-        ) : null}
-      </BottomSheetModal>
-    </>
+            )}
+          />
+          <View className="mt-2 border-t border-border pt-2">
+            <InfoRow label="Paid" value={formatAmount(bill.paid)} />
+            <InfoRow label="Remaining" value={formatAmount(bill.remaining)} />
+          </View>
+          <View className="mt-4 gap-2">
+            {isPayable ? (
+              <>
+                <AppButton label="Pay bill" onPress={payBill} />
+                <AppButton
+                  label="Save amount"
+                  variant="tonal"
+                  onPress={onSave}
+                  disabled={!isValid}
+                  loading={isSubmitting}
+                />
+              </>
+            ) : (
+              <>
+                <AppButton label="Save amount" onPress={onSave} disabled={!isValid} loading={isSubmitting} />
+                {!bill.isPaid && <AppButton label="Pay bill" variant="tonal" onPress={payBill} />}
+              </>
+            )}
+            {!bill.isEstimate && <AppButton label="Use estimate" variant="ghost" onPress={() => saveAmount(null)} />}
+          </View>
+        </View>
+      ) : null}
+    </AppBottomSheet>
   );
 });

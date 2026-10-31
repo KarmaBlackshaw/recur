@@ -1,9 +1,6 @@
-import React, { useMemo } from "react";
-import { router } from "expo-router";
+import { useMemo } from "react";
 import { sumBy } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
-import { AppListRow } from "@/components/ui/AppListRow";
-import { formatAmount } from "@/utils/dateHelpers";
 
 export interface OwedToYou {
   total: number;
@@ -27,25 +24,4 @@ export function useOwedToYou(): OwedToYou | null {
     }
     return { total: sumBy(open, "balance"), people: new Set(open.map(({ borrower }) => borrower)).size };
   }, [loans, summaries, isLoading]);
-}
-
-// Home's one-row loans summary, between the due bands and Recent activity.
-export function LoanSummaryCard({ total, people }: OwedToYou) {
-  const amount = formatAmount(total);
-  const peopleText = `${people} ${people === 1 ? "person" : "people"}`;
-
-  return (
-    <AppListRow
-      icon="users"
-      iconTone="accent"
-      title="Owed to you"
-      meta={peopleText}
-      amount={amount}
-      amountTone="accent"
-      accessory="chevron-right"
-      onPress={() => router.navigate("/loans")}
-      accessibilityLabel={`Owed to you, ${amount} from ${peopleText}`}
-      accessibilityHint="Opens loans"
-    />
-  );
 }

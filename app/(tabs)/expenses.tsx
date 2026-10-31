@@ -6,19 +6,19 @@ import { router, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
 import { chunk, keyBy, sumBy } from "@/utils/collections";
 import { useBoolean } from "@/utils/useBoolean";
-import { useSetState } from "@/utils/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
-import { DayGroupedExpenseList, type ActivityEntry, type DayTotal } from "@/components/DayGroupedExpenseList";
+import { DayGroupedExpenseList, type DayTotal } from "@/components/DayGroupedExpenseList";
 import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
 import { netFlow } from "@/utils/activity/netFlow";
 import { loanFlow } from "@/utils/activity/loanFlow";
 import { useActivityFeed } from "@/utils/useActivityFeed";
+import { useMonthActivity } from "@/utils/useMonthActivity";
 import { matchesActivity, type ActivitySearchContext } from "@/utils/activitySearch";
-import type { FeatherIconName, TransactionKind } from "@/types";
+import type { ActivitySegment, FeatherIconName } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
@@ -27,9 +27,7 @@ import { AppChips } from "@/components/ui/AppChips";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
 
-type Segment = "all" | "paid" | "charged" | "income" | "transfers" | "loans";
-
-const SEGMENTS: { label: string; value: Segment }[] = [
+const SEGMENTS: { label: string; value: ActivitySegment }[] = [
   { label: "All", value: "all" },
   { label: "Paid", value: "paid" },
   { label: "Charged", value: "charged" },
@@ -38,7 +36,7 @@ const SEGMENTS: { label: string; value: Segment }[] = [
   { label: "Loans", value: "loans" },
 ];
 
-const HERO: Record<Segment, { overline: string; box: string; text: string }> = {
+const HERO: Record<ActivitySegment, { overline: string; box: string; text: string }> = {
   all: { overline: "Net this month", box: "bg-primary/10 border-primary/20", text: "text-secondary" },
   paid: { overline: "Paid this month", box: "bg-paid/10 border-paid/20", text: "text-paid" },
   charged: { overline: "Charged this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
@@ -47,7 +45,7 @@ const HERO: Record<Segment, { overline: string; box: string; text: string }> = {
   loans: { overline: "Lent this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
 };
 
-const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: string }> = {
+const EMPTY: Record<ActivitySegment, { title: string; icon: FeatherIconName; message: string }> = {
   all: { title: "No activity", icon: "list", message: "Nothing happened in" },
   paid: { title: "Nothing paid", icon: "check-circle", message: "No expenses paid in" },
   charged: { title: "Nothing charged", icon: "credit-card", message: "Nothing charged in" },
@@ -57,7 +55,7 @@ const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: st
 };
 
 // All and Loans mix money in and out, so their days show a signed net; All's adds up to the hero's net.
-const DAY_TOTAL: Record<Segment, DayTotal> = {
+const DAY_TOTAL: Record<ActivitySegment, DayTotal> = {
   all: netFlow,
   paid: "sum",
   charged: "sum",
@@ -73,15 +71,19 @@ function metaLines(...parts: (string | false)[]): string[] {
 
 export default function ExpensesScreen() {
   const { loading } = useExpenses();
-  const { accounts, isCharged, transactions } = useAccounts();
+  const { accounts } = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
-  const params = useLocalSearchParams<{ segment?: Segment }>();
+  const params = useLocalSearchParams<{ segment?: string; year?: string; month?: string }>();
   // "Charged" only means something once there's a credit card to charge.
   const segments = accounts.some((a) => a.type === "credit") ? SEGMENTS : SEGMENTS.filter(({ value }) => value !== "charged");
   const segment = segments.find(({ value }) => value === params.segment)?.value ?? "all";
   const today = dayjs().startOf("day").toDate();
-  const [{ year, month }, setSelected] = useSetState({ year: today.getFullYear(), month: today.getMonth() });
+  const paramYear = Number.parseInt(params.year ?? "", 10);
+  const paramMonth = Number.parseInt(params.month ?? "", 10);
+  // A year past four digits can't be shown (and past ±275,760 isn't even a Date), so it falls back like a bad month.
+  const year = paramYear >= 1000 && paramYear <= 9999 ? paramYear : today.getFullYear();
+  const month = paramMonth >= 0 && paramMonth <= 11 ? paramMonth : today.getMonth();
   const [search, setSearch] = useState("");
   const [isSearchOpen, searchOpen] = useBoolean(false);
   const query = isSearchOpen ? search.trim() : "";
@@ -102,48 +104,11 @@ export default function ExpensesScreen() {
     [feed.all, query, searchContext]
   );
 
-  const { byFilter, notPaidOff, fees, transferIncome, lent, repaid } = useMemo(() => {
-    const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
-    const charged = feed.charged.filter(isInMonth);
-    const notPaidOff = sumBy(
-      charged.filter(({ expense, refDate }) =>
-        expense.recurrence === "one-off"
-          ? isCharged(expense.id, null, null)
-          : isCharged(expense.id, refDate.getFullYear(), refDate.getMonth())
-      ),
-      "amount"
-    );
-    const monthTxnTotal = (kind: TransactionKind) =>
-      sumBy(
-        transactions.filter((t) => t.kind === kind).map((t) => ({ effDate: new Date(t.createdAt), amount: Math.abs(t.amount) })).filter(isInMonth),
-        "amount"
-      );
-    const fees = monthTxnTotal("fee");
-    const transfers = feed.transfers.filter(isInMonth);
-    const loans = feed.loans.filter(isInMonth);
-    const byFilter: Record<Segment, ActivityEntry[]> = {
-      all: feed.all.filter(isInMonth),
-      paid: feed.paid.filter(isInMonth),
-      charged,
-      income: feed.income.filter(isInMonth),
-      transfers,
-      loans,
-    };
-    return {
-      byFilter,
-      notPaidOff,
-      fees,
-      transferIncome: sumBy(transfers, "earned"),
-      lent: sumBy(loans.filter(({ loanTxn }) => loanTxn.kind === "loan_out"), "amount"),
-      repaid: sumBy(loans.filter(({ loanTxn }) => loanTxn.kind === "loan_in"), "amount"),
-    };
-  }, [feed, transactions, isCharged, year, month]);
+  const { byFilter, notPaidOff, fees, transferIncome, lent, repaid, moneyIn, paidTotal } = useMonthActivity(feed, year, month);
 
   const entries = byFilter[segment];
-  const moneyIn = sumBy(byFilter.income, "amount") + transferIncome;
-  const paidTotal = sumBy(byFilter.paid, "amount") + fees;
   // Lending stays out of the net: money lent is still yours (net worth counts it as an asset).
-  const totals: Record<Segment, number> = {
+  const totals: Record<ActivitySegment, number> = {
     all: moneyIn - paidTotal,
     paid: paidTotal,
     charged: sumBy(entries, "amount"),
@@ -153,7 +118,7 @@ export default function ExpensesScreen() {
   };
   const total = totals[segment];
   const hero = HERO[segment];
-  const heroMeta: Record<Segment, string[]> = {
+  const heroMeta: Record<ActivitySegment, string[]> = {
     all: metaLines(
       `${formatAmount(moneyIn)} in`,
       `${formatAmount(paidTotal)} spent`,
@@ -200,7 +165,7 @@ export default function ExpensesScreen() {
             <PeriodNavigator
               year={year}
               month={month}
-              onChange={(year, month) => setSelected({ year, month })}
+              onChange={(year, month) => router.setParams({ year: String(year), month: String(month) })}
             />
           )}
           <TouchableOpacity

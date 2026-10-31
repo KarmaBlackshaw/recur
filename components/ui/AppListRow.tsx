@@ -9,7 +9,7 @@ import type { FeatherIconName } from "@/types";
 // indigo = card / loan / charged, muted = ended or de-emphasized.
 export type RowTone = "neutral" | "positive" | "negative" | "accent" | "muted";
 
-const ICON_TONE: Record<RowTone, { tile: string; glyph: string }> = {
+export const ICON_TONE: Record<RowTone, { tile: string; glyph: string }> = {
   neutral: { tile: "bg-white/[0.06]", glyph: colors.textSecondary },
   positive: { tile: "bg-paid/15", glyph: colors.paid },
   negative: { tile: "bg-overdue/15", glyph: colors.overdue },
@@ -17,7 +17,7 @@ const ICON_TONE: Record<RowTone, { tile: string; glyph: string }> = {
   muted: { tile: "bg-white/[0.04]", glyph: colors.textMuted },
 };
 
-const AMOUNT_TONE: Record<RowTone, string> = {
+export const AMOUNT_TONE: Record<RowTone, string> = {
   neutral: "text-white",
   positive: "text-paid",
   negative: "text-overdue",

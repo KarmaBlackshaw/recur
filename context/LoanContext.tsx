@@ -48,6 +48,7 @@ interface LoanContextValue {
   isLoading: boolean;
   summaries: Record<string, TLoanSummary>;
   paymentsOf: (loanId: string) => AccountTransaction[];
+  incomeOf: (loanId: string) => AccountTransaction[];
   borrowerOf: (loanId: string | null) => string | undefined;
   addLoan: (input: LoanInput) => Promise<void>;
   updateLoan: (id: string, input: LoanInput) => Promise<void>;
@@ -83,6 +84,11 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
 
   const paymentsOf = useCallback(
     (loanId: string) => accounts.transactions.filter((t) => t.loanId === loanId && t.kind === "loan_in"),
+    [accounts.transactions]
+  );
+
+  const incomeOf = useCallback(
+    (loanId: string) => accounts.transactions.filter((t) => t.loanId === loanId && t.kind === "income"),
     [accounts.transactions]
   );
 
@@ -241,6 +247,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       isLoading: state.isLoading,
       summaries,
       paymentsOf,
+      incomeOf,
       borrowerOf,
       addLoan,
       updateLoan,
@@ -250,7 +257,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       deletePayment,
       reload,
     }),
-    [state, summaries, paymentsOf, borrowerOf]
+    [state, summaries, paymentsOf, incomeOf, borrowerOf]
   );
 
   return <LoanContext.Provider value={value}>{children}</LoanContext.Provider>;

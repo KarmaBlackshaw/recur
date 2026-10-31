@@ -21,7 +21,7 @@ import { categoryIcon } from "@/utils/categories";
 import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
 import { categoryBreakdown, type TCategorySpend } from "@/utils/stats/categoryBreakdown";
-import { useInterestCredits, usePaidLedger } from "@/utils/usePaidLedger";
+import { useIncomeEntries, useInterestCredits, usePaidLedger } from "@/utils/usePaidLedger";
 import { useSetState } from "@/utils/useSetState";
 import type { FeatherIconName } from "@/types";
 
@@ -59,7 +59,7 @@ function CategoryRow({ row, color }: { row: TCategorySpend; color: string }) {
   return (
     <View>
       <AppListRow
-        icon={categoryIcon(row.category)}
+        icon={row.icon}
         title={row.category}
         meta={countLabel(row.count, "transaction", "transactions")}
         amount={amount}
@@ -78,6 +78,7 @@ export default function StatsScreen() {
   const { transactions } = useAccounts();
   const { width } = useWindowDimensions();
   const ledger = usePaidLedger();
+  const incomeEntries = useIncomeEntries();
   const interestCredits = useInterestCredits();
   const params = useLocalSearchParams<{ year?: string; month?: string; type?: string }>();
   const [{ year, month, period, type }, setSelected] = useSetState<{ year: number; month: number; period: Period; type: StatsType }>({
@@ -91,23 +92,40 @@ export default function StatsScreen() {
   // Loans stay out too: lent money is still yours and counts in net worth.
   const expenseLines = useMemo(
     () => [
-      ...ledger.map(({ expense, amount, effDate }) => ({ category: expense.category, amount, effDate })),
+      ...ledger.map(({ expense, amount, effDate }) => ({
+        category: expense.category,
+        icon: categoryIcon(expense.category),
+        amount,
+        effDate,
+      })),
       ...transactions
         .filter(({ kind }) => kind === "fee")
-        .map(({ amount, createdAt }) => ({ category: FEES_CATEGORY, amount: Math.abs(amount), effDate: new Date(createdAt) })),
+        .map(({ amount, createdAt }) => ({
+          category: FEES_CATEGORY,
+          icon: categoryIcon(FEES_CATEGORY),
+          amount: Math.abs(amount),
+          effDate: new Date(createdAt),
+        })),
     ],
     [ledger, transactions]
   );
 
-  // Loan repayments stay out for the same reason: getting lent money back isn't earning it.
+  // Loan repayments stay out for the same reason: getting lent money back isn't earning it. Income a loan brought
+  // in gets its own slice, so an overpayment's Interest never reads as bank interest.
   const incomeLines = useMemo(
     () => [
-      ...transactions
-        .filter(({ kind }) => kind === "income")
-        .map(({ category, amount, createdAt }) => ({ category: category ?? UNCATEGORIZED_INCOME, amount, effDate: new Date(createdAt) })),
-      ...interestCredits.map(({ amount, effDate }) => ({ category: INTEREST_CATEGORY, amount, effDate })),
+      ...incomeEntries.map(({ income, loan, amount, effDate }) => {
+        const category = income.category ?? UNCATEGORIZED_INCOME;
+        return { category: loan ? `${category} from loans` : category, icon: categoryIcon(category), amount, effDate };
+      }),
+      ...interestCredits.map(({ amount, effDate }) => ({
+        category: INTEREST_CATEGORY,
+        icon: categoryIcon(INTEREST_CATEGORY),
+        amount,
+        effDate,
+      })),
     ],
-    [transactions, interestCredits]
+    [incomeEntries, interestCredits]
   );
 
   const { expenseRows, incomeRows } = useMemo(() => {

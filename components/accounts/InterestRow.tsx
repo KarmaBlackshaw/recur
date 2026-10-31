@@ -1,7 +1,7 @@
 import React from "react";
 import { router } from "expo-router";
 import { AppListRow } from "@/components/ui/AppListRow";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import type { InterestEntry } from "@/utils/usePaidLedger";
 
 export function InterestRow({ entry }: { entry: InterestEntry }) {

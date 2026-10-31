@@ -1,6 +1,6 @@
 import React from "react";
 import { AppListRow } from "@/components/ui/AppListRow";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 
 interface Props {
   borrower: string;

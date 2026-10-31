@@ -14,7 +14,7 @@ import { AppFab } from "@/components/ui/AppFab";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LoanRow } from "@/components/loans/LoanRow";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { Loan } from "@/types";
 

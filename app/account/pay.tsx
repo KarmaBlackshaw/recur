@@ -15,7 +15,7 @@ import { AppTextInput } from "@/components/ui/AppTextInput";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useAccounts } from "@/context/AccountContext";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import type { Account } from "@/types";
 

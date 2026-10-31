@@ -18,7 +18,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
 import { isBillTbd } from "@/utils/cardBills";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import type { CardBill } from "@/types";
 
 export interface CardBillSheetRef {

@@ -3,7 +3,7 @@ import type { AccessibilityActionEvent } from "react-native";
 import dayjs from "dayjs";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { SwipeableRow } from "@/components/ui/SwipeableRow";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import type { AccountTransaction, FeatherIconName } from "@/types";
 
 interface TLoanHistoryBase {

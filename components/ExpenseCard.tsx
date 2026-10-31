@@ -5,8 +5,7 @@ import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated"
 import dayjs from "dayjs";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { SwipeableRow, type SwipeAction } from "@/components/ui/SwipeableRow";
-import { formatDueDate, formatDaysLate, getDueDateForMonth, isOverdueOn, cycleStateOn, formatMonth, nextCycleDueDate } from "@/utils/dateHelpers";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatDueDate, formatDaysLate, getDueDateForMonth, isOverdueOn, formatAmount, cycleStateOn, formatMonth, nextCycleDueDate } from "@/utils/dateHelpers";
 import { categoryIcon } from "@/utils/categories";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";

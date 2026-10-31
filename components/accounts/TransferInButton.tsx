@@ -1,6 +1,6 @@
 import React from "react";
 import { AppButton } from "@/components/ui/AppButton";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import { transferIn } from "@/utils/accounts/transferIn";
 import type { OverdraftError } from "@/utils/accounts/OverdraftError";
 

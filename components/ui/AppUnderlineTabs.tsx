@@ -1,10 +1,11 @@
 import React from "react";
 import { TouchableOpacity, View } from "react-native";
 import { AppText } from "@/components/ui/AppText";
-import type { TOption } from "@/types";
 
-export interface TUnderlineTab<T extends string> extends TOption<T> {
+export interface TUnderlineTab<T extends string> {
+  label: string;
   detail?: string;
+  value: T;
 }
 
 interface AppUnderlineTabsProps<T extends string> {

@@ -2,14 +2,18 @@
 import React, { useEffect, useRef } from "react";
 import { View, ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from "react-native";
 import { AppText } from "@/components/ui/AppText";
-import type { TOption } from "@/types";
 
 const ITEM_HEIGHT = 44;
 const VISIBLE_ROWS = 5;
 const PAD_ROWS = Math.floor(VISIBLE_ROWS / 2);
 
+interface Option<T> {
+  label: string;
+  value: T;
+}
+
 interface AppWheelPickerProps<T> {
-  options: TOption<T>[];
+  options: Option<T>[];
   value: T;
   onChange: (value: T) => void;
   accessibilityLabel: string;

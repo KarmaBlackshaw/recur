@@ -29,6 +29,7 @@ name: Income — no credit cards in Deposit-to, balance increases, double-tap Sa
     visible: "RECEIVED THIS MONTH"
     timeout: 10000
 - waitForAnimationToEnd
+- assertVisible: "1 income"
 - assertVisible: "₱5,000.00"
 
 - runFlow: subflows/tab-accounts.yaml

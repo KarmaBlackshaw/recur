@@ -2,7 +2,7 @@ import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { AppText } from "@/components/ui/AppText";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import { useMonthTotals } from "@/utils/useMonthTotals";
 
 interface Props {

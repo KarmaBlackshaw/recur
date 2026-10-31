@@ -29,22 +29,22 @@ import { maybeAskForReminders } from "@/utils/reminderPermission";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
-import type { Expense, Recurrence, ExpenseFormValues, TOption } from "@/types";
+import type { Expense, Recurrence, ExpenseFormValues } from "@/types";
 
 type ExpenseType = "regular" | "recurring";
 
-const TYPE_TABS: TOption<ExpenseType>[] = [
+const TYPE_TABS: { label: string; value: ExpenseType }[] = [
   { label: "One-time", value: "regular" },
   { label: "Recurring", value: "recurring" },
 ];
 
-const RECURRENCE_OPTIONS: TOption<Recurrence>[] = [
+const RECURRENCE_OPTIONS: { label: string; value: Recurrence }[] = [
   { label: "Monthly", value: "monthly" },
   { label: "Yearly", value: "yearly" },
 ];
 
 // Days before the due date. "0" turns the bill's reminder off; an empty value is the default, a day before.
-const REMINDER_OPTIONS = [
+const REMINDER_OPTIONS: { label: string; value: string }[] = [
   { label: "Off", value: "0" },
   { label: "1 day", value: "1" },
   { label: "2 days", value: "2" },

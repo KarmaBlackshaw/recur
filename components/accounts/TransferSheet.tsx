@@ -17,7 +17,7 @@ import { colors } from "@/constants/theme";
 import { customTransferNote } from "@/utils/accounts/customTransferNote";
 import { splitTransfer } from "@/utils/accounts/splitTransfer";
 import { useRevertTransfer } from "@/utils/accounts/useRevertTransfer";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import type { AccountTransaction } from "@/types";
 
 export interface TransferSheetRef {

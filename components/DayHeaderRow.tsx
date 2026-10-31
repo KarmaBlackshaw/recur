@@ -2,7 +2,7 @@ import React from "react";
 import { View } from "react-native";
 import { AppText } from "@/components/ui/AppText";
 import dayjs from "dayjs";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
 import { colors } from "@/constants/theme";
 

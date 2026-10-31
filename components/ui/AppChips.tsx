@@ -1,10 +1,14 @@
 import React from "react";
 import { ScrollView, TouchableOpacity } from "react-native";
 import { AppText } from "@/components/ui/AppText";
-import type { TOption } from "@/types";
+
+interface Chip<T extends string> {
+  label: string;
+  value: T;
+}
 
 interface AppChipsProps<T extends string> {
-  chips: TOption<T>[];
+  chips: Chip<T>[];
   value: T;
   onChange: (value: T) => void;
   accessibilityLabel: string;

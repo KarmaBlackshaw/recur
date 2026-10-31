@@ -14,7 +14,7 @@ import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LoanHistoryRow, type TLoanHistoryItem } from "@/components/loans/LoanHistoryRow";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import { formatLoanAge } from "@/utils/loans/formatLoanAge";
 import { formatLoanInterest } from "@/utils/loans/formatLoanInterest";
 import { alertFailure } from "@/utils/accounts/alertFailure";

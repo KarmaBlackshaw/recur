@@ -5,7 +5,7 @@ import { AppListRow } from "@/components/ui/AppListRow";
 import { SwipeableRow } from "@/components/ui/SwipeableRow";
 import { useLoans } from "@/context/LoanContext";
 import { categoryIcon } from "@/utils/categories";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import {
   TRANSACTION_KIND_LABEL,
   type AccountTransaction,

@@ -1,4 +1,4 @@
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 import type { TOverdraft } from "@/utils/accounts/findOverdraft";
 import type { Account } from "@/types";
 

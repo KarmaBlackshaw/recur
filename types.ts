@@ -9,11 +9,6 @@ export type Recurrence = 'monthly' | 'yearly' | 'one-off';
 export type Status = 'unpaid' | 'paid';
 export type HomeBandSlot = 'current' | 'next';
 
-export interface TOption<T> {
-  label: string;
-  value: T;
-}
-
 export interface Expense {
   id: string;
   name: string;

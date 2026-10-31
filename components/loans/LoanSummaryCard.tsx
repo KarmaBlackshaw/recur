@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { sumBy } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { AppListRow } from "@/components/ui/AppListRow";
-import { formatAmount } from "@/utils/formatAmount";
+import { formatAmount } from "@/utils/dateHelpers";
 
 export interface OwedToYou {
   total: number;

@@ -23,4 +23,5 @@ name: Add Expense — double-tap Save creates exactly one expense
 # One debit only
 - assertVisible: "Cash, cash, balance −₱100.00.*"
 - runFlow: subflows/tab-activity.yaml
+- assertVisible: "1 payment"
 - assertVisible: "Groceries, Other, from Cash, ₱100.00.*"

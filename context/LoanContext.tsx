@@ -3,12 +3,13 @@ import dayjs from "dayjs";
 import { useAsyncEffect } from "@/utils/useAsyncEffect";
 import { useMemoizedFn } from "@/utils/useMemoizedFn";
 import { round } from "@/utils/round";
+import { uniq } from "@/utils/collections";
 import {
   getAll as getAllLoans,
   insert as insertLoan,
   update as updateLoanRow,
   remove as removeLoan,
-  insertPayment,
+  insertPayments,
 } from "@/db/loans";
 import { remove as removeTransaction, updateLoanPayment } from "@/db/accountTransactions";
 import { useAccounts } from "@/context/AccountContext";
@@ -50,7 +51,7 @@ interface LoanContextValue {
   addLoan: (input: LoanInput) => Promise<void>;
   updateLoan: (id: string, input: LoanInput) => Promise<void>;
   deleteLoan: (id: string) => Promise<void>;
-  recordPayment: (p: LoanPaymentInput) => Promise<void>;
+  recordPayments: (payments: LoanPaymentInput[]) => Promise<void>;
   updatePayment: (txnId: string, p: LoanPaymentInput) => Promise<void>;
   deletePayment: (txnId: string) => Promise<void>;
   reload: () => Promise<void>;
@@ -154,22 +155,36 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     await accounts.reload();
   });
 
-  const recordPayment = useMemoizedFn(async (p: LoanPaymentInput) => {
-    const loan = state.loans.find((l) => l.id === p.loanId);
-    if (!loan) {
-      throw new Error("Loan not found");
+  const recordPayments = useMemoizedFn(async (payments: LoanPaymentInput[]) => {
+    if (payments.length === 0) {
+      throw new Error("Nothing to record");
     }
-    assertDepositAccount(p.accountId);
-    const amount = round(p.amount, 2);
-    const candidate = summarizeLoan({
-      loan,
-      payments: [...paymentsOf(p.loanId), { amount, createdAt: p.paidAt }],
-      today,
-    });
-    if (!candidate.isValid) {
-      throw new Error("Payment exceeds what's owed");
+    const loanIds = uniq(payments.map(({ loanId }) => loanId));
+    if (loanIds.length !== payments.length) {
+      throw new Error("One payment per loan");
     }
-    await insertPayment({ ...p, amount });
+    const rounded: LoanPaymentInput[] = [];
+    for (const p of payments) {
+      const loan = state.loans.find((l) => l.id === p.loanId);
+      if (!loan) {
+        throw new Error("Loan not found");
+      }
+      assertDepositAccount(p.accountId);
+      const amount = round(p.amount, 2);
+      if (amount < 0.01) {
+        throw new Error("Payment must be at least 0.01");
+      }
+      const candidate = summarizeLoan({
+        loan,
+        payments: [...paymentsOf(p.loanId), { amount, createdAt: p.paidAt }],
+        today,
+      });
+      if (!candidate.isValid) {
+        throw new Error("Payment exceeds what's owed");
+      }
+      rounded.push({ ...p, amount });
+    }
+    await insertPayments(rounded);
     await accounts.reload();
   });
 
@@ -218,7 +233,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       addLoan,
       updateLoan,
       deleteLoan,
-      recordPayment,
+      recordPayments,
       updatePayment,
       deletePayment,
       reload,

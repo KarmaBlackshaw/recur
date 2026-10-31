@@ -112,10 +112,9 @@ is a react-hook-form `Controller`; Save stays disabled until the form is valid.
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows.
 
 ### Stats (`app/stats.tsx`)
-A pushed page, not a tab, with two ways in. Home's header has a round pie-chart button, the same size as Settings and
-left of it, that opens it on the current month. The Activity hero ends with a hairline-separated 44dp link row
-(pie-chart glyph, Periwinkle label, Muted chevron) that opens it on Activity's month and Income/Expenses. Header: back
-chevron, 22px `title`, `PeriodNavigator`; no tab bar or FAB.
+A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp link row (pie-chart glyph, Periwinkle
+label, Muted chevron) that opens it on Activity's month and Income/Expenses. Header: back chevron, 22px `title`,
+`PeriodNavigator`; no tab bar or FAB.
 Underline tabs (`AppUnderlineTabs`) switch Income and Expenses and show each total, with a Periwinkle underline on the
 active one, since mint and coral stay states. The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so
 a hue says which slice is which row and never belongs to a category. Past the sixth, categories fold into one neutral

@@ -132,8 +132,8 @@ export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
-      <View className="flex-row justify-between items-start gap-3 px-5 pt-2 pb-3">
-        <View className="flex-1">
+      <View className="flex-row justify-between items-start px-5 pt-2 pb-3">
+        <View>
           <AppText variant="overline">
             {getFormattedDate().toUpperCase()}
           </AppText>
@@ -141,22 +141,14 @@ export default function HomeScreen() {
             {getGreeting(userName)}
           </AppText>
         </View>
-        <View className="flex-row gap-2">
-          <TouchableOpacity
-            className="w-11 h-11 rounded-full bg-white/[0.07] items-center justify-center"
-            onPress={() => router.push("/stats", { dangerouslySingular: true })}
-          >
-            <Feather name="pie-chart" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="w-11 h-11 rounded-full bg-white/[0.07] items-center justify-center"
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            onPress={() => router.push("/settings")}
-          >
-            <Feather name="settings" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          className="w-11 h-11 rounded-full bg-white/[0.07] items-center justify-center"
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          onPress={() => router.push("/settings")}
+        >
+          <Feather name="settings" size={18} color={colors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
       <HomeExpenseSections

@@ -21,7 +21,7 @@ interface Props {
   onPress?: () => void;
   compact?: boolean;   // ledger row under a day header: no pay toggle, caption only flags card-account status
   hideDate?: boolean;  // caption shows the status word instead of the date
-  canQuickPay?: boolean; // unpaid rows get a trailing pay circle (Home and Recurring due lists)
+  canQuickPay?: boolean; // unpaid rows get a trailing pay circle
   isSwipeHintShown?: boolean; // peek the Pay swipe once to teach it
 }
 

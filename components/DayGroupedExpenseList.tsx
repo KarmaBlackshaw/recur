@@ -19,7 +19,7 @@ export interface DayEntry {
   amount: number;
   compact?: boolean;
   hideDate?: boolean;
-  canQuickPay?: boolean;       // unpaid due rows get the trailing pay circle (Home)
+  canQuickPay?: boolean;       // Home due rows: tapping an unpaid one opens the Pay sheet
   isSwipeHintShown?: boolean;  // this row peeks its Pay swipe once
 }
 

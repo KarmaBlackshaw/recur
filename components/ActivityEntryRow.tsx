@@ -38,7 +38,6 @@ export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenExpense }:
       compact={item.compact}
       hideDate={item.hideDate}
       referenceDate={item.refDate}
-      canQuickPay={item.canQuickPay}
       isSwipeHintShown={item.isSwipeHintShown}
       onPress={onOpenExpense ? () => onOpenExpense(item) : undefined}
     />

@@ -14,26 +14,18 @@ interface Props {
 
 // Home's answer to "what do I still owe this month": the amount left, a paid-vs-total bar and what's most urgent.
 export function HomeSummary({ year, month, overdueCount, dueThisWeekCount }: Props) {
-  const { total, paid, unpaid, charged } = useMonthTotals(year, month);
+  const { total, paid, unpaid } = useMonthTotals(year, month);
   const ratio = total > 0 ? Math.min(Math.max(paid / total, 0), 1) : 0;
   const percent = Math.round(ratio * 100);
   const unpaidText = formatAmount(unpaid);
-  const spentText = `${formatAmount(paid)} of ${formatAmount(total)} spent`;
+  const paidText = `${percent}% of ${formatAmount(total)} paid`;
   const statusText =
     overdueCount > 0
       ? `${overdueCount} overdue`
       : dueThisWeekCount > 0
         ? `${dueThisWeekCount} due this week`
         : "Nothing due this week";
-  const chargedText = charged > 0 ? `${formatAmount(charged)} charged to cards` : null;
-  const accessibilityLabel = [
-    `${unpaidText} left to pay this month`,
-    `${spentText}, ${percent} percent paid`,
-    statusText,
-    chargedText,
-  ]
-    .filter(Boolean)
-    .join(". ");
+  const accessibilityLabel = [`${unpaidText} left to pay this month`, paidText, statusText].join(". ");
 
   return (
     <TouchableOpacity
@@ -58,12 +50,11 @@ export function HomeSummary({ year, month, overdueCount, dueThisWeekCount }: Pro
         <View className="h-full rounded-full bg-paid" style={{ width: `${percent}%` }} />
       </View>
       <AppText variant="meta" className="mt-2">
-        {spentText}
+        {paidText}
       </AppText>
       <AppText variant="meta" className={overdueCount > 0 ? "text-overdue" : ""}>
         {statusText}
       </AppText>
-      {chargedText ? <AppText variant="meta">{chargedText}</AppText> : null}
     </TouchableOpacity>
   );
 }

@@ -1,12 +1,12 @@
 appId: com.erniejeash.recur
-name: Home summary — left to pay, paid of total, charged to cards
+name: Home summary and month stats — left to pay, paid of total, charged to cards
 # Scenario (today after the 10th):
 #   BPI Gold (cut-off 1 / due 10): Netflix ₱549 one-off on the 1st → overdue bill ₱549, Netflix Charged
 #   Metro Card (cut-off 30 / due 31): no charges → ₱0 bill, hidden on Home
 #   Gym ₱1,000 monthly, due 28, paid from Metro Card, unpaid → in the total and left to pay
-# Expected: ₱1,549.00 left to pay · ₱0.00 of ₱1,549.00 spent · ₱549.00 charged to cards
+# Expected: ₱1,549.00 left to pay · 0% of ₱1,549.00 paid · Charged cell present
 # After marking Gym paid it leaves the total as an expense, but the Metro Card Oct bill (cut-off 30)
-# now carries ₱1,000: still ₱1,549.00 left to pay, ₱1,549.00 charged to cards
+# now carries ₱1,000: still ₱1,549.00 left to pay, ₱1,549.00 in the Charged cell
 ---
 - runFlow: subflows/launch-fresh.yaml
 - runFlow:
@@ -47,8 +47,9 @@ name: Home summary — left to pay, paid of total, charged to cards
     visible: ".*left to pay this month.*"
     timeout: 5000
 - assertVisible: "₱1,549.00 left to pay this month.*"
-- assertVisible: ".*₱0.00 of ₱1,549.00 spent.*"
-- assertVisible: ".*₱549.00 charged to cards.*"
+- assertVisible: ".*0% of ₱1,549.00 paid.*"
+- assertVisible: "Charged"
+- assertVisible: "₱549.00"
 - assertNotVisible: "Metro Card bill.*"
 
 # Mark the card expense paid → leaves the total as an expense, re-enters via the Metro Card bill
@@ -62,5 +63,6 @@ name: Home summary — left to pay, paid of total, charged to cards
     visible: ".*left to pay this month.*"
     timeout: 5000
 - assertVisible: "₱1,549.00 left to pay this month.*"
-- assertVisible: ".*₱0.00 of ₱1,549.00 spent.*"
-- assertVisible: ".*₱1,549.00 charged to cards.*"
+- assertVisible: ".*0% of ₱1,549.00 paid.*"
+- assertVisible: "Charged"
+- assertVisible: "₱1,549.00"

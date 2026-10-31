@@ -101,9 +101,17 @@ year, optional day total.
 
 ### Cards
 Only where elevation communicates hierarchy: KPI tiles, hero balances (Home's summary, Activity, loans), account
-cards, and Home's setup checklist and backup nudge.
+cards, Home's month stats, and Home's setup checklist and backup nudge.
 14dp radius (21dp for account cards), Raised Graphite or a 10% tint, 1px Hairline. Never wrap list rows
 in cards.
+
+### Month stats (`components/HomeMonthStats.tsx`)
+One Raised Graphite card under Home's summary, never separate tinted tiles. Up to four cells in two columns split by
+Hairlines: Spent, Received, Charged (only with a credit card) and Owed to you (only while someone owes you). A lone
+last cell spans the row. A cell is a 36dp tone tile (neutral, Mint for money in, Periwinkle for cards and loans, muted
+at zero), the label in Quicksand 10.5px over an Oswald 17px amount; a tap opens the matching Activity chip for the
+current month (Owed to you opens Loans). Spent, Received and Charged are the month's Paid, Income and Charged totals
+from Activity; Owed to you is a standing balance.
 
 ### Buttons (`AppButton`)
 Primary: Indigo fill, Ink label. Tonal: Indigo 15% with a Periwinkle label. Ghost: Hairline outline.
@@ -159,9 +167,10 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Scroll views keep 140dp of bottom padding so the floating tab bar never covers the last row.
 - Touch targets are at least 44dp.
 - Money lists sort by date. Home opens on a summary card (left to pay this month, a paid-of-total bar, the overdue
-  count), then Overdue, this month, and next month once it is at most 7 days away. A single "Owed to you" row sits
-  between the due bands and Recent activity, which ends with "All activity". New users get a three-step "Get started"
-  checklist; a backup nudge appears when the last backup is over 30 days old.
+  count) and a month stats card under it, then Overdue, this month, and next month once it is at most 7 days away,
+  then Recent activity, which ends with "All activity". New users get a three-step "Get started" checklist, shown in
+  place of the stats card until they have three expenses; a backup nudge appears when the last backup is over 30 days
+  old.
 - Home Overdue also lists unpaid dues and card bills from the last 3 months; their caption keeps counting "N days late".
 - The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)

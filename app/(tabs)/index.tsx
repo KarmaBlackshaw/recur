@@ -8,9 +8,9 @@ import { range, sortBy, sumBy } from "@/utils/collections";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { HomeSummary } from "@/components/HomeSummary";
+import { HomeMonthStats } from "@/components/HomeMonthStats";
 import { SetupChecklist, useSetupChecklist } from "@/components/SetupChecklist";
 import { BackupNudge } from "@/components/BackupNudge";
-import { LoanSummaryCard, useOwedToYou } from "@/components/loans/LoanSummaryCard";
 import { type DayEntry } from "@/components/DayGroupedExpenseList";
 import { HomeExpenseSections, type HomeEntry, type UpcomingBand } from "@/components/HomeExpenseSections";
 import { EmptyState } from "@/components/EmptyState";
@@ -18,6 +18,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { isOverdueOn, hasCycleIn, getDueDateForMonth, getGreeting } from "@/utils/dateHelpers";
 import { useActivityFeed } from "@/utils/useActivityFeed";
+import { useOwedToYou } from "@/utils/useOwedToYou";
 import { useLingeringEntries } from "@/utils/useLingeringEntries";
 import { openCardBills } from "@/utils/cardBills";
 import { monthKey } from "@/utils/monthKey";
@@ -196,11 +197,12 @@ export default function HomeScreen() {
 
   const hasExpenses = expenses.length > 0;
   // Mirrors the sections HomeExpenseSections builds: with none, the list shows its empty state instead.
-  const hasListContent = overdue.length > 0 || upcoming.length > 0 || owed != null || recentActivity.length > 0;
+  const hasListContent = overdue.length > 0 || upcoming.length > 0 || recentActivity.length > 0;
   const isSummaryShown = hasExpenses || openBills.length > 0;
   // With nothing listed yet the checklist is Home's empty state. It stays under the summary only while someone is
   // still setting up, so it never pushes an established user's due list down.
   const isChecklistInHeader = setup.isShown && (hasExpenses || hasListContent) && expenses.length < SETUP_EXPENSE_LIMIT;
+  const isMonthStatsShown = !isChecklistInHeader && (isSummaryShown || recentActivity.length > 0 || owed != null);
 
   if (loading) {
     return (
@@ -239,13 +241,13 @@ export default function HomeScreen() {
         recentActivity={recentActivity}
         collapsedSlots={collapsedHomeBands}
         onToggleSlot={toggleHomeBand}
-        afterDue={owed ? <LoanSummaryCard total={owed.total} people={owed.people} /> : undefined}
         refreshControl={refreshControl}
         ListHeaderComponent={
           <View>
             {isSummaryShown ? (
               <HomeSummary year={year} month={month} overdueCount={overdueCount} dueThisWeekCount={dueThisWeekCount} />
             ) : null}
+            {isMonthStatsShown ? <HomeMonthStats year={year} month={month} feed={feed} owed={owed} /> : null}
             {isChecklistInHeader ? (
               <SetupChecklist steps={setup.steps} hasExpenses={hasExpenses} onDismiss={setup.dismiss} />
             ) : null}

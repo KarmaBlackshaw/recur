@@ -1,32 +1,31 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { useBoolean } from "@/utils/useBoolean";
 import { maxBy, orderBy, uniqBy } from "@/utils/collections";
-import { View, TouchableOpacity, Alert, TextInput } from "react-native";
+import { View, Alert, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import Feather from "@expo/vector-icons/Feather";
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDateField } from "@/components/ui/AppDateField";
+import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
+import { AppSelectField } from "@/components/ui/AppSelectField";
 import { AppText } from "@/components/ui/AppText";
-import { AppLabel } from "@/components/ui/AppLabel";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppCombobox } from "@/components/ui/AppCombobox";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
-import { colors } from "@/constants/theme";
 import { sanitizeAmount } from "@/utils/amountInput";
 import { formatAmount } from "@/utils/dateHelpers";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
+import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import {
   LOAN_INTEREST_TYPE_LABEL,
   type Loan,
@@ -63,6 +62,40 @@ function isMonthly(type: TLoanInterestType) {
   return type === "monthly_principal" || type === "monthly_balance";
 }
 
+function validateBorrower(value: string) {
+  return value.trim().length > 0 || "Enter who you lent to";
+}
+
+function validateAmount(value: string) {
+  const n = parseFloat(value);
+  return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
+}
+
+function validateInterestValue(value: string, { interestType }: Pick<LoanFormValues, "interestType">) {
+  const n = parseFloat(value);
+  if (interestType === "none") {
+    return true;
+  }
+  if (interestType === "fixed") {
+    return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
+  }
+  return (!isNaN(n) && n > 0) || "Enter a rate above 0";
+}
+
+// Names the first field that still blocks saving, since errors only show once a field was touched.
+function saveHintOf(values: LoanFormValues) {
+  if (validateBorrower(values.borrower) !== true) {
+    return "Enter a borrower to save";
+  }
+  if (validateAmount(values.amount) !== true) {
+    return "Enter an amount to save";
+  }
+  if (validateInterestValue(values.interestValue, values) !== true) {
+    return values.interestType === "fixed" ? "Enter the interest amount to save" : "Enter a rate to save";
+  }
+  return undefined;
+}
+
 function toLoanInput(values: LoanFormValues): LoanInput | undefined {
   const principal = parseFloat(values.amount);
   const parsedValue = parseFloat(values.interestValue);
@@ -81,15 +114,16 @@ function toLoanInput(values: LoanFormValues): LoanInput | undefined {
 }
 
 export default function AddLoanScreen() {
-  const { id, borrower } = useLocalSearchParams<{ id?: string; borrower?: string }>();
+  const { id, borrower: borrowerParam } = useLocalSearchParams<{ id?: string; borrower?: string }>();
   const loans = useLoans();
   const accounts = useAccounts();
   const editing = id ? loans.loans.find((l) => l.id === id) : undefined;
   const isEditing = editing != null;
+  // "New loan" from a borrower's screen arrives with their name filled in.
+  const prefilledBorrower = id ? "" : (borrowerParam?.trim() ?? "");
   const isLoading = loans.isLoading || accounts.isLoading;
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const amountRef = useRef<TextInput>(null);
-  const [isDatePickerOpen, datePicker] = useBoolean();
 
   const depositAccounts = accounts.activeAccounts.filter((a) => a.type !== "credit");
 
@@ -108,7 +142,7 @@ export default function AddLoanScreen() {
     }
     const lastAccountId = maxBy(loans.loans, "lentAt")?.accountId;
     return {
-      borrower: borrower ?? "",
+      borrower: prefilledBorrower,
       amount: "",
       accountId: depositAccounts.find((a) => a.id === lastAccountId)?.id ?? CASH_ACCOUNT_ID,
       lentAt: dayjs().startOf("day").toISOString(),
@@ -120,17 +154,18 @@ export default function AddLoanScreen() {
 
   const {
     control,
+    getValues,
     handleSubmit,
     reset,
     setValue,
-    getValues,
     trigger,
     watch,
-    formState: { isValid, isSubmitting, errors },
+    formState: { isValid, isSubmitting, isDirty },
   } = useForm<LoanFormValues>({
     mode: "onChange",
     defaultValues: toFormValues(editing),
   });
+  const { allowLeave } = useDiscardGuard(isDirty);
 
   useEffect(() => {
     if (!isLoading) {
@@ -194,7 +229,7 @@ export default function AddLoanScreen() {
       } else {
         await loans.addLoan(input);
       }
-      reset();
+      allowLeave();
       router.back();
     } catch (error) {
       console.error(error);
@@ -220,6 +255,7 @@ export default function AddLoanScreen() {
         onPress: async () => {
           try {
             await loans.deleteLoan(id);
+            allowLeave();
             router.dismissTo("/loans");
           } catch (error) {
             console.error(error);
@@ -228,13 +264,6 @@ export default function AddLoanScreen() {
         },
       },
     ]);
-  }
-
-  function handleLentDateChange(event: DateTimePickerEvent, date?: Date) {
-    datePicker.setFalse();
-    if (event.type === "set" && date) {
-      setValue("lentAt", dayjs(date).startOf("day").toISOString(), { shouldValidate: true, shouldDirty: true });
-    }
   }
 
   function handleInterestTypeChange(type: TLoanInterestType) {
@@ -250,37 +279,27 @@ export default function AddLoanScreen() {
   }
 
   function pickBorrower(name: string) {
-    setValue("borrower", name, { shouldValidate: true });
+    setValue("borrower", name, { shouldValidate: true, shouldDirty: true });
     focusAmount();
   }
 
-  const saveHint = Object.keys(errors).length
-    ? "Fix the highlighted fields to save"
-    : "Fill in the required fields to save";
+  const saveHint = isValid ? undefined : saveHintOf(values);
+  const isSaveDisabled = !isValid || !isCandidateValid || isLoading;
 
   const interestHelp = INTEREST_HELP[values.interestType];
 
-  function handleCancel() {
-    reset();
-    router.back();
-  }
-
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity
-          onPress={handleCancel}
-          className="w-11 h-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Feather name="chevron-left" size={24} color={colors.secondary} />
-        </TouchableOpacity>
-        <AppText variant="title" className="flex-1 text-center" numberOfLines={1} adjustsFontSizeToFit>
-          {isEditing ? "Edit loan" : "New loan"}
-        </AppText>
-        <View className="w-11" />
-      </View>
+      <AppFormHeader
+        title={isEditing ? "Edit loan" : "New loan"}
+        action={{
+          label: "Save",
+          onPress: onSubmit,
+          isDisabled: isSaveDisabled,
+          isLoading: isSubmitting,
+          accessibilityHint: saveHint,
+        }}
+      />
 
       <AppFormScrollView
         contentContainerClassName="px-5 pb-5"
@@ -292,11 +311,11 @@ export default function AddLoanScreen() {
           name="borrower"
           rules={{
             required: "Enter who you lent to",
-            validate: (v) => v.trim().length > 0 || "Enter who you lent to",
+            validate: validateBorrower,
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (
             <AppCombobox
-              autoFocus={!isEditing && !borrower}
+              autoFocus={!isEditing && prefilledBorrower === ""}
               label="Borrower"
               items={borrowerNames}
               onPick={pickBorrower}
@@ -307,7 +326,7 @@ export default function AddLoanScreen() {
               returnKeyType="next"
               submitBehavior="submit"
               onSubmitEditing={focusAmount}
-              error={fieldState.error?.message}
+              error={fieldState.isTouched ? fieldState.error?.message : undefined}
             />
           )}
         />
@@ -318,9 +337,9 @@ export default function AddLoanScreen() {
           rules={{
             required: true,
             validate: (v) => {
-              const n = parseFloat(v);
-              if (isNaN(n) || n < 0.01) {
-                return "Must be ≥ 0.01";
+              const valid = validateAmount(v);
+              if (valid !== true) {
+                return valid;
               }
               return amountOverdraft(v)?.message ?? true;
             },
@@ -329,66 +348,37 @@ export default function AddLoanScreen() {
             <>
               <AppTextInput
                 ref={amountRef}
-                autoFocus={!isEditing && borrower != null}
+                autoFocus={!isEditing && prefilledBorrower !== ""}
                 label="Amount (₱)"
                 isAmount
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
                 placeholder="0.00"
-                error={fieldState.error?.message}
+                error={fieldState.isTouched || amountOverdraft(value) ? fieldState.error?.message : undefined}
               />
               <TransferInButton fieldError={fieldState.error?.message} overdraft={amountOverdraft(value)} />
             </>
           )}
         />
 
-        <AppLabel>From account</AppLabel>
         <Controller
           control={control}
           name="accountId"
-          render={({ field: { value } }) => {
-            const accountName = accounts.accounts.find((a) => a.id === value)?.name ?? "Deleted account";
-            return (
-              <TouchableOpacity
-                className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
-                onPress={() => accountSheetRef.current?.present()}
-                accessibilityRole="button"
-                accessibilityLabel={`From account, ${accountName}`}
-              >
-                <AppText variant="body-medium" className="text-white text-base">{accountName}</AppText>
-                <Feather name="chevron-right" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-            );
-          }}
+          render={({ field: { value } }) => (
+            <AppSelectField
+              label="From account"
+              value={accounts.accounts.find((a) => a.id === value)?.name ?? "Deleted account"}
+              onPress={() => accountSheetRef.current?.present()}
+            />
+          )}
         />
 
         <Controller
           control={control}
           name="lentAt"
-          render={({ field: { value } }) => (
-            <>
-              <AppLabel>Lent on</AppLabel>
-              <TouchableOpacity
-                className="bg-surface border border-border rounded-[10px] px-4 py-4 flex-row items-center justify-between mb-1"
-                onPress={datePicker.setTrue}
-                accessibilityRole="button"
-                accessibilityLabel={`Lent on, ${dayjs(value).format("MMM D, YYYY")}`}
-              >
-                <AppText variant="body-medium" className="text-white text-base">
-                  {dayjs(value).format("MMM D, YYYY")}
-                </AppText>
-                <Feather name="calendar" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-              {isDatePickerOpen && (
-                <DateTimePicker
-                  value={dayjs(value).toDate()}
-                  mode="date"
-                  maximumDate={new Date()}
-                  onChange={handleLentDateChange}
-                />
-              )}
-            </>
+          render={({ field: { value, onChange } }) => (
+            <AppDateField label="Lent on" value={value} onChange={onChange} maximumDate={new Date()} />
           )}
         />
 
@@ -412,19 +402,7 @@ export default function AddLoanScreen() {
           <Controller
             control={control}
             name="interestValue"
-            rules={{
-              validate: (v) => {
-                const type = getValues("interestType");
-                const n = parseFloat(v);
-                if (type === "none") {
-                  return true;
-                }
-                if (type === "fixed") {
-                  return (!isNaN(n) && n >= 0.01) || "Must be ≥ 0.01";
-                }
-                return (!isNaN(n) && n > 0) || "Enter a rate above 0";
-              },
-            }}
+            rules={{ validate: validateInterestValue }}
             render={({ field: { value, onChange, onBlur }, fieldState }) =>
               values.interestType === "fixed" ? (
                 <AppTextInput
@@ -434,7 +412,7 @@ export default function AddLoanScreen() {
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder="0.00"
-                  error={fieldState.error?.message}
+                  error={fieldState.isTouched ? fieldState.error?.message : undefined}
                 />
               ) : (
                 <AppTextInput
@@ -444,7 +422,7 @@ export default function AddLoanScreen() {
                   onChangeText={(t) => onChange(sanitizeAmount(t))}
                   onBlur={onBlur}
                   placeholder="0"
-                  error={fieldState.error?.message}
+                  error={fieldState.isTouched ? fieldState.error?.message : undefined}
                 />
               )
             }
@@ -478,12 +456,12 @@ export default function AddLoanScreen() {
         <AppButton
           label={isEditing ? "Save changes" : "Save loan"}
           onPress={onSubmit}
-          disabled={!isValid || !isCandidateValid || isLoading}
+          disabled={isSaveDisabled}
           loading={isSubmitting}
-          accessibilityHint={isValid ? undefined : saveHint}
+          accessibilityHint={saveHint}
           className="mt-4"
         />
-        {!isValid && (
+        {saveHint && (
           <AppText variant="meta" className="text-center mt-2">{saveHint}</AppText>
         )}
         {isEditing && (

@@ -13,8 +13,8 @@
 #   AVD=Pixel_6 expo-wt      # AVD to boot when no device is attached (default: first AVD)
 #   expo-wt --ios            # same, for the iOS Simulator (booted one, else the first iPhone)
 #   SIM="iPhone 17 Pro" expo-wt --ios  # pick the simulator by name or UDID
-# One emulator: the last worktree you run is the one you see.
-# One emulator per worktree: `emulator -avd <avd> -read-only &`, then `-s <serial>`.
+# One emulator: expo-wt quits every other one, headless (-no-window) ones included, and keeps the first
+# with a window (or the one named with -s). The last worktree you run is the one you see.
 # Needs a debuggable (debug) build: the pref is written with `run-as`.
 # iOS needs the debug app installed once: `npx expo run:ios -d "<simulator>"`. Its prebuilt React Native
 # ignores the build-time port, so expo-wt sets the "Configure Bundler" location (RCT_jsLocation) instead.
@@ -95,6 +95,40 @@ fi
 
 ADB=$(command -v adb || echo /opt/homebrew/share/android-commandlinetools/platform-tools/adb)
 PKG=$(node -p "require('$ROOT/app.json').expo.android.package")
+
+emulator_serial() {
+  lsof -nP -a -p "$1" -iTCP -sTCP:LISTEN -Fn 2>/dev/null | sed -nE 's/^n.*:(5[5-6][0-9]{2})$/\1/p' | sort -n | head -1 | sed 's/^/emulator-/'
+}
+
+is_headless() {
+  ps -o command= -p "$1" | grep -q -- ' -no-window'
+}
+
+if ! $IOS && [[ -z "$SERIAL" || "$SERIAL" == emulator-* ]]; then
+  KEEP=""
+  QUIT=""
+  # adb misses emulators on ports above 5585 once its server restarts, so list the processes instead.
+  for pid in $(pgrep -u "$(id -u)" qemu-system || true); do
+    if [ -z "$KEEP" ] && ! is_headless "$pid" && [[ -z "$SERIAL" || "$(emulator_serial "$pid")" == "$SERIAL" ]]; then
+      KEEP=$pid
+    else
+      QUIT="$QUIT $pid"
+    fi
+  done
+  if [ -n "$SERIAL" ] && [ -z "$KEEP" ]; then
+    echo "expo-wt: $SERIAL isn't a running emulator with a window" >&2
+    exit 1
+  fi
+  for pid in $QUIT; do
+    echo "expo-wt: quitting emulator $(emulator_serial "$pid")"
+    kill "$pid"
+  done
+  for pid in $QUIT; do
+    while kill -0 "$pid" 2>/dev/null; do
+      sleep 1
+    done
+  done
+fi
 
 if ! $IOS && [ -z "$SERIAL" ]; then
   DEVICES=$("$ADB" devices | awk 'NR>1 && $2=="device" {print $1}')

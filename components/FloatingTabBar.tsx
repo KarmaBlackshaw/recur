@@ -22,16 +22,17 @@ const FAB_TYPE: Record<string, "regular" | "recurring"> = {
   index: "regular",
   expenses: "regular",
   recurring: "recurring",
-  accounts: "regular",
 };
 
-type QuickAction = "expense" | "income" | "transfer" | "loan";
+type QuickAction = "expense" | "recurring" | "income" | "transfer" | "loan";
 
+// Listed top to bottom; the most common sits nearest the thumb.
 const QUICK_ACTIONS: { key: QuickAction; label: string; icon: FeatherIconName }[] = [
+  { key: "loan", label: "New loan", icon: "users" },
   { key: "transfer", label: "Transfer", icon: "repeat" },
   { key: "income", label: "New income", icon: "arrow-down-left" },
+  { key: "recurring", label: "New recurring bill", icon: "refresh-cw" },
   { key: "expense", label: "New expense", icon: "arrow-up-right" },
-  { key: "loan", label: "New loan", icon: "users" },
 ];
 
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
@@ -57,6 +58,9 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
     if (activeName === "loans") {
       return "Add loan";
     }
+    if (activeName === "accounts") {
+      return "Add account";
+    }
     if (isIncomeSegment) {
       return "Add income";
     }
@@ -67,6 +71,10 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   function handleAdd() {
     if (activeName === "loans") {
       router.push("/loan/add");
+      return;
+    }
+    if (activeName === "accounts") {
+      router.push("/account/edit");
       return;
     }
     if (isIncomeSegment) {
@@ -80,6 +88,10 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
     setIsMenuOpen(false);
     if (action === "expense") {
       router.push("/expense/add?type=regular");
+      return;
+    }
+    if (action === "recurring") {
+      router.push("/expense/add?type=recurring");
       return;
     }
     if (action === "income") {

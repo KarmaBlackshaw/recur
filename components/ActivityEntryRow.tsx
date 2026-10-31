@@ -1,5 +1,4 @@
 import React from "react";
-import { router } from "expo-router";
 import { ExpenseCard } from "@/components/ExpenseCard";
 import { BillPaymentRow } from "@/components/accounts/BillPaymentRow";
 import { IncomeRow } from "@/components/accounts/IncomeRow";
@@ -7,13 +6,15 @@ import { InterestRow } from "@/components/accounts/InterestRow";
 import { TransferRow } from "@/components/accounts/TransferRow";
 import { LoanActivityRow } from "@/components/loans/LoanActivityRow";
 import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
+import type { AccountTransaction } from "@/types";
 
 interface Props {
   item: ActivityEntry;
   index: number;
+  onOpenTransfer: (transfer: AccountTransaction) => void;
 }
 
-export function ActivityEntryRow({ item, index }: Props) {
+export function ActivityEntryRow({ item, index, onOpenTransfer }: Props) {
   if ("income" in item) {
     return <IncomeRow entry={item} />;
   }
@@ -21,13 +22,13 @@ export function ActivityEntryRow({ item, index }: Props) {
     return <InterestRow entry={item} />;
   }
   if ("transfer" in item) {
-    return <TransferRow entry={item} />;
+    return <TransferRow entry={item} onPress={() => onOpenTransfer(item.transfer)} />;
   }
   if ("loanTxn" in item) {
     return <LoanActivityRow entry={item} />;
   }
   if ("payment" in item) {
-    return <BillPaymentRow entry={item} />;
+    return <BillPaymentRow entry={item} onPress={() => onOpenTransfer(item.payment)} />;
   }
   return (
     <ExpenseCard
@@ -36,16 +37,8 @@ export function ActivityEntryRow({ item, index }: Props) {
       compact={item.compact}
       hideDate={item.hideDate}
       referenceDate={item.refDate}
-      onPress={() =>
-        router.push({
-          pathname: "/expense/add",
-          params: {
-            id: item.expense.id,
-            year: item.refDate.getFullYear(),
-            month: item.refDate.getMonth(),
-          },
-        })
-      }
+      canQuickPay={item.canQuickPay}
+      isSwipeHintShown={item.isSwipeHintShown}
     />
   );
 }

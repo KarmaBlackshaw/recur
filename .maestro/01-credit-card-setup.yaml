@@ -15,55 +15,45 @@ name: Credit card setup — cut-off/due required, 30/31 accepted
 - hideKeyboard
 - tapOn: "Credit card"
 - scrollUntilVisible:
-    element: "Due day.*"
+    element: "Due day, .*"
     direction: DOWN
-# No days yet → Save disabled
+# No days yet → Save disabled, and the hint names both missing days
 - scrollUntilVisible:
-    element: "Save Account"
+    element: "Save account"
     direction: DOWN
 - assertVisible:
-    text: "Save Account"
+    text: "Save account"
     enabled: false
-- assertVisible: "Fill in the required fields to save"
+- assertVisible: "Pick a cut-off day and due day to save"
 # Cut-off only → still disabled
 - scrollUntilVisible:
-    element: "Cut-off day.*"
+    element: "Cut-off day, .*"
     direction: UP
-- tapOn:
-    text: "Cut-off day.*"
-    index: 1
-- inputText: "25"
-- hideKeyboard
+- tapOn: "Cut-off day, .*"
+- tapOn: "The 25th"
+- waitForAnimationToEnd
 - scrollUntilVisible:
-    element: "Save Account"
+    element: "Save account"
     direction: DOWN
 - assertVisible:
-    text: "Save Account"
+    text: "Save account"
     enabled: false
-# Out-of-range due day rejected
+- assertVisible: "Pick a due day to save"
+# Days come from a 1–31 grid, so an out-of-range day can't be entered
 - scrollUntilVisible:
-    element: "Due day.*"
+    element: "Due day, .*"
     direction: UP
-- tapOn:
-    text: "Due day.*"
-    index: 1
-- inputText: "32"
-- hideKeyboard
-- assertVisible: "Must be 1–31"
-- tapOn:
-    text: "Due day.*"
-    index: 1
-- eraseText: 2
-- inputText: "15"
-- hideKeyboard
-- assertNotVisible: "Must be 1–31"
+- tapOn: "Due day, .*"
+- assertNotVisible: "The 32nd"
+- tapOn: "The 15th"
+- waitForAnimationToEnd
 - scrollUntilVisible:
-    element: "Save Account"
+    element: "Save account"
     direction: DOWN
 - assertVisible:
-    text: "Save Account"
+    text: "Save account"
     enabled: true
-- tapOn: "Save Account"
+- tapOn: "Save account"
 - extendedWaitUntil:
     visible: "NET WORTH"
     timeout: 10000

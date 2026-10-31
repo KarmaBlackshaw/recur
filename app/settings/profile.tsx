@@ -2,13 +2,12 @@ import React, { useEffect } from "react";
 import { View, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import Feather from "@expo/vector-icons/Feather";
 import { useForm, Controller } from "react-hook-form";
+import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { useExpenses } from "@/context/ExpenseContext";
 import * as preferencesDB from "@/db/preferences";
-import { colors } from "@/constants/theme";
 
 interface FormValues {
   name: string;
@@ -43,21 +42,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {/* Header */}
-      <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity
-          className="w-11 h-11 items-center justify-center"
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Feather name="chevron-left" size={24} color={colors.secondary} />
-        </TouchableOpacity>
-        <AppText variant="heading" className="flex-1 text-center text-white text-xl">
-          Profile
-        </AppText>
-        <View className="w-11" />
-      </View>
+      <AppFormHeader title="Profile" />
 
       <ScrollView
         contentContainerClassName="px-4 pb-10"
@@ -70,7 +55,7 @@ export default function ProfileScreen() {
 
         <View className="bg-surface border border-border rounded-2xl overflow-hidden mb-6 px-4 py-4">
           <AppLabel>
-            Your Name
+            Your name
           </AppLabel>
 
           <Controller

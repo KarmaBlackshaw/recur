@@ -73,10 +73,6 @@ export function getGreeting(name?: string | null): string {
   return name ? `${salutation}, ${name}` : salutation;
 }
 
-export function getFormattedDate(): string {
-  return dayjs().format("dddd, MMM D");
-}
-
 export function formatAmount(amount: number): string {
   return "₱" + amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -100,6 +96,16 @@ export function isEndedOn(
 
 export function formatMonth(year: number, month: number): string {
   return dayjs(new Date(year, month, 1)).format("MMM YYYY");
+}
+
+// 1 → "1st", 2 → "2nd", 11 → "11th", 22 → "22nd".
+export function formatOrdinal(n: number): string {
+  const lastTwo = n % 100;
+  if (lastTwo >= 11 && lastTwo <= 13) {
+    return `${n}th`;
+  }
+  const suffix: Record<number, string> = { 1: "st", 2: "nd", 3: "rd" };
+  return `${n}${suffix[n % 10] ?? "th"}`;
 }
 
 type CyclePlan = Pick<Expense, "recurrence" | "startYear" | "startMonth" | "endYear" | "endMonth">;

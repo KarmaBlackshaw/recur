@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { SectionList, Text, TouchableOpacity, View } from "react-native";
+import { SectionList, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
@@ -9,6 +9,7 @@ import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFab } from "@/components/ui/AppFab";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LoanRow } from "@/components/loans/LoanRow";
@@ -16,6 +17,11 @@ import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { Loan } from "@/types";
+
+// The header already names the borrower, so rows say which loan: its note, else what was lent and when.
+function loanTitle({ note, principal, lentAt }: Loan) {
+  return note?.trim() || `${formatAmount(principal)} · ${dayjs(lentAt).format("MMM D")}`;
+}
 
 export default function BorrowerLoansScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
@@ -65,6 +71,14 @@ export default function BorrowerLoansScreen() {
     { title: "Settled", data: settled },
   ].filter(({ data }) => data.length > 0);
 
+  function recordPayment() {
+    if (active.length === 1) {
+      router.push({ pathname: "/loan/pay", params: { id: active[0].id } });
+      return;
+    }
+    router.push({ pathname: "/loan/pay", params: { borrower: name } });
+  }
+
   function renderItem({ item }: { item: Loan }) {
     const summary = loans.summaries[item.id];
     if (!summary) {
@@ -76,6 +90,7 @@ export default function BorrowerLoansScreen() {
         summary={summary}
         accountName={accounts.accounts.find(({ id }) => id === item.accountId)?.name}
         today={today}
+        title={loanTitle(item)}
         onPress={() => router.push({ pathname: "/loan/[id]", params: { id: item.id } })}
       />
     );
@@ -83,20 +98,7 @@ export default function BorrowerLoansScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center px-3 pt-2 pb-3">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="w-11 h-11 items-center justify-center"
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Feather name="chevron-left" size={24} color={colors.secondary} />
-        </TouchableOpacity>
-        <View className="flex-1 items-center">
-          <AppText variant="title" numberOfLines={1}>{name}</AppText>
-        </View>
-        <View className="w-11 h-11" />
-      </View>
+      <AppFormHeader title={name} />
 
       <SectionList
         sections={sections}
@@ -105,23 +107,26 @@ export default function BorrowerLoansScreen() {
         contentContainerClassName="pb-[96px]"
         refreshControl={refreshControl}
         ListHeaderComponent={
-          <View
-            className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}
-            accessible
-            accessibilityLabel={`${hero.overline} ${formatAmount(heroAmount)}. ${meta}`}
-          >
-            <AppText variant="overline">{hero.overline}</AppText>
-            <Text
-              className={`text-[32px] font-oswald-medium mt-1 ${hero.amount}`}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-              maxFontSizeMultiplier={1.4}
+          <>
+            <View
+              className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}
+              accessible
+              accessibilityLabel={`${hero.overline} ${formatAmount(heroAmount)}. ${meta}`}
             >
-              {formatAmount(heroAmount)}
-            </Text>
-            <AppText variant="meta">{meta}</AppText>
-          </View>
+              <AppText variant="overline">{hero.overline}</AppText>
+              <Text
+                className={`text-[32px] font-oswald-medium mt-1 ${hero.amount}`}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                maxFontSizeMultiplier={1.4}
+              >
+                {formatAmount(heroAmount)}
+              </Text>
+              <AppText variant="meta">{meta}</AppText>
+            </View>
+            {!isAllSettled && <AppButton label="Record payment" className="mx-5 mt-3" onPress={recordPayment} />}
+          </>
         }
         renderSectionHeader={({ section }) => (
           <AppText variant="meta" className="px-5 pt-4 pb-1 text-textMuted" accessibilityRole="header">

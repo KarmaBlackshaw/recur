@@ -141,6 +141,19 @@ npm run ios        # iOS simulator
 npm run android    # Android emulator
 ```
 
+#### Several checkouts on Android
+
+```bash
+npm run start:wt                       # this checkout's Metro, on this checkout's own emulator
+npm run start:wt -- -s R5CT30ABCDE     # on another device instead (a phone, or any emulator serial)
+adb -s $(npm run -s start:wt -- --print-serial) logcat   # adb on this checkout's emulator
+npm run start:wt -- --prune            # delete the emulators of checkouts that are gone
+```
+
+Each checkout runs Metro on its own port and owns one emulator, `recur_wt_<checkout>`. The first run clones it
+from your first AVD (or `AVD=<name>`), app and data included, so later runs only boot or reuse it, and other
+checkouts' emulators are left alone.
+
 #### iOS Simulator
 
 Needs Xcode (with an iOS simulator runtime) and CocoaPods.

@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
-# Run this worktree's Metro on its own port and point an Android device at it.
+# Run this worktree's Metro on its own port and point this worktree's own Android emulator at it.
 # A debug APK loads from the dev-server port baked in at build time (emulator:
 # 10.0.2.2:<port>), so whichever worktree's Metro holds that port wins.
 # expo-wt gives each worktree a stable port (hashed from its path, 8082–8099)
 # and sets the app's debug_http_host pref (dev menu "Change bundle location").
+# Each worktree owns one emulator, the AVD <repo>_wt_<worktree> (e.g. recur_wt_auk, shown in its window title).
+# The first run clones it from $AVD, app and data included; later runs boot it or reuse it. Other emulators
+# are never touched, so several worktrees run side by side.
 # Usage (from anywhere inside an Expo worktree):
-#   expo-wt                  # start Metro on this worktree's port, wire + restart the app
+#   expo-wt                  # start Metro on this worktree's port, wire + restart the app on its emulator
 #   expo-wt -c               # extra args go to `expo start` (-c = clear cache)
-#   expo-wt -s emulator-5556 # pick the device when several are attached
+#   expo-wt -s R5CT30ABCDE   # use another device instead (a phone, or any emulator serial)
 #   expo-wt --attach         # Metro already running here: only re-wire + restart
 #   expo-wt --port           # print this worktree's port and exit
-#   AVD=Pixel_6 expo-wt      # AVD to boot when no device is attached (default: first AVD)
+#   expo-wt --print-serial   # print this worktree's emulator serial (for adb -s) and exit
+#   expo-wt --prune          # delete the emulators of worktrees that no longer exist
+#   AVD=Pixel_6 expo-wt      # AVD a new worktree emulator is cloned from (default: first non-worktree AVD)
 #   expo-wt --ios            # same, for the iOS Simulator (booted one, else the first iPhone)
 #   SIM="iPhone 17 Pro" expo-wt --ios  # pick the simulator by name or UDID
-# One emulator: expo-wt quits every other one, headless (-no-window) ones included, and keeps the first
-# with a window (or the one named with -s). The last worktree you run is the one you see.
 # Needs a debuggable (debug) build: the pref is written with `run-as`.
 # iOS needs the debug app installed once: `npx expo run:ios -d "<simulator>"`. Its prebuilt React Native
 # ignores the build-time port, so expo-wt sets the "Configure Bundler" location (RCT_jsLocation) instead.
@@ -24,15 +27,19 @@ SERIAL="${ANDROID_SERIAL:-}"
 IOS=false
 ATTACH=false
 PRINT_PORT=false
+PRINT_SERIAL=false
+PRUNE=false
 EXPO_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    -s|--serial) SERIAL="$2"; shift ;;
-    --ios)       IOS=true ;;
-    --attach)    ATTACH=true ;;
-    --port)      PRINT_PORT=true ;;
-    -h|--help)   grep '^#' "$0" | sed -n '2,20p' | cut -c3-; exit 0 ;;
-    *)           EXPO_ARGS+=("$1") ;;
+    -s|--serial)    SERIAL="$2"; shift ;;
+    --ios)          IOS=true ;;
+    --attach)       ATTACH=true ;;
+    --port)         PRINT_PORT=true ;;
+    --print-serial) PRINT_SERIAL=true ;;
+    --prune)        PRUNE=true ;;
+    -h|--help)      grep '^#' "$0" | sed -n '2,23p' | cut -c3-; exit 0 ;;
+    *)              EXPO_ARGS+=("$1") ;;
   esac
   shift
 done
@@ -100,64 +107,131 @@ emulator_serial() {
   lsof -nP -a -p "$1" -iTCP -sTCP:LISTEN -Fn 2>/dev/null | sed -nE 's/^n.*:(5[5-6][0-9]{2})$/\1/p' | sort -n | head -1 | sed 's/^/emulator-/'
 }
 
-is_headless() {
-  ps -o command= -p "$1" | grep -q -- ' -no-window'
+EMULATOR=$(command -v emulator || echo /opt/homebrew/share/android-commandlinetools/emulator/emulator)
+AVD_HOME="${ANDROID_AVD_HOME:-${ANDROID_USER_HOME:-$HOME/.android}/avd}"
+REPO=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
+AVD_PREFIX="${REPO//[^A-Za-z0-9._-]/_}_wt_"
+
+avd_name() {
+  local base
+  base=$(basename "$1")
+  echo "$AVD_PREFIX${base//[^A-Za-z0-9._-]/_}"
 }
 
-if ! $IOS && [[ -z "$SERIAL" || "$SERIAL" == emulator-* ]]; then
-  KEEP=""
-  QUIT=""
-  # adb misses emulators on ports above 5585 once its server restarts, so list the processes instead.
+OWN_AVD=$(avd_name "$ROOT")
+
+# adb misses emulators on ports above 5585 once its server restarts, so find them by process.
+avd_pids() {
+  local pid
   for pid in $(pgrep -u "$(id -u)" qemu-system || true); do
-    if [ -z "$KEEP" ] && ! is_headless "$pid" && [[ -z "$SERIAL" || "$(emulator_serial "$pid")" == "$SERIAL" ]]; then
-      KEEP=$pid
-    else
-      QUIT="$QUIT $pid"
+    if [[ " $(ps -o command= -p "$pid") " == *" -avd $1 "* ]]; then
+      echo "$pid"
     fi
   done
-  if [ -n "$SERIAL" ] && [ -z "$KEEP" ]; then
-    echo "expo-wt: $SERIAL isn't a running emulator with a window" >&2
+}
+
+own_pid() {
+  local pids
+  pids=$(avd_pids "$OWN_AVD")
+  echo "${pids%%$'\n'*}"
+}
+
+clone_avd() {
+  local base pid tmp="$AVD_HOME/.$OWN_AVD.avd.tmp"
+  base="${AVD:-$("$EMULATOR" -list-avds | awk -v p="$AVD_PREFIX" 'index($0, p) != 1 && !found { print; found = 1 }')}"
+  if [ -z "$base" ] || [ ! -d "$AVD_HOME/$base.avd" ]; then
+    echo "expo-wt: no AVD to clone $OWN_AVD from, create one in Android Studio or set AVD=<name>" >&2
     exit 1
   fi
-  for pid in $QUIT; do
-    echo "expo-wt: quitting emulator $(emulator_serial "$pid")"
-    kill "$pid"
+  # A running base is still writing its disk: flush it so the copy boots like after a clean power cut.
+  for pid in $(avd_pids "$base"); do
+    "$ADB" -s "$(emulator_serial "$pid")" shell sync >/dev/null 2>&1 || true
   done
-  for pid in $QUIT; do
-    while kill -0 "$pid" 2>/dev/null; do
+  echo "expo-wt: creating $OWN_AVD from $base (app and data included)…"
+  rm -rf "$tmp"
+  # -c clones on APFS: instant, and disk is only used as the two emulators drift apart.
+  cp -cR "$AVD_HOME/$base.avd" "$tmp"
+  rm -rf "$tmp/snapshots" "$tmp/tmpAdbCmds" "$tmp"/*.lock "$tmp/hardware-qemu.ini" "$tmp/emu-launch-params.txt" \
+    "$tmp/bootcompleted.ini" "$tmp/read-snapshot.txt"
+  {
+    grep -v -e '^path=' -e '^path.rel=' "$AVD_HOME/$base.ini"
+    echo "path=$AVD_HOME/$OWN_AVD.avd"
+    echo "path.rel=avd/$OWN_AVD.avd"
+  } >"$tmp.ini"
+  rm -rf "${AVD_HOME:?}/$OWN_AVD.avd"
+  mv "$tmp" "$AVD_HOME/$OWN_AVD.avd"
+  mv "$tmp.ini" "$AVD_HOME/$OWN_AVD.ini"
+}
+
+start_own_emulator() {
+  local pid launcher log="${TMPDIR:-/tmp}/expo-wt-$OWN_AVD.log"
+  pid=$(own_pid)
+  if [ -z "$pid" ]; then
+    if [ ! -f "$AVD_HOME/$OWN_AVD.ini" ]; then
+      clone_avd
+    fi
+    echo "expo-wt: booting ${OWN_AVD}…"
+    # Own process group, so stopping Metro with Ctrl-C leaves the emulator running.
+    set -m
+    nohup "$EMULATOR" -avd "$OWN_AVD" </dev/null >"$log" 2>&1 &
+    launcher=$!
+    set +m
+    until pid=$(own_pid); [ -n "$pid" ] && [ -n "$(emulator_serial "$pid")" ]; do
+      if [ -z "$pid" ] && ! kill -0 "$launcher" 2>/dev/null; then
+        echo "expo-wt: $OWN_AVD quit while starting, see $log" >&2
+        exit 1
+      fi
       sleep 1
     done
+  fi
+  SERIAL=$(emulator_serial "$pid")
+  DEVICE_NAME=$OWN_AVD
+  echo "expo-wt: $OWN_AVD is $SERIAL"
+}
+
+if $PRINT_SERIAL; then
+  pid=$(own_pid)
+  if [ -z "$pid" ]; then
+    echo "expo-wt: $OWN_AVD isn't running" >&2
+    exit 1
+  fi
+  emulator_serial "$pid"
+  exit 0
+fi
+
+if $PRUNE; then
+  live=$(git worktree list --porcelain | sed -n 's/^worktree //p' | while IFS= read -r wt; do
+    if [ -d "$wt" ]; then
+      avd_name "$wt"
+    fi
+  done)
+  for name in $("$EMULATOR" -list-avds); do
+    if [[ "$name" != "$AVD_PREFIX"* ]] || grep -qxF "$name" <<<"$live"; then
+      continue
+    fi
+    if [ -n "$(avd_pids "$name")" ]; then
+      echo "expo-wt: keeping $name, it's running"
+      continue
+    fi
+    rm -rf "${AVD_HOME:?}/$name.avd" "${AVD_HOME:?}/$name.ini"
+    echo "expo-wt: deleted $name"
   done
+  exit 0
 fi
 
 if ! $IOS && [ -z "$SERIAL" ]; then
-  DEVICES=$("$ADB" devices | awk 'NR>1 && $2=="device" {print $1}')
-  COUNT=$(printf '%s' "$DEVICES" | grep -c . || true)
-  if [ "$COUNT" -eq 0 ]; then
-    EMULATOR=$(command -v emulator || echo /opt/homebrew/share/android-commandlinetools/emulator/emulator)
-    AVD="${AVD:-$("$EMULATOR" -list-avds | head -1)}"
-    if [ -z "$AVD" ]; then
-      echo "expo-wt: no device attached and no AVD found" >&2
-      exit 1
-    fi
-    echo "expo-wt: no device attached, booting ${AVD}…"
-    nohup "$EMULATOR" -avd "$AVD" >/dev/null 2>&1 &
-    "$ADB" wait-for-device
-    until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
-      sleep 1
-    done
-    DEVICES=$("$ADB" devices | awk 'NR>1 && $2=="device" {print $1}')
-    COUNT=1
-  fi
-  if [ "$COUNT" -gt 1 ]; then
-    echo "expo-wt: several devices, pick one with -s:" >&2
-    echo "$DEVICES" >&2
-    exit 1
-  fi
-  SERIAL="$DEVICES"
+  start_own_emulator
 fi
 
 wire_android() {
+  "$ADB" -s "$SERIAL" wait-for-device
+  until [ "$("$ADB" -s "$SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
+    sleep 1
+  done
+  if [ -z "$("$ADB" -s "$SERIAL" shell pm path "$PKG" 2>/dev/null)" ]; then
+    echo "expo-wt: $PKG isn't installed on $SERIAL. Build it once: npx expo run:android -d${DEVICE_NAME:+ $DEVICE_NAME}" >&2
+    return 1
+  fi
   until curl -s "localhost:$PORT/status" | grep -q running; do
     sleep 1
   done

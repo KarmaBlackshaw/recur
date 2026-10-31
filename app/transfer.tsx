@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import { maxBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
-import { CategoryBottomSheet, type CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
+import { IncomeCategoryField } from "@/components/accounts/IncomeCategoryField";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDateField } from "@/components/ui/AppDateField";
 import { AppDisclosureCard } from "@/components/ui/AppDisclosureCard";
@@ -122,26 +122,6 @@ function AccountField({ label, options, value, onChange }: AccountFieldProps) {
         accessibilityLabel={selected ? `${label}, ${selected.name}, ${formatAmount(getBalance(selected.id))}` : `${label}, choose account`}
       />
       <AccountPickerSheet ref={pickerRef} title={label} options={options} value={value} onChange={onChange} />
-    </>
-  );
-}
-
-interface IncomeCategoryFieldProps {
-  value: string;
-  onChange: (category: string) => void;
-}
-
-function IncomeCategoryField({ value, onChange }: IncomeCategoryFieldProps) {
-  const sheetRef = useRef<CategoryBottomSheetRef>(null);
-  return (
-    <>
-      <AppSelectField
-        label="Category"
-        value={value}
-        onPress={() => sheetRef.current?.present()}
-        accessibilityLabel={`Income category, ${value}`}
-      />
-      <CategoryBottomSheet ref={sheetRef} kind="income" value={value} onChange={onChange} />
     </>
   );
 }

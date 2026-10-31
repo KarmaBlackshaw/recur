@@ -16,6 +16,7 @@ import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { AppSelectField } from "@/components/ui/AppSelectField";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { TransferInButton } from "@/components/accounts/TransferInButton";
+import { IncomeCategoryField } from "@/components/accounts/IncomeCategoryField";
 import { LoanSplitPreview } from "@/components/loans/LoanSplitPreview";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useLoans } from "@/context/LoanContext";
@@ -25,6 +26,7 @@ import { splitLoanPayment, type TLoanPaymentSplit, type TLoanPaymentTarget } fro
 import { formatAmount } from "@/utils/dateHelpers";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { INTEREST_CATEGORY } from "@/constants/categories";
 import { colors } from "@/constants/theme";
 import type { AccountTransaction, Loan } from "@/types";
 
@@ -32,6 +34,7 @@ interface FormValues {
   amount: string;
   accountId: string;
   paidAt: string;
+  excessCategory: string;
 }
 
 interface FormProps {
@@ -53,6 +56,10 @@ function PaymentForm({ choices, payment }: FormProps) {
     return depositAccounts.some((a) => a.id === loan.accountId) ? loan.accountId : CASH_ACCOUNT_ID;
   }
 
+  function excessOf({ total, unplaced }: TLoanPaymentSplit) {
+    return !isEditing && total >= 0.01 ? unplaced : 0;
+  }
+
   const {
     control,
     handleSubmit,
@@ -68,11 +75,13 @@ function PaymentForm({ choices, payment }: FormProps) {
           amount: Math.abs(payment.amount).toFixed(2),
           accountId: payment.accountId,
           paidAt: payment.createdAt,
+          excessCategory: INTEREST_CATEGORY,
         }
       : {
           amount: "",
           accountId: suggestedAccountOf(choices[0]),
           paidAt: dayjs().startOf("day").toISOString(),
+          excessCategory: INTEREST_CATEGORY,
         },
   });
   const { allowLeave } = useDiscardGuard(isDirty);
@@ -103,6 +112,7 @@ function PaymentForm({ choices, payment }: FormProps) {
   // against the new balances.
   const [savedSplit, setSavedSplit] = useState<TLoanPaymentSplit>();
   const split = savedSplit ?? splitFor(watch("amount"), watch("paidAt"));
+  const excess = excessOf(split);
 
   // Re-check when balances change, so a transfer in clears the error.
   useEffect(() => {
@@ -127,11 +137,15 @@ function PaymentForm({ choices, payment }: FormProps) {
     if (isNaN(parsed) || parsed < 0.01) {
       return "Enter at least 0.01";
     }
-    const { total, unplaced } = splitFor(value, values.paidAt);
-    if (unplaced <= 0) {
+    const checked = splitFor(value, values.paidAt);
+    if (checked.unplaced <= 0) {
       return amountOverdraft(value)?.message ?? true;
     }
-    const most = formatAmount(total);
+    const hasExcess = excessOf(checked) > 0;
+    if (hasExcess) {
+      return true;
+    }
+    const most = formatAmount(checked.total);
     const date = dayjs(values.paidAt);
     return date.isSame(dayjs(), "day")
       ? `More than the ${most} still owed`
@@ -169,7 +183,11 @@ function PaymentForm({ choices, payment }: FormProps) {
             amount: share,
             paidAt: values.paidAt,
           }));
-        await loans.recordPayments(payments);
+        const savedExcess = excessOf(saved);
+        await loans.recordPayments(
+          payments,
+          savedExcess > 0 ? { amount: savedExcess, category: values.excessCategory } : undefined
+        );
       }
       allowLeave();
       router.back();
@@ -235,7 +253,7 @@ function PaymentForm({ choices, payment }: FormProps) {
                 onBlur={onBlur}
                 placeholder="0.00"
                 error={
-                  fieldState.isTouched || amountOverdraft(value) || split.unplaced > 0
+                  fieldState.isTouched || amountOverdraft(value) || (split.unplaced > 0 && excess === 0)
                     ? fieldState.error?.message
                     : undefined
                 }
@@ -257,6 +275,18 @@ function PaymentForm({ choices, payment }: FormProps) {
           </TouchableOpacity>
         )}
         {choices.length > 1 && <LoanSplitPreview parts={split.parts} />}
+        {excess > 0 && (
+          <>
+            <AppText variant="meta" className="mt-3 mb-1">
+              {`${formatAmount(excess)} more than owed · saved as income`}
+            </AppText>
+            <Controller
+              control={control}
+              name="excessCategory"
+              render={({ field: { value, onChange } }) => <IncomeCategoryField value={value} onChange={onChange} />}
+            />
+          </>
+        )}
 
         <Controller
           control={control}

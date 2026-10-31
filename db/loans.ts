@@ -1,11 +1,12 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import { insertRow, newId } from "@/db/accountTransactions";
+import { touchCategory } from "@/db/categories";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { uniq } from "@/utils/collections";
-import type { Loan, LoanInput, LoanPaymentInput, TLoanInterestType } from "@/types";
+import type { Loan, LoanExcessInput, LoanInput, LoanPaymentInput, TLoanInterestType } from "@/types";
 
 interface LoanRow {
   id: string; borrower: string; principal: number; account_id: string; lent_at: string;
@@ -88,7 +89,7 @@ export async function remove(id: string): Promise<void> {
   });
 }
 
-export async function insertPayments(payments: LoanPaymentInput[]): Promise<void> {
+export async function insertPayments(payments: LoanPaymentInput[], excess?: LoanExcessInput): Promise<void> {
   const db = await getDB();
   await withWriteTransaction(db, async (txn) => {
     for (const accountId of uniq(payments.map((p) => p.accountId))) {
@@ -103,6 +104,18 @@ export async function insertPayments(payments: LoanPaymentInput[]): Promise<void
         cycleMonth: null, transferId: null, note: null, category: null, loanId: p.loanId, createdAt: p.paidAt,
       });
     }
+    if (!excess) {
+      return;
+    }
+    const last = payments.at(-1);
+    if (!last) {
+      throw new Error("Nothing to record");
+    }
+    await insertRow(txn, {
+      accountId: last.accountId, kind: "income", amount: excess.amount, expenseId: null, cycleYear: null,
+      cycleMonth: null, transferId: null, note: null, category: excess.category, loanId: last.loanId, createdAt: last.paidAt,
+    });
+    await touchCategory(excess.category, undefined, "income", txn);
   });
 }
 

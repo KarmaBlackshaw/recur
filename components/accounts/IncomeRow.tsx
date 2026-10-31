@@ -2,14 +2,18 @@ import React from "react";
 import { router } from "expo-router";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { useAccounts } from "@/context/AccountContext";
+import { useLoans } from "@/context/LoanContext";
 import { categoryIcon } from "@/utils/categories";
 import { formatAmount } from "@/utils/dateHelpers";
 import type { IncomeEntry } from "@/utils/usePaidLedger";
 
 export function IncomeRow({ entry }: { entry: IncomeEntry }) {
+  const { borrowerOf } = useLoans();
   const { accounts } = useAccounts();
   const { income } = entry;
-  const title = income.category ?? "Income";
+  const borrower = borrowerOf(income.loanId);
+  const category = income.category ?? "Income";
+  const title = borrower != null ? `${category} from ${borrower}` : category;
   const accountName = accounts.find(({ id }) => id === income.accountId)?.name;
   const meta = [accountName, income.note].filter(Boolean).join(" · ") || "Income";
   const signed = `+${formatAmount(income.amount)}`;

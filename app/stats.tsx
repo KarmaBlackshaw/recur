@@ -16,6 +16,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppUnderlineTabs, type TUnderlineTab } from "@/components/ui/AppUnderlineTabs";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { chartHues, chartRest, colors } from "@/constants/theme";
+import { INTEREST_CATEGORY } from "@/constants/categories";
 import { categoryIcon } from "@/utils/categories";
 import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
@@ -38,7 +39,6 @@ const COPY: Record<StatsType, { overline: string; emptyTitle: string; emptyIcon:
 };
 
 const FEES_CATEGORY = "Fees";
-const INTEREST_CATEGORY = "Interest";
 const UNCATEGORIZED_INCOME = "Other";
 const OTHER_SEGMENT_KEY = "other-categories";
 const DONUT_RADIUS_RATIO = 0.22;

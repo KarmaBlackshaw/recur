@@ -10,6 +10,7 @@ import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LoanHistoryRow, type TLoanHistoryItem } from "@/components/loans/LoanHistoryRow";
@@ -27,15 +28,6 @@ const HERO_STYLE = {
   active: { overline: "Still owed", box: "bg-secondary/10 border-secondary/20", amount: "text-secondary" },
   settled: { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "text-paid" },
 };
-
-function StatRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row justify-between px-5 py-1.5">
-      <AppText variant="meta">{label}</AppText>
-      <AppText variant="body-medium">{value}</AppText>
-    </View>
-  );
-}
 
 export default function LoanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -191,8 +183,10 @@ export default function LoanDetailScreen() {
               <AppText variant="meta">{interestLabel}</AppText>
               {loan.note ? <AppText className="mt-2">{loan.note}</AppText> : null}
             </View>
-            <StatRow label="Interest so far" value={formatAmount(summary.interestTotal)} />
-            <StatRow label="Paid so far" value={formatAmount(summary.paidTotal)} />
+            <View className="px-5">
+              <AppDetailRow label="Interest so far" value={formatAmount(summary.interestTotal)} />
+              <AppDetailRow label="Paid so far" value={formatAmount(summary.paidTotal)} />
+            </View>
             {!summary.isSettled && (
               <AppButton label="Record payment" className="mx-5 mt-3" onPress={() => router.push({ pathname: "/loan/pay", params: { id: loan.id } })} />
             )}

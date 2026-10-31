@@ -12,8 +12,8 @@ import { router } from "expo-router";
 import dayjs from "dayjs";
 import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
-import { InfoRow } from "@/components/accounts/InfoRow";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
@@ -119,8 +119,8 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
                   <Feather name="x" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
-              <InfoRow label="Cut-off" value={dayjs(bill.cutoff).format("MMM D")} />
-              <InfoRow label="Estimate" value={formatAmount(bill.estimate)} />
+              <AppDetailRow label="Cut-off" value={dayjs(bill.cutoff).format("MMM D")} />
+              <AppDetailRow label="Estimate" value={formatAmount(bill.estimate)} />
               <Controller
                 control={control}
                 name="amount"
@@ -143,8 +143,8 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
                 )}
               />
               <View className="mt-2 border-t border-border pt-2">
-                <InfoRow label="Paid" value={formatAmount(bill.paid)} />
-                <InfoRow label="Remaining" value={formatAmount(bill.remaining)} />
+                <AppDetailRow label="Paid" value={formatAmount(bill.paid)} />
+                <AppDetailRow label="Remaining" value={formatAmount(bill.remaining)} />
               </View>
               <View className="mt-4 gap-2">
                 {isPayable ? (

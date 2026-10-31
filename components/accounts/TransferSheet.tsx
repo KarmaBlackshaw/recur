@@ -10,8 +10,8 @@ import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
 import { router } from "expo-router";
 import { useAccounts } from "@/context/AccountContext";
-import { InfoRow } from "@/components/accounts/InfoRow";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 import { customTransferNote } from "@/utils/accounts/customTransferNote";
@@ -95,13 +95,13 @@ export const TransferSheet = forwardRef<TransferSheetRef>(function TransferSheet
                 <Feather name="x" size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-            <InfoRow label="From" value={source} />
-            <InfoRow label="To" value={destination} />
-            <InfoRow label="Amount" value={formatAmount(Math.abs(side.amount))} />
-            {fee && <InfoRow label="Fee" value={formatAmount(Math.abs(fee.amount))} />}
-            {incomeValue && <InfoRow label="Income" value={incomeValue} />}
-            <InfoRow label="Date" value={dayjs(side.createdAt).format("MMM D, YYYY, h:mm A")} />
-            {note && <InfoRow label="Note" value={note} />}
+            <AppDetailRow label="From" value={source} />
+            <AppDetailRow label="To" value={destination} />
+            <AppDetailRow label="Amount" value={formatAmount(Math.abs(side.amount))} />
+            {fee && <AppDetailRow label="Fee" value={formatAmount(Math.abs(fee.amount))} />}
+            {incomeValue && <AppDetailRow label="Income" value={incomeValue} />}
+            <AppDetailRow label="Date" value={dayjs(side.createdAt).format("MMM D, YYYY, h:mm A")} />
+            {note && <AppDetailRow label="Note" value={note} />}
             <View className="mt-4 gap-2">
               <AppButton label={isBillPayment ? "Edit payment" : "Edit transfer"} variant="tonal" onPress={handleEdit} />
               <AppButton

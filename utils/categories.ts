@@ -1,4 +1,5 @@
-import type { FeatherIconName } from "@/types";
+import { INTEREST_CATEGORY } from "@/constants/categories";
+import type { CategoryKind, FeatherIconName } from "@/types";
 
 export const PRESET_CATEGORIES = [
   "Housing",
@@ -14,6 +15,10 @@ export const PRESET_CATEGORIES = [
   "Debt",
   "Other",
 ] as const;
+
+export function isLockedCategory(name: string, kind: CategoryKind) {
+  return kind === "income" && name === INTEREST_CATEGORY;
+}
 
 // Row glyphs for the preset expense + income categories. Custom or renamed categories
 // fall back, so a row always says what the money was for instead of repeating a status glyph.

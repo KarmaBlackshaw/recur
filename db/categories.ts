@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
+import { isLockedCategory } from "@/utils/categories";
 import type { CategoryKind } from "@/types";
 
 export interface Category {
@@ -78,6 +79,9 @@ export async function renameCategory(id: number, newName: string): Promise<void>
     if (!row) {
       return;
     }
+    if (isLockedCategory(row.name, row.kind)) {
+      throw new Error(`${row.name} can't be renamed`);
+    }
     await txn.runAsync("UPDATE categories SET name = ? WHERE rowid = ?", [newName, id]);
     if (row.kind === "income") {
       await txn.runAsync(
@@ -92,5 +96,12 @@ export async function renameCategory(id: number, newName: string): Promise<void>
 
 export async function deleteCategory(id: number): Promise<void> {
   const db = await getDB();
+  const row = await db.getFirstAsync<{ name: string; kind: CategoryKind }>(
+    "SELECT name, kind FROM categories WHERE rowid = ?",
+    [id]
+  );
+  if (row && isLockedCategory(row.name, row.kind)) {
+    throw new Error(`${row.name} can't be deleted`);
+  }
   await db.runAsync("DELETE FROM categories WHERE rowid = ?", [id]);
 }

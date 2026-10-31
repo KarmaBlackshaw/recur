@@ -1,9 +1,9 @@
 // components/CategoryBottomSheet.tsx
-import React, { forwardRef, useRef } from "react";
+import React, { forwardRef, useCallback, useRef } from "react";
 import { Alert, Keyboard, TouchableOpacity, View } from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
@@ -11,8 +11,9 @@ import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
-import { getAll, insertCategory } from "@/db/categories";
+import { getAll, getAllWithIds, insertCategory } from "@/db/categories";
 import type { CategoryKind } from "@/types";
+import { maxBy } from "@/utils/collections";
 
 export interface CategoryBottomSheetRef {
   present: () => void;
@@ -130,6 +131,8 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
   function CategoryBottomSheet({ value, onChange, onDismiss, kind = "expense" }, ref) {
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const newCategorySheetRef = useRef<AppBottomSheetRef>(null);
+    // A new row gets max rowid + 1 and a rename keeps its rowid, so only a category created in Manage lands above this.
+    const newestIdBeforeManage = useRef<number>(undefined);
     const [categories, setCategories] = React.useState<string[]>([]);
     const options = categories.map((category) => ({ label: category, value: category }));
 
@@ -155,13 +158,35 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
       newCategorySheetRef.current?.dismiss();
     }
 
+    async function openManage() {
+      sheetRef.current?.dismiss();
+      const cats = await getAllWithIds(kind);
+      newestIdBeforeManage.current = maxBy(cats, "id")?.id ?? 0;
+      router.push(`/settings/category?kind=${kind}`);
+    }
+
+    useFocusEffect(
+      useCallback(() => {
+        async function selectCategoryCreatedInManage() {
+          const newestIdBefore = newestIdBeforeManage.current;
+          if (newestIdBefore == null) {
+            return;
+          }
+          newestIdBeforeManage.current = undefined;
+          const cats = await getAllWithIds(kind);
+          const newest = maxBy(cats, "id");
+          if (newest && newest.id > newestIdBefore) {
+            onChange(newest.name);
+          }
+        }
+        selectCategoryCreatedInManage();
+      }, [kind, onChange])
+    );
+
     const action = (
       <TouchableOpacity
         className="w-11 h-11 items-center justify-center"
-        onPress={() => {
-          sheetRef.current?.dismiss();
-          router.push(`/settings/category?kind=${kind}`);
-        }}
+        onPress={openManage}
         accessibilityRole="button"
         accessibilityLabel="Manage categories"
       >

@@ -2,7 +2,6 @@ import React from "react";
 import { View, Text } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
-import { AppBreakdownRow } from "@/components/ui/AppBreakdownRow";
 import { useNetWorth } from "@/utils/useNetWorth";
 import { signedAmount } from "@/utils/signedAmount";
 import { colors } from "@/constants/theme";
@@ -17,7 +16,6 @@ export function NetWorthHero() {
     ...(lent > 0 ? [{ label: "Lent", value: lent }] : []),
     { label: "Owed", value: owed },
   ];
-  const breakdown = parts.map(({ label, value }) => ({ label, value: signedAmount(value) }));
 
   return (
     <View
@@ -40,7 +38,16 @@ export function NetWorthHero() {
           {netText}
         </Text>
       </View>
-      <AppBreakdownRow items={breakdown} className="mt-3" />
+      <View className="flex-row gap-3 mt-3 pt-3 border-t border-white/[0.07]">
+        {parts.map(({ label, value }) => (
+          <View key={label} className="flex-1">
+            <AppText variant="meta">{label}</AppText>
+            <AppText variant="amount-sm" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              {signedAmount(value)}
+            </AppText>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }

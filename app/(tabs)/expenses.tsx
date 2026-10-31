@@ -12,7 +12,6 @@ import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type ActivityEntry } from "@/components/DayGroupedExpenseList";
 import { countLabel } from "@/utils/countLabel";
-import { formatAmount } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { matchesActivity, type ActivitySearchContext } from "@/utils/activitySearch";
@@ -21,7 +20,6 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
-import { AppBreakdownRow, type TBreakdownItem } from "@/components/ui/AppBreakdownRow";
 import { AppChips } from "@/components/ui/AppChips";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
@@ -57,7 +55,7 @@ const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: st
 
 export default function ExpensesScreen() {
   const { loading } = useExpenses();
-  const { accounts, isCharged, transactions } = useAccounts();
+  const { accounts, transactions } = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
   const params = useLocalSearchParams<{ segment?: Segment }>();
@@ -86,17 +84,8 @@ export default function ExpensesScreen() {
     [feed.all, query, searchContext]
   );
 
-  const { byFilter, notPaidOff, fees, transferIncome, lent, repaid } = useMemo(() => {
+  const { byFilter, fees, transferIncome, lent } = useMemo(() => {
     const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
-    const charged = feed.charged.filter(isInMonth);
-    const notPaidOff = sumBy(
-      charged.filter(({ expense, refDate }) =>
-        expense.recurrence === "one-off"
-          ? isCharged(expense.id, null, null)
-          : isCharged(expense.id, refDate.getFullYear(), refDate.getMonth())
-      ),
-      "amount"
-    );
     const monthTxnTotal = (kind: TransactionKind) =>
       sumBy(
         transactions.filter((t) => t.kind === kind).map((t) => ({ effDate: new Date(t.createdAt), amount: Math.abs(t.amount) })).filter(isInMonth),
@@ -108,20 +97,18 @@ export default function ExpensesScreen() {
     const byFilter: Record<Segment, ActivityEntry[]> = {
       all: feed.all.filter(isInMonth),
       paid: feed.paid.filter(isInMonth),
-      charged,
+      charged: feed.charged.filter(isInMonth),
       income: feed.income.filter(isInMonth),
       transfers,
       loans,
     };
     return {
       byFilter,
-      notPaidOff,
       fees,
       transferIncome: sumBy(transfers, "earned"),
       lent: sumBy(loans.filter(({ loanTxn }) => loanTxn.kind === "loan_out"), "amount"),
-      repaid: sumBy(loans.filter(({ loanTxn }) => loanTxn.kind === "loan_in"), "amount"),
     };
-  }, [feed, transactions, isCharged, year, month]);
+  }, [feed, transactions, year, month]);
 
   const entries = byFilter[segment];
   const moneyIn = sumBy(byFilter.income, "amount") + transferIncome;
@@ -137,32 +124,6 @@ export default function ExpensesScreen() {
   };
   const total = totals[segment];
   const hero = HERO[segment];
-  const heroColumns: Record<Segment, TBreakdownItem[]> = {
-    all: [
-      { label: "In", value: formatAmount(moneyIn) },
-      { label: "Spent", value: formatAmount(paidTotal) },
-      ...(lent > 0 ? [{ label: "Lent", value: formatAmount(lent) }] : []),
-      ...(repaid > 0 ? [{ label: "Repaid", value: formatAmount(repaid) }] : []),
-    ],
-    paid: [
-      { label: "Payments", value: String(entries.length) },
-      ...(fees > 0 ? [{ label: "Incl. fees", value: formatAmount(fees) }] : []),
-    ],
-    charged: [{ label: "Not yet paid off", value: formatAmount(notPaidOff) }],
-    income: [
-      { label: "Incomes", value: String(entries.length) },
-      ...(transferIncome > 0 ? [{ label: "Incl. from transfers", value: formatAmount(transferIncome) }] : []),
-    ],
-    transfers: [
-      { label: "Transfers", value: String(entries.length) },
-      ...(fees > 0 ? [{ label: "Fees", value: formatAmount(fees) }] : []),
-      ...(transferIncome > 0 ? [{ label: "Income", value: formatAmount(transferIncome) }] : []),
-    ],
-    loans: [
-      { label: "Repaid", value: formatAmount(repaid) },
-      { label: "Entries", value: String(entries.length) },
-    ],
-  };
   const empty = EMPTY[segment];
   const monthLabel = dayjs(new Date(year, month, 1)).format("MMMM");
 
@@ -253,7 +214,6 @@ export default function ExpensesScreen() {
               >
                 {signedAmount(total)}
               </Text>
-              <AppBreakdownRow items={heroColumns[segment]} className="mt-3" />
             </View>
             <TouchableOpacity
               onPress={openStats}

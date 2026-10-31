@@ -91,6 +91,14 @@ account transactions. Never hand-build another row.
   delete the same way. Only one row stays open at a time, and opening one gives a selection haptic. Home peeks the
   Pay swipe once on the first unpaid row to teach it.
 
+### Detail Row (`components/ui/AppDetailRow.tsx`)
+One label and value on a line: the facts on a detail screen or sheet (a bill's plan, a loan's totals, a transfer, a
+card bill). Never hand-build another.
+
+- Meta label on the left, Quicksand Medium 14px Ink value on the right, 5.25dp above and below, 14dp between them.
+- No side gutters: the screen or sheet around the rows sets them.
+- A long value wraps under itself, right-aligned, and never pushes the label.
+
 ### Band Header
 Overline label in its signal color, optional count and caption, total on the right. Collapsible bands
 (Home months) add a chevron and announce expanded or collapsed.

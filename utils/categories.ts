@@ -35,6 +35,7 @@ const CATEGORY_ICON: Partial<Record<string, FeatherIconName>> = {
   Gift: "gift",
   Refund: "rotate-ccw",
   Interest: "trending-up",
+  Fees: "scissors",
 };
 
 export function categoryIcon(category: string | null | undefined, fallback: FeatherIconName = "tag"): FeatherIconName {

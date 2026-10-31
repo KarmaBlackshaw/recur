@@ -9,8 +9,9 @@ import { useBoolean } from "@/utils/useBoolean";
 import { useSetState } from "@/utils/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
-import { MonthNavigator } from "@/components/MonthNavigator";
+import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type ActivityEntry } from "@/components/DayGroupedExpenseList";
+import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
 import { useActivityFeed } from "@/utils/useActivityFeed";
@@ -53,10 +54,6 @@ const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: st
   loans: { title: "No loan activity", icon: "users", message: "Nothing lent or repaid in" },
 };
 
-function countLabel(count: number, singular: string, plural: string) {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
-
 // A meta line carries at most one " · ", so the parts pair up line by line. Falsy parts drop out.
 function metaLines(...parts: (string | false)[]): string[] {
   return chunk(parts.filter((part): part is string => Boolean(part)), 2).map((line) => line.join(" · "));
@@ -76,6 +73,11 @@ export default function ExpensesScreen() {
   const [search, setSearch] = useState("");
   const [isSearchOpen, searchOpen] = useBoolean(false);
   const query = isSearchOpen ? search.trim() : "";
+  const statsType = segment === "income" ? "income" : "expenses";
+
+  function openStats() {
+    router.push(`/stats?year=${year}&month=${month}&type=${statsType}`, { dangerouslySingular: true });
+  }
 
   const searchContext = useMemo<ActivitySearchContext>(() => {
     const accountsById = keyBy(accounts, "id");
@@ -183,7 +185,7 @@ export default function ExpensesScreen() {
         <AppText variant="display">Activity</AppText>
         <View className="flex-row items-center">
           {query === "" && (
-            <MonthNavigator
+            <PeriodNavigator
               year={year}
               month={month}
               onChange={(year, month) => setSelected({ year, month })}
@@ -237,22 +239,35 @@ export default function ExpensesScreen() {
             className="mt-1"
           />
 
-          <View className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}>
-            <AppText variant="overline">{hero.overline}</AppText>
-            <Text
-              className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-              maxFontSizeMultiplier={1.4}
+          <View className={`mx-5 mt-3 mb-1 rounded-2xl border ${hero.box}`}>
+            <View className="px-5 pt-5 pb-3">
+              <AppText variant="overline">{hero.overline}</AppText>
+              <Text
+                className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                maxFontSizeMultiplier={1.4}
+              >
+                {signedAmount(total)}
+              </Text>
+              {heroMeta[segment].map((line) => (
+                <AppText key={line} variant="meta">
+                  {line}
+                </AppText>
+              ))}
+            </View>
+            <TouchableOpacity
+              onPress={openStats}
+              activeOpacity={0.7}
+              className="min-h-[44px] flex-row items-center px-5 border-t border-white/[0.07]"
             >
-              {signedAmount(total)}
-            </Text>
-            {heroMeta[segment].map((line) => (
-              <AppText key={line} variant="meta">
-                {line}
+              <Feather name="pie-chart" size={16} color={colors.textSecondary} />
+              <AppText variant="body-bold" className="flex-1 ml-3 text-sm text-white">
+                Stats
               </AppText>
-            ))}
+              <Feather name="chevron-right" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
           </View>
 
           <DayGroupedExpenseList

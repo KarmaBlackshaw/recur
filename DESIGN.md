@@ -136,6 +136,19 @@ Opened when a bill's amount isn't known, from a bill's Mark paid, or by long-pre
 `accessible={false}`: gorhom's default makes the whole sheet one element and hides its controls from screen readers.
 A picker opened from a sheet (Pay from, Paid on) stacks over it, and the sheet is still there when the picker closes.
 
+### Stats (`app/stats.tsx`)
+A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite
+pie-chart glyph, Ink label, Muted chevron; neutral because it sits on mint and periwinkle heroes alike) that opens it
+on Activity's month and Income/Expenses. Header: back chevron, 22px `title`,
+`PeriodNavigator`; no tab bar or FAB.
+Underline tabs (`AppUnderlineTabs`) switch Income and Expenses and show each total, with a Periwinkle underline on the
+active one, since mint and coral stay states. The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so
+a hue says which slice is which row and never belongs to a category. Past the sixth, categories fold into one neutral
+"Others" slice. Slices of 2% or more have a label in a column beside the ring, tied to it by a thin curved line in its
+hue; labels stack so they never touch, and long names truncate. Smaller slices rely on the list, because their lines
+would bundle at the top of the ring. Row tiles stay neutral with a glyph. Amounts and labels stay in Ink
+and Secondary Graphite.
+
 ### Empty and Loading States
 Empty: one large muted glyph, a short title, one plain sentence, and the action that fills it when there
 is one. Loading: `LoadingState` for whole screens only; lists never flash a spinner per row.

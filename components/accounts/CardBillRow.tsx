@@ -1,7 +1,8 @@
 import React from "react";
 import dayjs from "dayjs";
 import { AppListRow } from "@/components/ui/AppListRow";
-import { formatAmount, formatDaysLate, formatDueDate } from "@/utils/dateHelpers";
+import { formatDaysLate, formatDueDate } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { isBillTbd } from "@/utils/cardBills";
 import type { CardBill } from "@/types";
 

@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { useAccounts } from "@/context/AccountContext";
 import { categoryIcon } from "@/utils/categories";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import type { IncomeEntry } from "@/utils/usePaidLedger";
 
 export function IncomeRow({ entry }: { entry: IncomeEntry }) {

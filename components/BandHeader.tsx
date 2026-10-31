@@ -3,7 +3,7 @@ import { View, TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import type { FeatherIconName } from "@/types";
 
 interface Props {

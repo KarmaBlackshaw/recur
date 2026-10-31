@@ -10,10 +10,12 @@ import { useSetState } from "@/utils/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
-import { DayGroupedExpenseList, type ActivityEntry } from "@/components/DayGroupedExpenseList";
+import { DayGroupedExpenseList, type ActivityEntry, type DayTotal } from "@/components/DayGroupedExpenseList";
 import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
+import { netFlow } from "@/utils/activity/netFlow";
+import { loanFlow } from "@/utils/activity/loanFlow";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { matchesActivity, type ActivitySearchContext } from "@/utils/activitySearch";
 import type { FeatherIconName, TransactionKind } from "@/types";
@@ -52,6 +54,16 @@ const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: st
   income: { title: "No income", icon: "arrow-down-left", message: "No income in" },
   transfers: { title: "No transfers", icon: "repeat", message: "No transfers in" },
   loans: { title: "No loan activity", icon: "users", message: "Nothing lent or repaid in" },
+};
+
+// All and Loans mix money in and out, so their days show a signed net; All's adds up to the hero's net.
+const DAY_TOTAL: Record<Segment, DayTotal> = {
+  all: netFlow,
+  paid: "sum",
+  charged: "sum",
+  income: "sum",
+  transfers: "sum",
+  loans: loanFlow,
 };
 
 // A meta line carries at most one " · ", so the parts pair up line by line. Falsy parts drop out.
@@ -224,7 +236,7 @@ export default function ExpensesScreen() {
           </AppText>
           <DayGroupedExpenseList
             entries={results}
-            showDayTotals={false}
+            dayTotal="none"
             refreshControl={refreshControl}
             ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing matches "${query}"`} />}
           />
@@ -272,8 +284,7 @@ export default function ExpensesScreen() {
 
           <DayGroupedExpenseList
             entries={entries}
-            // Lent and repaid mix money out and in, so a day's sum means nothing there (as in All).
-            showDayTotals={segment !== "all" && segment !== "loans"}
+            dayTotal={DAY_TOTAL[segment]}
             refreshControl={refreshControl}
             ListEmptyComponent={<EmptyState title={empty.title} icon={empty.icon} message={`${empty.message} ${monthLabel}`} />}
           />

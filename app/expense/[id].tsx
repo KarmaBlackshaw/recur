@@ -16,7 +16,6 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { colors } from "@/constants/theme";
 import {
   cycleStateOn,
-  formatAmount,
   formatDaysLate,
   formatDueDate,
   formatMonth,
@@ -27,6 +26,7 @@ import {
   nextCycleDueDate,
   type CycleState,
 } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
 import type { Expense, FeatherIconName } from "@/types";

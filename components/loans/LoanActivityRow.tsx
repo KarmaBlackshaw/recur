@@ -2,7 +2,7 @@ import React from "react";
 import { router } from "expo-router";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { useAccounts } from "@/context/AccountContext";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import type { LoanActivityEntry } from "@/utils/useLoanActivity";
 
 export function LoanActivityRow({ entry }: { entry: LoanActivityEntry }) {

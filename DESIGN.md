@@ -170,6 +170,8 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)
   and Owed under a hairline. The header's layers toggle (saved, carried in backups) groups active accounts into a
   band per bank, in account order, with accounts that have no bank last under "Other".
+- Activity's hero shows only its overline and the month's total, above the Stats row: no breakdown under the
+  total on any chip. Stats carries the detail.
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

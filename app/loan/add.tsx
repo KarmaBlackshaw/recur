@@ -20,7 +20,7 @@ import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppCombobox } from "@/components/ui/AppCombobox";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { sanitizeAmount } from "@/utils/amountInput";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";

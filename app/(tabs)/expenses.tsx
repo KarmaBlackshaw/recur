@@ -4,7 +4,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
-import { chunk, keyBy, sumBy } from "@/utils/collections";
+import { keyBy, sumBy } from "@/utils/collections";
 import { useBoolean } from "@/utils/useBoolean";
 import { useSetState } from "@/utils/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
@@ -12,13 +12,12 @@ import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type ActivityEntry, type DayTotal } from "@/components/DayGroupedExpenseList";
 import { countLabel } from "@/utils/countLabel";
-import { formatAmount } from "@/utils/dateHelpers";
 import { signedAmount } from "@/utils/signedAmount";
 import { netFlow } from "@/utils/activity/netFlow";
 import { loanFlow } from "@/utils/activity/loanFlow";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { matchesActivity, type ActivitySearchContext } from "@/utils/activitySearch";
-import type { FeatherIconName, TransactionKind } from "@/types";
+import type { FeatherIconName, TOption, TransactionKind } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
@@ -29,7 +28,7 @@ import { colors } from "@/constants/theme";
 
 type Segment = "all" | "paid" | "charged" | "income" | "transfers" | "loans";
 
-const SEGMENTS: { label: string; value: Segment }[] = [
+const SEGMENTS: TOption<Segment>[] = [
   { label: "All", value: "all" },
   { label: "Paid", value: "paid" },
   { label: "Charged", value: "charged" },
@@ -66,14 +65,9 @@ const DAY_TOTAL: Record<Segment, DayTotal> = {
   loans: loanFlow,
 };
 
-// A meta line carries at most one " · ", so the parts pair up line by line. Falsy parts drop out.
-function metaLines(...parts: (string | false)[]): string[] {
-  return chunk(parts.filter((part): part is string => Boolean(part)), 2).map((line) => line.join(" · "));
-}
-
 export default function ExpensesScreen() {
   const { loading } = useExpenses();
-  const { accounts, isCharged, transactions } = useAccounts();
+  const { accounts, transactions } = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
   const params = useLocalSearchParams<{ segment?: Segment }>();
@@ -102,17 +96,8 @@ export default function ExpensesScreen() {
     [feed.all, query, searchContext]
   );
 
-  const { byFilter, notPaidOff, fees, transferIncome, lent, repaid } = useMemo(() => {
+  const { byFilter, fees, transferIncome, lent } = useMemo(() => {
     const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
-    const charged = feed.charged.filter(isInMonth);
-    const notPaidOff = sumBy(
-      charged.filter(({ expense, refDate }) =>
-        expense.recurrence === "one-off"
-          ? isCharged(expense.id, null, null)
-          : isCharged(expense.id, refDate.getFullYear(), refDate.getMonth())
-      ),
-      "amount"
-    );
     const monthTxnTotal = (kind: TransactionKind) =>
       sumBy(
         transactions.filter((t) => t.kind === kind).map((t) => ({ effDate: new Date(t.createdAt), amount: Math.abs(t.amount) })).filter(isInMonth),
@@ -124,20 +109,18 @@ export default function ExpensesScreen() {
     const byFilter: Record<Segment, ActivityEntry[]> = {
       all: feed.all.filter(isInMonth),
       paid: feed.paid.filter(isInMonth),
-      charged,
+      charged: feed.charged.filter(isInMonth),
       income: feed.income.filter(isInMonth),
       transfers,
       loans,
     };
     return {
       byFilter,
-      notPaidOff,
       fees,
       transferIncome: sumBy(transfers, "earned"),
       lent: sumBy(loans.filter(({ loanTxn }) => loanTxn.kind === "loan_out"), "amount"),
-      repaid: sumBy(loans.filter(({ loanTxn }) => loanTxn.kind === "loan_in"), "amount"),
     };
-  }, [feed, transactions, isCharged, year, month]);
+  }, [feed, transactions, year, month]);
 
   const entries = byFilter[segment];
   const moneyIn = sumBy(byFilter.income, "amount") + transferIncome;
@@ -153,26 +136,6 @@ export default function ExpensesScreen() {
   };
   const total = totals[segment];
   const hero = HERO[segment];
-  const heroMeta: Record<Segment, string[]> = {
-    all: metaLines(
-      `${formatAmount(moneyIn)} in`,
-      `${formatAmount(paidTotal)} spent`,
-      lent > 0 && `${formatAmount(lent)} lent`,
-      repaid > 0 && `${formatAmount(repaid)} repaid`
-    ),
-    paid: metaLines(countLabel(entries.length, "payment", "payments"), fees > 0 && `incl. ${formatAmount(fees)} fees`),
-    charged: metaLines(`${formatAmount(notPaidOff)} not yet paid off`),
-    income: metaLines(
-      countLabel(entries.length, "income", "incomes"),
-      transferIncome > 0 && `incl. ${formatAmount(transferIncome)} from transfers`
-    ),
-    transfers: metaLines(
-      countLabel(entries.length, "transfer", "transfers"),
-      fees > 0 && `${formatAmount(fees)} fees`,
-      transferIncome > 0 && `${formatAmount(transferIncome)} income`
-    ),
-    loans: metaLines(`${formatAmount(repaid)} repaid`, countLabel(entries.length, "entry", "entries")),
-  };
   const empty = EMPTY[segment];
   const monthLabel = dayjs(new Date(year, month, 1)).format("MMMM");
 
@@ -263,11 +226,6 @@ export default function ExpensesScreen() {
               >
                 {signedAmount(total)}
               </Text>
-              {heroMeta[segment].map((line) => (
-                <AppText key={line} variant="meta">
-                  {line}
-                </AppText>
-              ))}
             </View>
             <TouchableOpacity
               onPress={openStats}

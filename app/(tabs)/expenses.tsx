@@ -45,11 +45,6 @@ const HERO: Record<Segment, { overline: string; box: string; text: string }> = {
   loans: { overline: "Lent this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
 };
 
-const STATS_LINK: Record<"income" | "expenses", string> = {
-  income: "Income stats",
-  expenses: "Spending stats",
-};
-
 const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: string }> = {
   all: { title: "No activity", icon: "list", message: "Nothing happened in" },
   paid: { title: "Nothing paid", icon: "check-circle", message: "No expenses paid in" },
@@ -267,9 +262,9 @@ export default function ExpensesScreen() {
               activeOpacity={0.7}
               className="min-h-[44px] flex-row items-center px-5 border-t border-white/[0.07]"
             >
-              <Feather name="pie-chart" size={16} color={colors.secondary} />
-              <AppText variant="body-bold" className="flex-1 ml-3 text-sm text-secondary">
-                {STATS_LINK[statsType]}
+              <Feather name="pie-chart" size={16} color={colors.textSecondary} />
+              <AppText variant="body-bold" className="flex-1 ml-3 text-sm text-white">
+                Stats
               </AppText>
               <Feather name="chevron-right" size={18} color={colors.textMuted} />
             </TouchableOpacity>

@@ -137,8 +137,9 @@ Opened when a bill's amount isn't known, from a bill's Mark paid, or by long-pre
 A picker opened from a sheet (Pay from, Paid on) stacks over it, and the sheet is still there when the picker closes.
 
 ### Stats (`app/stats.tsx`)
-A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp link row (pie-chart glyph, Periwinkle
-label, Muted chevron) that opens it on Activity's month and Income/Expenses. Header: back chevron, 22px `title`,
+A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite
+pie-chart glyph, Ink label, Muted chevron; neutral because it sits on mint and periwinkle heroes alike) that opens it
+on Activity's month and Income/Expenses. Header: back chevron, 22px `title`,
 `PeriodNavigator`; no tab bar or FAB.
 Underline tabs (`AppUnderlineTabs`) switch Income and Expenses and show each total, with a Periwinkle underline on the
 active one, since mint and coral stay states. The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so

@@ -60,7 +60,7 @@ interface Expense {
 - Backups (format v5) also carry preferences and account logos. Import runs in one write transaction, so a bad file changes nothing, and only fills preferences that aren't set yet.
 - One-off expenses stay paid permanently.
 - KPI totals (Total / Paid / Unpaid) are computed from the in-memory expenses array — no extra DB query.
-- Stats (`app/stats.tsx`) is a root-Stack page opened from the "Spending stats" / "Income stats" row at the foot of Activity's hero (`/stats?year&month&type`, Activity's month and Income/Expenses), pushed with `dangerouslySingular`; it groups money by category for a month or year. Expenses are paid expenses and card charges on their pay/charge date (`usePaidLedger`) plus fees. Bill payments stay out because the charges already count, and loans stay out because lent money still counts in net worth. Income is income entries, including income earned on a transfer, plus interest net of tax; loan repayments stay out, so Activity's "Received" can read higher.
+- Stats (`app/stats.tsx`) is a root-Stack page opened from the "Stats" row at the foot of Activity's hero (`/stats?year&month&type`, Activity's month and Income/Expenses), pushed with `dangerouslySingular`; it groups money by category for a month or year. Expenses are paid expenses and card charges on their pay/charge date (`usePaidLedger`) plus fees. Bill payments stay out because the charges already count, and loans stay out because lent money still counts in net worth. Income is income entries, including income earned on a transfer, plus interest net of tax; loan repayments stay out, so Activity's "Received" can read higher.
 - Swipe-to-delete via `react-native-gesture-handler` `Swipeable`. Confirm with `Alert` before deleting.
 
 ## Design Tokens

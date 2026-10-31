@@ -15,7 +15,9 @@ import { colors } from "@/constants/theme";
 
 export interface AppBottomSheetRef {
   present: () => void;
-  dismiss: () => void;
+  // A write that changes what the sheet shows runs in afterDismiss, once the sheet has closed: mid-close, gorhom 5.2.14
+  // leaves a ghost portal and the next present() does nothing.
+  dismiss: (afterDismiss?: () => void) => void;
 }
 
 const DEFAULT_SNAP_POINTS = ["60%", "85%"];
@@ -27,18 +29,36 @@ type Props = Omit<BottomSheetModalProps, "children"> & {
 };
 
 export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppBottomSheet(
-  { title, action, children, snapPoints = DEFAULT_SNAP_POINTS, ...sheetProps },
+  { title, action, children, snapPoints = DEFAULT_SNAP_POINTS, onDismiss, ...sheetProps },
   ref
 ) {
   const sheetRef = useRef<BottomSheetModal>(null);
+  const afterDismissRef = useRef<(() => void) | null>(null);
   const { bottom } = useSafeAreaInsets();
+
+  const runAfterDismiss = useCallback(() => {
+    const afterDismiss = afterDismissRef.current;
+    afterDismissRef.current = null;
+    afterDismiss?.();
+  }, []);
+
+  const handleDismiss = useCallback(() => {
+    onDismiss?.();
+    runAfterDismiss();
+  }, [onDismiss, runAfterDismiss]);
 
   React.useImperativeHandle(ref, () => ({
     present: () => {
+      runAfterDismiss();
       Keyboard.dismiss();
       sheetRef.current?.present();
     },
-    dismiss: () => sheetRef.current?.dismiss(),
+    dismiss: (afterDismiss) => {
+      if (afterDismiss) {
+        afterDismissRef.current = afterDismiss;
+      }
+      sheetRef.current?.dismiss();
+    },
   }));
 
   const renderBackdrop = useCallback(
@@ -66,6 +86,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
       backgroundStyle={{ backgroundColor: colors.surface }}
       handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
       backdropComponent={renderBackdrop}
+      onDismiss={handleDismiss}
       {...sheetProps}
     >
       <BottomSheetView className="flex-1" style={{ paddingBottom: bottom }}>

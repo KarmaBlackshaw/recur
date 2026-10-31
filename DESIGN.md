@@ -129,7 +129,9 @@ a Hairline border, above the tab bar, gone after 5s. Never for errors (those are
 
 ### Pay sheet
 Opened when a bill's amount isn't known, from a bill's Mark paid, or by long-pressing the pay circle: Amount
-(prefilled), Paid on (an `AppDateField`, today by default, no future dates) and Pay from.
+(prefilled), Paid on (an `AppDateField`, today by default, no future dates) and Pay from. Tapping a bill in Home's
+Overdue or Upcoming whose amount isn't known (TBD) opens it too, with a ghost Details button under Mark as paid
+that opens the bill for that month.
 
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes

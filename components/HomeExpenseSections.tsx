@@ -9,10 +9,14 @@ import { TransferSheet, type TransferSheetRef } from "@/components/accounts/Tran
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BandHeader } from "@/components/BandHeader";
+import { openExpense } from "@/components/ExpenseCard";
+import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
+import { useExpenses } from "@/context/ExpenseContext";
+import { usePayFlow } from "@/context/PayFlowContext";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
-import type { ActivityEntry, LedgerEntry } from "@/components/DayGroupedExpenseList";
+import type { ActivityEntry, DayEntry, LedgerEntry } from "@/components/DayGroupedExpenseList";
 import type { CardBill, FeatherIconName, HomeBandSlot } from "@/types";
 
 export type BillEntry = { key: string; bill: CardBill; effDate: Date; amount: number };
@@ -108,6 +112,8 @@ export function HomeExpenseSections({
 }: Props) {
   const billSheetRef = useRef<CardBillSheetRef>(null);
   const transferSheetRef = useRef<TransferSheetRef>(null);
+  const payFlow = usePayFlow();
+  const { getDisplayAmount, getMonthStatus } = useExpenses();
   const hasAfterDue = Boolean(afterDue);
   const sections = useMemo<HomeSection[]>(() => {
     const out: HomeSection[] = [];
@@ -156,6 +162,34 @@ export function HomeExpenseSections({
     return out;
   }, [overdue, upcoming, recentActivity, collapsedSlots, hasAfterDue]);
 
+  function isUnpaidTbdDue(item: ActivityEntry): boolean {
+    if (!("expense" in item) || !item.canQuickPay) {
+      return false;
+    }
+    const year = item.refDate.getFullYear();
+    const month = item.refDate.getMonth();
+    const isUnpaid = getMonthStatus(item.expense.id, year, month) === "unpaid";
+    const isAmountUnknown = getDisplayAmount(item.expense, year, month) == null;
+    return isUnpaid && isAmountUnknown;
+  }
+
+  function askAmount({ expense, refDate }: DayEntry) {
+    const year = refDate.getFullYear();
+    const month = refDate.getMonth();
+    payFlow.openPaySheet(expense, year, month, {
+      renderFooter: ({ dismiss }) => (
+        <AppButton
+          label="Details"
+          variant="ghost"
+          onPress={() => {
+            dismiss();
+            openExpense(expense, year, month);
+          }}
+        />
+      ),
+    });
+  }
+
   return (
     <>
       <SectionList<HomeEntry | ActivityEntry, HomeSection>
@@ -172,6 +206,7 @@ export function HomeExpenseSections({
               item={item}
               index={index}
               onOpenTransfer={(transfer) => transferSheetRef.current?.present(transfer)}
+              onOpenExpense={isUnpaidTbdDue(item) ? askAmount : undefined}
             />
           )
         }

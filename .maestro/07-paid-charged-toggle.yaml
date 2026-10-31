@@ -13,13 +13,22 @@ name: Activity tab — Paid | Charged toggle shows the right rows
     env: { AMOUNT: "549", NOTE: "Netflix", ACCOUNT: "BDO Visa", BACKDATE: "false" }
 
 - runFlow: subflows/tab-activity.yaml
+- tapOn: "Paid"
 - assertVisible: "PAID THIS MONTH"
-- assertVisible: "1 payment"
+- assertVisible: "Payments"
+- assertVisible:
+    text: "1"
+    below: "Payments"
+    above: "Stats"
 - assertVisible: "Groceries, Other, from Cash, ₱300.00, Paid.*"
 - assertNotVisible: "Netflix.*"
 
 - tapOn: "Charged"
 - assertVisible: "CHARGED THIS MONTH"
-- assertVisible: "₱549.00 not yet paid off"
+- assertVisible: "Not yet paid off"
+- assertVisible:
+    text: "₱549.00"
+    below: "Not yet paid off"
+    above: "Stats"
 - assertVisible: "Netflix, Other, from BDO Visa, ₱549.00, Charged.*"
 - assertNotVisible: "Groceries.*"

@@ -4,7 +4,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
-import { chunk, keyBy, sumBy } from "@/utils/collections";
+import { keyBy, sumBy } from "@/utils/collections";
 import { useBoolean } from "@/utils/useBoolean";
 import { useSetState } from "@/utils/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
+import { AppBreakdownRow, type TBreakdownItem } from "@/components/ui/AppBreakdownRow";
 import { AppChips } from "@/components/ui/AppChips";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
@@ -53,11 +54,6 @@ const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: st
   transfers: { title: "No transfers", icon: "repeat", message: "No transfers in" },
   loans: { title: "No loan activity", icon: "users", message: "Nothing lent or repaid in" },
 };
-
-// A meta line carries at most one " · ", so the parts pair up line by line. Falsy parts drop out.
-function metaLines(...parts: (string | false)[]): string[] {
-  return chunk(parts.filter((part): part is string => Boolean(part)), 2).map((line) => line.join(" · "));
-}
 
 export default function ExpensesScreen() {
   const { loading } = useExpenses();
@@ -141,25 +137,31 @@ export default function ExpensesScreen() {
   };
   const total = totals[segment];
   const hero = HERO[segment];
-  const heroMeta: Record<Segment, string[]> = {
-    all: metaLines(
-      `${formatAmount(moneyIn)} in`,
-      `${formatAmount(paidTotal)} spent`,
-      lent > 0 && `${formatAmount(lent)} lent`,
-      repaid > 0 && `${formatAmount(repaid)} repaid`
-    ),
-    paid: metaLines(countLabel(entries.length, "payment", "payments"), fees > 0 && `incl. ${formatAmount(fees)} fees`),
-    charged: metaLines(`${formatAmount(notPaidOff)} not yet paid off`),
-    income: metaLines(
-      countLabel(entries.length, "income", "incomes"),
-      transferIncome > 0 && `incl. ${formatAmount(transferIncome)} from transfers`
-    ),
-    transfers: metaLines(
-      countLabel(entries.length, "transfer", "transfers"),
-      fees > 0 && `${formatAmount(fees)} fees`,
-      transferIncome > 0 && `${formatAmount(transferIncome)} income`
-    ),
-    loans: metaLines(`${formatAmount(repaid)} repaid`, countLabel(entries.length, "entry", "entries")),
+  const heroColumns: Record<Segment, TBreakdownItem[]> = {
+    all: [
+      { label: "In", value: formatAmount(moneyIn) },
+      { label: "Spent", value: formatAmount(paidTotal) },
+      ...(lent > 0 ? [{ label: "Lent", value: formatAmount(lent) }] : []),
+      ...(repaid > 0 ? [{ label: "Repaid", value: formatAmount(repaid) }] : []),
+    ],
+    paid: [
+      { label: "Payments", value: String(entries.length) },
+      ...(fees > 0 ? [{ label: "Incl. fees", value: formatAmount(fees) }] : []),
+    ],
+    charged: [{ label: "Not yet paid off", value: formatAmount(notPaidOff) }],
+    income: [
+      { label: "Incomes", value: String(entries.length) },
+      ...(transferIncome > 0 ? [{ label: "Incl. from transfers", value: formatAmount(transferIncome) }] : []),
+    ],
+    transfers: [
+      { label: "Transfers", value: String(entries.length) },
+      ...(fees > 0 ? [{ label: "Fees", value: formatAmount(fees) }] : []),
+      ...(transferIncome > 0 ? [{ label: "Income", value: formatAmount(transferIncome) }] : []),
+    ],
+    loans: [
+      { label: "Repaid", value: formatAmount(repaid) },
+      { label: "Entries", value: String(entries.length) },
+    ],
   };
   const empty = EMPTY[segment];
   const monthLabel = dayjs(new Date(year, month, 1)).format("MMMM");
@@ -251,11 +253,7 @@ export default function ExpensesScreen() {
               >
                 {signedAmount(total)}
               </Text>
-              {heroMeta[segment].map((line) => (
-                <AppText key={line} variant="meta">
-                  {line}
-                </AppText>
-              ))}
+              <AppBreakdownRow items={heroColumns[segment]} className="mt-3" />
             </View>
             <TouchableOpacity
               onPress={openStats}

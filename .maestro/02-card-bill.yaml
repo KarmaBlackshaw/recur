@@ -78,4 +78,8 @@ name: Card bill — Charged badge, overdue bill, override, partial + full paymen
 - runFlow: subflows/tab-activity.yaml
 - tapOn: "Charged"
 - assertVisible: "Netflix, Other, from BPI Gold, ₱549.00, Paid.*"
-- assertVisible: "₱0.00 not yet paid off"
+- assertVisible: "Not yet paid off"
+- assertVisible:
+    text: "₱0.00"
+    below: "Not yet paid off"
+    above: "Stats"

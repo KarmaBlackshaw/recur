@@ -25,7 +25,11 @@ name: Account delete — its income leaves the Income list
 - runFlow:
     file: subflows/add-income.yaml
     env: { AMOUNT: "2000", NOTE: "Freelance", ACCOUNT: "BPI Savings" }
-- assertVisible: "1 income"
+- assertVisible: "Incomes"
+- assertVisible:
+    text: "1"
+    below: "Incomes"
+    above: "Stats"
 - assertVisible: "Salary, \\+₱2,000.00, BPI Savings · Freelance"
 
 - runFlow: subflows/tab-accounts.yaml
@@ -45,5 +49,9 @@ name: Account delete — its income leaves the Income list
 
 - runFlow: subflows/tab-activity.yaml
 - tapOn: "Income"
-- assertVisible: "0 incomes"
+- assertVisible: "Incomes"
+- assertVisible:
+    text: "0"
+    below: "Incomes"
+    above: "Stats"
 - assertNotVisible: ".*Freelance.*"

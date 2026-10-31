@@ -167,6 +167,11 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)
   and Owed under a hairline. The header's layers toggle (saved, carried in backups) groups active accounts into a
   band per bank, in account order, with accounts that have no bank last under "Other".
+- Activity's hero breaks its month down the way the net worth hero does: label-over-value columns
+  (`AppBreakdownRow`) under a hairline, above the Stats row. All shows "In" and "Spent", plus "Lent" and "Repaid"
+  while there are any. Paid shows "Payments" and "Incl. fees", Income shows "Incomes" and "Incl. from transfers",
+  Transfers shows "Transfers", "Fees" and "Income"; the fee and transfer-income columns show only while there are
+  any. Charged shows "Not yet paid off", and Loans shows "Repaid" and "Entries".
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

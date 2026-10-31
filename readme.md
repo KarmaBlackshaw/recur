@@ -54,8 +54,7 @@ Amounts are in Philippine pesos (₱).
 
 ### Home and Recurring
 
-- Home leads with what's **left to pay this month**, how much you've spent, how many bills are late and how much went
-  on cards.
+- Home leads with what you've **spent this month** and what came in, then how much went on cards and what you're owed.
 - Below that: overdue bills, this month, next month, credit card bills and money owed to you.
 - The Recurring tab steps through any month: total bills, paid, charged to cards and still to pay.
 

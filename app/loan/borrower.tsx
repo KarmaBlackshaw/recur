@@ -15,13 +15,9 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { LoanRow } from "@/components/loans/LoanRow";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/dateHelpers";
+import { loanTitle } from "@/utils/loans/loanTitle";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { Loan } from "@/types";
-
-// The header already names the borrower, so rows say which loan: its note, else what was lent and when.
-function loanTitle({ note, principal, lentAt }: Loan) {
-  return note?.trim() || `${formatAmount(principal)} · ${dayjs(lentAt).format("MMM D")}`;
-}
 
 export default function BorrowerLoansScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();

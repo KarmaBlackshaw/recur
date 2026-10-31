@@ -4,6 +4,7 @@ import { insertRow, newId } from "@/db/accountTransactions";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
+import { uniq } from "@/utils/collections";
 import type { Loan, LoanInput, LoanPaymentInput, TLoanInterestType } from "@/types";
 
 interface LoanRow {
@@ -29,10 +30,15 @@ function toLoan(r: LoanRow): Loan {
 
 type TWriteDb = Awaited<ReturnType<typeof getDB>>;
 
+// FKs are off inside write transactions, so probe the account explicitly
+async function hasAccount(txn: TWriteDb, accountId: string) {
+  const account = await txn.getFirstAsync<{ id: string }>("SELECT id FROM accounts WHERE id = ?", [accountId]);
+  return account !== null;
+}
+
 async function writeLoanOut(txn: TWriteDb, loan: Pick<Loan, "id" | "accountId" | "principal" | "lentAt">): Promise<void> {
-  // FKs are off inside write transactions, so probe the account explicitly
-  const account = await txn.getFirstAsync<{ id: string }>("SELECT id FROM accounts WHERE id = ?", [loan.accountId]);
-  if (!account) {
+  const hasLoanAccount = await hasAccount(txn, loan.accountId);
+  if (!hasLoanAccount) {
     return;
   }
   await insertRow(txn, {
@@ -82,11 +88,21 @@ export async function remove(id: string): Promise<void> {
   });
 }
 
-export async function insertPayment(p: LoanPaymentInput): Promise<void> {
+export async function insertPayments(payments: LoanPaymentInput[]): Promise<void> {
   const db = await getDB();
-  await insertRow(db, {
-    accountId: p.accountId, kind: "loan_in", amount: p.amount, expenseId: null, cycleYear: null,
-    cycleMonth: null, transferId: null, note: null, category: null, loanId: p.loanId, createdAt: p.paidAt,
+  await withWriteTransaction(db, async (txn) => {
+    for (const accountId of uniq(payments.map((p) => p.accountId))) {
+      const isKnownAccount = await hasAccount(txn, accountId);
+      if (!isKnownAccount) {
+        throw new Error("Account not found");
+      }
+    }
+    for (const p of payments) {
+      await insertRow(txn, {
+        accountId: p.accountId, kind: "loan_in", amount: p.amount, expenseId: null, cycleYear: null,
+        cycleMonth: null, transferId: null, note: null, category: null, loanId: p.loanId, createdAt: p.paidAt,
+      });
+    }
   });
 }
 

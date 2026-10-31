@@ -122,6 +122,9 @@ export interface LoanPaymentInput {
   paidAt: string;
 }
 
+export type TLoanPayment = Pick<AccountTransaction, 'amount' | 'createdAt'>;
+export type TLoanTerms = Pick<Loan, 'principal' | 'lentAt' | 'interest'>;
+
 export interface Account {
   id: string;
   name: string;

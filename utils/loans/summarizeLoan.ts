@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import type { Loan } from "@/types";
+import type { TLoanPayment, TLoanTerms } from "@/types";
 
 export interface TLoanCharge { date: string; amount: number }
 export interface TLoanSummary {
@@ -16,8 +16,8 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const day = (d: string) => dayjs(d).format("YYYY-MM-DD");
 
 export function summarizeLoan({ loan, payments, today }: {
-  loan: Pick<Loan, "principal" | "lentAt" | "interest">;
-  payments: { amount: number; createdAt: string }[];
+  loan: TLoanTerms;
+  payments: TLoanPayment[];
   today: string;
 }): TLoanSummary {
   const { principal, lentAt, interest } = loan;

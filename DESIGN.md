@@ -111,7 +111,11 @@ is a react-hook-form `Controller`; Save stays disabled until the form is valid.
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows.
 
-### Stats (`app/(tabs)/stats.tsx`)
+### Stats (`app/stats.tsx`)
+A pushed page, not a tab, with two ways in. Home's header has a round pie-chart button, the same size as Settings and
+left of it, that opens it on the current month. The Activity hero ends with a hairline-separated 44dp link row
+(pie-chart glyph, Periwinkle label, Muted chevron) that opens it on Activity's month and Income/Expenses. Header: back
+chevron, 22px `title`, `PeriodNavigator`; no tab bar or FAB.
 Underline tabs (`AppUnderlineTabs`) switch Income and Expenses and show each total, with a Periwinkle underline on the
 active one, since mint and coral stay states. The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so
 a hue says which slice is which row and never belongs to a category. Past the sixth, categories fold into one neutral
@@ -128,7 +132,6 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - One column. 17.5dp side gutters on headers, cards and row content.
 - Group with headers and whitespace (band headers, day headers), not boxes.
 - Scroll views keep 140dp of bottom padding so the floating tab bar never covers the last row.
-- The floating tab bar labels every tab only when the screen is at least 84dp wide per tab and text is at most 1.15× size; otherwise only the active tab is labelled. With six tabs beside the FAB, inactive tabs are narrower than 44dp on phones under about 414dp wide.
 - Touch targets are at least 44dp.
 - Money lists sort by date. Home shows Overdue first, then this month, then next month once it is at most
   7 days away.

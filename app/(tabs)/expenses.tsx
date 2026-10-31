@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
-import { View, Text } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
+import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
 import { sumBy } from "@/utils/collections";
 import { useSetState } from "@/utils/useSetState";
@@ -18,6 +19,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
 import { AppChips } from "@/components/ui/AppChips";
+import { colors } from "@/constants/theme";
 
 type Segment = "all" | "paid" | "charged" | "income" | "transfers";
 
@@ -37,6 +39,11 @@ const HERO: Record<Segment, { overline: string; box: string; text: string }> = {
   transfers: { overline: "Transferred this month", box: "bg-white/[0.04] border-border", text: "text-white" },
 };
 
+const STATS_LINK: Record<"income" | "expenses", string> = {
+  income: "Income stats",
+  expenses: "Spending stats",
+};
+
 const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: string }> = {
   all: { title: "No activity", icon: "list", message: "Nothing happened in" },
   paid: { title: "Nothing paid", icon: "check-circle", message: "No expenses paid in" },
@@ -54,6 +61,11 @@ export default function ExpensesScreen() {
   const segment = SEGMENTS.find(({ value }) => value === params.segment)?.value ?? "all";
   const today = dayjs().startOf("day").toDate();
   const [{ year, month }, setSelected] = useSetState({ year: today.getFullYear(), month: today.getMonth() });
+  const statsType = segment === "income" ? "income" : "expenses";
+
+  function openStats() {
+    router.push(`/stats?year=${year}&month=${month}&type=${statsType}`, { dangerouslySingular: true });
+  }
 
   const { byFilter, notPaidOff, fees, transferIncome } = useMemo(() => {
     const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
@@ -145,18 +157,31 @@ export default function ExpensesScreen() {
         className="mt-1"
       />
 
-      <View className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}>
-        <AppText variant="overline">{hero.overline}</AppText>
-        <Text
-          className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}
-          maxFontSizeMultiplier={1.4}
+      <View className={`mx-5 mt-3 mb-1 rounded-2xl border ${hero.box}`}>
+        <View className="px-5 pt-5 pb-3">
+          <AppText variant="overline">{hero.overline}</AppText>
+          <Text
+            className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+            maxFontSizeMultiplier={1.4}
+          >
+            {formatAmount(total)}
+          </Text>
+          <AppText variant="meta">{heroMeta[segment]}</AppText>
+        </View>
+        <TouchableOpacity
+          onPress={openStats}
+          activeOpacity={0.7}
+          className="min-h-[44px] flex-row items-center px-5 border-t border-white/[0.07]"
         >
-          {formatAmount(total)}
-        </Text>
-        <AppText variant="meta">{heroMeta[segment]}</AppText>
+          <Feather name="pie-chart" size={16} color={colors.secondary} />
+          <AppText variant="body-bold" className="flex-1 ml-3 text-sm text-secondary">
+            {STATS_LINK[statsType]}
+          </AppText>
+          <Feather name="chevron-right" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
       </View>
 
       <DayGroupedExpenseList

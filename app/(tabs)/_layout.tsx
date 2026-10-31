@@ -9,7 +9,6 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="expenses" options={{ title: "Activity" }} />
-      <Tabs.Screen name="stats" options={{ title: "Stats" }} />
       <Tabs.Screen name="recurring" options={{ title: "Recurring" }} />
       <Tabs.Screen name="accounts" options={{ title: "Accounts" }} />
       <Tabs.Screen name="loans" options={{ title: "Loans" }} />

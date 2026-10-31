@@ -10,12 +10,9 @@ import { AppFab } from "@/components/ui/AppFab";
 import { colors } from "@/constants/theme";
 import type { FeatherIconName } from "@/types";
 
-const MIN_TAB_WIDTH = 84;
-
 const TAB_META: Record<string, { label: string; icon: FeatherIconName }> = {
   index: { label: "Home", icon: "home" },
   expenses: { label: "Activity", icon: "check-circle" },
-  stats: { label: "Stats", icon: "pie-chart" },
   recurring: { label: "Recurring", icon: "repeat" },
   accounts: { label: "Accounts", icon: "credit-card" },
   loans: { label: "Loans", icon: "users" },
@@ -51,7 +48,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const isReducedMotion = useReducedMotion();
   const fabBottom = insets.bottom + 12;
   const { fontScale, width } = useWindowDimensions();
-  const isCompact = fontScale > 1.15 || width < MIN_TAB_WIDTH * Object.keys(TAB_META).length;
+  const isCompact = fontScale > 1.15 || width < 380;
 
   function getFabLabel() {
     if (isMenuOpen) {

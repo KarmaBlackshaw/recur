@@ -7,6 +7,7 @@ import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBotto
 import { AppWheelPicker } from "@/components/ui/AppWheelPicker";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
+import type { TOption } from "@/types";
 
 export interface TimePickerSheetRef {
   present: () => void;
@@ -22,7 +23,7 @@ type Period = "AM" | "PM";
 
 const HOUR_OPTIONS = range(1, 13).map((hour) => ({ label: String(hour), value: hour }));
 const MINUTE_OPTIONS = range(0, 60).map((minute) => ({ label: String(minute).padStart(2, "0"), value: minute }));
-const PERIOD_OPTIONS: { label: string; value: Period }[] = [
+const PERIOD_OPTIONS: TOption<Period>[] = [
   { label: "AM", value: "AM" },
   { label: "PM", value: "PM" },
 ];

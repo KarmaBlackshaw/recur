@@ -73,10 +73,6 @@ export function getGreeting(name?: string | null): string {
   return name ? `${salutation}, ${name}` : salutation;
 }
 
-export function formatAmount(amount: number): string {
-  return "₱" + amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 export function isOverdueOn(dueDay: number, year: number, month: number): boolean {
   const d = dayjs(getDueDateForMonth(dueDay, year, month)).startOf("day");
   return d.isBefore(dayjs()) && !d.isSame(dayjs(), "day");

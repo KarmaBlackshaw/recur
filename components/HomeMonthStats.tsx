@@ -69,7 +69,7 @@ export function HomeMonthStats({ year, month, feed, owed }: Props) {
     { label: "Spent", value: paidTotal, icon: "arrow-up-right", tone: "neutral", href: activityHref("paid"), isShown: true },
     { label: "Received", value: moneyIn, icon: "arrow-down-left", tone: "positive", href: activityHref("income"), isShown: true },
     { label: "Charged", value: chargedTotal, icon: "credit-card", tone: "accent", href: activityHref("charged"), isShown: hasCards },
-    { label: "Owed to you", value: owed?.total ?? 0, icon: "users", tone: "accent", href: "/loans", isShown: owed != null },
+    { label: "Owed to you", value: owed?.total ?? 0, icon: "users", tone: "accent", href: "/loans?segment=active", isShown: owed != null },
   ];
 
   const rows = chunk(

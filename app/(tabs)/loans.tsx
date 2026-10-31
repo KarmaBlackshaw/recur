@@ -14,7 +14,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { useRefreshControl } from "@/utils/useRefreshControl";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { colors } from "@/constants/theme";
 import type { Loan } from "@/types";
 

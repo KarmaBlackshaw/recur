@@ -1,5 +1,5 @@
 import { type TLoanInterest } from "@/types";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 
 export function formatLoanInterest(interest: TLoanInterest): string {
   switch (interest.type) {

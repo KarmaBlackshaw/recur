@@ -1,7 +1,7 @@
 import React from "react";
 import { router } from "expo-router";
 import { AppListRow } from "@/components/ui/AppListRow";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import type { BillPaymentEntry } from "@/utils/usePaidLedger";
 
 interface Props {

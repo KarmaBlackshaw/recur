@@ -19,7 +19,8 @@ import { CardColorPicker, CardIconPicker, CardLogoPicker, CardTemplatePicker } f
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
 import { findBank, type BankId } from "@/constants/banks";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
-import { cycleStateOn, formatAmount, formatOrdinal } from "@/utils/dateHelpers";
+import { cycleStateOn, formatOrdinal } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { signedAmount } from "@/utils/signedAmount";
 import { netInterestPerPeriod } from "@/utils/interest";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";

@@ -18,7 +18,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { chartHues, chartRest, colors } from "@/constants/theme";
 import { categoryIcon } from "@/utils/categories";
 import { countLabel } from "@/utils/countLabel";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { categoryBreakdown, type TCategorySpend } from "@/utils/stats/categoryBreakdown";
 import { useInterestCredits, usePaidLedger } from "@/utils/usePaidLedger";
 import { useSetState } from "@/utils/useSetState";

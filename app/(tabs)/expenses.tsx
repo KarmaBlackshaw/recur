@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -11,8 +11,8 @@ import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type ActivityEntry, type DayTotal } from "@/components/DayGroupedExpenseList";
+import { ActivityHero, type ActivityHeroTone } from "@/components/activity/ActivityHero";
 import { countLabel } from "@/utils/countLabel";
-import { signedAmount } from "@/utils/signedAmount";
 import { netFlow } from "@/utils/activity/netFlow";
 import { loanFlow } from "@/utils/activity/loanFlow";
 import { useActivityFeed } from "@/utils/useActivityFeed";
@@ -37,13 +37,13 @@ const SEGMENTS: TOption<Segment>[] = [
   { label: "Loans", value: "loans" },
 ];
 
-const HERO: Record<Segment, { overline: string; box: string; text: string }> = {
-  all: { overline: "Net this month", box: "bg-primary/10 border-primary/20", text: "text-secondary" },
-  paid: { overline: "Paid this month", box: "bg-paid/10 border-paid/20", text: "text-paid" },
-  charged: { overline: "Charged this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
-  income: { overline: "Received this month", box: "bg-paid/10 border-paid/20", text: "text-paid" },
-  transfers: { overline: "Transferred this month", box: "bg-white/[0.04] border-border", text: "text-white" },
-  loans: { overline: "Lent this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
+const HERO: Record<Segment, { overline: string; tone: ActivityHeroTone }> = {
+  all: { overline: "Net this month", tone: "primary" },
+  paid: { overline: "Paid this month", tone: "paid" },
+  charged: { overline: "Charged this month", tone: "secondary" },
+  income: { overline: "Received this month", tone: "paid" },
+  transfers: { overline: "Transferred this month", tone: "neutral" },
+  loans: { overline: "Lent this month", tone: "secondary" },
 };
 
 const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: string }> = {
@@ -214,31 +214,7 @@ export default function ExpensesScreen() {
             className="mt-1"
           />
 
-          <View className={`mx-5 mt-3 mb-1 rounded-2xl border ${hero.box}`}>
-            <View className="px-5 pt-5 pb-3">
-              <AppText variant="overline">{hero.overline}</AppText>
-              <Text
-                className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-                maxFontSizeMultiplier={1.4}
-              >
-                {signedAmount(total)}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={openStats}
-              activeOpacity={0.7}
-              className="min-h-[44px] flex-row items-center px-5 border-t border-white/[0.07]"
-            >
-              <Feather name="pie-chart" size={16} color={colors.textSecondary} />
-              <AppText variant="body-bold" className="flex-1 ml-3 text-sm text-white">
-                Stats
-              </AppText>
-              <Feather name="chevron-right" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
+          <ActivityHero overline={hero.overline} total={total} tone={hero.tone} onStatsPress={openStats} />
 
           <DayGroupedExpenseList
             entries={entries}

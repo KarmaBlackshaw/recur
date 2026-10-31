@@ -1,80 +1,139 @@
-# Recur
+<h1 align="center">Recur</h1>
 
-A recurring expenses tracker built with React Native and Expo. Track monthly bills, subscriptions, and one-off expenses with a dark-first mobile UI.
+<p align="center">
+  <strong>See what's due, pay it in a tap, and know where your money went.</strong>
+</p>
+
+<p align="center">
+  Bills, accounts, cards and loans in one app for iPhone and Android.<br />
+  Made for the Philippines · Works offline · No account needed
+</p>
+
+<p align="center">
+  <img src=".github/screenshots/home.png" width="180" alt="Home: ₱1,848 left to pay this month, two overdue bills and what's due next" />&nbsp;
+  <img src=".github/screenshots/recurring.png" width="180" alt="Recurring: October's bills split into overdue, unpaid and paid" />&nbsp;
+  <img src=".github/screenshots/activity.png" width="180" alt="Activity: net this month, then every payment, income and loan by day" />&nbsp;
+  <img src=".github/screenshots/stats.png" width="180" alt="Stats: October's spending by category on a donut chart" />
+</p>
+
+Recur keeps your recurring bills in one place, together with the bank accounts, e-wallets and credit cards you pay
+them from and the money you've lent out. Open it to see what's left to pay this month, what's late and what's next.
+Amounts are in Philippine pesos (₱).
+
+## Why Recur
+
+- **Nothing slips.** Home shows what's left to pay this month, what's late and what's due next, and a reminder
+  arrives before each bill.
+- **Paying takes a tap.** Tap the circle or swipe the row, and undo it if you got it wrong.
+- **History stays true.** Each payment keeps what it cost, when you paid and which account it came from. Editing a
+  bill later never rewrites the past.
+- **Your data stays on your phone.** No sign-up, no servers, no ads, no tracking.
 
 ## Features
 
-- Track expenses by recurrence: monthly, yearly, or one-off, with optional start and end months
-- Due day anchoring with smart month-end clamping
-- Overdue detection with visual warnings
-- Pay a bill from the list (pay circle or a full swipe) with Undo; a Pay sheet records the real amount, date and account
-- A bill screen per recurring expense: this month's status, payment history, edit and delete
-- Home summary: left to pay this month, paid of total, overdue count
-- Activity search across months, with lending kept separate from spending
-- Editable, backdatable transfers and loan payments
-- Reminders that name the bill, with a Mark paid action
-- Custom categories, created right from the category picker
-- Month-by-month navigation
+### Bills
 
-## Stack
+- Monthly, yearly and one-off bills, each due on a day of the month. A bill due on the 31st falls on the last day of
+  shorter months.
+- Bills that change every month, like electricity or water, show **TBD** until you pay them. You enter the actual
+  amount then.
+- Give a bill a start and end month, so an installment plan or a cancelled subscription stops on its own.
+- Late bills turn red and stay on Home for up to 3 months until you pay them. Recur never marks anything paid for you.
+- Every bill has its own page with this month's status and each past payment.
 
-| Layer | Tech |
-|---|---|
-| Framework | Expo (SDK 56) + Expo Router |
-| Language | TypeScript |
-| Styling | NativeWind v4 (Tailwind) |
-| Database | expo-sqlite |
-| State | React Context + useReducer |
-| Forms | react-hook-form |
-| Animations | react-native-reanimated v4 |
-| Bottom sheets | @gorhom/bottom-sheet v5 |
-| Date logic | dayjs |
-| Icons | @expo/vector-icons (Ionicons / Feather) |
-| Fonts | Oswald (headings) + Quicksand (body) |
+### Paying
 
-## Design Tokens
+- A bill with a set amount is paid in one tap, from the account you picked for it.
+- For a TBD bill, the Pay sheet asks for the amount, the date you paid and the account it came from.
+- Every payment shows an **Undo** right after, in case you tapped the wrong one.
 
-| Token | Value |
-|---|---|
-| Background | `#161618` |
-| Surface | `#1C1C1E` |
-| Primary | `#6366F1` |
-| Secondary | `#818CF8` |
-| Paid | `#34D399` |
-| Overdue | `#F87171` |
-| Text | `#FFFFFF` |
-| Border | `rgba(255,255,255,0.07)` |
+<p align="center">
+  <img src=".github/screenshots/bill.png" width="240" alt="Meralco's bill page: October is 16 days late, August and September are paid" />&nbsp;
+  <img src=".github/screenshots/pay.png" width="240" alt="Pay sheet for Meralco: amount, paid-on date and the account to pay from" />
+</p>
 
-## Project Structure
+### Home and Recurring
 
+- Home leads with what's **left to pay this month**, how much you've spent, how many bills are late and how much went
+  on cards.
+- Below that: overdue bills, this month, next month, credit card bills and money owed to you.
+- The Recurring tab steps through any month: total bills, paid, charged to cards and still to pay.
+
+### Activity and Stats
+
+- Every payment, card charge, income, transfer and loan in one feed, by day, with filters and search.
+- **Net this month** shows money in, spent, lent and repaid.
+- Stats breaks spending and income down by category, for a month or a whole year.
+
+### Accounts and cards
+
+- Bank accounts, e-wallets, credit cards and cash, with logos for 14 Philippine banks and e-wallets, including BDO,
+  BPI, GCash and Maya.
+- **Net worth** across everything you have, lend and owe.
+- Credit cards keep their limit, statement day and due date, and each month's card bill joins your other dues.
+- Savings interest is credited automatically at your account's rate, minus withholding tax.
+- Move money between accounts, with transfer fees, and edit or backdate a transfer later.
+- Bank and cash balances never go below ₱0. If a payment would overdraw an account, Recur offers a transfer to cover
+  it.
+- Archive an account you've closed. Its history stays.
+
+### Loans
+
+- Track money you lend: to whom, how much, from which account, and at what interest (none, a fixed amount, a one-time
+  %, or a monthly % of the original or remaining balance).
+- Log repayments as they come in and see what's still owed.
+- Lending isn't spending: loans stay out of your expense and income totals and still count toward your net worth.
+
+<p align="center">
+  <img src=".github/screenshots/accounts.png" width="240" alt="Accounts: net worth, then bank, e-wallet, savings and credit card balances" />&nbsp;
+  <img src=".github/screenshots/loans.png" width="240" alt="Loans: ₱10,019 owed to you across three borrowers" />
+</p>
+
+### Reminders
+
+- A notification before each bill (1, 2 or 3 days, or a week ahead, or off) at the time of day you choose.
+- Reminders name the bill. When a single bill is due, the reminder has a **Mark paid** button that opens it ready to
+  pay.
+
+### Categories
+
+- Start with Housing, Utilities, Subscriptions, Insurance, Transport, Food, Health and Other, and add your own for
+  expenses and income.
+- Rename a category and every bill and income that uses it follows.
+
+### Backups
+
+- Export everything to one file and keep it wherever you like. Home reminds you when it's been a month since your
+  last backup.
+- Importing a backup adds what's missing and never overwrites what you already have.
+
+## Private by design
+
+Recur keeps everything in a database on your phone. There's no sign-up, no server, no analytics and no ads, and it
+works fully offline. Your data only leaves the phone when you export a backup.
+
+## Get Recur
+
+Recur isn't on the App Store or Google Play. To install it, build it yourself. With Node.js and Android Studio set
+up, connect your phone (with USB debugging on) or start an emulator, then run:
+
+```bash
+npm install
+npx expo run:android --variant release
 ```
-app/
-  _layout.tsx          # Root providers (GestureHandler, BottomSheet, fonts)
-  index.tsx            # Main screen
-  add-expense.tsx      # Add/edit expense form
-  settings.tsx         # Settings screen
-  settings/
-    profile.tsx        # Profile settings
-    category/          # Category management
-components/            # UI components
-context/
-  ExpenseContext.tsx   # Single source of truth — all mutations here
-db/
-  schema.ts            # initDB() — run once on mount
-  expenses.ts          # getAll, insert, updateStatus, remove
-  categories.ts        # getCustom, insertCustom
-  expenseMonths.ts     # Month-keyed expense data
-  preferences.ts       # User preferences
-utils/
-  dateHelpers.ts       # getDueDate, isOverdue, formatDue
-  categories.ts        # PRESET_CATEGORIES
-  monthKey.ts          # Month key helpers
-constants/
-  theme.ts             # Color tokens
-types.ts               # Shared TS types
-```
 
-## Getting Started
+That installs a standalone build that works without a computer attached. iPhone builds need Xcode and an Apple
+Developer account; see the developer notes below.
+
+<details>
+<summary><strong>Developer notes</strong></summary>
+
+<br />
+
+Recur is an Expo (React Native) app in TypeScript, styled with NativeWind, with its data in SQLite on the device.
+Code conventions live in [`CLAUDE.md`](CLAUDE.md) and the visual language in [`DESIGN.md`](DESIGN.md).
+
+#### Run a debug build
 
 ```bash
 npm install
@@ -83,7 +142,7 @@ npm run ios        # iOS simulator
 npm run android    # Android emulator
 ```
 
-### iOS Simulator
+#### iOS Simulator
 
 Needs Xcode (with an iOS simulator runtime) and CocoaPods.
 
@@ -96,7 +155,7 @@ npm run start:wt -- --ios             # this checkout's Metro, with the simulato
 The iOS app's prebuilt React Native always looks for Metro on :8081, so with several checkouts running it can
 load another one's code. `start:wt -- --ios` sets the simulator's bundler location to this checkout's port.
 
-## Build
+#### Builds
 
 ```bash
 npm run build:apk      # Android APK (EAS preview)
@@ -112,7 +171,7 @@ To get installable iPhone builds: join the Apple Developer Program, run `npm run
 let EAS create the certificate and profile, register each iPhone with `npx eas-cli device:create`, then switch
 `build_ios` in `.eas/workflows/build.yml` to the `preview` profile.
 
-### App size
+#### App size
 
 Android release builds ship `arm64-v8a` and `armeabi-v7a` only, run R8 and resource shrinking, and leave out
 Fresco's GIF/WebP decoders (`app.json`, `plugins/`). Don't turn on Expo's experimental Metro tree shaking
@@ -125,25 +184,4 @@ node scripts/subset-fonts.mjs        # Oswald without Cyrillic/Greek + the Ionic
 node scripts/generate-bank-logos.mjs # assets/banks/*.svg → @1x/@2x/@3x PNGs
 ```
 
-## Data Model
-
-```ts
-type Recurrence = 'monthly' | 'yearly' | 'one-off';
-type Status = 'unpaid' | 'paid';
-
-interface Expense {
-  id: string;
-  name: string;
-  category: string;
-  amount: number;        // null shown as "TBD"
-  dueDay: number;        // 1–31, anchor day of month
-  recurrence: Recurrence;
-  status: Status;
-  notes?: string;
-  createdAt: string;
-}
-```
-
-## Preset Categories
-
-Housing · Utilities · Subscriptions · Insurance · Transport · Food · Health · Other
+</details>

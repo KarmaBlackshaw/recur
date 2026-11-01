@@ -137,6 +137,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
             : "Pay"
         }
         snapPoints={CONTENT_HEIGHT_SNAP}
+        scrollable
         keyboardBlurBehavior="restore"
       >
         {target ? (

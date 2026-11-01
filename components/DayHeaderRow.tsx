@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { AppText } from "@/components/ui/AppText";
 import dayjs from "dayjs";
 import { formatAmount } from "@/utils/dateHelpers";
+import { signedAmount } from "@/utils/signedAmount";
 import { colors } from "@/constants/theme";
 
 // Weekends in periwinkle, weekdays muted. Coral stays reserved for "late".
@@ -16,7 +17,8 @@ export function weekdayColor(date: Date): string {
 
 // The per-day header: big day number, colored weekday, month/year, right-aligned total.
 // Shared by DayGroupedExpenseList (all day groups) and HomeExpenseSections (Upcoming).
-export function DayHeaderRow({ date, total }: { date: Date; total?: number }) {
+export function DayHeaderRow({ date, total, isSigned = false }: { date: Date; total?: number; isSigned?: boolean }) {
+  const isNetIn = isSigned && total != null && total > 0;
   return (
     <View className="flex-row items-center justify-between px-5 pt-3 pb-2">
       <View className="flex-row items-baseline gap-2">
@@ -32,7 +34,11 @@ export function DayHeaderRow({ date, total }: { date: Date; total?: number }) {
           {dayjs(date).format("MMM YYYY")}
         </AppText>
       </View>
-      {total != null && <AppText variant="amount-sm">{formatAmount(total)}</AppText>}
+      {total != null && (
+        <AppText variant="amount-sm" className={isNetIn ? "text-paid" : ""}>
+          {isSigned ? `${isNetIn ? "+" : ""}${signedAmount(total)}` : formatAmount(total)}
+        </AppText>
+      )}
     </View>
   );
 }

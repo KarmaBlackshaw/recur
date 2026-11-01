@@ -2,7 +2,7 @@ import { Alert } from "react-native";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { alertFailure } from "@/utils/accounts/alertFailure";
-import { countLabel } from "@/utils/countLabel";
+import { deleteLoanMessage } from "@/utils/loans/deleteLoanMessage";
 import type { AccountTransaction } from "@/types";
 
 export function useRevertLoan() {
@@ -16,12 +16,9 @@ export function useRevertLoan() {
     }
     const isPayment = txn.kind === "loan_in";
     const accountName = accounts.accounts.find(({ id }) => id === txn.accountId)?.name ?? "its account";
-    const paymentCount = loans.paymentsOf(loan.id).length;
     const message = isPayment
       ? `The money leaves ${accountName} and ${loan.borrower} owes it again.`
-      : paymentCount > 0
-        ? `This loan and its ${countLabel(paymentCount, "payment", "payments")} are removed, and account balances go back.`
-        : `This loan is removed and the money goes back to ${accountName}.`;
+      : deleteLoanMessage(loan, loans.paymentsOf(loan.id).length, accountName);
 
     const revert = async () => {
       try {

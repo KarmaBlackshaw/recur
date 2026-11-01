@@ -28,6 +28,7 @@ import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
 import { loanOutChanges } from "@/utils/loans/loanOutChanges";
 import { isLoanOutOf } from "@/utils/loans/isLoanOutOf";
+import { deleteLoanMessage } from "@/utils/loans/deleteLoanMessage";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import {
   LOAN_INTEREST_TYPE_LABEL,
@@ -258,26 +259,12 @@ export default function AddLoanScreen() {
     }
   });
 
-  const paymentCount = editing ? loans.paymentsOf(editing.id).length : 0;
-  const isAccountless = editing?.accountId == null;
-
-  function deleteMessageOf() {
-    if (isAccountless && paymentCount === 0) {
-      return "No account balances change.";
-    }
-    if (paymentCount > 0) {
-      return `Its ${paymentCount === 1 ? "1 payment is" : `${paymentCount} payments are`} removed and account balances go back.`;
-    }
-    return "Account balances go back.";
-  }
-
-  const deleteMessage = deleteMessageOf();
-
   function handleDelete() {
-    if (!id) {
+    if (!id || !editing) {
       return;
     }
-    Alert.alert("Delete this loan?", deleteMessage, [
+    const message = deleteLoanMessage(editing, loans.paymentsOf(editing.id).length, savedAccountName);
+    Alert.alert("Delete this loan?", message, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",

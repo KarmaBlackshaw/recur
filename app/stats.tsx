@@ -111,7 +111,7 @@ export default function StatsScreen() {
   );
 
   // Loan repayments stay out for the same reason: getting lent money back isn't earning it. Income a loan brought
-  // in gets its own slice, so an overpayment's Interest never reads as bank interest.
+  // in gets its own slice, so a loan's income never reads as bank interest.
   const incomeLines = useMemo(
     () => [
       ...incomeEntries.map(({ income, loan, amount, effDate }) => {

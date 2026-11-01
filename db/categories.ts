@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
-import { isLockedCategory } from "@/utils/categories";
+import { isLockedCategory, lockedLast } from "@/utils/categories";
 import type { CategoryKind } from "@/types";
 
 export interface Category {
@@ -10,7 +10,7 @@ export interface Category {
 }
 
 // Categories are ordered by recency: most-recently-used first, never-used last
-// (sort_order is the stable tiebreak for the never-used group → keeps preset order).
+// (sort_order is the stable tiebreak for the never-used group → keeps preset order). The locked category always goes last.
 const RECENCY_ORDER = "ORDER BY last_used_at IS NULL ASC, last_used_at DESC, sort_order ASC";
 
 export async function getAll(kind: CategoryKind = "expense"): Promise<string[]> {
@@ -19,15 +19,19 @@ export async function getAll(kind: CategoryKind = "expense"): Promise<string[]> 
     `SELECT name FROM categories WHERE kind = ? ${RECENCY_ORDER}`,
     [kind]
   );
-  return rows.map((r) => r.name);
+  return lockedLast(
+    rows.map((r) => r.name),
+    kind
+  );
 }
 
 export async function getAllWithIds(kind: CategoryKind = "expense"): Promise<Category[]> {
   const db = await getDB();
-  return db.getAllAsync<Category>(
+  const rows = await db.getAllAsync<Category>(
     `SELECT rowid AS id, name FROM categories WHERE kind = ? ${RECENCY_ORDER}`,
     [kind]
   );
+  return lockedLast(rows, kind);
 }
 
 interface TTouchCategoryOptions {

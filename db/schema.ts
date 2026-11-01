@@ -258,7 +258,7 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       ('preset-income-salary','Salary',0,'income'),('preset-income-freelance','Freelance',1,'income'),
       ('preset-income-business','Business',2,'income'),('preset-income-gift','Gift',3,'income'),
       ('preset-income-refund','Refund',4,'income'),('preset-income-interest','Interest',5,'income'),
-      ('preset-income-other','Other',6,'income');
+      ('preset-income-other','Other',6,'income'),('preset-income-overpayment','Overpayment',7,'income');
   `);
 
   const accountsMigrated = await db.getFirstAsync<{ value: string }>(

@@ -26,7 +26,7 @@ import { splitLoanPayment, type TLoanPaymentSplit, type TLoanPaymentTarget } fro
 import { formatAmount } from "@/utils/dateHelpers";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
-import { INTEREST_CATEGORY } from "@/constants/categories";
+import { OVERPAYMENT_CATEGORY } from "@/constants/categories";
 import { colors } from "@/constants/theme";
 import type { AccountTransaction, Loan } from "@/types";
 
@@ -75,13 +75,13 @@ function PaymentForm({ choices, payment }: FormProps) {
           amount: Math.abs(payment.amount).toFixed(2),
           accountId: payment.accountId,
           paidAt: payment.createdAt,
-          excessCategory: INTEREST_CATEGORY,
+          excessCategory: OVERPAYMENT_CATEGORY,
         }
       : {
           amount: "",
           accountId: suggestedAccountOf(choices[0]),
           paidAt: dayjs().startOf("day").toISOString(),
-          excessCategory: INTEREST_CATEGORY,
+          excessCategory: OVERPAYMENT_CATEGORY,
         },
   });
   const { allowLeave } = useDiscardGuard(isDirty);

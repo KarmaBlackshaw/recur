@@ -2,6 +2,7 @@ import React, { forwardRef, useImperativeHandle, useRef, useState } from "react"
 import { Alert, View } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import dayjs from "dayjs";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
@@ -30,12 +31,15 @@ interface PaymentFormValues {
   amount: string;
   paidAt: string;
   fromId: string;
+  fee: string;
+  note: string;
 }
 
 export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet(_props, ref) {
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const sourceSheetRef = useRef<AccountPickerSheetRef>(null);
   const accounts = useAccounts();
+  const { top } = useSafeAreaInsets();
   const sources = accounts.activeAccounts.filter((a) => a.type !== "credit");
   const [selected, setSelected] = useState<CardBill>();
   const [footer, setFooter] = useState<SheetFooter>();
@@ -47,7 +51,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
   } = useForm<BillFormValues>({ mode: "onChange", defaultValues: { amount: "" } });
   const payForm = useForm<PaymentFormValues>({
     mode: "onChange",
-    defaultValues: { amount: "", paidAt: "", fromId: CASH_ACCOUNT_ID },
+    defaultValues: { amount: "", paidAt: "", fromId: CASH_ACCOUNT_ID, fee: "", note: "" },
   });
 
   // Home's row can leave out what an older open bill still owes; the sheet always shows the full statement.
@@ -76,6 +80,8 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
         amount: paymentField(statement.remaining),
         paidAt: new Date().toISOString(),
         fromId: sources[0]?.id ?? CASH_ACCOUNT_ID,
+        fee: "",
+        note: "",
       });
       sheetRef.current?.present();
     },
@@ -108,17 +114,17 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     await saveAmount(parseFloat(amount));
   });
 
-  async function payCard(cardId: string, { amount, paidAt, fromId: sourceId }: PaymentFormValues) {
+  async function payCard(cardId: string, { amount, paidAt, fromId: sourceId, fee, note }: PaymentFormValues) {
     try {
       await accounts.transfer({
         fromId: sourceId,
         toId: cardId,
         amount: parseFloat(amount),
-        fee: 0,
+        fee: fee === "" ? 0 : parseFloat(fee),
         income: 0,
         incomeCategory: "Other",
         incomeAccountId: cardId,
-        note: null,
+        note: note.trim() || null,
         createdAt: paidAt,
       });
     } catch (e) {
@@ -142,6 +148,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
         ref={sheetRef}
         title={bill ? `${bill.account.name} · ${dayjs(bill.dueDate).format("MMM D")} bill` : "Card bill"}
         snapPoints={CONTENT_HEIGHT_SNAP}
+        topInset={top}
         scrollable
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
@@ -223,6 +230,44 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
                     onPress={() => sourceSheetRef.current?.present()}
                   />
                 </View>
+                <Controller
+                  control={payForm.control}
+                  name="fee"
+                  rules={{
+                    validate: (v) => {
+                      if (v === "") {
+                        return true;
+                      }
+                      const n = parseFloat(v);
+                      return (!isNaN(n) && n >= 0) || "Must be ≥ 0";
+                    },
+                  }}
+                  render={({ field: { value, onChange, onBlur }, fieldState }) => (
+                    <AppTextInput
+                      label="Payment fee (₱)"
+                      isAmount
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Optional, charged on top"
+                      error={fieldState.isTouched ? fieldState.error?.message : undefined}
+                    />
+                  )}
+                />
+                <Controller
+                  control={payForm.control}
+                  name="note"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <AppTextInput
+                      label="Note"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Optional"
+                      maxLength={100}
+                    />
+                  )}
+                />
               </View>
             )}
             <View className="mt-4 gap-2">

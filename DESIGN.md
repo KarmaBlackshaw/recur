@@ -194,10 +194,11 @@ one-off's editor, directly.
 ### Card bill sheet
 Cut-off and Estimate rows, the Statement amount input (Save amount, Use estimate), then Paid and Remaining. While the
 bill is unpaid it pays in place with the Pay sheet's inputs: Payment (prefilled with what's left; it follows the
-statement amount until typed over), Paid on (after the cut-off, since an earlier payment counts in the statement) and
-Pay from (non-credit accounts only). A TBD bill owes ₱0, so it shows them once a statement amount is saved. Pay bill
-closes the sheet and records the card payment once it's gone; a payment fee or note still goes through the account
-page's Pay bill screen.
+statement amount until typed over), Paid on (after the cut-off, since an earlier payment counts in the statement), Pay
+from (non-credit accounts only), Payment fee and Note (both optional). A TBD bill owes ₱0, so it shows them once a
+statement amount is saved. Pay bill closes the sheet and records the card payment once it's gone. It's the one card
+payment form: the card's page opens it from both its "Payment due" row and its Pay bill button; with nothing owed,
+Pay bill opens the Transfer screen to the card instead, to pay it ahead.
 
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes

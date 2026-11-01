@@ -3,6 +3,7 @@ import { getDB } from "@/db/schema";
 import { insertRow, newId } from "@/db/accountTransactions";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
+import { loanOutChanges } from "@/utils/loans/loanOutChanges";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import type { Loan, LoanInput, LoanPaymentInput, TLoanInterestType } from "@/types";
 
@@ -30,18 +31,17 @@ function toLoan(r: LoanRow): Loan {
 type TWriteDb = Awaited<ReturnType<typeof getDB>>;
 
 async function writeLoanOut(txn: TWriteDb, loan: Pick<Loan, "id" | "accountId" | "principal" | "lentAt">): Promise<void> {
-  if (loan.accountId == null) {
-    return;
+  for (const { accountId, amount } of loanOutChanges(loan)) {
+    // FKs are off inside write transactions, so probe the account explicitly
+    const account = await txn.getFirstAsync<{ id: string }>("SELECT id FROM accounts WHERE id = ?", [accountId]);
+    if (!account) {
+      continue;
+    }
+    await insertRow(txn, {
+      accountId, kind: "loan_out", amount, expenseId: null, cycleYear: null,
+      cycleMonth: null, transferId: null, note: null, category: null, loanId: loan.id, createdAt: loan.lentAt,
+    });
   }
-  // FKs are off inside write transactions, so probe the account explicitly
-  const account = await txn.getFirstAsync<{ id: string }>("SELECT id FROM accounts WHERE id = ?", [loan.accountId]);
-  if (!account) {
-    return;
-  }
-  await insertRow(txn, {
-    accountId: loan.accountId, kind: "loan_out", amount: -loan.principal, expenseId: null, cycleYear: null,
-    cycleMonth: null, transferId: null, note: null, category: null, loanId: loan.id, createdAt: loan.lentAt,
-  });
 }
 
 export async function getAll(): Promise<Loan[]> {

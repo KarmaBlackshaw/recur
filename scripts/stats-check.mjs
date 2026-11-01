@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { DONUT_LABEL_HEIGHT, layoutDonut } from "../utils/charts/layoutDonut.ts";
 import { categoryBreakdown } from "../utils/stats/categoryBreakdown.ts";
 
-const line = (category, amount) => ({ category, amount });
+const line = (category, amount, icon = "tag") => ({ category, icon, amount });
 const names = (rows) => rows.map((r) => r.category).join(",");
 
 assert.deepEqual(categoryBreakdown([]), []);
 
-const rows = categoryBreakdown([line("Food", 100), line("Housing", 600), line("Food", 200), line("Transport", 100)]);
+const rows = categoryBreakdown([line("Food", 100, "coffee"), line("Housing", 600), line("Food", 200), line("Transport", 100)]);
 assert.equal(names(rows), "Housing,Food,Transport", "biggest first, same category merged");
-assert.deepEqual(rows[1], { category: "Food", amount: 300, count: 2, share: 0.3 });
+assert.deepEqual(rows[1], { category: "Food", icon: "coffee", amount: 300, count: 2, share: 0.3 }, "a slice keeps its first line's icon");
 assert.ok(Math.abs(rows.reduce((sum, r) => sum + r.share, 0) - 1) < 1e-9, "shares add up to the whole");
 
 assert.equal(names(categoryBreakdown([line("Zoo", 50), line("Art", 50)])), "Art,Zoo", "ties break by name");

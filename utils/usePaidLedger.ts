@@ -3,9 +3,10 @@ import dayjs from "dayjs";
 import { keyBy, orderBy } from "@/utils/collections";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
+import { useLoans } from "@/context/LoanContext";
 import { effectivePaidDate } from "@/utils/dateHelpers";
 import { monthKey } from "@/utils/monthKey";
-import type { Account, AccountTransaction, Expense } from "@/types";
+import type { Account, AccountTransaction, Expense, Loan } from "@/types";
 
 export interface PaidEntry {
   key: string;
@@ -29,6 +30,7 @@ export interface BillPaymentEntry {
 export interface IncomeEntry {
   key: string;
   income: AccountTransaction;
+  loan: Loan | undefined; // set when a loan overpayment saved it
   effDate: Date;
   amount: number;
 }
@@ -181,6 +183,27 @@ export function useTransfers(): TransferEntry[] {
 
     return orderBy(items, "effDate", "desc");
   }, [accounts, transactions, isCardAccount]);
+}
+
+// Every income entry, newest first, with the loan it came from. Activity, search and Stats read the loan here
+// instead of each looking it up.
+export function useIncomeEntries(): IncomeEntry[] {
+  const { transactions } = useAccounts();
+  const { loans } = useLoans();
+
+  return useMemo(() => {
+    const loansById = keyBy(loans, "id");
+    const items = transactions
+      .filter(({ kind }) => kind === "income")
+      .map((t) => ({
+        key: t.id,
+        income: t,
+        loan: t.loanId != null ? loansById[t.loanId] : undefined,
+        effDate: new Date(t.createdAt),
+        amount: t.amount,
+      }));
+    return orderBy(items, "effDate", "desc");
+  }, [transactions, loans]);
 }
 
 // One entry per interest credit, net of the tax withheld alongside it

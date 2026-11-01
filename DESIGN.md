@@ -72,6 +72,7 @@ account transactions. Never hand-build another row.
   "in 4 days", then "Nov 30". Late reads "3 days late" in coral. Settled reads "Paid Oct 21" in the neutral
   tone (the band or KPI already says paid, so a mint caption on every row would only repeat it) or
   "Charged Oct 21" in periwinkle. Ledger rows under a day header carry no date; they only flag "Charged".
+  A loan payment dated after a backdated payoff reads "₱20.00 more than owed" in the neutral tone.
 - **Accessory:** optional trailing Muted Graphite glyph: chevron to drill in. On unpaid bills in Home's due lists,
   the Recurring tab and a bill's history it is a hollow circle and its own 44dp button: tap marks the bill paid
   (Undo in the snackbar), long-press opens the Pay sheet. Coral on late bills.

@@ -43,6 +43,7 @@ export default function LoanDetailScreen() {
       return [];
     }
     const nameOf = (accountId: string) => accounts.accounts.find((a) => a.id === accountId)?.name;
+    const overpaidBy = new Map(summary.overpayments.map(({ payment, amount }) => [payment.id, amount]));
     const items: TLoanHistoryItem[] = [
       { key: "lent", kind: "lent", date: loan.lentAt, amount: loan.principal, accountName: nameOf(loan.accountId) },
       ...summary.charges.map(({ date, amount }, index): TLoanHistoryItem => ({
@@ -59,6 +60,7 @@ export default function LoanDetailScreen() {
         amount: Math.abs(txn.amount),
         accountName: nameOf(txn.accountId),
         txn,
+        overpaid: overpaidBy.get(txn.id),
       })),
     ];
     const newestFirst = orderBy(

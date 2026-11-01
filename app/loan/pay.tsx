@@ -3,6 +3,7 @@ import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
+import Animated, { FadeIn, FadeOut, useReducedMotion } from "react-native-reanimated";
 import dayjs from "dayjs";
 import { orderBy } from "@/utils/collections";
 import Feather from "@expo/vector-icons/Feather";
@@ -13,49 +14,31 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppDateField } from "@/components/ui/AppDateField";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
-import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppSelectField } from "@/components/ui/AppSelectField";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { TransferInButton } from "@/components/accounts/TransferInButton";
+import { LoanSplitPreview } from "@/components/loans/LoanSplitPreview";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
-import { summarizeLoan } from "@/utils/loans/summarizeLoan";
+import { maxPaymentOn } from "@/utils/loans/maxPaymentOn";
+import { canEditPayment } from "@/utils/loans/canEditPayment";
+import { splitLoanPayment, type TLoanPaymentSplit, type TLoanPaymentTarget } from "@/utils/loans/splitLoanPayment";
 import { formatAmount } from "@/utils/formatAmount";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { OVERPAYMENT_CATEGORY } from "@/constants/categories";
 import { colors } from "@/constants/theme";
 import type { AccountTransaction, Loan } from "@/types";
 
 interface FormValues {
-  loanId: string;
   amount: string;
   accountId: string;
   paidAt: string;
 }
 
-type TPayment = Pick<AccountTransaction, "amount" | "createdAt">;
-
-// The most a payment dated `paidAt` can be without overpaying. Paying earlier also trims the monthly interest
-// charged after that date, so a backdated payment can settle the loan for less than today's balance.
-function maxPaymentOn(loan: Loan, others: TPayment[], paidAt: string, today: string) {
-  const fits = (cents: number) =>
-    summarizeLoan({ loan, payments: [...others, { amount: cents / 100, createdAt: paidAt }], today }).isValid;
-  let low = 0;
-  let high = Math.max(0, Math.round(summarizeLoan({ loan, payments: others, today }).balance * 100));
-  while (low < high) {
-    const mid = Math.ceil((low + high) / 2);
-    if (fits(mid)) {
-      low = mid;
-    } else {
-      high = mid - 1;
-    }
-  }
-  return low / 100;
-}
-
 interface FormProps {
-  // The loans this payment can go to: one, or each active loan of a borrower (oldest first).
+  // The loans this payment is split across: one, or each active loan of a borrower (oldest first).
   choices: Loan[];
   // Set when editing an existing payment.
   payment?: AccountTransaction;
@@ -63,23 +46,19 @@ interface FormProps {
 
 function PaymentForm({ choices, payment }: FormProps) {
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
+  const isReducedMotion = useReducedMotion();
   const loans = useLoans();
   const { accounts, activeAccounts, transactions, overdraftError } = useAccounts();
   const depositAccounts = activeAccounts.filter((a) => a.type !== "credit");
   const isEditing = payment != null;
   const today = dayjs().format("YYYY-MM-DD");
 
-  function loanOf(loanId: string) {
-    return choices.find(({ id }) => id === loanId) ?? choices[0];
-  }
-
   function suggestedAccountOf(loan: Loan) {
     return depositAccounts.some((a) => a.id === loan.accountId) ? loan.accountId : CASH_ACCOUNT_ID;
   }
 
-  // The loan's other payments. The one being edited is left out so it doesn't count against itself.
-  function otherPaymentsOf(loanId: string): TPayment[] {
-    return loans.paymentsOf(loanId).filter(({ id }) => id !== payment?.id);
+  function excessOf({ total, unplaced }: TLoanPaymentSplit) {
+    return !isEditing && total >= 0.01 ? unplaced : 0;
   }
 
   const {
@@ -94,13 +73,11 @@ function PaymentForm({ choices, payment }: FormProps) {
     mode: "onChange",
     defaultValues: payment
       ? {
-          loanId: choices[0].id,
           amount: Math.abs(payment.amount).toFixed(2),
           accountId: payment.accountId,
           paidAt: payment.createdAt,
         }
       : {
-          loanId: choices[0].id,
           amount: "",
           accountId: suggestedAccountOf(choices[0]),
           paidAt: dayjs().startOf("day").toISOString(),
@@ -108,16 +85,37 @@ function PaymentForm({ choices, payment }: FormProps) {
   });
   const { allowLeave } = useDiscardGuard(isDirty);
 
-  const loan = loanOf(watch("loanId"));
-  const paidAt = watch("paidAt");
-  const max = useMemo(
-    () => maxPaymentOn(loan, otherPaymentsOf(loan.id), paidAt, today),
-    [loan, paidAt, today, loans.paymentsOf]
-  );
+  // A loan's cap depends only on the date, so caps are worked out once per date, not on every keystroke.
+  const targetsOn = useMemo(() => {
+    const cache = new Map<string, TLoanPaymentTarget[]>();
+    return (paidAt: string) => {
+      const cached = cache.get(paidAt);
+      if (cached) {
+        return cached;
+      }
+      const targets = choices.map((loan) => {
+        // The payment being edited is left out so it doesn't count against itself.
+        const payments = loans.paymentsOf(loan.id).filter(({ id }) => id !== payment?.id);
+        return { loan, payments, cap: maxPaymentOn({ loan, payments, paidAt, today }) };
+      });
+      cache.set(paidAt, targets);
+      return targets;
+    };
+  }, [choices, loans.paymentsOf, payment?.id, today]);
+
+  function splitFor(amount: string, paidAt: string) {
+    return splitLoanPayment({ amount: parseFloat(amount), targets: targetsOn(paidAt), paidAt, today });
+  }
+
+  // The split being saved stays on screen while it animates away; the saved payment would otherwise re-split
+  // against the new balances.
+  const [savedSplit, setSavedSplit] = useState<TLoanPaymentSplit>();
+  const split = savedSplit ?? splitFor(watch("amount"), watch("paidAt"));
+  const excess = excessOf(split);
 
   // Re-check when balances change, so a transfer in clears the error.
   useEffect(() => {
-    if (getValues("amount")) {
+    if (getValues("amount") && !savedSplit) {
       trigger("amount");
     }
   }, [transactions]);
@@ -138,61 +136,74 @@ function PaymentForm({ choices, payment }: FormProps) {
     if (isNaN(parsed) || parsed < 0.01) {
       return "Enter at least 0.01";
     }
-    const target = loanOf(values.loanId);
-    const others = otherPaymentsOf(target.id);
-    const next = summarizeLoan({
-      loan: target,
-      payments: [...others, { amount: parsed, createdAt: values.paidAt }],
-      today,
-    });
-    if (next.isValid) {
+    const checked = splitFor(value, values.paidAt);
+    const fitsEdit =
+      payment != null &&
+      canEditPayment({
+        loan: choices[0],
+        payments: loans.paymentsOf(choices[0].id),
+        id: payment.id,
+        next: { amount: parsed, createdAt: values.paidAt },
+        today,
+      });
+    if (checked.unplaced <= 0 || fitsEdit) {
       return amountOverdraft(value)?.message ?? true;
     }
-    const most = formatAmount(maxPaymentOn(target, others, values.paidAt, today));
+    const hasExcess = excessOf(checked) > 0;
+    if (hasExcess) {
+      return true;
+    }
+    const most = formatAmount(checked.total);
     const date = dayjs(values.paidAt);
+    if (checked.total < 0.01 && payment != null) {
+      return `Already paid off by ${date.format("MMM D")}`;
+    }
     return date.isSame(dayjs(), "day")
       ? `More than the ${most} still owed`
       : `The most you can pay on ${date.format("MMM D")} is ${most}`;
   }
 
-  // A new loan or date can put an amount already typed over the limit; say so right away.
+  // A new date can put the amount over the limit and a new account can change the overdraft check; say so right
+  // away.
   function revalidateAmount() {
     const amount = getValues("amount");
     setValue("amount", amount, { shouldValidate: true, shouldTouch: amount !== "" });
   }
 
-  function followLoan(previous: Loan, next: Loan) {
-    // Switch to the new loan's account unless one was picked by hand.
-    if (getValues("accountId") === suggestedAccountOf(previous)) {
-      setValue("accountId", suggestedAccountOf(next), { shouldDirty: true });
-    }
-    const lentOn = dayjs(next.lentAt).startOf("day");
-    if (dayjs(getValues("paidAt")).isBefore(lentOn)) {
-      setValue("paidAt", lentOn.toISOString(), { shouldDirty: true });
-    }
-    revalidateAmount();
-  }
-
   function payInFull() {
-    setValue("amount", max.toFixed(2), { shouldValidate: true, shouldDirty: true });
+    setValue("amount", split.total.toFixed(2), { shouldValidate: true, shouldDirty: true });
   }
 
   const onSubmit = handleSubmit(async (values) => {
-    const input = {
-      loanId: values.loanId,
-      accountId: values.accountId,
-      amount: parseFloat(values.amount),
-      paidAt: values.paidAt,
-    };
     try {
+      const saved = splitFor(values.amount, values.paidAt);
+      setSavedSplit(saved);
       if (payment) {
-        await loans.updatePayment(payment.id, input);
+        await loans.updatePayment(payment.id, {
+          loanId: choices[0].id,
+          accountId: values.accountId,
+          amount: parseFloat(values.amount),
+          paidAt: values.paidAt,
+        });
       } else {
-        await loans.recordPayment(input);
+        const payments = saved.parts
+          .filter(({ share }) => share >= 0.01)
+          .map(({ loan, share }) => ({
+            loanId: loan.id,
+            accountId: values.accountId,
+            amount: share,
+            paidAt: values.paidAt,
+          }));
+        const savedExcess = excessOf(saved);
+        await loans.recordPayments(
+          payments,
+          savedExcess > 0 ? { amount: savedExcess, category: OVERPAYMENT_CATEGORY } : undefined
+        );
       }
       allowLeave();
       router.back();
     } catch (e) {
+      setSavedSplit(undefined);
       console.error(isEditing ? "Update payment failed" : "Record payment failed", e);
       alertFailure(isEditing ? "Save failed" : "Payment failed", e);
     }
@@ -221,39 +232,23 @@ function PaymentForm({ choices, payment }: FormProps) {
     ]);
   }
 
-  const loanOptions = choices.map((choice) => ({
-    value: choice.id,
-    label: `${formatAmount(loans.summaries[choice.id]?.balance ?? 0)} left · ${dayjs(choice.lentAt).format("MMM D")}`,
-  }));
+  const splitAction = choices.length > 1
+    ? { label: "Save", onPress: onSubmit, isDisabled: !isValid, isLoading: isSubmitting }
+    : undefined;
 
   return (
     <>
-      <AppFormHeader title={isEditing ? "Edit payment" : "Record payment"} subtitle={loan.borrower} />
+      <AppFormHeader
+        title={isEditing ? "Edit payment" : "Record payment"}
+        subtitle={choices[0].borrower}
+        action={splitAction}
+      />
 
       <AppFormScrollView
         contentContainerClassName="px-5 pb-5"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {choices.length > 1 && (
-          <Controller
-            control={control}
-            name="loanId"
-            render={({ field: { value, onChange } }) => (
-              <AppRadioGroup
-                label="Loan"
-                options={loanOptions}
-                value={value}
-                onChange={(nextId) => {
-                  const previous = loanOf(value);
-                  onChange(nextId);
-                  followLoan(previous, loanOf(nextId));
-                }}
-              />
-            )}
-          />
-        )}
-
         <Controller
           control={control}
           name="amount"
@@ -268,22 +263,45 @@ function PaymentForm({ choices, payment }: FormProps) {
                 onChangeText={onChange}
                 onBlur={onBlur}
                 placeholder="0.00"
-                error={fieldState.isTouched || amountOverdraft(value) ? fieldState.error?.message : undefined}
+                error={
+                  fieldState.isTouched || amountOverdraft(value) || (split.unplaced > 0 && excess === 0)
+                    ? fieldState.error?.message
+                    : undefined
+                }
               />
               <TransferInButton fieldError={fieldState.error?.message} overdraft={amountOverdraft(value)} />
             </>
           )}
         />
-        {max >= 0.01 && (
+        {excess > 0 && (
+          <Animated.View
+            entering={isReducedMotion ? undefined : FadeIn.duration(150)}
+            exiting={isReducedMotion ? undefined : FadeOut.duration(150)}
+            className="flex-row items-center gap-3 rounded-xl border border-paid/20 bg-paid/10 px-4 py-3 mt-1 mb-1"
+            accessibilityLiveRegion="polite"
+          >
+            <Feather name="plus-circle" size={18} color={colors.paid} />
+            <View className="flex-1">
+              <AppText variant="body-bold" className="text-paid">
+                {`${formatAmount(excess)} more than owed`}
+              </AppText>
+              <AppText variant="meta">{`Saved as ${OVERPAYMENT_CATEGORY} income`}</AppText>
+            </View>
+          </Animated.View>
+        )}
+        {split.total >= 0.01 && (
           <TouchableOpacity
             onPress={payInFull}
             className="min-h-[44px] justify-center self-start mb-1"
             accessibilityRole="button"
-            accessibilityLabel={`Pay in full, ${formatAmount(max)}`}
+            accessibilityLabel={`Pay in full, ${formatAmount(split.total)}`}
           >
-            <AppText variant="body-bold" className="text-secondary">{`Pay in full · ${formatAmount(max)}`}</AppText>
+            <AppText variant="body-bold" className="text-secondary">
+              {`Pay in full · ${formatAmount(split.total)}`}
+            </AppText>
           </TouchableOpacity>
         )}
+        {choices.length > 1 && <LoanSplitPreview parts={split.parts} />}
 
         <Controller
           control={control}
@@ -309,7 +327,7 @@ function PaymentForm({ choices, payment }: FormProps) {
                 onChange(iso);
                 revalidateAmount();
               }}
-              minimumDate={dayjs(loan.lentAt).startOf("day").toDate()}
+              minimumDate={dayjs(choices[0].lentAt).startOf("day").toDate()}
               maximumDate={new Date()}
             />
           )}
@@ -378,13 +396,12 @@ function PaymentScreen({ loanId, borrower, paymentId }: ScreenProps) {
           "asc"
         ).map(({ id }) => id);
     const payment =
-      paymentId && loanIds.length > 0 ? loans.paymentsOf(loanIds[0]).find(({ id }) => id === paymentId) : undefined;
+      paymentId && loanId ? loans.paymentsOf(loanId).find(({ id }) => id === paymentId) : undefined;
     return { loanIds, payment };
   });
-  const choices = orderBy(
-    loans.loans.filter(({ id }) => target.loanIds.includes(id)),
-    "lentAt",
-    "asc"
+  const choices = useMemo(
+    () => orderBy(loans.loans.filter(({ id }) => target.loanIds.includes(id)), "lentAt", "asc"),
+    [loans.loans, target.loanIds]
   );
 
   if (choices.length === 0) {
@@ -402,8 +419,8 @@ function PaymentScreen({ loanId, borrower, paymentId }: ScreenProps) {
   );
 }
 
-// Record a repayment: `id` for one loan, or `borrower` to pick among that person's active loans. With `paymentId`
-// (and `id`) it edits that payment instead.
+// Record a repayment: `id` for one loan, or `borrower` to split it across that person's active loans. With
+// `paymentId` (and `id`) it edits that payment instead.
 export default function RecordPaymentScreen() {
   const { id, borrower, paymentId } = useLocalSearchParams<{ id?: string; borrower?: string; paymentId?: string }>();
   const loans = useLoans();

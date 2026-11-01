@@ -150,11 +150,8 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
     }
 
     function handleAdded(name: string) {
-      // New categories have never been used, so they sort last.
-      setCategories((prev) => [...prev, name]);
-      onChange(name);
       // This sheet waits minimized under the new-category one; dismissing it first keeps it from coming back up.
-      sheetRef.current?.dismiss();
+      sheetRef.current?.dismiss(() => onChange(name));
       newCategorySheetRef.current?.dismiss();
     }
 

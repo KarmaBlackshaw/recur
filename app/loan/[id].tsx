@@ -8,8 +8,7 @@ import { groupBy, orderBy } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
-import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
-import type { RowTone } from "@/components/ui/AppListRow";
+import { AppHeroCard, type HeroTone } from "@/components/ui/AppHeroCard";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDetailRow } from "@/components/ui/AppDetailRow";
@@ -26,9 +25,9 @@ import type { AccountTransaction } from "@/types";
 
 const KIND_RANK: Record<TLoanHistoryItem["kind"], number> = { lent: 0, interest: 1, payment: 2 };
 
-const HERO_STYLE: Record<"active" | "settled", { overline: string; box: string; amount: RowTone }> = {
-  active: { overline: "Still owed", box: "bg-secondary/10 border-secondary/20", amount: "accent" },
-  settled: { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "positive" },
+const HERO: Record<"active" | "settled", { overline: string; tone: HeroTone }> = {
+  active: { overline: "Still owed", tone: "secondary" },
+  settled: { overline: "Collected", tone: "paid" },
 };
 
 export default function LoanDetailScreen() {
@@ -132,7 +131,7 @@ export default function LoanDetailScreen() {
     );
   }
 
-  const hero = summary.isSettled ? HERO_STYLE.settled : HERO_STYLE.active;
+  const hero = summary.isSettled ? HERO.settled : HERO.active;
   const endDate = summary.settledAt ?? dayjs().format("YYYY-MM-DD");
   const meta = `Lent ${formatAmount(loan.principal)} · ${dayjs(loan.lentAt).format("MMM D")} · ${formatLoanAge(loan.lentAt, endDate)}`;
 
@@ -166,17 +165,18 @@ export default function LoanDetailScreen() {
         refreshControl={refreshControl}
         ListHeaderComponent={
           <>
-            <View
-              className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}
+            <AppHeroCard
+              overline={hero.overline}
+              value={formatAmount(heroAmount)}
+              tone={hero.tone}
+              className="mx-5 mt-3 mb-1"
               accessible
               accessibilityLabel={heroA11yLabel}
             >
-              <AppText variant="overline">{hero.overline}</AppText>
-              <AppHeroAmount value={formatAmount(heroAmount)} tone={hero.amount} className="mt-1" />
               <AppText variant="meta" className="mt-1">{meta}</AppText>
               <AppText variant="meta">{interestLabel}</AppText>
               {loan.note ? <AppText className="mt-2">{loan.note}</AppText> : null}
-            </View>
+            </AppHeroCard>
             <View className="px-5">
               <AppDetailRow label="Interest so far" value={formatAmount(summary.interestTotal)} />
               <AppDetailRow label="Paid so far" value={formatAmount(summary.paidTotal)} />

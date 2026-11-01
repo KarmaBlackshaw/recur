@@ -10,7 +10,8 @@ import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type DayTotal } from "@/components/DayGroupedExpenseList";
-import { ActivityHero, type ActivityHeroTone } from "@/components/activity/ActivityHero";
+import { ActivityHero } from "@/components/activity/ActivityHero";
+import type { HeroTone } from "@/components/ui/AppHeroCard";
 import { countLabel } from "@/utils/countLabel";
 import { netFlow } from "@/utils/activity/netFlow";
 import { loanFlow } from "@/utils/activity/loanFlow";
@@ -35,7 +36,7 @@ const SEGMENTS: TOption<ActivitySegment>[] = [
   { label: "Loans", value: "loans" },
 ];
 
-const HERO: Record<ActivitySegment, { overline: string; tone: ActivityHeroTone }> = {
+const HERO: Record<ActivitySegment, { overline: string; tone: HeroTone }> = {
   all: { overline: "Net this month", tone: "primary" },
   paid: { overline: "Paid this month", tone: "paid" },
   charged: { overline: "Charged this month", tone: "secondary" },

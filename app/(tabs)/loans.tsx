@@ -11,8 +11,7 @@ import { BorrowerRow } from "@/components/loans/BorrowerRow";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
-import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
-import type { RowTone } from "@/components/ui/AppListRow";
+import { AppHeroCard, type HeroTone } from "@/components/ui/AppHeroCard";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { useRefreshControl } from "@/utils/useRefreshControl";
@@ -27,9 +26,9 @@ const SEGMENTS: TOption<Segment>[] = [
   { label: "Settled", value: "settled" },
 ];
 
-const HERO: Record<Segment, { overline: string; box: string; amount: RowTone }> = {
-  active: { overline: "Owed to you", box: "bg-secondary/10 border-secondary/20", amount: "accent" },
-  settled: { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "positive" },
+const HERO: Record<Segment, { overline: string; tone: HeroTone }> = {
+  active: { overline: "Owed to you", tone: "secondary" },
+  settled: { overline: "Collected", tone: "paid" },
 };
 
 function countLabel(count: number, singular: string) {
@@ -168,11 +167,9 @@ export default function LoansScreen() {
         keyExtractor={({ borrower }) => borrower}
         renderItem={renderItem}
         ListHeaderComponent={
-          <View className={`mx-5 mb-1 rounded-2xl border p-5 ${hero.box}`}>
-            <AppText variant="overline">{hero.overline}</AppText>
-            <AppHeroAmount value={formatAmount(totals[segment])} tone={hero.amount} className="mt-1" />
+          <AppHeroCard overline={hero.overline} value={formatAmount(totals[segment])} tone={hero.tone} className="mx-5 mb-1">
             <AppText variant="meta">{heroMeta[segment]}</AppText>
-          </View>
+          </AppHeroCard>
         }
         refreshControl={refreshControl}
         ListEmptyComponent={

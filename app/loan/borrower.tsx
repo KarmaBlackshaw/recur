@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { SectionList, View } from "react-native";
+import { SectionList } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
@@ -8,8 +8,7 @@ import { sumBy, orderBy, partition } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
-import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
-import type { RowTone } from "@/components/ui/AppListRow";
+import { AppHeroCard, type HeroTone } from "@/components/ui/AppHeroCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFab } from "@/components/ui/AppFab";
@@ -64,9 +63,9 @@ export default function BorrowerLoansScreen() {
   const heroAmount = isAllSettled
     ? sumBy(settled, ({ id }) => loans.summaries[id]?.paidTotal ?? 0)
     : sumBy(active, ({ id }) => loans.summaries[id]?.balance ?? 0);
-  const hero: { overline: string; box: string; amount: RowTone } = isAllSettled
-    ? { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "positive" }
-    : { overline: "Owes you", box: "bg-secondary/10 border-secondary/20", amount: "accent" };
+  const hero: { overline: string; tone: HeroTone } = isAllSettled
+    ? { overline: "Collected", tone: "paid" }
+    : { overline: "Owes you", tone: "secondary" };
   const meta = `${active.length} active · ${settled.length} settled`;
   const sections = [
     { title: "Active", data: active },
@@ -110,15 +109,16 @@ export default function BorrowerLoansScreen() {
         refreshControl={refreshControl}
         ListHeaderComponent={
           <>
-            <View
-              className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}
+            <AppHeroCard
+              overline={hero.overline}
+              value={formatAmount(heroAmount)}
+              tone={hero.tone}
+              className="mx-5 mt-3 mb-1"
               accessible
               accessibilityLabel={`${hero.overline} ${formatAmount(heroAmount)}. ${meta}`}
             >
-              <AppText variant="overline">{hero.overline}</AppText>
-              <AppHeroAmount value={formatAmount(heroAmount)} tone={hero.amount} className="mt-1" />
               <AppText variant="meta">{meta}</AppText>
-            </View>
+            </AppHeroCard>
             {!isAllSettled && <AppButton label="Record payment" className="mx-5 mt-3" onPress={recordPayment} />}
           </>
         }

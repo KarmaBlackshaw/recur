@@ -126,6 +126,16 @@ hand-build another.
 - Its color is a List Row amount tone: Ink by default, Coral when negative, Secondary Graphite for nothing yet or a
   bill that isn't due that month, and the card's own signal color on tinted heroes.
 
+### Hero Card (`components/ui/AppHeroCard.tsx`)
+The tinted card behind Activity's, the Loans tab's, a borrower's and a loan's hero: overline, Hero Amount, then the
+screen's own lines under it. Never hand-build another tint map.
+
+- One tone sets both the 10% tint with its 20% border and the amount color: Indigo or Periwinkle with a Periwinkle
+  total, Mint with a Mint total, or neutral (4% white, Hairline) with an Ink total.
+- A negative total turns Coral and keeps the card's tint (Activity's net).
+- 20dp padding. A footer row (Activity's Stats row) sits under the body, whose bottom padding drops to 12dp.
+- The screen sets only the card's margins.
+
 ### Month card (`components/HomeMonthStats.tsx`)
 One Raised Graphite card at the top of Home, under the greeting, built like the other hero cards. Its lead is Spent
 for the month: an overline naming the figure and the month ("Spent in October") over an Oswald Medium 32px total.

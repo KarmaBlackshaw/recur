@@ -4,12 +4,13 @@ import { emptyTxnFields, insertRow, newId } from "@/db/accountTransactions";
 import { touchCategory } from "@/db/categories";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
+import { loanOutChanges } from "@/utils/loans/loanOutChanges";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { uniq } from "@/utils/collections";
 import type { Loan, LoanExcessInput, LoanInput, LoanPaymentInput, TLoanInterestType } from "@/types";
 
 interface LoanRow {
-  id: string; borrower: string; principal: number; account_id: string; lent_at: string;
+  id: string; borrower: string; principal: number; account_id: string | null; lent_at: string;
   interest_type: string; interest_value: number | null; note: string | null; created_at: string;
 }
 
@@ -38,14 +39,15 @@ async function hasAccount(txn: TWriteDb, accountId: string) {
 }
 
 async function writeLoanOut(txn: TWriteDb, loan: Pick<Loan, "id" | "accountId" | "principal" | "lentAt">): Promise<void> {
-  const hasLoanAccount = await hasAccount(txn, loan.accountId);
-  if (!hasLoanAccount) {
-    return;
+  for (const { accountId, amount } of loanOutChanges(loan)) {
+    const hasLoanAccount = await hasAccount(txn, accountId);
+    if (!hasLoanAccount) {
+      continue;
+    }
+    await insertRow(txn, {
+      ...emptyTxnFields(), accountId, kind: "loan_out", amount, loanId: loan.id, createdAt: loan.lentAt,
+    });
   }
-  await insertRow(txn, {
-    ...emptyTxnFields(), accountId: loan.accountId, kind: "loan_out", amount: -loan.principal, loanId: loan.id,
-    createdAt: loan.lentAt,
-  });
 }
 
 export async function getAll(): Promise<Loan[]> {

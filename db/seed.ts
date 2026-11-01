@@ -5,7 +5,8 @@ import { insert as insertTransaction } from "@/db/accountTransactions";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import dayjs from "dayjs";
 import { hasCycleIn } from "@/utils/dateHelpers";
-import type { Expense, Loan, TLoanInterest } from "@/types";
+import { loanOutChanges } from "@/utils/loans/loanOutChanges";
+import type { Expense, TLoanInterest } from "@/types";
 
 // ponytail: dev-only dummy data. Triggered by the "Seed dummy data" button in
 // the __DEV__ Dev Tools section of app/settings.tsx (hidden in prod builds).
@@ -132,13 +133,19 @@ export async function clearOneOff(): Promise<void> {
   await clearByRecurrence(true);
 }
 
-const DUMMY_LOANS: [borrower: string, principal: number, daysAgo: number, interest: TLoanInterest][] = [
+const DUMMY_LOANS: [
+  borrower: string,
+  principal: number,
+  daysAgo: number,
+  interest: TLoanInterest,
+  isLentBeforeRecur?: boolean,
+][] = [
   ["Ana", 5000, 10, { type: "none" }],
   ["Ana", 1500, 45, { type: "fixed", amount: 200 }],
   ["Ben", 12000, 90, { type: "monthly_balance", rate: 3 }],
   ["Carla", 800, 5, { type: "none" }],
   ["Dan", 3000, 30, { type: "percent_once", rate: 10 }],
-  ["Ella", 20000, 120, { type: "monthly_principal", rate: 2 }],
+  ["Ella", 20000, 120, { type: "monthly_principal", rate: 2 }, true],
   ["Ben", 2500, 15, { type: "none" }],
   ["Fritz", 650, 3, { type: "none" }],
   ["Gina", 4200, 60, { type: "fixed", amount: 500 }],
@@ -148,22 +155,24 @@ const DUMMY_LOANS: [borrower: string, principal: number, daysAgo: number, intere
 export async function seedLoans(): Promise<void> {
   await clearSeedLoans();
   const createdAt = new Date().toISOString();
-  for (const [index, [borrower, principal, daysAgo, interest]] of DUMMY_LOANS.entries()) {
-    const loan: Loan = {
+  for (const [index, [borrower, principal, daysAgo, interest, isLentBeforeRecur]] of DUMMY_LOANS.entries()) {
+    const loan = {
       id: `seed-loan-${index + 1}`,
       borrower,
       principal,
-      accountId: CASH_ACCOUNT_ID,
+      accountId: isLentBeforeRecur ? null : CASH_ACCOUNT_ID,
       lentAt: dayjs().subtract(daysAgo, "day").startOf("day").toISOString(),
       interest,
       note: null,
       createdAt,
     };
     await insertLoanWithId(loan);
-    await insertTransaction({
-      accountId: loan.accountId, kind: "loan_out", amount: -loan.principal, expenseId: null, cycleYear: null,
-      cycleMonth: null, transferId: null, note: null, category: null, loanId: loan.id, createdAt: loan.lentAt,
-    });
+    for (const { accountId, amount } of loanOutChanges(loan)) {
+      await insertTransaction({
+        accountId, kind: "loan_out", amount, expenseId: null, cycleYear: null,
+        cycleMonth: null, transferId: null, note: null, category: null, loanId: loan.id, createdAt: loan.lentAt,
+      });
+    }
   }
 }
 

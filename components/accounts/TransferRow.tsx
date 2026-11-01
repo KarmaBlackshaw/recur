@@ -1,14 +1,15 @@
 import React from "react";
 import { router } from "expo-router";
 import { AppListRow } from "@/components/ui/AppListRow";
+import { DELETED_ACCOUNT } from "@/constants/accounts";
 import { customTransferNote } from "@/utils/accounts/customTransferNote";
 import { formatAmount } from "@/utils/formatAmount";
 import type { TransferEntry } from "@/utils/usePaidLedger";
 
 export function TransferRow({ entry, onPress }: { entry: TransferEntry; onPress: () => void }) {
   const { transfer, fromName, toName, amount, fee, earned, earnedCategory, earnedAccountName } = entry;
-  const source = fromName ?? "Deleted account";
-  const destination = toName ?? "Deleted account";
+  const source = fromName ?? DELETED_ACCOUNT;
+  const destination = toName ?? DELETED_ACCOUNT;
   const title = `${source} → ${destination}`;
   const customNote = customTransferNote(transfer.note, source, destination);
   const earnedLabel =

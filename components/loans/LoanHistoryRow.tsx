@@ -4,6 +4,8 @@ import dayjs from "dayjs";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { SwipeableRow } from "@/components/ui/SwipeableRow";
 import { formatAmount } from "@/utils/formatAmount";
+import { DELETED_ACCOUNT } from "@/constants/accounts";
+import { EXISTING_LOAN } from "@/constants/loans";
 import type { AccountTransaction, FeatherIconName } from "@/types";
 
 interface TLoanHistoryBase {
@@ -14,7 +16,7 @@ interface TLoanHistoryBase {
 }
 
 export type TLoanHistoryItem =
-  | (TLoanHistoryBase & { kind: "lent" })
+  | (TLoanHistoryBase & { kind: "lent"; isLentBeforeRecur: boolean })
   | (TLoanHistoryBase & { kind: "interest" })
   | (TLoanHistoryBase & { kind: "payment"; txn: AccountTransaction; overpaid?: number });
 
@@ -24,11 +26,11 @@ const KIND_META: Record<TLoanHistoryItem["kind"], { icon: FeatherIconName; tone:
   payment: { icon: "arrow-down-left", tone: "positive", sign: "+" },
 };
 
-function labelOf({ kind, accountName }: TLoanHistoryItem) {
-  const account = accountName ?? "Deleted account";
-  switch (kind) {
+function labelOf(item: TLoanHistoryItem) {
+  const account = item.accountName ?? DELETED_ACCOUNT;
+  switch (item.kind) {
     case "lent":
-      return `Lent from ${account}`;
+      return item.isLentBeforeRecur ? EXISTING_LOAN : `Lent from ${account}`;
     case "interest":
       return "Interest";
     case "payment":

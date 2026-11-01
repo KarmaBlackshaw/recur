@@ -112,7 +112,7 @@ export interface Loan {
   id: string;
   borrower: string;
   principal: number;
-  accountId: string;
+  accountId: string | null;   // null = lent before Recur (no loan_out). A dangling id = deleted account.
   lentAt: string;
   interest: TLoanInterest;
   note: string | null;

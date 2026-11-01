@@ -18,7 +18,7 @@ import { AccountCard } from "@/components/accounts/AccountCard";
 import { CardColorPicker, CardIconPicker, CardLogoPicker, CardTemplatePicker } from "@/components/accounts/CardStylePickers";
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
 import { findBank, type BankId } from "@/constants/banks";
-import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { cycleStateOn, formatOrdinal } from "@/utils/dateHelpers";
 import { formatAmount } from "@/utils/formatAmount";
 import { signedAmount } from "@/utils/signedAmount";
@@ -325,7 +325,7 @@ export default function EditAccountScreen() {
         ? `${repaymentCount} loan ${repaymentCount === 1 ? "repayment" : "repayments"} recorded here will be removed, so those loans will show more owed.`
         : "",
       lentCount > 0
-        ? `${lentCount} ${lentCount === 1 ? "loan was" : "loans were"} lent from this account; ${lentCount === 1 ? "it'll" : "they'll"} show “Deleted account”.`
+        ? `${lentCount} ${lentCount === 1 ? "loan was" : "loans were"} lent from this account; ${lentCount === 1 ? "it'll" : "they'll"} show “${DELETED_ACCOUNT}”.`
         : "",
     ].filter((note) => note !== "");
     const loanNote = loanNotes.length > 0 ? `\n\n${loanNotes.join(" ")}` : "";

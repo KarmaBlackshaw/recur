@@ -7,6 +7,7 @@ import { useLoans } from "@/context/LoanContext";
 import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDetailRow } from "@/components/ui/AppDetailRow";
+import { DELETED_ACCOUNT } from "@/constants/accounts";
 import { formatAmount } from "@/utils/formatAmount";
 import { formatLoanInterest } from "@/utils/loans/formatLoanInterest";
 import { useRevertLoan } from "@/utils/loans/useRevertLoan";
@@ -37,7 +38,7 @@ export const LoanSheet = forwardRef<LoanSheetRef>(function LoanSheet(_props, ref
       if (!loan) {
         return;
       }
-      const accountName = accounts.accounts.find(({ id }) => id === txn.accountId)?.name ?? "Deleted account";
+      const accountName = accounts.accounts.find(({ id }) => id === txn.accountId)?.name ?? DELETED_ACCOUNT;
       setSnapshot({ txn, loan, summary: loans.summaries[loan.id], accountName });
       sheetRef.current?.present();
     },

@@ -10,6 +10,7 @@ import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppCheckRow } from "@/components/ui/AppCheckRow";
 import { AppDateField } from "@/components/ui/AppDateField";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
@@ -18,15 +19,17 @@ import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppCombobox } from "@/components/ui/AppCombobox";
-import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { sanitizeAmount } from "@/utils/amountInput";
-import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/formatAmount";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
 import { canChangeLoan } from "@/utils/loans/canChangeLoan";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
+import { loanOutChanges } from "@/utils/loans/loanOutChanges";
+import { isLoanOutOf } from "@/utils/loans/isLoanOutOf";
+import { deleteLoanMessage } from "@/utils/loans/deleteLoanMessage";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import {
   LOAN_INTEREST_TYPE_LABEL,
@@ -38,6 +41,7 @@ import {
 interface LoanFormValues {
   borrower: string;
   amount: string;
+  isLentBeforeRecur: boolean;
   accountId: string;
   lentAt: string;
   interestType: TLoanInterestType;
@@ -108,7 +112,7 @@ function toLoanInput(values: LoanFormValues): LoanInput | undefined {
   return {
     borrower: values.borrower.trim(),
     principal,
-    accountId: values.accountId,
+    accountId: values.isLentBeforeRecur ? null : values.accountId,
     lentAt: values.lentAt,
     interest: toLoanInterest(values.interestType, value),
     note: values.notes.trim() || null,
@@ -130,23 +134,26 @@ export default function AddLoanScreen() {
   const depositAccounts = accounts.activeAccounts.filter((a) => a.type !== "credit");
 
   function toFormValues(loan?: Loan): LoanFormValues {
+    const lastAccountId = maxBy(loans.loans, "lentAt")?.accountId;
+    const defaultAccountId = depositAccounts.find((a) => a.id === lastAccountId)?.id ?? CASH_ACCOUNT_ID;
     if (loan) {
       const interest = fromLoanInterest(loan.interest);
       return {
         borrower: loan.borrower,
         amount: loan.principal.toString(),
-        accountId: loan.accountId,
+        isLentBeforeRecur: loan.accountId == null,
+        accountId: loan.accountId ?? defaultAccountId,
         lentAt: loan.lentAt,
         interestType: interest.type,
         interestValue: interest.value?.toString() ?? "",
         notes: loan.note ?? "",
       };
     }
-    const lastAccountId = maxBy(loans.loans, "lentAt")?.accountId;
     return {
       borrower: prefilledBorrower,
       amount: "",
-      accountId: depositAccounts.find((a) => a.id === lastAccountId)?.id ?? CASH_ACCOUNT_ID,
+      isLentBeforeRecur: false,
+      accountId: defaultAccountId,
       lentAt: dayjs().startOf("day").toISOString(),
       interestType: "none",
       interestValue: "",
@@ -175,21 +182,35 @@ export default function AddLoanScreen() {
     }
   }, [isLoading, editing?.id]);
 
-  useEffect(() => {
-    if (getValues("amount")) {
+  function revalidateAmount() {
+    const amount = getValues("amount");
+    if (amount) {
       trigger("amount");
     }
+  }
+
+  useEffect(() => {
+    revalidateAmount();
   }, [accounts.transactions]);
 
   function amountOverdraft(amount: string) {
+    const { isLentBeforeRecur, accountId } = getValues();
     return accounts.overdraftError(
-      [{ accountId: getValues("accountId"), amount: -parseFloat(amount) }],
-      isEditing ? (t) => t.loanId === id && t.kind === "loan_out" : undefined
+      loanOutChanges({
+        accountId: isLentBeforeRecur ? null : accountId,
+        principal: parseFloat(amount),
+      }),
+      isEditing && id ? isLoanOutOf(id) : undefined
     );
   }
 
   const values = watch();
   const candidate = toLoanInput(values);
+  const savedAccountName = accounts.accounts.find((a) => a.id === editing?.accountId)?.name;
+  const refundNote =
+    editing && values.isLentBeforeRecur && savedAccountName
+      ? `${formatAmount(editing.principal)} goes back to ${savedAccountName}`
+      : undefined;
 
   const borrowerNames = useMemo(
     () =>
@@ -243,22 +264,17 @@ export default function AddLoanScreen() {
     }
   });
 
-  const paymentCount = editing ? loans.paymentsOf(editing.id).length : 0;
-  const incomeCount = editing ? loans.incomeOf(editing.id).length : 0;
-  const removed = [
-    { count: paymentCount, label: countLabel(paymentCount, "payment", "payments") },
-    { count: incomeCount, label: countLabel(incomeCount, "income entry", "income entries") },
-  ].filter(({ count }) => count > 0);
-  const deleteMessage =
-    removed.length > 0
-      ? `Its ${removed.map(({ label }) => label).join(" and ")} ${paymentCount + incomeCount === 1 ? "is" : "are"} removed and account balances go back.`
-      : "Account balances go back.";
-
   function handleDelete() {
-    if (!id) {
+    if (!id || !editing) {
       return;
     }
-    Alert.alert("Delete this loan?", deleteMessage, [
+    const message = deleteLoanMessage({
+      loan: editing,
+      paymentCount: loans.paymentsOf(editing.id).length,
+      incomeCount: loans.incomeOf(editing.id).length,
+      accountName: savedAccountName,
+    });
+    Alert.alert("Delete this loan?", message, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -375,15 +391,36 @@ export default function AddLoanScreen() {
 
         <Controller
           control={control}
-          name="accountId"
-          render={({ field: { value } }) => (
-            <AppSelectField
-              label="From account"
-              value={accounts.accounts.find((a) => a.id === value)?.name ?? "Deleted account"}
-              onPress={() => accountSheetRef.current?.present()}
+          name="isLentBeforeRecur"
+          render={({ field: { value, onChange } }) => (
+            <AppCheckRow
+              label="Existing loan"
+              description="No account is debited"
+              checked={value}
+              onToggle={(checked) => {
+                onChange(checked);
+                revalidateAmount();
+              }}
             />
           )}
         />
+        {refundNote && (
+          <AppText variant="meta" className="mb-1">{refundNote}</AppText>
+        )}
+
+        {!values.isLentBeforeRecur && (
+          <Controller
+            control={control}
+            name="accountId"
+            render={({ field: { value } }) => (
+              <AppSelectField
+                label="From account"
+                value={accounts.accounts.find((a) => a.id === value)?.name ?? DELETED_ACCOUNT}
+                onPress={() => accountSheetRef.current?.present()}
+              />
+            )}
+          />
+        )}
 
         <Controller
           control={control}
@@ -392,6 +429,9 @@ export default function AddLoanScreen() {
             <AppDateField label="Lent on" value={value} onChange={onChange} maximumDate={new Date()} />
           )}
         />
+        {values.isLentBeforeRecur && (
+          <AppText variant="meta" className="mb-1">Use the day you lent it. Interest counts from then.</AppText>
+        )}
 
         <Controller
           control={control}
@@ -498,9 +538,7 @@ export default function AddLoanScreen() {
             value={value}
             onChange={(accountId) => {
               onChange(accountId);
-              if (getValues("amount")) {
-                trigger("amount");
-              }
+              revalidateAmount();
             }}
           />
         )}

@@ -11,7 +11,7 @@ import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
-import { CASH_ACCOUNT_ID, DELETED_ACCOUNT, NO_ACCOUNT } from "@/constants/accounts";
+import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { getDueDateForMonth } from "@/utils/dateHelpers";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { payFromAccountId } from "@/utils/accounts/payFromAccountId";
@@ -26,14 +26,13 @@ export interface PayTarget {
 export interface PayConfirmation {
   amount: number;
   paidAt: string;
-  // null: a month paid without any account (no balance changes).
-  accountId: string | null;
+  accountId: string;
 }
 
 export interface PayOptions {
   footer?: SheetFooter;
-  // The account picked before paying (null: none). Left out, a new payment starts from the bill's.
-  accountId?: string | null;
+  // The account picked before paying. Left out, a new payment starts from the bill's.
+  accountId?: string;
 }
 
 export interface PaySheetRef {
@@ -47,7 +46,7 @@ interface Props {
 interface PayFormValues {
   amount: string;
   paidAt: string;
-  accountId: string; // "" = no account
+  accountId: string;
 }
 
 // How far back to look for a variable bill's last amount to prefill.
@@ -97,16 +96,15 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
       );
       const amount = lastKnownAmount(expense, year, month);
       // Editing a recorded payment starts from that payment: its own date (the due date for months paid before pay
-      // dates were recorded) and its own account, archived or not, or none. A new payment starts from the bill, or
-      // from the account picked before paying.
+      // dates were recorded) and its own account, archived or not. A new payment, or one recorded without an account,
+      // starts from the account picked before paying, else the bill's.
       const paidAt = isPaid
         ? getMonthPaidAt(expense.id, year, month) ??
           payment?.createdAt ??
           dayjs(getDueDateForMonth(expense.dueDay, year, month)).endOf("day").toISOString()
         : new Date().toISOString();
-      const newPaymentAccountId =
-        pickedAccountId !== undefined ? pickedAccountId : payFromAccountId(expense, activeAccounts);
-      const accountId = (isPaid ? payment?.accountId : newPaymentAccountId) ?? "";
+      const accountId =
+        (isPaid ? payment?.accountId : null) ?? pickedAccountId ?? payFromAccountId(expense, activeAccounts);
       reset({ amount: amount != null ? amount.toFixed(2) : "", paidAt, accountId });
       setTarget(next);
       // A function given to a state setter runs as an updater, so wrap it.
@@ -122,7 +120,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
     const payment: PayConfirmation = {
       amount: parseFloat(values.amount),
       paidAt: values.paidAt,
-      accountId: values.accountId === "" ? null : values.accountId,
+      accountId: values.accountId,
     };
     sheetRef.current?.dismiss(() => onConfirm(target, payment));
   });
@@ -130,7 +128,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   const accountId = watch("accountId");
   const dueDate = target ? dayjs(getDueDateForMonth(target.expense.dueDay, target.year, target.month)) : null;
   const isPaidAlready = target != null && getMonthStatus(target.expense.id, target.year, target.month) === "paid";
-  const accountName = accountId === "" ? NO_ACCOUNT : accounts.find((a) => a.id === accountId)?.name ?? DELETED_ACCOUNT;
+  const accountName = accounts.find((a) => a.id === accountId)?.name ?? DELETED_ACCOUNT;
   const cycleLabel = target ? dayjs(new Date(target.year, target.month, 1)).format("MMMM") : "";
 
   return (

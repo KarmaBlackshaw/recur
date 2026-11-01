@@ -183,17 +183,18 @@ a Hairline border, above the tab bar, gone after 5s. Never for errors (those are
 
 ### Pay sheet
 Opened when a bill's amount isn't known or from a bill's Mark paid: Amount (prefilled), Paid on (an `AppDateField`,
-today by default, no future dates) and Pay from. Opened from the Bill sheet's Pay on a TBD bill, it keeps that sheet's
+today by default, no future dates) and Pay from (the bill's account, or Cash when it has none or it's archived; editing
+a payment keeps that payment's account). Opened from the Bill sheet's Pay on a TBD bill, it keeps that sheet's
 Details (tonal) under Mark as paid.
 
 ### Bill sheet
 Opened by tapping an unpaid bill in Home's due lists or in the Recurring tab's Overdue and Unpaid bands, for that
 month's bill. A detail sheet titled with the bill: Amount ("TBD" when unknown), Due ("Oct 1", or "Oct 1 · 31 days
-late"), Pay from (the bill's account, or "No account"; tapping it opens the account picker to pay from another account
-this time), then Pay (primary) and Details (tonal). Pay closes the sheet and pays like the swipe (Undo in the
-snackbar), from the picked account; a TBD bill opens the Pay sheet, starting from that account, once this sheet has
-closed. Details opens the bill's page for that month. Every other row skips the sheet: it opens the bill page, or a
-one-off's editor, directly.
+late"), Pay from (the bill's account, or Cash when it has none or it's archived; tapping it opens the account picker
+to pay from another account this time), then Pay (primary) and Details (tonal). Pay closes the sheet and pays like the
+swipe (Undo in the snackbar), from the picked account; a TBD bill opens the Pay sheet, starting from that account, once
+this sheet has closed. Details opens the bill's page for that month. Every other row skips the sheet: it opens the bill
+page, or a one-off's editor, directly.
 
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes

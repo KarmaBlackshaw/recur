@@ -7,7 +7,7 @@ import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/c
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
-import { DELETED_ACCOUNT, NO_ACCOUNT } from "@/constants/accounts";
+import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { formatDaysLate, getDueDateForMonth, isOverdueOn } from "@/utils/dateHelpers";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { openExpense } from "@/utils/expenses/openExpense";
@@ -44,7 +44,7 @@ export const BillSheet = forwardRef<BillSheetRef, Props>(function BillSheet({ on
   const { getDisplayAmount } = useExpenses();
   const { accounts, activeAccounts } = useAccounts();
   const [snapshot, setSnapshot] = useState<Snapshot>();
-  const [accountId, setAccountId] = useState<string | null>(null);
+  const [accountId, setAccountId] = useState<string>(CASH_ACCOUNT_ID);
 
   useImperativeHandle(ref, () => ({
     present: (target) => {
@@ -69,7 +69,7 @@ export const BillSheet = forwardRef<BillSheetRef, Props>(function BillSheet({ on
     );
   }
 
-  const accountName = accountId == null ? NO_ACCOUNT : accounts.find(({ id }) => id === accountId)?.name ?? DELETED_ACCOUNT;
+  const accountName = accounts.find(({ id }) => id === accountId)?.name ?? DELETED_ACCOUNT;
 
   return (
     <>
@@ -90,7 +90,7 @@ export const BillSheet = forwardRef<BillSheetRef, Props>(function BillSheet({ on
           </View>
         ) : null}
       </AppBottomSheet>
-      <AccountPickerSheet ref={accountSheetRef} value={accountId ?? ""} onChange={setAccountId} />
+      <AccountPickerSheet ref={accountSheetRef} value={accountId} onChange={setAccountId} />
     </>
   );
 });

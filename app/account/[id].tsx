@@ -143,12 +143,12 @@ export default function AccountDetailScreen() {
     if (!account) {
       return;
     }
-    if (!isCredit) {
-      router.push({ pathname: "/transfer", params: { accountId: account.id } });
+    if (openBill) {
+      billSheetRef.current?.present(openBill);
       return;
     }
-    const params = openBill ? { id: account.id, amount: openBill.remaining.toFixed(2) } : { id: account.id };
-    router.push({ pathname: "/account/pay", params });
+    // With nothing owed, a card is paid ahead through the Transfer screen, which reads "Pay <card> bill" for a card.
+    router.push({ pathname: "/transfer", params: { accountId: account.id } });
   }
 
   const sections = useMemo(() => {

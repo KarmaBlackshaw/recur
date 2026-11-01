@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useMemo, useRef } from "react";
 import dayjs from "dayjs";
 import { PaySheet, type PayConfirmation, type PaySheetRef, type PayTarget } from "@/components/PaySheet";
-import { BillSheet, type BillSheetRef } from "@/components/BillSheet";
-import type { SheetFooter } from "@/components/ui/AppBottomSheet";
+import { AppButton } from "@/components/ui/AppButton";
 import { useExpenses, type UndoMonth } from "@/context/ExpenseContext";
 import { useSnackbar } from "@/context/SnackbarContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
+import { openExpense } from "@/utils/expenses/openExpense";
 import { successHaptic } from "@/utils/haptics";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { OverdraftError } from "@/utils/accounts/OverdraftError";
@@ -17,6 +17,7 @@ interface PayFlowValue {
   unpay: (expense: Expense, year: number, month: number) => Promise<void>;
   // Always asks: amount, paid-on date and account. Use when the user wants to record details.
   openPaySheet: (expense: Expense, year: number, month: number) => void;
+  // The Pay sheet for a bill row, with Details to open the bill's page.
   openBillSheet: (expense: Expense, year: number, month: number) => void;
 }
 
@@ -29,7 +30,6 @@ function cycleSuffix(year: number, month: number): string {
 
 export function PayFlowProvider({ children }: { children: React.ReactNode }) {
   const paySheetRef = useRef<PaySheetRef>(null);
-  const billSheetRef = useRef<BillSheetRef>(null);
   const { getDisplayAmount, payMonth, unpayMonth } = useExpenses();
   const snackbar = useSnackbar();
 
@@ -49,13 +49,27 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function payOrAsk(target: PayTarget, footer?: SheetFooter) {
+  async function payOrAsk(target: PayTarget) {
     const { expense, year, month } = target;
     if (getDisplayAmount(expense, year, month) == null) {
-      paySheetRef.current?.present(target, footer);
+      paySheetRef.current?.present(target);
       return;
     }
     await run(expense, year, month, "paid", () => payMonth(expense.id, year, month));
+  }
+
+  function openBillSheet(target: PayTarget) {
+    const { expense, year, month } = target;
+    paySheetRef.current?.present(target, (dismiss) => (
+      <AppButton
+        label="Details"
+        variant="tonal"
+        onPress={() => {
+          dismiss();
+          openExpense(expense, year, month);
+        }}
+      />
+    ));
   }
 
   const value = useMemo<PayFlowValue>(
@@ -63,7 +77,7 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
       pay: (expense, year, month) => payOrAsk({ expense, year, month }),
       unpay: (expense, year, month) => run(expense, year, month, "unpaid", () => unpayMonth(expense.id, year, month)),
       openPaySheet: (expense, year, month) => paySheetRef.current?.present({ expense, year, month }),
-      openBillSheet: (expense, year, month) => billSheetRef.current?.present({ expense, year, month }),
+      openBillSheet: (expense, year, month) => openBillSheet({ expense, year, month }),
     }),
     [getDisplayAmount, payMonth, unpayMonth, snackbar]
   );
@@ -76,7 +90,6 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     <PayFlowContext.Provider value={value}>
       {children}
       <PaySheet ref={paySheetRef} onConfirm={confirm} />
-      <BillSheet ref={billSheetRef} onPay={payOrAsk} />
     </PayFlowContext.Provider>
   );
 }

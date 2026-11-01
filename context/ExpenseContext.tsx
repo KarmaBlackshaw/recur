@@ -19,6 +19,7 @@ import * as monthsDB from "@/db/expenseMonths";
 import { monthKey, parseMonthKey } from "@/utils/monthKey";
 import { scheduleAllNotifications, cancelAllNotifications, getExpenseReminders, getUnpaidBillReminders } from '@/utils/notifications';
 import { useAccounts } from "@/context/AccountContext";
+import { payFromAccountId } from "@/utils/accounts/payFromAccountId";
 
 interface State {
   expenses: Expense[];
@@ -37,11 +38,11 @@ interface MonthState {
 }
 
 // What paying a month records. Anything left out falls back to the expense: its amount (or the month's own amount
-// for variable bills), now, and its Pay from account.
+// for variable bills), now, and its Pay from account (Cash when it has none or that one is archived or deleted).
 export interface PayDetails {
   amount?: number | null;
   paidAt?: string;
-  accountId?: string | null;
+  accountId?: string;
 }
 
 // Puts a month back exactly as it was before a pay/unpay, payment transaction included.
@@ -502,7 +503,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       try {
         await accounts.syncPayment({
           expenseId: id,
-          accountId: details.accountId !== undefined ? details.accountId : expense.accountId,
+          accountId: details.accountId ?? payFromAccountId(expense, accounts.activeAccounts),
           cycleYear: year,
           cycleMonth: month,
           amount,

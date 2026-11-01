@@ -31,8 +31,8 @@ export type UpcomingBand = {
 type SectionFooter = { label: string; onPress: () => void };
 
 // Home has two kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each row shows its own date);
-// Recent activity mirrors the Activity tab's All list — day-grouped, no subtotals
-// (it mixes money in and out), with the band label on the first day only.
+// Recent activity mirrors the Activity tab's All list — day-grouped, each day showing its signed net,
+// with the band label on the first day only.
 type FlatSection = {
   kind: "flat";
   key: string;
@@ -53,7 +53,7 @@ type DaySection = {
   band?: string; // only the first day carries the band label
   bandCount?: number;
   date: Date;
-  total: number;
+  total: number | undefined;
   footer?: SectionFooter;
   data: ActivityEntry[];
 };
@@ -63,6 +63,8 @@ interface Props {
   overdue: HomeEntry[];
   upcoming: UpcomingBand[];
   recentActivity: ActivityEntry[];
+  // Keyed like groupEntriesByDay (YYYY-MM-DD).
+  recentDayNets: Record<string, number | undefined>;
   collapsedSlots: HomeBandSlot[];
   onToggleSlot: (slot: HomeBandSlot) => void;
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
@@ -91,6 +93,7 @@ export function HomeExpenseSections({
   overdue,
   upcoming,
   recentActivity,
+  recentDayNets,
   collapsedSlots,
   onToggleSlot,
   ListHeaderComponent,
@@ -133,7 +136,11 @@ export function HomeExpenseSections({
     }
 
     if (recentActivity.length) {
-      const days: DaySection[] = groupEntriesByDay(recentActivity).map((g) => ({ kind: "day", ...g }));
+      const days: DaySection[] = groupEntriesByDay(recentActivity).map((g) => ({
+        kind: "day",
+        ...g,
+        total: recentDayNets[g.key],
+      }));
       days[0].band = "Recent activity";
       days[0].bandCount = recentActivity.length;
       days[days.length - 1].footer = { label: "All activity", onPress: () => router.navigate("/expenses") };
@@ -141,7 +148,7 @@ export function HomeExpenseSections({
     }
 
     return out;
-  }, [overdue, upcoming, recentActivity, collapsedSlots]);
+  }, [overdue, upcoming, recentActivity, recentDayNets, collapsedSlots]);
 
   return (
     <>
@@ -185,7 +192,7 @@ export function HomeExpenseSections({
               {s.band ? (
                 <BandHeader label={s.band} icon="activity" accent={colors.textSecondary} count={s.bandCount} />
               ) : null}
-              <DayHeaderRow date={s.date} />
+              <DayHeaderRow date={s.date} total={s.total} isSigned />
             </View>
           );
         }}

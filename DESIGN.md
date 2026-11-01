@@ -108,10 +108,11 @@ Overline label in its signal color, optional count and caption, total on the rig
 
 ### Day Header
 Day number in Oswald 22px, weekday (weekends periwinkle, weekdays muted; coral stays reserved for "late"), month and
-year, optional day total. Lists that only go one way sum the day. Activity's All and Loans mix money in and out, so
-their days show a signed net instead: "+₱82.24" in mint when more came in, "−₱392.99" when more went out. All's net
-follows the hero's rules, so the days add up to "Net this month"; a day with nothing counted in it (only card
-charges, plain transfers or loans) shows no total.
+year, optional day total. Lists that only go one way sum the day. Activity's All and Loans, and Home's Recent activity,
+mix money in and out, so their days show a signed net instead: "+₱82.24" in mint when more came in, "−₱392.99" when
+more went out. All's net follows the hero's rules, so the days add up to "Net this month"; Home's Recent activity uses
+the same net over the whole day, even when the list stops partway through it. A day with nothing counted in it (only
+card charges, plain transfers or loans) shows no total.
 
 ### Cards
 Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity, loans, net worth), account

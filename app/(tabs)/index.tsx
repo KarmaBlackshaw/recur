@@ -17,6 +17,9 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { isOverdueOn, hasCycleIn, getDueDateForMonth, getGreeting } from "@/utils/dateHelpers";
 import { useActivityFeed } from "@/utils/useActivityFeed";
+import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
+import { dayTotalOf } from "@/utils/activity/dayTotalOf";
+import { netFlow } from "@/utils/activity/netFlow";
 import { useOwedToYou } from "@/utils/useOwedToYou";
 import { useLingeringEntries } from "@/utils/useLingeringEntries";
 import { openCardBills } from "@/utils/cardBills";
@@ -168,9 +171,21 @@ export default function HomeScreen() {
     return [band(dayjs(today), "current"), band(next, "next")].filter((b) => b.data.length > 0);
   }, [upcomingWithPaid, getMonthStatus, today]);
 
-  const recentActivity = useMemo(() => {
+  // The list stops at ACTIVITY_LIMIT rows, often partway through a day, so each day's net counts the whole day and
+  // matches that day on Activity's All list.
+  const { recentActivity, recentDayNets } = useMemo(() => {
     const endToday = dayjs(today).endOf("day").toDate();
-    return feed.all.filter(({ effDate }) => effDate <= endToday).slice(0, ACTIVITY_LIMIT);
+    const past = feed.all.filter(({ effDate }) => effDate <= endToday);
+    const shown = past.slice(0, ACTIVITY_LIMIT);
+    if (shown.length === 0) {
+      return { recentActivity: shown, recentDayNets: {} };
+    }
+    const oldestDay = dayjs(shown[shown.length - 1].effDate).startOf("day").toDate();
+    const days = groupEntriesByDay(past.filter(({ effDate }) => effDate >= oldestDay));
+    return {
+      recentActivity: shown,
+      recentDayNets: Object.fromEntries(days.map(({ key, data }) => [key, dayTotalOf(data, netFlow)])),
+    };
   }, [feed, today]);
 
   // The Pay swipe hint goes on the first due row in view: Overdue, else the first expanded Upcoming band. Only while
@@ -230,6 +245,7 @@ export default function HomeScreen() {
         overdue={overdueRows}
         upcoming={upcomingRows}
         recentActivity={recentActivity}
+        recentDayNets={recentDayNets}
         collapsedSlots={collapsedHomeBands}
         onToggleSlot={toggleHomeBand}
         refreshControl={refreshControl}

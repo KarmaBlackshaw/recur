@@ -124,10 +124,6 @@ export function isPaymentFor(expenseId: string, cycleYear: number | null, cycleM
     t.kind === "payment" && t.expenseId === expenseId && t.cycleYear === cycleYear && t.cycleMonth === cycleMonth;
 }
 
-function emptyTxnFields(): Pick<AccountTransaction, "expenseId" | "cycleYear" | "cycleMonth" | "transferId" | "category" | "loanId"> {
-  return { expenseId: null, cycleYear: null, cycleMonth: null, transferId: null, category: null, loanId: null };
-}
-
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { accounts: [], transactions: [], billOverrides: [], isLoading: true });
   const isRunningInterest = useRef(false);
@@ -261,7 +257,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const amount = round(openingBalance, 2);
     if (amount !== 0) {
       const txn = await transactionsDB.insert({
-        ...emptyTxnFields(),
+        ...transactionsDB.emptyTxnFields(),
         accountId: account.id,
         kind: "adjust",
         amount,
@@ -320,11 +316,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const txn = await transactionsDB.insert({
-      ...emptyTxnFields(),
+      ...transactionsDB.emptyTxnFields(),
       accountId: id,
       kind: "adjust",
       amount,
-      note: null,
       createdAt: new Date().toISOString(),
     });
     dispatch({ type: "ADD_TRANSACTIONS", payload: [txn] });
@@ -339,7 +334,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Income can't be deposited to an archived account");
     }
     const txn = await transactionsDB.insert({
-      ...emptyTxnFields(),
+      ...transactionsDB.emptyTxnFields(),
       accountId: input.accountId,
       kind: "income",
       amount: round(input.amount, 2),
@@ -348,7 +343,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       createdAt: input.receivedAt,
     });
     dispatch({ type: "ADD_TRANSACTIONS", payload: [txn] });
-    await touchCategory(input.category, undefined, "income");
+    await touchCategory({ name: input.category, kind: "income" });
   });
 
   const updateIncome = useMemoizedFn(async (id: string, input: IncomeInput) => {
@@ -379,7 +374,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         },
       ],
     });
-    await touchCategory(input.category, undefined, "income");
+    await touchCategory({ name: input.category, kind: "income" });
   });
 
   const deleteIncome = useMemoizedFn(async (id: string) => {
@@ -420,7 +415,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const createdAt = when ?? new Date().toISOString();
     const rows: Omit<AccountTransaction, "id">[] = [
       {
-        ...emptyTxnFields(),
+        ...transactionsDB.emptyTxnFields(),
         accountId: fromId,
         kind: "transfer",
         amount: -value,
@@ -429,7 +424,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         createdAt,
       },
       {
-        ...emptyTxnFields(),
+        ...transactionsDB.emptyTxnFields(),
         accountId: toId,
         kind: "transfer",
         amount: to.type === "credit" ? -value : value,
@@ -440,7 +435,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     ];
     if (feeValue > 0) {
       rows.push({
-        ...emptyTxnFields(),
+        ...transactionsDB.emptyTxnFields(),
         accountId: fromId,
         kind: "fee",
         amount: -feeValue,
@@ -451,7 +446,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     }
     if (incomeValue > 0) {
       rows.push({
-        ...emptyTxnFields(),
+        ...transactionsDB.emptyTxnFields(),
         accountId: incomeAccountId,
         kind: "income",
         amount: incomeValue,
@@ -474,7 +469,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const txns = await transactionsDB.insertMany(rows);
     dispatch({ type: "ADD_TRANSACTIONS", payload: txns });
     if (round(input.income, 2) > 0) {
-      await touchCategory(input.incomeCategory, undefined, "income");
+      await touchCategory({ name: input.incomeCategory, kind: "income" });
     }
   });
 
@@ -488,7 +483,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.transferId === transferId });
     dispatch({ type: "ADD_TRANSACTIONS", payload: txns });
     if (round(input.income, 2) > 0) {
-      await touchCategory(input.incomeCategory, undefined, "income");
+      await touchCategory({ name: input.incomeCategory, kind: "income" });
     }
   });
 
@@ -510,7 +505,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const txn: Omit<AccountTransaction, "id"> | null =
       account && p.amount != null
         ? {
-            ...emptyTxnFields(),
+            ...transactionsDB.emptyTxnFields(),
             accountId: account.id,
             kind: "payment",
             amount: account.type === "credit" ? round(p.amount, 2) : -round(p.amount, 2),

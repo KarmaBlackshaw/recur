@@ -16,7 +16,7 @@ interface TLoanHistoryBase {
 export type TLoanHistoryItem =
   | (TLoanHistoryBase & { kind: "lent" })
   | (TLoanHistoryBase & { kind: "interest" })
-  | (TLoanHistoryBase & { kind: "payment"; txn: AccountTransaction });
+  | (TLoanHistoryBase & { kind: "payment"; txn: AccountTransaction; overpaid?: number });
 
 const KIND_META: Record<TLoanHistoryItem["kind"], { icon: FeatherIconName; tone: RowTone; sign: string }> = {
   lent: { icon: "arrow-up-right", tone: "neutral", sign: "−" },
@@ -49,6 +49,8 @@ export function LoanHistoryRow({ item, onPress, onDelete }: Props) {
   const label = labelOf(item);
   const signed = `${sign}${formatAmount(item.amount)}`;
   const dateLabel = dayjs(item.date).format("MMM D");
+  const caption =
+    item.kind === "payment" && item.overpaid != null ? `${formatAmount(item.overpaid)} more than owed` : undefined;
 
   function handleAccessibilityAction({ nativeEvent }: AccessibilityActionEvent) {
     if (nativeEvent.actionName === "delete") {
@@ -63,6 +65,7 @@ export function LoanHistoryRow({ item, onPress, onDelete }: Props) {
       title={label}
       amount={signed}
       amountTone={tone}
+      caption={caption}
       onPress={onPress}
       accessibilityLabel={`${label}, ${signed}, ${dateLabel}`}
       accessibilityHint={onPress ? "Edits this payment" : undefined}

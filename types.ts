@@ -123,6 +123,15 @@ export interface LoanPaymentInput {
   paidAt: string;
 }
 
+// Saved as income beside the last payment: its loan, account and date.
+export interface LoanExcessInput {
+  amount: number;
+  category: string;
+}
+
+export type TLoanPayment = Pick<AccountTransaction, 'amount' | 'createdAt'>;
+export type TLoanTerms = Pick<Loan, 'principal' | 'lentAt' | 'interest'>;
+
 export interface Account {
   id: string;
   name: string;

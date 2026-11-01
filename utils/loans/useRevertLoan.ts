@@ -18,7 +18,12 @@ export function useRevertLoan() {
     const accountName = accounts.accounts.find(({ id }) => id === txn.accountId)?.name ?? "its account";
     const message = isPayment
       ? `The money leaves ${accountName} and ${loan.borrower} owes it again.`
-      : deleteLoanMessage(loan, loans.paymentsOf(loan.id).length, accountName);
+      : deleteLoanMessage({
+          loan,
+          paymentCount: loans.paymentsOf(loan.id).length,
+          incomeCount: loans.incomeOf(loan.id).length,
+          accountName,
+        });
 
     const revert = async () => {
       try {

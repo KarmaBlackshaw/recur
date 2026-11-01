@@ -19,11 +19,12 @@ import { CardColorPicker, CardIconPicker, CardLogoPicker, CardTemplatePicker } f
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
 import { findBank, type BankId } from "@/constants/banks";
 import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
-import { cycleStateOn, formatAmount, formatOrdinal } from "@/utils/dateHelpers";
+import { cycleStateOn, formatOrdinal } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { signedAmount } from "@/utils/signedAmount";
 import { netInterestPerPeriod } from "@/utils/interest";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
-import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod, type IoniconName } from "@/types";
+import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod, type IoniconName, type TOption } from "@/types";
 
 interface AccountFormValues {
   name: string;
@@ -43,7 +44,7 @@ interface AccountFormValues {
 
 type CardStyleTab = "custom" | "template";
 
-const CARD_STYLE_TABS: { label: string; value: CardStyleTab }[] = [
+const CARD_STYLE_TABS: TOption<CardStyleTab>[] = [
   { label: "Custom", value: "custom" },
   { label: "Template", value: "template" },
 ];
@@ -59,7 +60,7 @@ const TYPE_OPTIONS = (["debit", "credit", "cash"] as const).map((value) => ({
   value,
 }));
 
-const PERIOD_OPTIONS: { label: string; value: InterestPeriod }[] = [
+const PERIOD_OPTIONS: TOption<InterestPeriod>[] = [
   { label: "Daily", value: "daily" },
   { label: "Monthly", value: "monthly" },
   { label: "Yearly", value: "yearly" },

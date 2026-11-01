@@ -14,23 +14,26 @@ name: Settings — notifications off/on and reminder time change without errors
 - evalScript: ${output.initialTime = maestro.copiedText}
 - assertTrue: ${output.initialTime.indexOf(':') > 0}
 
-# Notifications off → on, quickly. Maestro's `checked` filter doesn't distinguish the Switch's state, so the
-# state is captured as screenshots. Turning it on asks for permission when it was never asked.
+# Notifications off → on, quickly. Turning it on asks for permission when it was never asked.
+# Three nodes read "Notifications" (section label, row label, Switch); only the Switch has a checked state.
 - tapOn:
-    rightOf:
-      text: "Notifications"
-      index: 1
-- takeScreenshot: 09-notifications-off
+    text: "Notifications"
+    checked: true
+- assertNotVisible:
+    text: "Notifications"
+    checked: true
+# Off, the Switch is index 1: Maestro orders matches by top edge, and the Switch is taller than its label
 - tapOn:
-    rightOf:
-      text: "Notifications"
-      index: 1
+    text: "Notifications"
+    index: 1
 - runFlow:
     when:
       visible: "Allow"
     commands:
       - tapOn: "Allow"
-- takeScreenshot: 09-notifications-on
+- assertVisible:
+    text: "Notifications"
+    checked: true
 - assertNotVisible: "Notifications disabled.*"
 
 # Change reminder time

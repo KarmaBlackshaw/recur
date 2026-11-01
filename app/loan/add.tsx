@@ -21,9 +21,10 @@ import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppCombobox } from "@/components/ui/AppCombobox";
 import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { sanitizeAmount } from "@/utils/amountInput";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
+import { canChangeLoan } from "@/utils/loans/canChangeLoan";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
 import { loanOutChanges } from "@/utils/loans/loanOutChanges";
@@ -238,7 +239,11 @@ export default function AddLoanScreen() {
   const isCandidateValid =
     editing == null ||
     candidate == null ||
-    summarizeLoan({ loan: candidate, payments: loans.paymentsOf(editing.id), today: dayjs().format("YYYY-MM-DD") }).isValid;
+    canChangeLoan({
+      current: { loan: editing, payments: loans.paymentsOf(editing.id) },
+      next: { loan: candidate, payments: loans.paymentsOf(editing.id) },
+      today: dayjs().format("YYYY-MM-DD"),
+    });
 
   const onSubmit = handleSubmit(async (data) => {
     const input = toLoanInput(data);
@@ -263,7 +268,12 @@ export default function AddLoanScreen() {
     if (!id || !editing) {
       return;
     }
-    const message = deleteLoanMessage(editing, loans.paymentsOf(editing.id).length, savedAccountName);
+    const message = deleteLoanMessage({
+      loan: editing,
+      paymentCount: loans.paymentsOf(editing.id).length,
+      incomeCount: loans.incomeOf(editing.id).length,
+      accountName: savedAccountName,
+    });
     Alert.alert("Delete this loan?", message, [
       { text: "Cancel", style: "cancel" },
       {

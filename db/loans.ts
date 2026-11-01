@@ -1,11 +1,13 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
-import { insertRow, newId } from "@/db/accountTransactions";
+import { emptyTxnFields, insertRow, newId } from "@/db/accountTransactions";
+import { touchCategory } from "@/db/categories";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
 import { loanOutChanges } from "@/utils/loans/loanOutChanges";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
-import type { Loan, LoanInput, LoanPaymentInput, TLoanInterestType } from "@/types";
+import { uniq } from "@/utils/collections";
+import type { Loan, LoanExcessInput, LoanInput, LoanPaymentInput, TLoanInterestType } from "@/types";
 
 interface LoanRow {
   id: string; borrower: string; principal: number; account_id: string | null; lent_at: string;
@@ -30,16 +32,20 @@ function toLoan(r: LoanRow): Loan {
 
 type TWriteDb = Awaited<ReturnType<typeof getDB>>;
 
+// FKs are off inside write transactions, so probe the account explicitly
+async function hasAccount(txn: TWriteDb, accountId: string) {
+  const account = await txn.getFirstAsync<{ id: string }>("SELECT id FROM accounts WHERE id = ?", [accountId]);
+  return account !== null;
+}
+
 async function writeLoanOut(txn: TWriteDb, loan: Pick<Loan, "id" | "accountId" | "principal" | "lentAt">): Promise<void> {
   for (const { accountId, amount } of loanOutChanges(loan)) {
-    // FKs are off inside write transactions, so probe the account explicitly
-    const account = await txn.getFirstAsync<{ id: string }>("SELECT id FROM accounts WHERE id = ?", [accountId]);
-    if (!account) {
+    const hasLoanAccount = await hasAccount(txn, accountId);
+    if (!hasLoanAccount) {
       continue;
     }
     await insertRow(txn, {
-      accountId, kind: "loan_out", amount, expenseId: null, cycleYear: null,
-      cycleMonth: null, transferId: null, note: null, category: null, loanId: loan.id, createdAt: loan.lentAt,
+      ...emptyTxnFields(), accountId, kind: "loan_out", amount, loanId: loan.id, createdAt: loan.lentAt,
     });
   }
 }
@@ -85,11 +91,33 @@ export async function remove(id: string): Promise<void> {
   });
 }
 
-export async function insertPayment(p: LoanPaymentInput): Promise<void> {
+export async function insertPayments(payments: LoanPaymentInput[], excess?: LoanExcessInput): Promise<void> {
   const db = await getDB();
-  await insertRow(db, {
-    accountId: p.accountId, kind: "loan_in", amount: p.amount, expenseId: null, cycleYear: null,
-    cycleMonth: null, transferId: null, note: null, category: null, loanId: p.loanId, createdAt: p.paidAt,
+  await withWriteTransaction(db, async (txn) => {
+    for (const accountId of uniq(payments.map((p) => p.accountId))) {
+      const isKnownAccount = await hasAccount(txn, accountId);
+      if (!isKnownAccount) {
+        throw new Error("Account not found");
+      }
+    }
+    for (const p of payments) {
+      await insertRow(txn, {
+        ...emptyTxnFields(), accountId: p.accountId, kind: "loan_in", amount: p.amount, loanId: p.loanId,
+        createdAt: p.paidAt,
+      });
+    }
+    if (!excess) {
+      return;
+    }
+    const last = payments.at(-1);
+    if (!last) {
+      throw new Error("Nothing to record");
+    }
+    await insertRow(txn, {
+      ...emptyTxnFields(), accountId: last.accountId, kind: "income", amount: excess.amount,
+      category: excess.category, loanId: last.loanId, createdAt: last.paidAt,
+    });
+    await touchCategory({ name: excess.category, kind: "income", db: txn });
   });
 }
 

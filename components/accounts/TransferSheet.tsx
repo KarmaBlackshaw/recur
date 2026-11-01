@@ -3,14 +3,14 @@ import { View } from "react-native";
 import dayjs from "dayjs";
 import { router } from "expo-router";
 import { useAccounts } from "@/context/AccountContext";
-import { InfoRow } from "@/components/accounts/InfoRow";
 import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { DELETED_ACCOUNT } from "@/constants/accounts";
 import { customTransferNote } from "@/utils/accounts/customTransferNote";
 import { splitTransfer } from "@/utils/accounts/splitTransfer";
 import { useRevertTransfer } from "@/utils/accounts/useRevertTransfer";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import type { AccountTransaction } from "@/types";
 
 export interface TransferSheetRef {
@@ -65,13 +65,13 @@ export const TransferSheet = forwardRef<TransferSheetRef>(function TransferSheet
     >
       {side ? (
         <View className="px-4 pb-4">
-          <InfoRow label="From" value={source} />
-          <InfoRow label="To" value={destination} />
-          <InfoRow label="Amount" value={formatAmount(Math.abs(side.amount))} />
-          {fee && <InfoRow label="Fee" value={formatAmount(Math.abs(fee.amount))} />}
-          {incomeValue && <InfoRow label="Income" value={incomeValue} />}
-          <InfoRow label="Date" value={dayjs(side.createdAt).format("MMM D, YYYY, h:mm A")} />
-          {note && <InfoRow label="Note" value={note} />}
+          <AppDetailRow label="From" value={source} />
+          <AppDetailRow label="To" value={destination} />
+          <AppDetailRow label="Amount" value={formatAmount(Math.abs(side.amount))} />
+          {fee && <AppDetailRow label="Fee" value={formatAmount(Math.abs(fee.amount))} />}
+          {incomeValue && <AppDetailRow label="Income" value={incomeValue} />}
+          <AppDetailRow label="Date" value={dayjs(side.createdAt).format("MMM D, YYYY, h:mm A")} />
+          {note && <AppDetailRow label="Note" value={note} />}
           <View className="mt-4 gap-2">
             <AppButton label={isBillPayment ? "Edit payment" : "Edit transfer"} variant="tonal" onPress={handleEdit} />
             <AppButton

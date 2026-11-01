@@ -3,7 +3,7 @@ import type { AccessibilityActionEvent } from "react-native";
 import dayjs from "dayjs";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { SwipeableRow } from "@/components/ui/SwipeableRow";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { DELETED_ACCOUNT } from "@/constants/accounts";
 import { EXISTING_LOAN } from "@/constants/loans";
 import type { AccountTransaction, FeatherIconName } from "@/types";
@@ -18,7 +18,7 @@ interface TLoanHistoryBase {
 export type TLoanHistoryItem =
   | (TLoanHistoryBase & { kind: "lent"; isLentBeforeRecur: boolean })
   | (TLoanHistoryBase & { kind: "interest" })
-  | (TLoanHistoryBase & { kind: "payment"; txn: AccountTransaction });
+  | (TLoanHistoryBase & { kind: "payment"; txn: AccountTransaction; overpaid?: number });
 
 const KIND_META: Record<TLoanHistoryItem["kind"], { icon: FeatherIconName; tone: RowTone; sign: string }> = {
   lent: { icon: "arrow-up-right", tone: "neutral", sign: "−" },
@@ -51,6 +51,8 @@ export function LoanHistoryRow({ item, onPress, onDelete }: Props) {
   const label = labelOf(item);
   const signed = `${sign}${formatAmount(item.amount)}`;
   const dateLabel = dayjs(item.date).format("MMM D");
+  const caption =
+    item.kind === "payment" && item.overpaid != null ? `${formatAmount(item.overpaid)} more than owed` : undefined;
 
   function handleAccessibilityAction({ nativeEvent }: AccessibilityActionEvent) {
     if (nativeEvent.actionName === "delete") {
@@ -65,6 +67,7 @@ export function LoanHistoryRow({ item, onPress, onDelete }: Props) {
       title={label}
       amount={signed}
       amountTone={tone}
+      caption={caption}
       onPress={onPress}
       accessibilityLabel={`${label}, ${signed}, ${dateLabel}`}
       accessibilityHint={onPress ? "Edits this payment" : undefined}

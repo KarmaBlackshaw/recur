@@ -19,7 +19,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import type { Account, AccountTransaction, TransferInput } from "@/types";

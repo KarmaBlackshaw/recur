@@ -5,7 +5,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { BottomSheetTextInput, useBottomSheetInternal } from "@gorhom/bottom-sheet";
 import { colors } from "@/constants/theme";
-import { formatAmount, sanitizeAmount } from "@/utils/amountInput";
+import { formatAmountInput, sanitizeAmount } from "@/utils/amountInput";
 
 interface AppTextInputProps extends TextInputProps {
   label?: string;
@@ -40,7 +40,7 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
           accessibilityHint={error}
           keyboardType={isAmount ? "decimal-pad" : undefined}
           {...props}
-          value={isAmount && value != null ? formatAmount(value) : value}
+          value={isAmount && value != null ? formatAmountInput(value) : value}
           onChangeText={isAmount ? (text) => onChangeText?.(sanitizeAmount(text)) : onChangeText}
         />
         {error && (

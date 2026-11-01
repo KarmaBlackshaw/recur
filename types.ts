@@ -10,6 +10,11 @@ export type Status = 'unpaid' | 'paid';
 export type HomeBandSlot = 'current' | 'next';
 export type ActivitySegment = "all" | "paid" | "charged" | "income" | "transfers" | "loans";
 
+export interface TOption<T> {
+  label: string;
+  value: T;
+}
+
 export interface Expense {
   id: string;
   name: string;
@@ -122,6 +127,15 @@ export interface LoanPaymentInput {
   amount: number;
   paidAt: string;
 }
+
+// Saved as income beside the last payment: its loan, account and date.
+export interface LoanExcessInput {
+  amount: number;
+  category: string;
+}
+
+export type TLoanPayment = Pick<AccountTransaction, 'amount' | 'createdAt'>;
+export type TLoanTerms = Pick<Loan, 'principal' | 'lentAt' | 'interest'>;
 
 export interface Account {
   id: string;

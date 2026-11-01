@@ -5,12 +5,12 @@ import { router } from "expo-router";
 import dayjs from "dayjs";
 import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
-import { InfoRow } from "@/components/accounts/InfoRow";
 import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { isBillTbd } from "@/utils/cardBills";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import type { CardBill } from "@/types";
 
 export interface CardBillSheetRef {
@@ -88,8 +88,8 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     >
       {bill ? (
         <View className="px-4 pb-4">
-          <InfoRow label="Cut-off" value={dayjs(bill.cutoff).format("MMM D")} />
-          <InfoRow label="Estimate" value={formatAmount(bill.estimate)} />
+          <AppDetailRow label="Cut-off" value={dayjs(bill.cutoff).format("MMM D")} />
+          <AppDetailRow label="Estimate" value={formatAmount(bill.estimate)} />
           <Controller
             control={control}
             name="amount"
@@ -112,8 +112,8 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
             )}
           />
           <View className="mt-2 border-t border-border pt-2">
-            <InfoRow label="Paid" value={formatAmount(bill.paid)} />
-            <InfoRow label="Remaining" value={formatAmount(bill.remaining)} />
+            <AppDetailRow label="Paid" value={formatAmount(bill.paid)} />
+            <AppDetailRow label="Remaining" value={formatAmount(bill.remaining)} />
           </View>
           <View className="mt-4 gap-2">
             {isPayable ? (

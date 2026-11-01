@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Alert, SectionList, Text, TouchableOpacity, View } from "react-native";
+import { Alert, SectionList, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
@@ -8,13 +8,15 @@ import { groupBy, orderBy } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroCard, type HeroTone } from "@/components/ui/AppHeroCard";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LoanHistoryRow, type TLoanHistoryItem } from "@/components/loans/LoanHistoryRow";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { formatLoanAge } from "@/utils/loans/formatLoanAge";
 import { formatLoanInterest } from "@/utils/loans/formatLoanInterest";
 import { alertFailure } from "@/utils/accounts/alertFailure";
@@ -23,19 +25,10 @@ import type { AccountTransaction } from "@/types";
 
 const KIND_RANK: Record<TLoanHistoryItem["kind"], number> = { lent: 0, interest: 1, payment: 2 };
 
-const HERO_STYLE = {
-  active: { overline: "Still owed", box: "bg-secondary/10 border-secondary/20", amount: "text-secondary" },
-  settled: { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "text-paid" },
+const HERO: Record<"active" | "settled", { overline: string; tone: HeroTone }> = {
+  active: { overline: "Still owed", tone: "secondary" },
+  settled: { overline: "Collected", tone: "paid" },
 };
-
-function StatRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row justify-between px-5 py-1.5">
-      <AppText variant="meta">{label}</AppText>
-      <AppText variant="body-medium">{value}</AppText>
-    </View>
-  );
-}
 
 export default function LoanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -50,6 +43,7 @@ export default function LoanDetailScreen() {
       return [];
     }
     const nameOf = (accountId: string) => accounts.accounts.find((a) => a.id === accountId)?.name;
+    const overpaidBy = new Map(summary.overpayments.map(({ payment, amount }) => [payment.id, amount]));
     const items: TLoanHistoryItem[] = [
       {
         key: "lent",
@@ -73,6 +67,7 @@ export default function LoanDetailScreen() {
         amount: Math.abs(txn.amount),
         accountName: nameOf(txn.accountId),
         txn,
+        overpaid: overpaidBy.get(txn.id),
       })),
     ];
     const newestFirst = orderBy(
@@ -145,7 +140,7 @@ export default function LoanDetailScreen() {
     );
   }
 
-  const hero = summary.isSettled ? HERO_STYLE.settled : HERO_STYLE.active;
+  const hero = summary.isSettled ? HERO.settled : HERO.active;
   const endDate = summary.settledAt ?? dayjs().format("YYYY-MM-DD");
   const meta = `Lent ${formatAmount(loan.principal)} · ${dayjs(loan.lentAt).format("MMM D")} · ${formatLoanAge(loan.lentAt, endDate)}`;
 
@@ -179,27 +174,22 @@ export default function LoanDetailScreen() {
         refreshControl={refreshControl}
         ListHeaderComponent={
           <>
-            <View
-              className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}
+            <AppHeroCard
+              overline={hero.overline}
+              value={formatAmount(heroAmount)}
+              tone={hero.tone}
+              className="mx-5 mt-3 mb-1"
               accessible
               accessibilityLabel={heroA11yLabel}
             >
-              <AppText variant="overline">{hero.overline}</AppText>
-              <Text
-                className={`text-[32px] font-oswald-medium mt-1 ${hero.amount}`}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-                maxFontSizeMultiplier={1.4}
-              >
-                {formatAmount(heroAmount)}
-              </Text>
               <AppText variant="meta" className="mt-1">{meta}</AppText>
               <AppText variant="meta">{interestLabel}</AppText>
               {loan.note ? <AppText className="mt-2">{loan.note}</AppText> : null}
+            </AppHeroCard>
+            <View className="px-5">
+              <AppDetailRow label="Interest so far" value={formatAmount(summary.interestTotal)} />
+              <AppDetailRow label="Paid so far" value={formatAmount(summary.paidTotal)} />
             </View>
-            <StatRow label="Interest so far" value={formatAmount(summary.interestTotal)} />
-            <StatRow label="Paid so far" value={formatAmount(summary.paidTotal)} />
             {!summary.isSettled && (
               <AppButton label="Record payment" className="mx-5 mt-3" onPress={() => router.push({ pathname: "/loan/pay", params: { id: loan.id } })} />
             )}

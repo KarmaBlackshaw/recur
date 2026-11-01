@@ -143,6 +143,9 @@ Every sheet is an `AppBottomSheet`, which draws the title, Close and backdrop; c
 and writes once it's gone. A save that keeps the sheet open, like a card bill's statement amount, updates it in place.
 A sheet whose content can outgrow the space above the keyboard passes `scrollable`.
 
+Detail sheets (tap a Transfer, Card bill or Loan row to read it and act on it) share one layout: label/value rows under
+the title, then full-width actions stacked under them, one primary at most and the destructive one last.
+
 ### Stats (`app/stats.tsx`)
 A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite
 pie-chart glyph, Ink label, Muted chevron; neutral because it sits on mint and periwinkle heroes alike) that opens it

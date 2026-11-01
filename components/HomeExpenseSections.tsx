@@ -6,6 +6,7 @@ import { sumBy } from "@/utils/collections";
 import { CardBillRow } from "@/components/accounts/CardBillRow";
 import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
 import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
+import { LoanSheet, type LoanSheetRef } from "@/components/loans/LoanSheet";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BandHeader } from "@/components/BandHeader";
@@ -108,6 +109,7 @@ export function HomeExpenseSections({
 }: Props) {
   const billSheetRef = useRef<CardBillSheetRef>(null);
   const transferSheetRef = useRef<TransferSheetRef>(null);
+  const loanSheetRef = useRef<LoanSheetRef>(null);
   const hasAfterDue = Boolean(afterDue);
   const sections = useMemo<HomeSection[]>(() => {
     const out: HomeSection[] = [];
@@ -172,6 +174,7 @@ export function HomeExpenseSections({
               item={item}
               index={index}
               onOpenTransfer={(transfer) => transferSheetRef.current?.present(transfer)}
+              onOpenLoan={(txn) => loanSheetRef.current?.present(txn)}
             />
           )
         }
@@ -214,6 +217,7 @@ export function HomeExpenseSections({
       />
       <CardBillSheet ref={billSheetRef} />
       <TransferSheet ref={transferSheetRef} />
+      <LoanSheet ref={loanSheetRef} />
     </>
   );
 }

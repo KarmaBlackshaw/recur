@@ -150,8 +150,8 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
     await removeLoan(id);
-    dispatch({ type: "REMOVE_LOAN", payload: id });
     await accounts.reload();
+    dispatch({ type: "REMOVE_LOAN", payload: id });
   });
 
   const recordPayment = useMemoizedFn(async (p: LoanPaymentInput) => {

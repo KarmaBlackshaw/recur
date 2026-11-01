@@ -3,6 +3,7 @@ import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
+import Animated, { FadeIn, FadeOut, useReducedMotion } from "react-native-reanimated";
 import dayjs from "dayjs";
 import { orderBy } from "@/utils/collections";
 import Feather from "@expo/vector-icons/Feather";
@@ -44,6 +45,7 @@ interface FormProps {
 
 function PaymentForm({ choices, payment }: FormProps) {
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
+  const isReducedMotion = useReducedMotion();
   const loans = useLoans();
   const { accounts, activeAccounts, transactions, overdraftError } = useAccounts();
   const depositAccounts = activeAccounts.filter((a) => a.type !== "credit");
@@ -258,6 +260,22 @@ function PaymentForm({ choices, payment }: FormProps) {
             </>
           )}
         />
+        {excess > 0 && (
+          <Animated.View
+            entering={isReducedMotion ? undefined : FadeIn.duration(150)}
+            exiting={isReducedMotion ? undefined : FadeOut.duration(150)}
+            className="flex-row items-center gap-3 rounded-xl border border-paid/20 bg-paid/10 px-4 py-3 mt-1 mb-1"
+            accessibilityLiveRegion="polite"
+          >
+            <Feather name="plus-circle" size={18} color={colors.paid} />
+            <View className="flex-1">
+              <AppText variant="body-bold" className="text-paid">
+                {`${formatAmount(excess)} more than owed`}
+              </AppText>
+              <AppText variant="meta">{`Saved as ${OVERPAYMENT_CATEGORY} income`}</AppText>
+            </View>
+          </Animated.View>
+        )}
         {split.total >= 0.01 && (
           <TouchableOpacity
             onPress={payInFull}
@@ -271,11 +289,6 @@ function PaymentForm({ choices, payment }: FormProps) {
           </TouchableOpacity>
         )}
         {choices.length > 1 && <LoanSplitPreview parts={split.parts} />}
-        {excess > 0 && (
-          <AppText variant="meta" className="mt-3 mb-1">
-            {`${formatAmount(excess)} more than owed · saved as ${OVERPAYMENT_CATEGORY} income`}
-          </AppText>
-        )}
 
         <Controller
           control={control}

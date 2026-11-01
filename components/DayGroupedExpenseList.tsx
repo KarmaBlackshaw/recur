@@ -5,8 +5,7 @@ import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
 import { LoanSheet, type LoanSheetRef } from "@/components/loans/LoanSheet";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
-import { sumBy } from "@/utils/collections";
-import { round } from "@/utils/round";
+import { dayTotalOf } from "@/utils/activity/dayTotalOf";
 import type { BillPaymentEntry, IncomeEntry, InterestEntry, TransferEntry } from "@/utils/usePaidLedger";
 import type { LoanActivityEntry } from "@/utils/useLoanActivity";
 import type { Expense } from "@/types";
@@ -39,17 +38,6 @@ interface DaySection {
   date: Date;
   total: number | undefined;
   data: ActivityEntry[];
-}
-
-function dayTotalOf(data: ActivityEntry[], dayTotal: DayTotal): number | undefined {
-  if (dayTotal === "none") {
-    return undefined;
-  }
-  if (dayTotal === "sum") {
-    return sumBy(data, "amount");
-  }
-  const flows = data.map(dayTotal);
-  return flows.some((flow) => flow !== 0) ? round(sumBy(flows, (flow) => flow), 2) : undefined;
 }
 
 interface Props {

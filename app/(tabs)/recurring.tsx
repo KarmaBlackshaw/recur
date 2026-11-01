@@ -24,7 +24,7 @@ interface Band {
   label: string;
   icon: FeatherIconName;
   accent: string;
-  canQuickPay: boolean; // rows still to pay get the trailing pay circle
+  canQuickPay: boolean; // rows still to pay open the bill sheet on tap
   total?: number;
   data: DayEntry[];
 }

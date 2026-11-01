@@ -90,7 +90,7 @@ export default function HomeScreen() {
 
   // Unpaid recurring cycles, split by urgency.
   // Keyed per cycle: near month end the same expense can be due in both Upcoming months.
-  // Every due row can be paid in place (the trailing pay circle and the Pay swipe).
+  // Every due row can be paid in place (the bill sheet and the Pay swipe).
   const dueEntry = (e: (typeof expenses)[number], y: number, m: number): DayEntry => ({
     key: monthKey(e.id, y, m),
     expense: e,

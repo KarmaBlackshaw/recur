@@ -16,7 +16,6 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { colors } from "@/constants/theme";
 import {
   cycleStateOn,
-  formatAmount,
   formatDaysLate,
   formatDueDate,
   formatMonth,
@@ -29,6 +28,7 @@ import {
 } from "@/utils/dateHelpers";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
+import { formatBillAmount } from "@/utils/expenses/formatBillAmount";
 import type { Expense, FeatherIconName } from "@/types";
 
 interface Cycle {
@@ -179,7 +179,7 @@ export default function BillScreen() {
   const isPaid = getMonthStatus(expense.id, year, month) === "paid";
   const isLate = isDue && !isPaid && isOverdueOn(expense.dueDay, year, month);
   const amount = getDisplayAmount(expense, year, month);
-  const amountText = amount != null ? formatAmount(amount) : "TBD";
+  const amountText = formatBillAmount(amount);
   const payment = transactions.find(
     (t) => t.kind === "payment" && t.expenseId === expense.id && t.cycleYear === year && t.cycleMonth === month
   );
@@ -206,7 +206,7 @@ export default function BillScreen() {
       : isCardPaid ? "With the card bill" : `Monthly on the ${formatOrdinal(expense.dueDay)}`;
   const planAmountText = expense.isVariable
     ? "Changes each month"
-    : expense.amount != null ? formatAmount(expense.amount) : "TBD";
+    : formatBillAmount(expense.amount);
   const endsText = expense.endYear != null ? formatMonth(expense.endYear, expense.endMonth ?? 0) : "No end month";
 
   function selectCycle(next: Cycle) {
@@ -220,7 +220,7 @@ export default function BillScreen() {
     const isRowPaid = getMonthStatus(expense.id, rowYear, rowMonth) === "paid";
     const isRowLate = !isRowPaid && isOverdueOn(expense.dueDay, rowYear, rowMonth);
     const rowAmount = getDisplayAmount(expense, rowYear, rowMonth);
-    const rowAmountText = rowAmount != null ? formatAmount(rowAmount) : "TBD";
+    const rowAmountText = formatBillAmount(rowAmount);
     const meta = isRowPaid
       ? `Paid ${dayjs(getMonthPaidAt(expense.id, rowYear, rowMonth) ?? rowDue).format("MMM D")}`
       : isRowLate
@@ -238,11 +238,6 @@ export default function BillScreen() {
         title={monthStart.format("MMMM YYYY")}
         meta={meta}
         amount={rowAmountText}
-        accessory={isRowPaid ? undefined : "circle"}
-        onAccessoryPress={isRowPaid ? undefined : pay}
-        onAccessoryLongPress={isRowPaid ? undefined : () => payFlow.openPaySheet(expense, rowYear, rowMonth)}
-        accessoryLabel={payLabel}
-        accessoryTone={isRowLate ? "negative" : "neutral"}
         onPress={() => selectCycle({ year: rowYear, month: rowMonth })}
         accessibilityLabel={`${monthStart.format("MMMM YYYY")}, ${rowAmountText}, ${meta}`}
         accessibilityHint="Shows this month's bill"

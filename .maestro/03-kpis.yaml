@@ -51,7 +51,14 @@ name: Home month card — Charged row, card charges counted
 
 # Mark the card expense paid → re-enters via the Metro Card bill
 - runFlow: subflows/tab-recurring.yaml
-- tapOn: "Mark Gym paid"
+- tapOn: "Gym, .*"
+- extendedWaitUntil:
+    visible: "Details"
+    timeout: 5000
+- waitForAnimationToEnd
+- tapOn:
+    text: "Pay"
+    below: "Pay from"
 - extendedWaitUntil:
     visible: "Gym marked paid"
     timeout: 5000

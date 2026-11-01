@@ -11,7 +11,7 @@ import { useLoans } from "@/context/LoanContext";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
-import { openExpense } from "@/components/ExpenseCard";
+import { openExpense } from "@/utils/expenses/openExpense";
 import { TransactionRow } from "@/components/accounts/TransactionRow";
 import { AdjustBalanceSheet, type AdjustBalanceSheetRef } from "@/components/accounts/AdjustBalanceSheet";
 import { AccountCard } from "@/components/accounts/AccountCard";

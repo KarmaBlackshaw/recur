@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useMemo, useRef } from "react";
 import dayjs from "dayjs";
-import { PaySheet, type PayConfirmation, type PaySheetRef, type PayTarget } from "@/components/PaySheet";
+import { PaySheet, type PayConfirmation, type PayOptions, type PaySheetRef, type PayTarget } from "@/components/PaySheet";
 import { BillSheet, type BillSheetRef } from "@/components/BillSheet";
-import type { SheetFooter } from "@/components/ui/AppBottomSheet";
 import { useExpenses, type UndoMonth } from "@/context/ExpenseContext";
 import { useSnackbar } from "@/context/SnackbarContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
@@ -49,13 +48,13 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function payOrAsk(target: PayTarget, footer?: SheetFooter) {
+  async function payOrAsk(target: PayTarget, options: PayOptions = {}) {
     const { expense, year, month } = target;
     if (getDisplayAmount(expense, year, month) == null) {
-      paySheetRef.current?.present(target, footer);
+      paySheetRef.current?.present(target, options);
       return;
     }
-    await run(expense, year, month, "paid", () => payMonth(expense.id, year, month));
+    await run(expense, year, month, "paid", () => payMonth(expense.id, year, month, { accountId: options.accountId }));
   }
 
   const value = useMemo<PayFlowValue>(

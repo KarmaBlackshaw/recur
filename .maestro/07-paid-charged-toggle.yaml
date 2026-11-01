@@ -1,10 +1,13 @@
 appId: com.erniejeash.recur
-name: Activity tab — Paid | Charged toggle shows the right rows
+name: Activity tab — Paid and Charged chips show the right rows
 ---
 - runFlow: subflows/launch-fresh.yaml
 - runFlow:
     file: subflows/add-credit-card.yaml
     env: { NAME: "BDO Visa", CUTOFF: "25", DUE: "15" }
+- runFlow:
+    file: subflows/add-income.yaml
+    env: { AMOUNT: "1000", NOTE: "Allowance", ACCOUNT: "Cash" }
 - runFlow:
     file: subflows/add-one-off-expense.yaml
     env: { AMOUNT: "300", NOTE: "Groceries", ACCOUNT: "Cash", BACKDATE: "false" }

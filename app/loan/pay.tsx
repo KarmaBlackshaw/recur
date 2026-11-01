@@ -3,6 +3,7 @@ import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
+import Animated, { FadeIn, FadeOut, useReducedMotion } from "react-native-reanimated";
 import dayjs from "dayjs";
 import { orderBy } from "@/utils/collections";
 import Feather from "@expo/vector-icons/Feather";
@@ -25,6 +26,7 @@ import { splitLoanPayment, type TLoanPaymentSplit, type TLoanPaymentTarget } fro
 import { formatAmount } from "@/utils/dateHelpers";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { OVERPAYMENT_CATEGORY } from "@/constants/categories";
 import { colors } from "@/constants/theme";
 import type { AccountTransaction, Loan } from "@/types";
 
@@ -43,6 +45,7 @@ interface FormProps {
 
 function PaymentForm({ choices, payment }: FormProps) {
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
+  const isReducedMotion = useReducedMotion();
   const loans = useLoans();
   const { accounts, activeAccounts, transactions, overdraftError } = useAccounts();
   const depositAccounts = activeAccounts.filter((a) => a.type !== "credit");
@@ -51,6 +54,10 @@ function PaymentForm({ choices, payment }: FormProps) {
 
   function suggestedAccountOf(loan: Loan) {
     return depositAccounts.some((a) => a.id === loan.accountId) ? loan.accountId : CASH_ACCOUNT_ID;
+  }
+
+  function excessOf({ total, unplaced }: TLoanPaymentSplit) {
+    return !isEditing && total >= 0.01 ? unplaced : 0;
   }
 
   const {
@@ -103,6 +110,7 @@ function PaymentForm({ choices, payment }: FormProps) {
   // against the new balances.
   const [savedSplit, setSavedSplit] = useState<TLoanPaymentSplit>();
   const split = savedSplit ?? splitFor(watch("amount"), watch("paidAt"));
+  const excess = excessOf(split);
 
   // Re-check when balances change, so a transfer in clears the error.
   useEffect(() => {
@@ -127,11 +135,15 @@ function PaymentForm({ choices, payment }: FormProps) {
     if (isNaN(parsed) || parsed < 0.01) {
       return "Enter at least 0.01";
     }
-    const { total, unplaced } = splitFor(value, values.paidAt);
-    if (unplaced <= 0) {
+    const checked = splitFor(value, values.paidAt);
+    if (checked.unplaced <= 0) {
       return amountOverdraft(value)?.message ?? true;
     }
-    const most = formatAmount(total);
+    const hasExcess = excessOf(checked) > 0;
+    if (hasExcess) {
+      return true;
+    }
+    const most = formatAmount(checked.total);
     const date = dayjs(values.paidAt);
     return date.isSame(dayjs(), "day")
       ? `More than the ${most} still owed`
@@ -169,7 +181,11 @@ function PaymentForm({ choices, payment }: FormProps) {
             amount: share,
             paidAt: values.paidAt,
           }));
-        await loans.recordPayments(payments);
+        const savedExcess = excessOf(saved);
+        await loans.recordPayments(
+          payments,
+          savedExcess > 0 ? { amount: savedExcess, category: OVERPAYMENT_CATEGORY } : undefined
+        );
       }
       allowLeave();
       router.back();
@@ -235,7 +251,7 @@ function PaymentForm({ choices, payment }: FormProps) {
                 onBlur={onBlur}
                 placeholder="0.00"
                 error={
-                  fieldState.isTouched || amountOverdraft(value) || split.unplaced > 0
+                  fieldState.isTouched || amountOverdraft(value) || (split.unplaced > 0 && excess === 0)
                     ? fieldState.error?.message
                     : undefined
                 }
@@ -244,6 +260,22 @@ function PaymentForm({ choices, payment }: FormProps) {
             </>
           )}
         />
+        {excess > 0 && (
+          <Animated.View
+            entering={isReducedMotion ? undefined : FadeIn.duration(150)}
+            exiting={isReducedMotion ? undefined : FadeOut.duration(150)}
+            className="flex-row items-center gap-3 rounded-xl border border-paid/20 bg-paid/10 px-4 py-3 mt-1 mb-1"
+            accessibilityLiveRegion="polite"
+          >
+            <Feather name="plus-circle" size={18} color={colors.paid} />
+            <View className="flex-1">
+              <AppText variant="body-bold" className="text-paid">
+                {`${formatAmount(excess)} more than owed`}
+              </AppText>
+              <AppText variant="meta">{`Saved as ${OVERPAYMENT_CATEGORY} income`}</AppText>
+            </View>
+          </Animated.View>
+        )}
         {split.total >= 0.01 && (
           <TouchableOpacity
             onPress={payInFull}

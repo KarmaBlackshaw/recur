@@ -39,7 +39,8 @@ export default function AddIncomeScreen() {
   const incomes = transactions.filter((t) => t.kind === "income");
   const editingIncome = id ? incomes.find((t) => t.id === id) : undefined;
   const isEditing = editingIncome != null;
-  const lastIncome = maxBy(incomes.filter((t) => t.transferId == null), "createdAt");
+  // Transfer and loan income ride on their own forms, so a new entry defaults from the last one typed in here.
+  const lastIncome = maxBy(incomes.filter((t) => t.transferId == null && t.loanId == null), "createdAt");
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
 

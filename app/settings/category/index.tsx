@@ -7,6 +7,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { Category, getAllWithIds, deleteCategory } from "@/db/categories";
 import { colors } from "@/constants/theme";
+import { isLockedCategory } from "@/utils/categories";
 import type { CategoryKind } from "@/types";
 
 const KIND_TABS: { label: string; value: CategoryKind }[] = [
@@ -88,27 +89,38 @@ export default function ManageCategoriesScreen() {
             </AppText>
           </View>
         }
-        renderItem={({ item }) => (
-          <View className="bg-surface border border-border rounded-xl px-1 py-1 mb-1 flex-row items-center gap-1">
-            <TouchableOpacity
-              className="w-11 h-11 items-center justify-center"
-              onPress={() => handleDelete(item)}
-              accessibilityRole="button"
-              accessibilityLabel={`Delete ${item.name}`}
-            >
-              <Feather name="trash-2" size={18} color={colors.overdue} />
-            </TouchableOpacity>
-            <AppText variant="body-medium" className="flex-1 text-white text-sm">{item.name}</AppText>
-            <TouchableOpacity
-              className="w-11 h-11 items-center justify-center"
-              onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: String(item.id), editName: item.name, kind } })}
-              accessibilityRole="button"
-              accessibilityLabel={`Rename ${item.name}`}
-            >
-              <Feather name="edit-2" size={16} color={colors.secondary} />
-            </TouchableOpacity>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const locked = isLockedCategory(item.name, kind);
+          return (
+            <View className="bg-surface border border-border rounded-xl px-1 py-1 mb-1 flex-row items-center gap-1">
+              {locked ? (
+                <View className="w-11 h-11 items-center justify-center">
+                  <Feather name="lock" size={16} color={colors.textMuted} />
+                </View>
+              ) : (
+                <TouchableOpacity
+                  className="w-11 h-11 items-center justify-center"
+                  onPress={() => handleDelete(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete ${item.name}`}
+                >
+                  <Feather name="trash-2" size={18} color={colors.overdue} />
+                </TouchableOpacity>
+              )}
+              <AppText variant="body-medium" className="flex-1 text-white text-sm">{item.name}</AppText>
+              {!locked && (
+                <TouchableOpacity
+                  className="w-11 h-11 items-center justify-center"
+                  onPress={() => router.push({ pathname: "/settings/category/add", params: { editId: String(item.id), editName: item.name, kind } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Rename ${item.name}`}
+                >
+                  <Feather name="edit-2" size={16} color={colors.secondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        }}
       />
     </SafeAreaView>
   );

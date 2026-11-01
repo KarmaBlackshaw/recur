@@ -20,6 +20,7 @@ import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppCombobox } from "@/components/ui/AppCombobox";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { sanitizeAmount } from "@/utils/amountInput";
+import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
@@ -238,9 +239,14 @@ export default function AddLoanScreen() {
   });
 
   const paymentCount = editing ? loans.paymentsOf(editing.id).length : 0;
+  const incomeCount = editing ? loans.incomeOf(editing.id).length : 0;
+  const removed = [
+    { count: paymentCount, label: countLabel(paymentCount, "payment", "payments") },
+    { count: incomeCount, label: countLabel(incomeCount, "income entry", "income entries") },
+  ].filter(({ count }) => count > 0);
   const deleteMessage =
-    paymentCount > 0
-      ? `Its ${paymentCount === 1 ? "1 payment is" : `${paymentCount} payments are`} removed and account balances go back.`
+    removed.length > 0
+      ? `Its ${removed.map(({ label }) => label).join(" and ")} ${paymentCount + incomeCount === 1 ? "is" : "are"} removed and account balances go back.`
       : "Account balances go back.";
 
   function handleDelete() {

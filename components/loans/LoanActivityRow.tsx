@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { useAccounts } from "@/context/AccountContext";
 import { formatAmount } from "@/utils/dateHelpers";
+import { loanTitle } from "@/utils/loans/loanTitle";
 import type { LoanActivityEntry } from "@/utils/useLoanActivity";
 
 export function LoanActivityRow({ entry }: { entry: LoanActivityEntry }) {
@@ -13,7 +14,8 @@ export function LoanActivityRow({ entry }: { entry: LoanActivityEntry }) {
   const title = borrower == null ? "Loan" : isRepayment ? `${borrower} repaid` : `Lent to ${borrower}`;
   const signed = `${isRepayment ? "+" : "−"}${formatAmount(amount)}`;
   const accountName = accounts.accounts.find(({ id }) => id === loanTxn.accountId)?.name ?? "Deleted account";
-  const meta = [accountName, loan?.note].filter(Boolean).join(" · ");
+  const loanName = loan && (isRepayment ? loanTitle(loan) : loan.note);
+  const meta = [accountName, loanName].filter(Boolean).join(" · ");
 
   return (
     <AppListRow

@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { useAsyncEffect } from "@/utils/useAsyncEffect";
 import { useMemoizedFn } from "@/utils/useMemoizedFn";
 import { round } from "@/utils/round";
-import { uniq } from "@/utils/collections";
+import { keyBy, uniq } from "@/utils/collections";
 import {
   getAll as getAllLoans,
   insert as insertLoan,
@@ -15,7 +15,7 @@ import { remove as removeTransaction, updateLoanPayment } from "@/db/accountTran
 import { useAccounts } from "@/context/AccountContext";
 import { summarizeLoan, type TLoanSummary } from "@/utils/loans/summarizeLoan";
 import { useToday } from "@/utils/useToday";
-import type { AccountTransaction, Loan, LoanInput, LoanPaymentInput } from "@/types";
+import type { AccountTransaction, Loan, LoanExcessInput, LoanInput, LoanPaymentInput } from "@/types";
 
 interface State {
   loans: Loan[];
@@ -48,10 +48,12 @@ interface LoanContextValue {
   isLoading: boolean;
   summaries: Record<string, TLoanSummary>;
   paymentsOf: (loanId: string) => AccountTransaction[];
+  incomeOf: (loanId: string) => AccountTransaction[];
+  borrowerOf: (loanId: string | null) => string | undefined;
   addLoan: (input: LoanInput) => Promise<void>;
   updateLoan: (id: string, input: LoanInput) => Promise<void>;
   deleteLoan: (id: string) => Promise<void>;
-  recordPayments: (payments: LoanPaymentInput[]) => Promise<void>;
+  recordPayments: (payments: LoanPaymentInput[], excess?: LoanExcessInput) => Promise<void>;
   updatePayment: (txnId: string, p: LoanPaymentInput) => Promise<void>;
   deletePayment: (txnId: string) => Promise<void>;
   reload: () => Promise<void>;
@@ -83,6 +85,17 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
   const paymentsOf = useCallback(
     (loanId: string) => accounts.transactions.filter((t) => t.loanId === loanId && t.kind === "loan_in"),
     [accounts.transactions]
+  );
+
+  const incomeOf = useCallback(
+    (loanId: string) => accounts.transactions.filter((t) => t.loanId === loanId && t.kind === "income"),
+    [accounts.transactions]
+  );
+
+  const loansById = useMemo(() => keyBy(state.loans, "id"), [state.loans]);
+  const borrowerOf = useCallback(
+    (loanId: string | null) => (loanId == null ? undefined : loansById[loanId]?.borrower),
+    [loansById]
   );
 
   const today = dayjs(useToday()).format("YYYY-MM-DD");
@@ -155,7 +168,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     await accounts.reload();
   });
 
-  const recordPayments = useMemoizedFn(async (payments: LoanPaymentInput[]) => {
+  const recordPayments = useMemoizedFn(async (payments: LoanPaymentInput[], excess?: LoanExcessInput) => {
     if (payments.length === 0) {
       throw new Error("Nothing to record");
     }
@@ -184,7 +197,11 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       }
       rounded.push({ ...p, amount });
     }
-    await insertPayments(rounded);
+    const roundedExcess = excess && { ...excess, amount: round(excess.amount, 2) };
+    if (roundedExcess && roundedExcess.amount < 0.01) {
+      throw new Error("Excess must be at least 0.01");
+    }
+    await insertPayments(rounded, roundedExcess);
     await accounts.reload();
   });
 
@@ -230,6 +247,8 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       isLoading: state.isLoading,
       summaries,
       paymentsOf,
+      incomeOf,
+      borrowerOf,
       addLoan,
       updateLoan,
       deleteLoan,
@@ -238,7 +257,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       deletePayment,
       reload,
     }),
-    [state, summaries, paymentsOf]
+    [state, summaries, paymentsOf, incomeOf, borrowerOf]
   );
 
   return <LoanContext.Provider value={value}>{children}</LoanContext.Provider>;

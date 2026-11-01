@@ -3,6 +3,7 @@ import { SectionList } from "react-native";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
+import { LoanSheet, type LoanSheetRef } from "@/components/loans/LoanSheet";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
 import { sumBy } from "@/utils/collections";
 import { round } from "@/utils/round";
@@ -66,6 +67,7 @@ interface Props {
 
 export function DayGroupedExpenseList({ entries, grouped = true, dayTotal = "sum", ListHeaderComponent, ListEmptyComponent, refreshControl }: Props) {
   const transferSheetRef = useRef<TransferSheetRef>(null);
+  const loanSheetRef = useRef<LoanSheetRef>(null);
   const sections = useMemo<DaySection[]>(() => {
     if (!grouped) {
       return [{ key: "all", date: entries[0]?.effDate ?? new Date(), total: undefined, data: entries }];
@@ -86,6 +88,7 @@ export function DayGroupedExpenseList({ entries, grouped = true, dayTotal = "sum
             item={item}
             index={index}
             onOpenTransfer={(transfer) => transferSheetRef.current?.present(transfer)}
+            onOpenLoan={(txn) => loanSheetRef.current?.present(txn)}
           />
         )}
         renderSectionHeader={
@@ -101,6 +104,7 @@ export function DayGroupedExpenseList({ entries, grouped = true, dayTotal = "sum
         showsVerticalScrollIndicator={false}
       />
       <TransferSheet ref={transferSheetRef} />
+      <LoanSheet ref={loanSheetRef} />
     </>
   );
 }

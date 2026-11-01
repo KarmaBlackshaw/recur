@@ -374,6 +374,35 @@ export default function AddExpenseScreen() {
 
         <Controller
           control={control}
+          name="accountId"
+          render={({ field: { value } }) => (
+            <AppSelectField
+              label="Pay from"
+              value={accounts.find((a) => a.id === value)?.name ?? "Cash"}
+              onPress={() => accountSheetRef.current?.present()}
+              caption={
+                payCard
+                  ? payCard.dueDay != null ? `Due with the card bill (day ${payCard.dueDay})` : "Due with the card bill"
+                  : undefined
+              }
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="category"
+          render={({ field: { value } }) => (
+            <AppSelectField
+              label="Category"
+              value={value}
+              onPress={() => categorySheetRef.current?.present()}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
           name="amount"
           rules={{
             validate: (v) => {
@@ -419,35 +448,6 @@ export default function AddExpenseScreen() {
               placeholder="e.g. Netflix"
               maxLength={200}
               returnKeyType="done"
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="category"
-          render={({ field: { value } }) => (
-            <AppSelectField
-              label="Category"
-              value={value}
-              onPress={() => categorySheetRef.current?.present()}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="accountId"
-          render={({ field: { value } }) => (
-            <AppSelectField
-              label="Pay from"
-              value={accounts.find((a) => a.id === value)?.name ?? "Cash"}
-              onPress={() => accountSheetRef.current?.present()}
-              caption={
-                payCard
-                  ? payCard.dueDay != null ? `Due with the card bill (day ${payCard.dueDay})` : "Due with the card bill"
-                  : undefined
-              }
             />
           )}
         />

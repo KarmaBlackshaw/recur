@@ -66,7 +66,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
     reset,
     watch,
     setValue,
-    formState: { isValid, isSubmitting },
+    formState: { isValid },
   } = useForm<PayFormValues>({ mode: "onChange", defaultValues: { amount: "", paidAt: "", accountId: CASH_ACCOUNT_ID } });
 
   function lastKnownAmount(expense: Expense, year: number, month: number): number | null {
@@ -107,16 +107,16 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
     },
   }));
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onSubmit = handleSubmit((values) => {
     if (!target) {
       return;
     }
-    await onConfirm(target, {
+    const payment: PayConfirmation = {
       amount: parseFloat(values.amount),
       paidAt: values.paidAt,
       accountId: values.accountId === "" ? null : values.accountId,
-    });
-    sheetRef.current?.dismiss();
+    };
+    sheetRef.current?.dismiss(() => onConfirm(target, payment));
   });
 
   const accountId = watch("accountId");
@@ -185,7 +185,6 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
               label={isPaidAlready ? "Save payment" : "Mark as paid"}
               onPress={onSubmit}
               disabled={!isValid}
-              loading={isSubmitting}
               className="mt-4"
             />
           </View>

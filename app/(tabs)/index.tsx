@@ -97,7 +97,7 @@ export default function HomeScreen() {
     effDate: getDueDateForMonth(e.dueDay, y, m),
     refDate: new Date(y, m, 1),
     amount: resolveAmount(e, y, m),
-    canQuickPay: true,
+    canOpenBillSheet: true,
   });
 
   // Next month too: a new card's first bill is due next month.

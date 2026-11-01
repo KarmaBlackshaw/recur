@@ -24,7 +24,7 @@ interface Band {
   label: string;
   icon: FeatherIconName;
   accent: string;
-  canQuickPay: boolean; // rows still to pay open the bill sheet on tap
+  canOpenBillSheet: boolean; // rows still to pay open the bill sheet on tap
   total?: number;
   data: DayEntry[];
 }
@@ -32,10 +32,10 @@ interface Band {
 // Rank order. "Not due" holds plans with no cycle this month (not started, ended, or a yearly plan
 // outside its month): listed so they stay easy to find, but never totalled.
 const BANDS: Omit<Band, "total" | "data">[] = [
-  { key: "overdue", label: "Overdue", icon: "alert-triangle", accent: colors.overdue, canQuickPay: true },
-  { key: "unpaid", label: "Unpaid", icon: "circle", accent: colors.secondary, canQuickPay: true },
-  { key: "paid", label: "Paid", icon: "check-circle", accent: colors.paid, canQuickPay: false },
-  { key: "not-due", label: "Not due", icon: "pause-circle", accent: colors.textMuted, canQuickPay: false },
+  { key: "overdue", label: "Overdue", icon: "alert-triangle", accent: colors.overdue, canOpenBillSheet: true },
+  { key: "unpaid", label: "Unpaid", icon: "circle", accent: colors.secondary, canOpenBillSheet: true },
+  { key: "paid", label: "Paid", icon: "check-circle", accent: colors.paid, canOpenBillSheet: false },
+  { key: "not-due", label: "Not due", icon: "pause-circle", accent: colors.textMuted, canOpenBillSheet: false },
 ];
 const NOT_DUE_RANK = 3;
 
@@ -123,7 +123,7 @@ export default function RecurringScreen() {
               expense={item.expense}
               index={index}
               referenceDate={item.refDate}
-              canQuickPay={section.canQuickPay}
+              canOpenBillSheet={section.canOpenBillSheet}
             />
           )}
           stickySectionHeadersEnabled={false}

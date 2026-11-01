@@ -22,7 +22,7 @@ interface Props {
   onPress?: () => void;
   compact?: boolean;   // ledger row under a day header: no pay toggle, caption only flags card-account status
   hideDate?: boolean;  // caption shows the status word instead of the date
-  canQuickPay?: boolean; // unpaid rows open the bill sheet on tap (Home and Recurring due lists)
+  canOpenBillSheet?: boolean; // unpaid rows open the bill sheet on tap (Home and Recurring due lists)
   isSwipeHintShown?: boolean; // peek the Pay swipe once to teach it
 }
 
@@ -33,7 +33,7 @@ export function ExpenseCard({
   onPress,
   compact = false,
   hideDate = false,
-  canQuickPay = false,
+  canOpenBillSheet = false,
   isSwipeHintShown = false,
 }: Props) {
   const { getMonthStatus, getDisplayAmount, getMonthPaidAt } = useExpenses();
@@ -96,7 +96,7 @@ export function ExpenseCard({
     : isPaid && !isInactive ? `${statusLabel} ${dateText}` : dateText;
   // One-offs are money already spent: they have no month to pay or unpay.
   const canToggle = !compact && !isInactive && !isRegular;
-  const shouldOpenBillSheet = canQuickPay && canToggle && !isPaid;
+  const shouldOpenBillSheet = canOpenBillSheet && canToggle && !isPaid;
 
   function togglePaid() {
     if (isPaid) {

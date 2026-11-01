@@ -38,7 +38,7 @@ export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenLoan }: Pr
       compact={item.compact}
       hideDate={item.hideDate}
       referenceDate={item.refDate}
-      canQuickPay={item.canQuickPay}
+      canOpenBillSheet={item.canOpenBillSheet}
       isSwipeHintShown={item.isSwipeHintShown}
     />
   );

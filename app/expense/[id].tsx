@@ -13,6 +13,7 @@ import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { colors } from "@/constants/theme";
 import {
@@ -271,15 +272,7 @@ export default function BillScreen() {
         >
           <View accessible accessibilityLabel={`${overline}, ${amountText}, ${statusText}`}>
             <AppText variant="overline">{overline}</AppText>
-            <AppText
-              variant="display"
-              className={`text-[32px] mt-1 ${isDue ? "" : "text-textMuted"}`}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-            >
-              {amountText}
-            </AppText>
+            <AppHeroAmount value={amountText} tone={isDue ? "neutral" : "muted"} className="mt-1" />
             <AppText variant="meta" className={`mt-1 ${isLate ? "text-overdue" : ""}`}>
               {statusText}
             </AppText>

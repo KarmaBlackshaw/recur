@@ -1,17 +1,19 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
+import type { RowTone } from "@/components/ui/AppListRow";
 import { signedAmount } from "@/utils/signedAmount";
 import { colors } from "@/constants/theme";
 
 export type ActivityHeroTone = "primary" | "secondary" | "paid" | "neutral";
 
-const TONE: Record<ActivityHeroTone, { box: string; text: string }> = {
-  primary: { box: "bg-primary/10 border-primary/20", text: "text-secondary" },
-  secondary: { box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
-  paid: { box: "bg-paid/10 border-paid/20", text: "text-paid" },
-  neutral: { box: "bg-white/[0.04] border-border", text: "text-white" },
+const TONE: Record<ActivityHeroTone, { box: string; amount: RowTone }> = {
+  primary: { box: "bg-primary/10 border-primary/20", amount: "accent" },
+  secondary: { box: "bg-secondary/10 border-secondary/20", amount: "accent" },
+  paid: { box: "bg-paid/10 border-paid/20", amount: "positive" },
+  neutral: { box: "bg-white/[0.04] border-border", amount: "neutral" },
 };
 
 interface ActivityHeroProps {
@@ -22,21 +24,13 @@ interface ActivityHeroProps {
 }
 
 export function ActivityHero({ overline, total, tone, onStatsPress }: ActivityHeroProps) {
-  const { box, text } = TONE[tone];
+  const { box, amount } = TONE[tone];
 
   return (
     <View className={`mx-5 mt-3 mb-1 rounded-2xl border ${box}`}>
       <View className="px-5 pt-5 pb-3">
         <AppText variant="overline">{overline}</AppText>
-        <Text
-          className={`text-[32px] font-oswald-medium mt-1 ${total < 0 ? "text-overdue" : text}`}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}
-          maxFontSizeMultiplier={1.4}
-        >
-          {signedAmount(total)}
-        </Text>
+        <AppHeroAmount value={signedAmount(total)} tone={total < 0 ? "negative" : amount} className="mt-1" />
       </View>
       <TouchableOpacity
         onPress={onStatsPress}

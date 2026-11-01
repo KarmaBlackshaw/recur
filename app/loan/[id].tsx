@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Alert, SectionList, Text, TouchableOpacity, View } from "react-native";
+import { Alert, SectionList, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
@@ -8,6 +8,8 @@ import { groupBy, orderBy } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
+import type { RowTone } from "@/components/ui/AppListRow";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDetailRow } from "@/components/ui/AppDetailRow";
@@ -24,9 +26,9 @@ import type { AccountTransaction } from "@/types";
 
 const KIND_RANK: Record<TLoanHistoryItem["kind"], number> = { lent: 0, interest: 1, payment: 2 };
 
-const HERO_STYLE = {
-  active: { overline: "Still owed", box: "bg-secondary/10 border-secondary/20", amount: "text-secondary" },
-  settled: { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "text-paid" },
+const HERO_STYLE: Record<"active" | "settled", { overline: string; box: string; amount: RowTone }> = {
+  active: { overline: "Still owed", box: "bg-secondary/10 border-secondary/20", amount: "accent" },
+  settled: { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "positive" },
 };
 
 export default function LoanDetailScreen() {
@@ -170,15 +172,7 @@ export default function LoanDetailScreen() {
               accessibilityLabel={heroA11yLabel}
             >
               <AppText variant="overline">{hero.overline}</AppText>
-              <Text
-                className={`text-[32px] font-oswald-medium mt-1 ${hero.amount}`}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-                maxFontSizeMultiplier={1.4}
-              >
-                {formatAmount(heroAmount)}
-              </Text>
+              <AppHeroAmount value={formatAmount(heroAmount)} tone={hero.amount} className="mt-1" />
               <AppText variant="meta" className="mt-1">{meta}</AppText>
               <AppText variant="meta">{interestLabel}</AppText>
               {loan.note ? <AppText className="mt-2">{loan.note}</AppText> : null}

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useBoolean } from "@/utils/useBoolean";
-import { View, Text, FlatList, TouchableOpacity } from "react-native";
+import { View, FlatList, TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -11,6 +11,8 @@ import { BorrowerRow } from "@/components/loans/BorrowerRow";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
+import type { RowTone } from "@/components/ui/AppListRow";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { useRefreshControl } from "@/utils/useRefreshControl";
@@ -25,9 +27,9 @@ const SEGMENTS: TOption<Segment>[] = [
   { label: "Settled", value: "settled" },
 ];
 
-const HERO: Record<Segment, { overline: string; box: string; text: string }> = {
-  active: { overline: "Owed to you", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
-  settled: { overline: "Collected", box: "bg-paid/10 border-paid/20", text: "text-paid" },
+const HERO: Record<Segment, { overline: string; box: string; amount: RowTone }> = {
+  active: { overline: "Owed to you", box: "bg-secondary/10 border-secondary/20", amount: "accent" },
+  settled: { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "positive" },
 };
 
 function countLabel(count: number, singular: string) {
@@ -168,15 +170,7 @@ export default function LoansScreen() {
         ListHeaderComponent={
           <View className={`mx-5 mb-1 rounded-2xl border p-5 ${hero.box}`}>
             <AppText variant="overline">{hero.overline}</AppText>
-            <Text
-              className={`text-[32px] font-oswald-medium mt-1 ${hero.text}`}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-              maxFontSizeMultiplier={1.4}
-            >
-              {formatAmount(totals[segment])}
-            </Text>
+            <AppHeroAmount value={formatAmount(totals[segment])} tone={hero.amount} className="mt-1" />
             <AppText variant="meta">{heroMeta[segment]}</AppText>
           </View>
         }

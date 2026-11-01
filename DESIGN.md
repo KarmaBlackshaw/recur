@@ -40,7 +40,7 @@ Rules:
 - Never pure black (#000000).
 
 ## 3. Typography Rules
-- **Display: Oswald Medium.** Tab titles 28px, detail titles and day numbers 22px, hero balances 32 to 34px.
+- **Display: Oswald Medium.** Tab titles 28px, detail titles and day numbers 22px, hero balances 32px.
   Condensed, so large numbers stay narrow.
 - **Amounts: Oswald Regular.** 16px in list rows, 17px in cards. Band totals use Oswald Medium 13px.
 - **Body: Quicksand** 400, 500, 700. Row titles 14px bold, body 14px, button labels 12.25px bold.
@@ -115,6 +115,14 @@ Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity,
 cards, Home's month card, and Home's setup checklist and backup nudge.
 14dp radius (21dp for account cards), Raised Graphite or a 10% tint, 1px Hairline. Never wrap list rows
 in cards.
+
+### Hero Amount (`components/ui/AppHeroAmount.tsx`)
+The big total on every hero card: Activity, net worth, Home's month card, Loans, a borrower, a loan and a bill. Never
+hand-build another.
+
+- Oswald Medium 32px on one line. A total too wide for the card shrinks to fit, down to 70%.
+- Its color is a List Row amount tone: Ink by default, Coral when negative, Secondary Graphite for nothing yet or a
+  bill that isn't due that month, and the card's own signal color on tinted heroes.
 
 ### Month card (`components/HomeMonthStats.tsx`)
 One Raised Graphite card at the top of Home, under the greeting, built like the other hero cards. Its lead is Spent

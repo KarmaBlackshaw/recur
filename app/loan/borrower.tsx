@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { SectionList, Text, View } from "react-native";
+import { SectionList, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
@@ -8,6 +8,8 @@ import { sumBy, orderBy, partition } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
+import type { RowTone } from "@/components/ui/AppListRow";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFab } from "@/components/ui/AppFab";
@@ -62,9 +64,9 @@ export default function BorrowerLoansScreen() {
   const heroAmount = isAllSettled
     ? sumBy(settled, ({ id }) => loans.summaries[id]?.paidTotal ?? 0)
     : sumBy(active, ({ id }) => loans.summaries[id]?.balance ?? 0);
-  const hero = isAllSettled
-    ? { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "text-paid" }
-    : { overline: "Owes you", box: "bg-secondary/10 border-secondary/20", amount: "text-secondary" };
+  const hero: { overline: string; box: string; amount: RowTone } = isAllSettled
+    ? { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "positive" }
+    : { overline: "Owes you", box: "bg-secondary/10 border-secondary/20", amount: "accent" };
   const meta = `${active.length} active · ${settled.length} settled`;
   const sections = [
     { title: "Active", data: active },
@@ -114,15 +116,7 @@ export default function BorrowerLoansScreen() {
               accessibilityLabel={`${hero.overline} ${formatAmount(heroAmount)}. ${meta}`}
             >
               <AppText variant="overline">{hero.overline}</AppText>
-              <Text
-                className={`text-[32px] font-oswald-medium mt-1 ${hero.amount}`}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-                maxFontSizeMultiplier={1.4}
-              >
-                {formatAmount(heroAmount)}
-              </Text>
+              <AppHeroAmount value={formatAmount(heroAmount)} tone={hero.amount} className="mt-1" />
               <AppText variant="meta">{meta}</AppText>
             </View>
             {!isAllSettled && <AppButton label="Record payment" className="mx-5 mt-3" onPress={recordPayment} />}

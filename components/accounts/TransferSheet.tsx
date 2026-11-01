@@ -6,6 +6,7 @@ import { useAccounts } from "@/context/AccountContext";
 import { InfoRow } from "@/components/accounts/InfoRow";
 import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
+import { DELETED_ACCOUNT } from "@/constants/accounts";
 import { customTransferNote } from "@/utils/accounts/customTransferNote";
 import { splitTransfer } from "@/utils/accounts/splitTransfer";
 import { useRevertTransfer } from "@/utils/accounts/useRevertTransfer";
@@ -36,7 +37,7 @@ export const TransferSheet = forwardRef<TransferSheetRef>(function TransferSheet
   const { from, to, fee, income, isBillPayment } = splitTransfer(rows, accounts.accounts);
   const side = from ?? to;
   const accountName = (accountId?: string) =>
-    accounts.accounts.find(({ id }) => id === accountId)?.name ?? "Deleted account";
+    accounts.accounts.find(({ id }) => id === accountId)?.name ?? DELETED_ACCOUNT;
   const source = accountName(from?.accountId);
   const destination = accountName(to?.accountId);
   const note = side && customTransferNote(side.note, source, destination);

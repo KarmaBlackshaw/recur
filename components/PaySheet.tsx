@@ -11,7 +11,7 @@ import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
-import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { getDueDateForMonth } from "@/utils/dateHelpers";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import type { Expense } from "@/types";
@@ -122,7 +122,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   const accountId = watch("accountId");
   const dueDate = target ? dayjs(getDueDateForMonth(target.expense.dueDay, target.year, target.month)) : null;
   const isPaidAlready = target != null && getMonthStatus(target.expense.id, target.year, target.month) === "paid";
-  const accountName = accountId === "" ? "No account" : accounts.find((a) => a.id === accountId)?.name ?? "Deleted account";
+  const accountName = accountId === "" ? "No account" : accounts.find((a) => a.id === accountId)?.name ?? DELETED_ACCOUNT;
   const cycleLabel = target ? dayjs(new Date(target.year, target.month, 1)).format("MMMM") : "";
 
   return (

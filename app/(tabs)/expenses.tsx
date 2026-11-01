@@ -1,24 +1,24 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
-import { chunk, keyBy, sumBy } from "@/utils/collections";
+import { keyBy, sumBy } from "@/utils/collections";
 import { useBoolean } from "@/utils/useBoolean";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type DayTotal } from "@/components/DayGroupedExpenseList";
+import { ActivityHero } from "@/components/activity/ActivityHero";
+import type { HeroTone } from "@/components/ui/AppHeroCard";
 import { countLabel } from "@/utils/countLabel";
-import { formatAmount } from "@/utils/dateHelpers";
-import { signedAmount } from "@/utils/signedAmount";
 import { netFlow } from "@/utils/activity/netFlow";
 import { loanFlow } from "@/utils/activity/loanFlow";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { useMonthActivity } from "@/utils/useMonthActivity";
 import { matchesActivity, type ActivitySearchContext } from "@/utils/activitySearch";
-import type { ActivitySegment, FeatherIconName } from "@/types";
+import type { ActivitySegment, FeatherIconName, TOption } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
@@ -27,7 +27,7 @@ import { AppChips } from "@/components/ui/AppChips";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
 
-const SEGMENTS: { label: string; value: ActivitySegment }[] = [
+const SEGMENTS: TOption<ActivitySegment>[] = [
   { label: "All", value: "all" },
   { label: "Paid", value: "paid" },
   { label: "Charged", value: "charged" },
@@ -36,13 +36,13 @@ const SEGMENTS: { label: string; value: ActivitySegment }[] = [
   { label: "Loans", value: "loans" },
 ];
 
-const HERO: Record<ActivitySegment, { overline: string; box: string; text: string }> = {
-  all: { overline: "Net this month", box: "bg-primary/10 border-primary/20", text: "text-secondary" },
-  paid: { overline: "Paid this month", box: "bg-paid/10 border-paid/20", text: "text-paid" },
-  charged: { overline: "Charged this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
-  income: { overline: "Received this month", box: "bg-paid/10 border-paid/20", text: "text-paid" },
-  transfers: { overline: "Transferred this month", box: "bg-white/[0.04] border-border", text: "text-white" },
-  loans: { overline: "Lent this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
+const HERO: Record<ActivitySegment, { overline: string; tone: HeroTone }> = {
+  all: { overline: "Net this month", tone: "primary" },
+  paid: { overline: "Paid this month", tone: "paid" },
+  charged: { overline: "Charged this month", tone: "secondary" },
+  income: { overline: "Received this month", tone: "paid" },
+  transfers: { overline: "Transferred this month", tone: "neutral" },
+  loans: { overline: "Lent this month", tone: "secondary" },
 };
 
 const EMPTY: Record<ActivitySegment, { title: string; icon: FeatherIconName; message: string }> = {
@@ -63,11 +63,6 @@ const DAY_TOTAL: Record<ActivitySegment, DayTotal> = {
   transfers: "sum",
   loans: loanFlow,
 };
-
-// A meta line carries at most one " · ", so the parts pair up line by line. Falsy parts drop out.
-function metaLines(...parts: (string | false)[]): string[] {
-  return chunk(parts.filter((part): part is string => Boolean(part)), 2).map((line) => line.join(" · "));
-}
 
 export default function ExpensesScreen() {
   const { loading } = useExpenses();
@@ -104,7 +99,7 @@ export default function ExpensesScreen() {
     [feed.all, query, searchContext]
   );
 
-  const { byFilter, notPaidOff, fees, transferIncome, lent, repaid, moneyIn, paidTotal } = useMonthActivity(feed, year, month);
+  const { byFilter, lent, moneyIn, paidTotal } = useMonthActivity(feed, year, month);
 
   const entries = byFilter[segment];
   // Lending stays out of the net: money lent is still yours (net worth counts it as an asset).
@@ -118,26 +113,6 @@ export default function ExpensesScreen() {
   };
   const total = totals[segment];
   const hero = HERO[segment];
-  const heroMeta: Record<ActivitySegment, string[]> = {
-    all: metaLines(
-      `${formatAmount(moneyIn)} in`,
-      `${formatAmount(paidTotal)} spent`,
-      lent > 0 && `${formatAmount(lent)} lent`,
-      repaid > 0 && `${formatAmount(repaid)} repaid`
-    ),
-    paid: metaLines(countLabel(entries.length, "payment", "payments"), fees > 0 && `incl. ${formatAmount(fees)} fees`),
-    charged: metaLines(`${formatAmount(notPaidOff)} not yet paid off`),
-    income: metaLines(
-      countLabel(entries.length, "income", "incomes"),
-      transferIncome > 0 && `incl. ${formatAmount(transferIncome)} from transfers`
-    ),
-    transfers: metaLines(
-      countLabel(entries.length, "transfer", "transfers"),
-      fees > 0 && `${formatAmount(fees)} fees`,
-      transferIncome > 0 && `${formatAmount(transferIncome)} income`
-    ),
-    loans: metaLines(`${formatAmount(repaid)} repaid`, countLabel(entries.length, "entry", "entries")),
-  };
   const empty = EMPTY[segment];
   const monthLabel = dayjs(new Date(year, month, 1)).format("MMMM");
 
@@ -216,36 +191,7 @@ export default function ExpensesScreen() {
             className="mt-1"
           />
 
-          <View className={`mx-5 mt-3 mb-1 rounded-2xl border ${hero.box}`}>
-            <View className="px-5 pt-5 pb-3">
-              <AppText variant="overline">{hero.overline}</AppText>
-              <Text
-                className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-                maxFontSizeMultiplier={1.4}
-              >
-                {signedAmount(total)}
-              </Text>
-              {heroMeta[segment].map((line) => (
-                <AppText key={line} variant="meta">
-                  {line}
-                </AppText>
-              ))}
-            </View>
-            <TouchableOpacity
-              onPress={openStats}
-              activeOpacity={0.7}
-              className="min-h-[44px] flex-row items-center px-5 border-t border-white/[0.07]"
-            >
-              <Feather name="pie-chart" size={16} color={colors.textSecondary} />
-              <AppText variant="body-bold" className="flex-1 ml-3 text-sm text-white">
-                Stats
-              </AppText>
-              <Feather name="chevron-right" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
+          <ActivityHero overline={hero.overline} total={total} tone={hero.tone} onStatsPress={openStats} />
 
           <DayGroupedExpenseList
             entries={entries}

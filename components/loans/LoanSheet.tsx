@@ -4,10 +4,11 @@ import dayjs from "dayjs";
 import { router } from "expo-router";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
-import { InfoRow } from "@/components/accounts/InfoRow";
 import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
-import { formatAmount } from "@/utils/dateHelpers";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
+import { DELETED_ACCOUNT } from "@/constants/accounts";
+import { formatAmount } from "@/utils/formatAmount";
 import { formatLoanInterest } from "@/utils/loans/formatLoanInterest";
 import { useRevertLoan } from "@/utils/loans/useRevertLoan";
 import type { TLoanSummary } from "@/utils/loans/summarizeLoan";
@@ -37,7 +38,7 @@ export const LoanSheet = forwardRef<LoanSheetRef>(function LoanSheet(_props, ref
       if (!loan) {
         return;
       }
-      const accountName = accounts.accounts.find(({ id }) => id === txn.accountId)?.name ?? "Deleted account";
+      const accountName = accounts.accounts.find(({ id }) => id === txn.accountId)?.name ?? DELETED_ACCOUNT;
       setSnapshot({ txn, loan, summary: loans.summaries[loan.id], accountName });
       sheetRef.current?.present();
     },
@@ -67,19 +68,19 @@ export const LoanSheet = forwardRef<LoanSheetRef>(function LoanSheet(_props, ref
     <AppBottomSheet ref={sheetRef} title={isPayment ? "Loan payment" : "Loan"} snapPoints={CONTENT_HEIGHT_SNAP}>
       {snapshot ? (
         <View className="px-4 pb-4">
-          <InfoRow label="Borrower" value={snapshot.loan.borrower} />
-          <InfoRow label="Amount" value={formatAmount(Math.abs(snapshot.txn.amount))} />
-          <InfoRow label={isPayment ? "To" : "From"} value={snapshot.accountName} />
-          <InfoRow label="Date" value={dayjs(snapshot.txn.createdAt).format("MMM D, YYYY")} />
+          <AppDetailRow label="Borrower" value={snapshot.loan.borrower} />
+          <AppDetailRow label="Amount" value={formatAmount(Math.abs(snapshot.txn.amount))} />
+          <AppDetailRow label={isPayment ? "To" : "From"} value={snapshot.accountName} />
+          <AppDetailRow label="Date" value={dayjs(snapshot.txn.createdAt).format("MMM D, YYYY")} />
           {!isPayment && snapshot.loan.interest.type !== "none" ? (
-            <InfoRow label="Interest" value={formatLoanInterest(snapshot.loan.interest)} />
+            <AppDetailRow label="Interest" value={formatLoanInterest(snapshot.loan.interest)} />
           ) : null}
           {snapshot.summary.isSettled ? (
-            <InfoRow label="Collected" value={formatAmount(snapshot.summary.paidTotal)} />
+            <AppDetailRow label="Collected" value={formatAmount(snapshot.summary.paidTotal)} />
           ) : (
-            <InfoRow label="Still owed" value={formatAmount(snapshot.summary.balance)} />
+            <AppDetailRow label="Still owed" value={formatAmount(snapshot.summary.balance)} />
           )}
-          {snapshot.loan.note ? <InfoRow label="Note" value={snapshot.loan.note} /> : null}
+          {snapshot.loan.note ? <AppDetailRow label="Note" value={snapshot.loan.note} /> : null}
           <View className="mt-4 gap-2">
             {snapshot.summary.isSettled ? null : (
               <AppButton label="Record payment" onPress={() => handleRecordPayment(snapshot)} />

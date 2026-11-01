@@ -1,7 +1,8 @@
 # env: AMOUNT, NOTE, ACCOUNT (account name), BACKDATE ("true" → paid date = 1st of this month)
+# Ends on the Accounts tab. Spending from Cash needs income first: it starts at ₱0 and can't overdraw.
 appId: com.erniejeash.recur
 ---
-- runFlow: tab-accounts.yaml
+- runFlow: tab-home.yaml
 - tapOn: "Add expense"
 - extendedWaitUntil:
     visible: "Save expense"
@@ -25,6 +26,6 @@ appId: com.erniejeash.recur
 - hideKeyboard
 - tapOn: "Save expense"
 - extendedWaitUntil:
-    visible: "NET WORTH"
+    notVisible: "Save expense"
     timeout: 10000
-- waitForAnimationToEnd
+- runFlow: tab-accounts.yaml

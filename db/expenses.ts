@@ -69,7 +69,7 @@ export async function insert(e: ExpenseFields): Promise<Expense> {
     `INSERT INTO expenses (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, e.name, e.category, e.amount, e.dueDay, e.recurrence, status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, createdAt, paidDate, schedule.startYear, schedule.startMonth, schedule.endYear, schedule.endMonth, e.accountId ?? null]
   );
-  await touchCategory(e.category, createdAt);
+  await touchCategory({ name: e.category, at: createdAt });
   return { ...e, id, createdAt, status, paidDate, ...schedule, accountId: e.accountId ?? null };
 }
 
@@ -81,7 +81,7 @@ export async function insertWithId(e: Expense, db?: SQLiteDatabase): Promise<num
     `INSERT OR IGNORE INTO expenses (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [e.id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.createdAt, e.paidDate ?? null, e.startYear ?? null, e.startMonth ?? null, e.endYear ?? null, e.endMonth ?? null, e.accountId ?? null]
   );
-  await touchCategory(e.category, e.createdAt, "expense", conn);
+  await touchCategory({ name: e.category, at: e.createdAt, db: conn });
   return result.changes;
 }
 
@@ -100,7 +100,7 @@ export async function update(id: string, e: ExpenseFields): Promise<void> {
     `UPDATE expenses SET name=?, category=?, amount=?, dueDay=?, recurrence=?, status=?, is_variable=?, reminder_days_before=?, notes=?, paid_date=?, start_year=?, start_month=?, end_year=?, end_month=?, account_id=? WHERE id=?`,
     [e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.recurrence === "one-off" ? (e.paidDate ?? null) : null, schedule.startYear, schedule.startMonth, schedule.endYear, schedule.endMonth, e.accountId ?? null, id]
   );
-  await touchCategory(e.category);
+  await touchCategory({ name: e.category });
 }
 
 export async function remove(id: string): Promise<void> {

@@ -1,13 +1,14 @@
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
 import { router } from "expo-router";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
 import { AMOUNT_TONE, ICON_TONE } from "@/components/ui/AppListRow";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { useMonthActivity } from "@/utils/useMonthActivity";
 import type { ActivityFeed } from "@/utils/useActivityFeed";
 import type { OwedToYou } from "@/utils/useOwedToYou";
@@ -81,15 +82,11 @@ export function HomeMonthStats({ year, month, feed, owed }: Props) {
             className="flex-1 pl-5 pr-3 pt-4 pb-3"
           >
             <FigureLabel>{`Spent in ${monthName}`}</FigureLabel>
-            <Text
-              className={`mt-1 text-[32px] font-oswald-medium ${AMOUNT_TONE[paidTotal > 0 ? "neutral" : "muted"]}`}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-              maxFontSizeMultiplier={1.4}
-            >
-              {formatAmount(paidTotal)}
-            </Text>
+            <AppHeroAmount
+              value={formatAmount(paidTotal)}
+              tone={paidTotal > 0 ? "neutral" : "muted"}
+              className="mt-1"
+            />
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.7}

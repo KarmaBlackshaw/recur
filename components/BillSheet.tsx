@@ -3,9 +3,9 @@ import { View } from "react-native";
 import dayjs from "dayjs";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
-import { InfoRow } from "@/components/accounts/InfoRow";
 import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { formatDaysLate, getDueDateForMonth, isOverdueOn } from "@/utils/dateHelpers";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { openExpense } from "@/utils/expenses/openExpense";
@@ -67,9 +67,9 @@ export const BillSheet = forwardRef<BillSheetRef, Props>(function BillSheet({ on
     >
       {snapshot ? (
         <View className="px-4 pb-4">
-          <InfoRow label="Amount" value={snapshot.amountText} />
-          <InfoRow label="Due" value={snapshot.dueText} />
-          {snapshot.accountName ? <InfoRow label="Pay from" value={snapshot.accountName} /> : null}
+          <AppDetailRow label="Amount" value={snapshot.amountText} />
+          <AppDetailRow label="Due" value={snapshot.dueText} />
+          {snapshot.accountName ? <AppDetailRow label="Pay from" value={snapshot.accountName} /> : null}
           <View className="mt-4 gap-2">
             <AppButton label="Pay" onPress={() => handlePay(snapshot)} />
             <AppButton label="Details" variant="tonal" onPress={() => handleDetails(snapshot)} />

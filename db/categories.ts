@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
+import { isLockedCategory, lockedLast } from "@/utils/categories";
 import type { CategoryKind } from "@/types";
 
 export interface Category {
@@ -9,7 +10,7 @@ export interface Category {
 }
 
 // Categories are ordered by recency: most-recently-used first, never-used last
-// (sort_order is the stable tiebreak for the never-used group → keeps preset order).
+// (sort_order is the stable tiebreak for the never-used group → keeps preset order). The locked category always goes last.
 const RECENCY_ORDER = "ORDER BY last_used_at IS NULL ASC, last_used_at DESC, sort_order ASC";
 
 export async function getAll(kind: CategoryKind = "expense"): Promise<string[]> {
@@ -18,24 +19,35 @@ export async function getAll(kind: CategoryKind = "expense"): Promise<string[]> 
     `SELECT name FROM categories WHERE kind = ? ${RECENCY_ORDER}`,
     [kind]
   );
-  return rows.map((r) => r.name);
+  return lockedLast(
+    rows.map((r) => r.name),
+    kind
+  );
 }
 
 export async function getAllWithIds(kind: CategoryKind = "expense"): Promise<Category[]> {
   const db = await getDB();
-  return db.getAllAsync<Category>(
+  const rows = await db.getAllAsync<Category>(
     `SELECT rowid AS id, name FROM categories WHERE kind = ? ${RECENCY_ORDER}`,
     [kind]
   );
+  return lockedLast(rows, kind);
+}
+
+interface TTouchCategoryOptions {
+  name: string;
+  kind?: CategoryKind;
+  at?: string;
+  db?: SQLiteDatabase;
 }
 
 // Bump a category's recency. Called whenever an expense is saved with this category.
-export async function touchCategory(
-  name: string,
-  at: string = new Date().toISOString(),
-  kind: CategoryKind = "expense",
-  db?: SQLiteDatabase
-): Promise<void> {
+export async function touchCategory({
+  name,
+  kind = "expense",
+  at = new Date().toISOString(),
+  db,
+}: TTouchCategoryOptions): Promise<void> {
   const conn = db ?? (await getDB());
   await conn.runAsync("UPDATE categories SET last_used_at = ? WHERE name = ? AND kind = ?", [at, name, kind]);
 }
@@ -71,6 +83,9 @@ export async function renameCategory(id: number, newName: string): Promise<void>
     if (!row) {
       return;
     }
+    if (isLockedCategory(row.name, row.kind)) {
+      throw new Error(`${row.name} can't be renamed`);
+    }
     await txn.runAsync("UPDATE categories SET name = ? WHERE rowid = ?", [newName, id]);
     if (row.kind === "income") {
       await txn.runAsync(
@@ -85,5 +100,12 @@ export async function renameCategory(id: number, newName: string): Promise<void>
 
 export async function deleteCategory(id: number): Promise<void> {
   const db = await getDB();
+  const row = await db.getFirstAsync<{ name: string; kind: CategoryKind }>(
+    "SELECT name, kind FROM categories WHERE rowid = ?",
+    [id]
+  );
+  if (row && isLockedCategory(row.name, row.kind)) {
+    throw new Error(`${row.name} can't be deleted`);
+  }
   await db.runAsync("DELETE FROM categories WHERE rowid = ?", [id]);
 }

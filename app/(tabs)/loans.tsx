@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useBoolean } from "@/utils/useBoolean";
-import { View, Text, FlatList, TouchableOpacity } from "react-native";
+import { View, FlatList, TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -11,23 +11,24 @@ import { BorrowerRow } from "@/components/loans/BorrowerRow";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroCard, type HeroTone } from "@/components/ui/AppHeroCard";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { useRefreshControl } from "@/utils/useRefreshControl";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { colors } from "@/constants/theme";
-import type { Loan } from "@/types";
+import type { Loan, TOption } from "@/types";
 
 type Segment = "active" | "settled";
 
-const SEGMENTS: { label: string; value: Segment }[] = [
+const SEGMENTS: TOption<Segment>[] = [
   { label: "Active", value: "active" },
   { label: "Settled", value: "settled" },
 ];
 
-const HERO: Record<Segment, { overline: string; box: string; text: string }> = {
-  active: { overline: "Owed to you", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
-  settled: { overline: "Collected", box: "bg-paid/10 border-paid/20", text: "text-paid" },
+const HERO: Record<Segment, { overline: string; tone: HeroTone }> = {
+  active: { overline: "Owed to you", tone: "secondary" },
+  settled: { overline: "Collected", tone: "paid" },
 };
 
 function countLabel(count: number, singular: string) {
@@ -166,19 +167,9 @@ export default function LoansScreen() {
         keyExtractor={({ borrower }) => borrower}
         renderItem={renderItem}
         ListHeaderComponent={
-          <View className={`mx-5 mb-1 rounded-2xl border p-5 ${hero.box}`}>
-            <AppText variant="overline">{hero.overline}</AppText>
-            <Text
-              className={`text-[32px] font-oswald-medium mt-1 ${hero.text}`}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-              maxFontSizeMultiplier={1.4}
-            >
-              {formatAmount(totals[segment])}
-            </Text>
+          <AppHeroCard overline={hero.overline} value={formatAmount(totals[segment])} tone={hero.tone} className="mx-5 mb-1">
             <AppText variant="meta">{heroMeta[segment]}</AppText>
-          </View>
+          </AppHeroCard>
         }
         refreshControl={refreshControl}
         ListEmptyComponent={

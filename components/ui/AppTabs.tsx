@@ -1,14 +1,10 @@
 import React from "react";
 import { View, TouchableOpacity } from "react-native";
 import { AppText } from "@/components/ui/AppText";
-
-interface Tab<T extends string | number> {
-  label: string;
-  value: T;
-}
+import type { TOption } from "@/types";
 
 interface AppTabsProps<T extends string | number> {
-  tabs: Tab<T>[];
+  tabs: TOption<T>[];
   value: T;
   onChange: (value: T) => void;
   className?: string;

@@ -8,10 +8,12 @@ import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { usePayFlow } from "@/context/PayFlowContext";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { colors } from "@/constants/theme";
 import {
@@ -26,6 +28,7 @@ import {
   nextCycleDueDate,
   type CycleState,
 } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
 import { formatBillAmount } from "@/utils/expenses/formatBillAmount";
@@ -98,15 +101,6 @@ function reminderLabel(daysBefore: number | null | undefined): string {
   }
   const days = daysBefore ?? 1;
   return `${days} ${days === 1 ? "day" : "days"} before`;
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row justify-between gap-4 px-5 py-1.5" accessible accessibilityLabel={`${label}, ${value}`}>
-      <AppText variant="meta">{label}</AppText>
-      <AppText variant="body-medium" className="shrink text-right">{value}</AppText>
-    </View>
-  );
 }
 
 export default function BillScreen() {
@@ -274,15 +268,7 @@ export default function BillScreen() {
         >
           <View accessible accessibilityLabel={`${overline}, ${amountText}, ${statusText}`}>
             <AppText variant="overline">{overline}</AppText>
-            <AppText
-              variant="display"
-              className={`text-[32px] mt-1 ${isDue ? "" : "text-textMuted"}`}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-            >
-              {amountText}
-            </AppText>
+            <AppHeroAmount value={amountText} tone={isDue ? "neutral" : "muted"} className="mt-1" />
             <AppText variant="meta" className={`mt-1 ${isLate ? "text-overdue" : ""}`}>
               {statusText}
             </AppText>
@@ -308,12 +294,12 @@ export default function BillScreen() {
             ))}
         </View>
 
-        <View className="mt-3">
-          <DetailRow label="Repeats" value={repeatsText} />
-          <DetailRow label="Amount" value={planAmountText} />
-          <DetailRow label="Starts" value={formatMonth(start.year, start.month)} />
-          <DetailRow label="Ends" value={endsText} />
-          <DetailRow label="Reminder" value={isCardPaid ? "With the card bill" : reminderLabel(expense.reminderDaysBefore)} />
+        <View className="mt-3 px-5">
+          <AppDetailRow label="Repeats" value={repeatsText} />
+          <AppDetailRow label="Amount" value={planAmountText} />
+          <AppDetailRow label="Starts" value={formatMonth(start.year, start.month)} />
+          <AppDetailRow label="Ends" value={endsText} />
+          <AppDetailRow label="Reminder" value={isCardPaid ? "With the card bill" : reminderLabel(expense.reminderDaysBefore)} />
         </View>
 
         {history.length > 0 && (

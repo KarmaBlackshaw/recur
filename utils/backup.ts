@@ -28,7 +28,7 @@ import {
   type MonthStatus,
 } from '@/types';
 
-const BACKUP_VERSION = 5;
+const BACKUP_VERSION = 6;
 
 // The settings a backup carries. Migration flags and the permission prompt flag belong to the device.
 const BACKUP_PREFERENCE_KEYS = ['user_name', 'reminderTime', 'notificationsEnabled', 'homeCollapsedBands', 'accountsGroupByBank'];
@@ -44,7 +44,7 @@ interface BackupLogo {
 }
 
 interface BackupFile {
-  version: 1 | 2 | 3 | 4 | 5;
+  version: 1 | 2 | 3 | 4 | 5 | 6;
   exportedAt: string;
   expenses: Expense[];
   categories: string[];
@@ -143,7 +143,7 @@ function isValidLoan(value: unknown): value is Loan {
     !isRecord(value) ||
     typeof value.id !== 'string' ||
     typeof value.borrower !== 'string' ||
-    typeof value.accountId !== 'string' ||
+    (typeof value.accountId !== 'string' && value.accountId !== null) ||
     typeof value.lentAt !== 'string' ||
     typeof value.createdAt !== 'string' ||
     typeof value.principal !== 'number' ||

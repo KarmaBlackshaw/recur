@@ -1,12 +1,15 @@
 import dayjs from "dayjs";
-import type { Loan } from "@/types";
+import type { TLoanPayment, TLoanTerms } from "@/types";
 
 export interface TLoanCharge { date: string; amount: number }
-export interface TLoanSummary {
+export interface TLoanOverpayment<P extends TLoanPayment = TLoanPayment> { payment: P; amount: number }
+export interface TLoanSummary<P extends TLoanPayment = TLoanPayment> {
   balance: number;
   interestTotal: number;
   paidTotal: number;
   charges: TLoanCharge[];
+  overpayments: TLoanOverpayment<P>[];
+  overpaid: number;
   isSettled: boolean;
   settledAt: string | null;
   isValid: boolean;
@@ -15,31 +18,40 @@ export interface TLoanSummary {
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const day = (d: string) => dayjs(d).format("YYYY-MM-DD");
 
-export function summarizeLoan({ loan, payments, today }: {
-  loan: Pick<Loan, "principal" | "lentAt" | "interest">;
-  payments: { amount: number; createdAt: string }[];
+// Charges and payments apply in date order. The balance stops at ₱0, where interest stops too: the part of a payment
+// past that point is an overpayment of that payment, not a negative balance.
+export function summarizeLoan<P extends TLoanPayment>({ loan, payments, today }: {
+  loan: TLoanTerms;
+  payments: P[];
   today: string;
-}): TLoanSummary {
+}): TLoanSummary<P> {
   const { principal, lentAt, interest } = loan;
   const lentDay = day(lentAt);
   const queue = payments
-    .map(({ amount, createdAt }) => ({ day: day(createdAt), amount }))
+    .map((payment) => ({ payment, day: day(payment.createdAt) }))
     .sort((a, b) => a.day.localeCompare(b.day));
   const charges: TLoanCharge[] = [];
+  const overpayments: TLoanOverpayment<P>[] = [];
   let balance = round2(principal);
   let paid = 0;
   let settledAt: string | null = null;
 
   const applyPaymentsBefore = (limit?: string) => {
     while (queue.length > 0 && (limit == null || queue[0].day < limit)) {
-      const payment = queue.shift();
-      if (payment == null) {
+      const next = queue.shift();
+      if (next == null) {
         return;
       }
-      balance = round2(balance - payment.amount);
+      const { payment } = next;
+      const applied = Math.min(payment.amount, balance);
+      const excess = round2(payment.amount - applied);
+      balance = round2(balance - applied);
       paid += payment.amount;
+      if (excess > 0) {
+        overpayments.push({ payment, amount: excess });
+      }
       if (balance <= 0 && settledAt == null) {
-        settledAt = payment.day;
+        settledAt = next.day;
       }
     }
   };
@@ -85,8 +97,10 @@ export function summarizeLoan({ loan, payments, today }: {
     interestTotal: round2(charges.reduce((sum, { amount }) => sum + amount, 0)),
     paidTotal: round2(paid),
     charges,
+    overpayments,
+    overpaid: round2(overpayments.reduce((sum, { amount }) => sum + amount, 0)),
     isSettled,
     settledAt: isSettled ? settledAt : null,
-    isValid: balance >= 0 && payments.every(({ createdAt }) => day(createdAt) >= lentDay),
+    isValid: payments.every(({ createdAt }) => day(createdAt) >= lentDay),
   };
 }

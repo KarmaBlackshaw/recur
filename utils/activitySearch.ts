@@ -1,4 +1,5 @@
 import { expenseTitle } from "@/utils/expenseHelpers";
+import { incomeTitle } from "@/utils/accounts/incomeTitle";
 import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
 
 export interface ActivitySearchContext {
@@ -12,8 +13,8 @@ function searchableText(entry: ActivityEntry, { accountName }: ActivitySearchCon
     return [expenseTitle(expense), expense.category, accountName(expense.accountId)];
   }
   if ("income" in entry) {
-    const { income } = entry;
-    return ["income", income.category, income.note, accountName(income.accountId)];
+    const { income, loan } = entry;
+    return [incomeTitle(entry), "income", loan && "loan", income.category, income.note, accountName(income.accountId)];
   }
   if ("interest" in entry) {
     return ["interest", entry.accountName ?? accountName(entry.interest.accountId)];

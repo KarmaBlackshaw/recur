@@ -3,18 +3,24 @@ import dayjs from "dayjs";
 import { useAsyncEffect } from "@/utils/useAsyncEffect";
 import { useMemoizedFn } from "@/utils/useMemoizedFn";
 import { round } from "@/utils/round";
+import { keyBy, uniq } from "@/utils/collections";
 import {
   getAll as getAllLoans,
   insert as insertLoan,
   update as updateLoanRow,
   remove as removeLoan,
-  insertPayment,
+  insertPayments,
 } from "@/db/loans";
 import { remove as removeTransaction, updateLoanPayment } from "@/db/accountTransactions";
 import { useAccounts } from "@/context/AccountContext";
 import { summarizeLoan, type TLoanSummary } from "@/utils/loans/summarizeLoan";
+import { loanOutChanges } from "@/utils/loans/loanOutChanges";
+import { isLoanOutOf } from "@/utils/loans/isLoanOutOf";
+import { maxPaymentOn } from "@/utils/loans/maxPaymentOn";
+import { canChangeLoan } from "@/utils/loans/canChangeLoan";
+import { canEditPayment } from "@/utils/loans/canEditPayment";
 import { useToday } from "@/utils/useToday";
-import type { AccountTransaction, Loan, LoanInput, LoanPaymentInput } from "@/types";
+import type { AccountTransaction, Loan, LoanExcessInput, LoanInput, LoanPaymentInput } from "@/types";
 
 interface State {
   loans: Loan[];
@@ -45,12 +51,14 @@ function reducer(state: State, action: Action): State {
 interface LoanContextValue {
   loans: Loan[];
   isLoading: boolean;
-  summaries: Record<string, TLoanSummary>;
+  summaries: Record<string, TLoanSummary<AccountTransaction>>;
   paymentsOf: (loanId: string) => AccountTransaction[];
+  incomeOf: (loanId: string) => AccountTransaction[];
+  borrowerOf: (loanId: string | null) => string | undefined;
   addLoan: (input: LoanInput) => Promise<void>;
   updateLoan: (id: string, input: LoanInput) => Promise<void>;
   deleteLoan: (id: string) => Promise<void>;
-  recordPayment: (p: LoanPaymentInput) => Promise<void>;
+  recordPayments: (payments: LoanPaymentInput[], excess?: LoanExcessInput) => Promise<void>;
   updatePayment: (txnId: string, p: LoanPaymentInput) => Promise<void>;
   deletePayment: (txnId: string) => Promise<void>;
   reload: () => Promise<void>;
@@ -84,10 +92,21 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     [accounts.transactions]
   );
 
+  const incomeOf = useCallback(
+    (loanId: string) => accounts.transactions.filter((t) => t.loanId === loanId && t.kind === "income"),
+    [accounts.transactions]
+  );
+
+  const loansById = useMemo(() => keyBy(state.loans, "id"), [state.loans]);
+  const borrowerOf = useCallback(
+    (loanId: string | null) => (loanId == null ? undefined : loansById[loanId]?.borrower),
+    [loansById]
+  );
+
   const today = dayjs(useToday()).format("YYYY-MM-DD");
 
   const summaries = useMemo(() => {
-    const map: Record<string, TLoanSummary> = {};
+    const map: Record<string, TLoanSummary<AccountTransaction>> = {};
     for (const loan of state.loans) {
       map[loan.id] = summarizeLoan({ loan, payments: paymentsOf(loan.id), today });
     }
@@ -108,9 +127,11 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addLoan = useMemoizedFn(async (input: LoanInput) => {
-    assertDepositAccount(input.accountId);
+    if (input.accountId != null) {
+      assertDepositAccount(input.accountId);
+    }
     const principal = round(input.principal, 2);
-    const error = accounts.overdraftError([{ accountId: input.accountId, amount: -principal }]);
+    const error = accounts.overdraftError(loanOutChanges({ accountId: input.accountId, principal }));
     if (error) {
       throw error;
     }
@@ -124,18 +145,15 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     if (!existing) {
       throw new Error("Loan not found");
     }
-    if (input.accountId !== existing.accountId) {
+    if (input.accountId != null && input.accountId !== existing.accountId) {
       assertDepositAccount(input.accountId);
     }
     const next = { ...input, principal: round(input.principal, 2) };
-    const candidate = summarizeLoan({ loan: next, payments: paymentsOf(id), today });
-    if (!candidate.isValid) {
+    const payments = paymentsOf(id);
+    if (!canChangeLoan({ current: { loan: existing, payments }, next: { loan: next, payments }, today })) {
       throw new Error("Payments exceed this loan");
     }
-    const error = accounts.overdraftError(
-      [{ accountId: input.accountId, amount: -next.principal }],
-      (t) => t.loanId === id && t.kind === "loan_out"
-    );
+    const error = accounts.overdraftError(loanOutChanges(next), isLoanOutOf(id));
     if (error) {
       throw error;
     }
@@ -154,22 +172,36 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "REMOVE_LOAN", payload: id });
   });
 
-  const recordPayment = useMemoizedFn(async (p: LoanPaymentInput) => {
-    const loan = state.loans.find((l) => l.id === p.loanId);
-    if (!loan) {
-      throw new Error("Loan not found");
+  const recordPayments = useMemoizedFn(async (payments: LoanPaymentInput[], excess?: LoanExcessInput) => {
+    if (payments.length === 0) {
+      throw new Error("Nothing to record");
     }
-    assertDepositAccount(p.accountId);
-    const amount = round(p.amount, 2);
-    const candidate = summarizeLoan({
-      loan,
-      payments: [...paymentsOf(p.loanId), { amount, createdAt: p.paidAt }],
-      today,
-    });
-    if (!candidate.isValid) {
-      throw new Error("Payment exceeds what's owed");
+    const loanIds = uniq(payments.map(({ loanId }) => loanId));
+    if (loanIds.length !== payments.length) {
+      throw new Error("One payment per loan");
     }
-    await insertPayment({ ...p, amount });
+    const rounded: LoanPaymentInput[] = [];
+    for (const p of payments) {
+      const loan = state.loans.find((l) => l.id === p.loanId);
+      if (!loan) {
+        throw new Error("Loan not found");
+      }
+      assertDepositAccount(p.accountId);
+      const amount = round(p.amount, 2);
+      if (amount < 0.01) {
+        throw new Error("Payment must be at least 0.01");
+      }
+      const cap = maxPaymentOn({ loan, payments: paymentsOf(p.loanId), paidAt: p.paidAt, today });
+      if (amount > cap) {
+        throw new Error("Payment exceeds what's owed");
+      }
+      rounded.push({ ...p, amount });
+    }
+    const roundedExcess = excess && { ...excess, amount: round(excess.amount, 2) };
+    if (roundedExcess && roundedExcess.amount < 0.01) {
+      throw new Error("Excess must be at least 0.01");
+    }
+    await insertPayments(rounded, roundedExcess);
     await accounts.reload();
   });
 
@@ -183,12 +215,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       assertDepositAccount(p.accountId);
     }
     const amount = round(p.amount, 2);
-    const candidate = summarizeLoan({
-      loan,
-      payments: paymentsOf(p.loanId).map((t) => (t.id === txnId ? { ...t, amount, createdAt: p.paidAt } : t)),
-      today,
-    });
-    if (!candidate.isValid) {
+    if (!canEditPayment({ loan, payments: paymentsOf(p.loanId), id: txnId, next: { amount, createdAt: p.paidAt }, today })) {
       throw new Error("Payment exceeds what's owed");
     }
     // A smaller repayment, or one moved to another account, lowers the account it was paid into.
@@ -215,15 +242,17 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       isLoading: state.isLoading,
       summaries,
       paymentsOf,
+      incomeOf,
+      borrowerOf,
       addLoan,
       updateLoan,
       deleteLoan,
-      recordPayment,
+      recordPayments,
       updatePayment,
       deletePayment,
       reload,
     }),
-    [state, summaries, paymentsOf]
+    [state, summaries, paymentsOf, incomeOf, borrowerOf]
   );
 
   return <LoanContext.Provider value={value}>{children}</LoanContext.Provider>;

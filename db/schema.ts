@@ -258,7 +258,7 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       ('preset-income-salary','Salary',0,'income'),('preset-income-freelance','Freelance',1,'income'),
       ('preset-income-business','Business',2,'income'),('preset-income-gift','Gift',3,'income'),
       ('preset-income-refund','Refund',4,'income'),('preset-income-interest','Interest',5,'income'),
-      ('preset-income-other','Other',6,'income');
+      ('preset-income-other','Other',6,'income'),('preset-income-overpayment','Overpayment',7,'income');
   `);
 
   const accountsMigrated = await db.getFirstAsync<{ value: string }>(
@@ -347,7 +347,7 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       id             TEXT PRIMARY KEY NOT NULL,
       borrower       TEXT NOT NULL,
       principal      REAL NOT NULL,
-      account_id     TEXT NOT NULL,
+      account_id     TEXT,
       lent_at        TEXT NOT NULL,
       interest_type  TEXT NOT NULL,
       interest_value REAL,
@@ -355,6 +355,28 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       created_at     TEXT NOT NULL
     );
   `);
+  const loanCols = await db.getAllAsync<{ name: string; notnull: number }>("PRAGMA table_info(loans)");
+  if (loanCols.some((c) => c.name === "account_id" && c.notnull === 1)) {
+    await withWriteTransaction(db, async (txn) => {
+      await txn.execAsync(`
+        CREATE TABLE IF NOT EXISTS loans_v2 (
+          id             TEXT PRIMARY KEY NOT NULL,
+          borrower       TEXT NOT NULL,
+          principal      REAL NOT NULL,
+          account_id     TEXT,
+          lent_at        TEXT NOT NULL,
+          interest_type  TEXT NOT NULL,
+          interest_value REAL,
+          note           TEXT,
+          created_at     TEXT NOT NULL
+        );
+        INSERT OR IGNORE INTO loans_v2 (id, borrower, principal, account_id, lent_at, interest_type, interest_value, note, created_at)
+          SELECT id, borrower, principal, account_id, lent_at, interest_type, interest_value, note, created_at FROM loans;
+        DROP TABLE loans;
+        ALTER TABLE loans_v2 RENAME TO loans;
+      `);
+    });
+  }
   if (!accountsMigrated) {
     const v1Table = await db.getFirstAsync<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'accounts_v1'"

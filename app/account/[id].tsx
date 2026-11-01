@@ -11,6 +11,7 @@ import { useLoans } from "@/context/LoanContext";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { openExpense } from "@/utils/expenses/openExpense";
 import { TransactionRow } from "@/components/accounts/TransactionRow";
 import { AdjustBalanceSheet, type AdjustBalanceSheetRef } from "@/components/accounts/AdjustBalanceSheet";
@@ -20,7 +21,8 @@ import { TransferSheet, type TransferSheetRef } from "@/components/accounts/Tran
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { colors } from "@/constants/theme";
 import { isBillTbd } from "@/utils/cardBills";
-import { formatAmount, nextOccurrence } from "@/utils/dateHelpers";
+import { nextOccurrence } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useRevertTransfer } from "@/utils/accounts/useRevertTransfer";
@@ -54,42 +56,6 @@ function ActionButton({ icon, label, onPress, disabled }: {
   );
 }
 
-function DetailRow({ label, value, isAlert, onPress }: {
-  label: string;
-  value: string;
-  isAlert?: boolean;
-  onPress?: () => void;
-}) {
-  const valueText = (
-    <AppText variant="body-bold" className={`text-sm ${isAlert ? "text-overdue" : "text-white"}`}>{value}</AppText>
-  );
-  if (!onPress) {
-    return (
-      <View className="flex-row justify-between py-1.5">
-        <AppText variant="meta">{label}</AppText>
-        {valueText}
-      </View>
-    );
-  }
-  return (
-    <TouchableOpacity
-      className="flex-row items-center justify-between py-1.5"
-      onPress={onPress}
-      activeOpacity={0.7}
-      hitSlop={{ top: 6, bottom: 6 }}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}, ${value}`}
-      accessibilityHint="Opens the bill"
-    >
-      <AppText variant="meta">{label}</AppText>
-      <View className="flex-row items-center gap-1">
-        {valueText}
-        <Feather name="chevron-right" size={16} color={colors.textMuted} />
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 function billState(bill: CardBill) {
   if (isBillTbd(bill)) {
     return "TBD";
@@ -112,20 +78,20 @@ function CreditDetails({ account, balance, dueBill, onDueBillPress }: {
 
   return (
     <View className="mx-5 mb-4 rounded-2xl px-4 py-2 bg-surface border border-border">
-      {account.creditLimit != null && <DetailRow label="Limit" value={formatAmount(account.creditLimit)} />}
+      {account.creditLimit != null && <AppDetailRow label="Limit" value={formatAmount(account.creditLimit)} />}
       {available != null && (
-        <DetailRow
+        <AppDetailRow
           label={available < 0 ? "Over limit by" : "Available"}
           value={formatAmount(Math.abs(available))}
-          isAlert={available < 0}
+          tone={available < 0 ? "negative" : "neutral"}
         />
       )}
       {account.statementDay != null && isActive && (
-        <DetailRow label="Next cut-off" value={dayjs(nextOccurrence(account.statementDay)).format("MMM D")} />
+        <AppDetailRow label="Next cut-off" value={dayjs(nextOccurrence(account.statementDay)).format("MMM D")} />
       )}
       {account.dueDay != null && isActive && (
         // Opens the bill from here too, so one set from Home (even to ₱0, which hides it there) stays editable.
-        <DetailRow
+        <AppDetailRow
           label="Payment due"
           value={dueBill ? `${dueDate} · ${billState(dueBill)}` : dueDate}
           onPress={dueBill ? onDueBillPress : undefined}

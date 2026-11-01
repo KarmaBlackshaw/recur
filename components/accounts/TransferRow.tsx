@@ -2,7 +2,7 @@ import React from "react";
 import { router } from "expo-router";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { customTransferNote } from "@/utils/accounts/customTransferNote";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import type { TransferEntry } from "@/utils/usePaidLedger";
 
 export function TransferRow({ entry, onPress }: { entry: TransferEntry; onPress: () => void }) {

@@ -21,7 +21,7 @@ import { AppCombobox } from "@/components/ui/AppCombobox";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { sanitizeAmount } from "@/utils/amountInput";
 import { countLabel } from "@/utils/countLabel";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
 import { canChangeLoan } from "@/utils/loans/canChangeLoan";

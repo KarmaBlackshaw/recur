@@ -8,9 +8,9 @@ import { AppTabs } from "@/components/ui/AppTabs";
 import { Category, getAllWithIds, deleteCategory } from "@/db/categories";
 import { colors } from "@/constants/theme";
 import { isLockedCategory } from "@/utils/categories";
-import type { CategoryKind } from "@/types";
+import type { CategoryKind, TOption } from "@/types";
 
-const KIND_TABS: { label: string; value: CategoryKind }[] = [
+const KIND_TABS: TOption<CategoryKind>[] = [
   { label: "Expense", value: "expense" },
   { label: "Income", value: "income" },
 ];

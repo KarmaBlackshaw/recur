@@ -2,7 +2,7 @@ import React from "react";
 import { View } from "react-native";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppListRow } from "@/components/ui/AppListRow";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { formatLoanInterest } from "@/utils/loans/formatLoanInterest";
 import { loanTitle } from "@/utils/loans/loanTitle";
 import type { TLoanPaymentPart } from "@/utils/loans/splitLoanPayment";

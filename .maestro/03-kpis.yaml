@@ -2,8 +2,8 @@ appId: com.erniejeash.recur
 name: Home month card — Charged row, card charges counted
 # Scenario (today after the 10th):
 #   BPI Gold (cut-off 1 / due 10): Netflix ₱549 one-off on the 1st → overdue bill ₱549, Netflix Charged
-#   Metro Card (cut-off 30 / due 31): no charges → ₱0 bill, hidden on Home
-#   Gym ₱1,000 monthly, due 28, paid from Metro Card, unpaid
+#   Metro Card (cut-off 30 / due 31): no charges yet → ₱0 bill, listed as TBD in Upcoming
+#   Gym ₱1,000 monthly, due with the Metro Card bill, unpaid
 # Expected: Charged row present with ₱549.00
 # After marking Gym paid, the Metro Card Oct bill (cut-off 30) now carries ₱1,000: ₱1,549.00 in the Charged row
 ---
@@ -24,7 +24,8 @@ name: Home month card — Charged row, card charges counted
 - extendedWaitUntil:
     visible: "Add recurring bill"
     timeout: 5000
-- tapOn: "Amount.*"
+# Paid from a card (the form defaults to one here), the amount field is "This month's amount"
+- tapOn: "This month's amount.*"
 - inputText: "1000"
 - hideKeyboard
 - tapOn:
@@ -41,13 +42,16 @@ name: Home month card — Charged row, card charges counted
     direction: DOWN
 - tapOn: "Save expense"
 
+# Home shows the month card only once the setup checklist is gone
 - runFlow: subflows/tab-home.yaml
+- tapOn: "Dismiss setup"
 - extendedWaitUntil:
     visible: "Charged"
     timeout: 5000
-- assertVisible: "Charged"
-- assertVisible: "₱549.00"
-- assertNotVisible: "Metro Card bill.*"
+- assertVisible:
+    text: "₱549.00"
+    rightOf: "Charged"
+- assertVisible: "Metro Card bill, amount to be determined, .*"
 
 # Mark the card expense paid → re-enters via the Metro Card bill
 - runFlow: subflows/tab-recurring.yaml
@@ -59,5 +63,6 @@ name: Home month card — Charged row, card charges counted
 - extendedWaitUntil:
     visible: "Charged"
     timeout: 5000
-- assertVisible: "Charged"
-- assertVisible: "₱1,549.00"
+- assertVisible:
+    text: "₱1,549.00"
+    rightOf: "Charged"

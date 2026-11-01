@@ -1,7 +1,7 @@
 import React from "react";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { useAccounts } from "@/context/AccountContext";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { loanTitle } from "@/utils/loans/loanTitle";
 import type { LoanActivityEntry } from "@/utils/useLoanActivity";
 

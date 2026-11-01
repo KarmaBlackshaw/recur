@@ -24,7 +24,7 @@ import { useAccounts } from "@/context/AccountContext";
 import { maxPaymentOn } from "@/utils/loans/maxPaymentOn";
 import { canEditPayment } from "@/utils/loans/canEditPayment";
 import { splitLoanPayment, type TLoanPaymentSplit, type TLoanPaymentTarget } from "@/utils/loans/splitLoanPayment";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { OVERPAYMENT_CATEGORY } from "@/constants/categories";

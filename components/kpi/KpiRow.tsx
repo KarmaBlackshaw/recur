@@ -1,6 +1,6 @@
 import React from "react";
 import { View } from "react-native";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { useAccounts } from "@/context/AccountContext";
 import { useMonthTotals } from "@/utils/useMonthTotals";
 import { KpiCard } from "@/components/kpi/KpiCard";

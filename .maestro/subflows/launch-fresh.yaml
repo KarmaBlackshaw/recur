@@ -3,9 +3,8 @@ appId: com.erniejeash.recur
 - launchApp:
     clearState: true
     stopApp: true
-- openLink: "recur://expo-development-client/?url=http%3A%2F%2F192.168.0.115%3A8081"
 - extendedWaitUntil:
-    visible: "Good (Morning|Afternoon|Evening)"
+    visible: "Good (Morning|Afternoon|Evening).*"
     timeout: 120000
 - waitForAnimationToEnd
 # Dev-only LogBox (expo-router useLinking "state update on a component that hasn't mounted yet") covers the UI.

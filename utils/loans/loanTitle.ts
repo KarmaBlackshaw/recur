@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import type { Loan } from "@/types";
 
 export function loanTitle({ note, principal, lentAt }: Loan) {

@@ -19,16 +19,16 @@ import { chartHues, chartRest, colors } from "@/constants/theme";
 import { INTEREST_CATEGORY } from "@/constants/categories";
 import { categoryIcon } from "@/utils/categories";
 import { countLabel } from "@/utils/countLabel";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import { categoryBreakdown, type TCategorySpend } from "@/utils/stats/categoryBreakdown";
 import { useIncomeEntries, useInterestCredits, usePaidLedger } from "@/utils/usePaidLedger";
 import { useSetState } from "@/utils/useSetState";
-import type { FeatherIconName } from "@/types";
+import type { FeatherIconName, TOption } from "@/types";
 
 type Period = "month" | "year";
 type StatsType = "income" | "expenses";
 
-const PERIODS: { label: string; value: Period }[] = [
+const PERIODS: TOption<Period>[] = [
   { label: "Month", value: "month" },
   { label: "Year", value: "year" },
 ];

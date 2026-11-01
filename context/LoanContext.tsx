@@ -13,6 +13,8 @@ import {
 import { remove as removeTransaction, updateLoanPayment } from "@/db/accountTransactions";
 import { useAccounts } from "@/context/AccountContext";
 import { summarizeLoan, type TLoanSummary } from "@/utils/loans/summarizeLoan";
+import { loanOutChanges } from "@/utils/loans/loanOutChanges";
+import { isLoanOutOf } from "@/utils/loans/isLoanOutOf";
 import { useToday } from "@/utils/useToday";
 import type { AccountTransaction, Loan, LoanInput, LoanPaymentInput } from "@/types";
 
@@ -108,9 +110,11 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addLoan = useMemoizedFn(async (input: LoanInput) => {
-    assertDepositAccount(input.accountId);
+    if (input.accountId != null) {
+      assertDepositAccount(input.accountId);
+    }
     const principal = round(input.principal, 2);
-    const error = accounts.overdraftError([{ accountId: input.accountId, amount: -principal }]);
+    const error = accounts.overdraftError(loanOutChanges({ accountId: input.accountId, principal }));
     if (error) {
       throw error;
     }
@@ -124,7 +128,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     if (!existing) {
       throw new Error("Loan not found");
     }
-    if (input.accountId !== existing.accountId) {
+    if (input.accountId != null && input.accountId !== existing.accountId) {
       assertDepositAccount(input.accountId);
     }
     const next = { ...input, principal: round(input.principal, 2) };
@@ -132,10 +136,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     if (!candidate.isValid) {
       throw new Error("Payments exceed this loan");
     }
-    const error = accounts.overdraftError(
-      [{ accountId: input.accountId, amount: -next.principal }],
-      (t) => t.loanId === id && t.kind === "loan_out"
-    );
+    const error = accounts.overdraftError(loanOutChanges(next), isLoanOutOf(id));
     if (error) {
       throw error;
     }

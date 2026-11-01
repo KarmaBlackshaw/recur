@@ -5,7 +5,7 @@ import { insert as insertTransaction } from "@/db/accountTransactions";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import dayjs from "dayjs";
 import { hasCycleIn } from "@/utils/dateHelpers";
-import type { Expense, Loan, TLoanInterest } from "@/types";
+import type { Expense, TLoanInterest } from "@/types";
 
 // ponytail: dev-only dummy data. Triggered by the "Seed dummy data" button in
 // the __DEV__ Dev Tools section of app/settings.tsx (hidden in prod builds).
@@ -149,7 +149,7 @@ export async function seedLoans(): Promise<void> {
   await clearSeedLoans();
   const createdAt = new Date().toISOString();
   for (const [index, [borrower, principal, daysAgo, interest]] of DUMMY_LOANS.entries()) {
-    const loan: Loan = {
+    const loan = {
       id: `seed-loan-${index + 1}`,
       borrower,
       principal,

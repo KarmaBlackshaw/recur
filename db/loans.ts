@@ -7,7 +7,7 @@ import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import type { Loan, LoanInput, LoanPaymentInput, TLoanInterestType } from "@/types";
 
 interface LoanRow {
-  id: string; borrower: string; principal: number; account_id: string; lent_at: string;
+  id: string; borrower: string; principal: number; account_id: string | null; lent_at: string;
   interest_type: string; interest_value: number | null; note: string | null; created_at: string;
 }
 
@@ -30,6 +30,9 @@ function toLoan(r: LoanRow): Loan {
 type TWriteDb = Awaited<ReturnType<typeof getDB>>;
 
 async function writeLoanOut(txn: TWriteDb, loan: Pick<Loan, "id" | "accountId" | "principal" | "lentAt">): Promise<void> {
+  if (loan.accountId == null) {
+    return;
+  }
   // FKs are off inside write transactions, so probe the account explicitly
   const account = await txn.getFirstAsync<{ id: string }>("SELECT id FROM accounts WHERE id = ?", [loan.accountId]);
   if (!account) {

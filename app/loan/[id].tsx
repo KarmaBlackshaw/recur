@@ -51,7 +51,14 @@ export default function LoanDetailScreen() {
     }
     const nameOf = (accountId: string) => accounts.accounts.find((a) => a.id === accountId)?.name;
     const items: TLoanHistoryItem[] = [
-      { key: "lent", kind: "lent", date: loan.lentAt, amount: loan.principal, accountName: nameOf(loan.accountId) },
+      {
+        key: "lent",
+        kind: "lent",
+        isLentBeforeRecur: loan.accountId == null,
+        date: loan.lentAt,
+        amount: loan.principal,
+        accountName: loan.accountId == null ? undefined : nameOf(loan.accountId),
+      },
       ...summary.charges.map(({ date, amount }, index): TLoanHistoryItem => ({
         key: `interest-${index}`,
         kind: "interest",

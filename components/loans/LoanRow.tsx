@@ -3,6 +3,7 @@ import { AppListRow } from "@/components/ui/AppListRow";
 import { formatAmount } from "@/utils/dateHelpers";
 import { formatLoanAge } from "@/utils/loans/formatLoanAge";
 import { formatLoanInterest } from "@/utils/loans/formatLoanInterest";
+import { LENT_BEFORE_RECUR } from "@/constants/loans";
 import type { TLoanSummary } from "@/utils/loans/summarizeLoan";
 import type { Loan } from "@/types";
 
@@ -20,7 +21,8 @@ export function LoanRow({ loan, summary, accountName, today, title = loan.note |
   const { borrower, lentAt, interest } = loan;
   const { isSettled, balance, paidTotal, settledAt } = summary;
   const age = formatLoanAge(lentAt, isSettled ? (settledAt ?? today) : today);
-  const meta = isSettled ? "Settled" : `${accountName ?? "Deleted account"} · ${formatLoanInterest(interest)}`;
+  const lentFrom = loan.accountId == null ? LENT_BEFORE_RECUR : (accountName ?? "Deleted account");
+  const meta = isSettled ? "Settled" : `${lentFrom} · ${formatLoanInterest(interest)}`;
   const caption = isSettled ? `ran ${age}` : age;
   const amount = formatAmount(isSettled ? paidTotal : balance);
   const name = title === borrower ? borrower : `${borrower}, ${title}`;

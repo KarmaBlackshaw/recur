@@ -74,7 +74,7 @@ function PaymentForm({ choices, payment }: FormProps) {
   }
 
   function suggestedAccountOf(loan: Loan) {
-    return depositAccounts.some((a) => a.id === loan.accountId) ? loan.accountId : CASH_ACCOUNT_ID;
+    return depositAccounts.find((a) => a.id === loan.accountId)?.id ?? CASH_ACCOUNT_ID;
   }
 
   // The loan's other payments. The one being edited is left out so it doesn't count against itself.

@@ -11,7 +11,7 @@ import { getAll as getAllMonths, insertOrIgnore as insertMonth } from '@/db/expe
 import { getAll as getAllCardBills, insertOrIgnore as insertCardBill } from '@/db/cardBills';
 import { getAll as getAllLoans, insertWithId as insertLoanWithId } from '@/db/loans';
 import { getPreference, setPreference } from '@/db/preferences';
-import { backfillExpenseHistory, getDB } from '@/db/schema';
+import { backfillHistory, getDB } from '@/db/schema';
 import { withWriteTransaction } from '@/db/withWriteTransaction';
 import { CASH_ACCOUNT_ID } from '@/constants/accounts';
 import { PREF_LAST_BACKUP_AT } from '@/constants/preferences';
@@ -87,7 +87,7 @@ const REQUIRED_EXPENSE_FIELDS: (keyof Expense)[] = [
   'createdAt',
 ];
 
-// 'weekly' is accepted from older backups; backfillExpenseHistory turns it into 'monthly'.
+// 'weekly' is accepted from older backups; backfillHistory turns it into 'monthly'.
 const RECURRENCES = ['weekly', 'monthly', 'yearly', 'one-off'];
 
 const ACCOUNT_TYPES = ['debit', 'credit', 'cash'];
@@ -464,8 +464,8 @@ export async function importBackup(): Promise<ImportSummary | null> {
         }
       }
 
-      // Older backups have no start months or paid amounts; fill them in the same way an app update does.
-      await backfillExpenseHistory(txn);
+      // Bring older backups up to the current model the same way an app update does.
+      await backfillHistory(txn);
     });
   } catch (error) {
     try {

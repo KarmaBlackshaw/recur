@@ -1,5 +1,5 @@
-import { OVERPAYMENT_CATEGORY } from "@/constants/categories";
-import { partition } from "@/utils/collections";
+import { LOCKED_INCOME_CATEGORIES } from "@/constants/categories";
+import { partition, sortBy } from "@/utils/collections";
 import type { CategoryKind, FeatherIconName } from "@/types";
 
 export const PRESET_CATEGORIES = [
@@ -18,14 +18,13 @@ export const PRESET_CATEGORIES = [
 ] as const;
 
 export function isLockedCategory(name: string, kind: CategoryKind) {
-  return kind === "income" && name === OVERPAYMENT_CATEGORY;
+  return kind === "income" && LOCKED_INCOME_CATEGORIES.includes(name);
 }
 
 export function lockedLast<T extends string | { name: string }>(categories: readonly T[], kind: CategoryKind): T[] {
-  const [locked, rest] = partition(categories, (category) =>
-    isLockedCategory(typeof category === "string" ? category : category.name, kind)
-  );
-  return [...rest, ...locked];
+  const nameOf = (category: T) => (typeof category === "string" ? category : category.name);
+  const [locked, rest] = partition(categories, (category) => isLockedCategory(nameOf(category), kind));
+  return [...rest, ...sortBy(locked, (category) => LOCKED_INCOME_CATEGORIES.indexOf(nameOf(category)))];
 }
 
 // Row glyphs for the preset expense + income categories. Custom or renamed categories
@@ -49,6 +48,7 @@ const CATEGORY_ICON: Partial<Record<string, FeatherIconName>> = {
   Refund: "rotate-ccw",
   Interest: "trending-up",
   Overpayment: "plus-circle",
+  Transfer: "repeat",
   Fees: "scissors",
 };
 

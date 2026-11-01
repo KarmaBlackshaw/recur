@@ -205,7 +205,6 @@ export interface TransferInput {
   amount: number;
   fee: number;              // paid by you — deducted from From
   income: number;           // earned on the transfer (e.g. a cash-out fee)
-  incomeCategory: string;
   incomeAccountId: string;  // where the income lands — usually To
   note: string | null;
   createdAt?: string;       // when it happened; defaults to now

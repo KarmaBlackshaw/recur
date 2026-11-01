@@ -24,7 +24,7 @@ Amounts are in Philippine pesos (₱).
 
 - **Nothing slips.** Home shows what's left to pay this month, what's late and what's due next, and a reminder
   arrives before each bill.
-- **Paying takes a tap.** Tap the circle or swipe the row, and undo it if you got it wrong.
+- **Paying takes a tap or two.** Tap a bill, then **Pay**, or swipe the row, and undo it if you got it wrong.
 - **History stays true.** Each payment keeps what it cost, when you paid and which account it came from. Editing a
   bill later never rewrites the past.
 - **Your data stays on your phone.** No sign-up, no servers, no ads, no tracking.
@@ -43,7 +43,7 @@ Amounts are in Philippine pesos (₱).
 
 ### Paying
 
-- A bill with a set amount is paid in one tap, from the account you picked for it.
+- A bill with a set amount is paid at once, from the account you picked for it.
 - For a TBD bill, the Pay sheet asks for the amount, the date you paid and the account it came from.
 - Every payment shows an **Undo** right after, in case you tapped the wrong one.
 

@@ -73,9 +73,7 @@ account transactions. Never hand-build another row.
   tone (the band or KPI already says paid, so a mint caption on every row would only repeat it) or
   "Charged Oct 21" in periwinkle. Ledger rows under a day header carry no date; they only flag "Charged".
   A loan payment dated after a backdated payoff reads "₱20.00 more than owed" in the neutral tone.
-- **Accessory:** optional trailing Muted Graphite glyph: chevron to drill in. On unpaid bills in Home's due lists,
-  the Recurring tab and a bill's history it is a hollow circle and its own 44dp button: tap marks the bill paid
-  (Undo in the snackbar), long-press opens the Pay sheet. Coral on late bills.
+- **Accessory:** optional trailing Muted Graphite glyph: chevron to drill in.
 - **Pressed:** opacity 0.7. A row with `onPress` is a button; without it, one accessible element with the
   full spoken label.
 
@@ -184,8 +182,17 @@ Feedback for reversible actions: one line plus an optional action ("Gym marked p
 a Hairline border, above the tab bar, gone after 5s. Never for errors (those are Alerts).
 
 ### Pay sheet
-Opened when a bill's amount isn't known, from a bill's Mark paid, or by long-pressing the pay circle: Amount
-(prefilled), Paid on (an `AppDateField`, today by default, no future dates) and Pay from.
+Opened when a bill's amount isn't known or from a bill's Mark paid: Amount (prefilled), Paid on (an `AppDateField`,
+today by default, no future dates) and Pay from. Opened from the Bill sheet's Pay on a TBD bill, it keeps that sheet's
+Details (tonal) under Mark as paid.
+
+### Bill sheet
+Opened by tapping an unpaid bill in Home's due lists or in the Recurring tab's Overdue and Unpaid bands, for that
+month's bill. A detail sheet titled with the bill: Amount ("TBD" when unknown), Due ("Oct 1", or "Oct 1 · 31 days
+late"), Pay from (only when the bill has an account), then Pay (primary) and Details (tonal). Pay closes the sheet and
+pays like the swipe (Undo in the snackbar); a TBD bill opens the Pay sheet once this sheet has closed. Details opens
+the bill's page for that month. Every other row skips the sheet: it opens the bill page, or a one-off's editor,
+directly.
 
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes
@@ -196,8 +203,9 @@ Every sheet is an `AppBottomSheet`, which draws the title, Close and backdrop; c
 and writes once it's gone. A save that keeps the sheet open, like a card bill's statement amount, updates it in place.
 A sheet whose content can outgrow the space above the keyboard passes `scrollable`.
 
-Detail sheets (tap a Transfer, Card bill or Loan row to read it and act on it) share one layout: label/value rows under
-the title, then full-width actions stacked under them, one primary at most and the destructive one last.
+Detail sheets (tap a Transfer, Card bill, Loan or unpaid bill row to read it and act on it) share one layout:
+label/value rows under the title, then full-width actions stacked under them, one primary at most and the destructive
+one last. A card bill opened from Home adds Details (tonal), which opens the card's account page.
 
 ### Stats (`app/stats.tsx`)
 A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite

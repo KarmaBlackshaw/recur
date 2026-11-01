@@ -29,22 +29,22 @@ import { maybeAskForReminders } from "@/utils/reminderPermission";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
-import type { Expense, Recurrence, ExpenseFormValues } from "@/types";
+import type { Expense, Recurrence, ExpenseFormValues, TOption } from "@/types";
 
 type ExpenseType = "regular" | "recurring";
 
-const TYPE_TABS: { label: string; value: ExpenseType }[] = [
+const TYPE_TABS: TOption<ExpenseType>[] = [
   { label: "One-time", value: "regular" },
   { label: "Recurring", value: "recurring" },
 ];
 
-const RECURRENCE_OPTIONS: { label: string; value: Recurrence }[] = [
+const RECURRENCE_OPTIONS: TOption<Recurrence>[] = [
   { label: "Monthly", value: "monthly" },
   { label: "Yearly", value: "yearly" },
 ];
 
 // Days before the due date. "0" turns the bill's reminder off; an empty value is the default, a day before.
-const REMINDER_OPTIONS: { label: string; value: string }[] = [
+const REMINDER_OPTIONS = [
   { label: "Off", value: "0" },
   { label: "1 day", value: "1" },
   { label: "2 days", value: "2" },
@@ -374,6 +374,35 @@ export default function AddExpenseScreen() {
 
         <Controller
           control={control}
+          name="accountId"
+          render={({ field: { value } }) => (
+            <AppSelectField
+              label="Pay from"
+              value={accounts.find((a) => a.id === value)?.name ?? "Cash"}
+              onPress={() => accountSheetRef.current?.present()}
+              caption={
+                payCard
+                  ? payCard.dueDay != null ? `Due with the card bill (day ${payCard.dueDay})` : "Due with the card bill"
+                  : undefined
+              }
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="category"
+          render={({ field: { value } }) => (
+            <AppSelectField
+              label="Category"
+              value={value}
+              onPress={() => categorySheetRef.current?.present()}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
           name="amount"
           rules={{
             validate: (v) => {
@@ -419,35 +448,6 @@ export default function AddExpenseScreen() {
               placeholder="e.g. Netflix"
               maxLength={200}
               returnKeyType="done"
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="category"
-          render={({ field: { value } }) => (
-            <AppSelectField
-              label="Category"
-              value={value}
-              onPress={() => categorySheetRef.current?.present()}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="accountId"
-          render={({ field: { value } }) => (
-            <AppSelectField
-              label="Pay from"
-              value={accounts.find((a) => a.id === value)?.name ?? "Cash"}
-              onPress={() => accountSheetRef.current?.present()}
-              caption={
-                payCard
-                  ? payCard.dueDay != null ? `Due with the card bill (day ${payCard.dueDay})` : "Due with the card bill"
-                  : undefined
-              }
             />
           )}
         />

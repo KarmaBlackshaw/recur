@@ -6,9 +6,11 @@ import { sumBy } from "@/utils/collections";
 import { CardBillRow } from "@/components/accounts/CardBillRow";
 import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
 import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
+import { LoanSheet, type LoanSheetRef } from "@/components/loans/LoanSheet";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BandHeader } from "@/components/BandHeader";
+import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
@@ -29,10 +31,9 @@ export type UpcomingBand = {
 // A link row under a section, e.g. "All activity".
 type SectionFooter = { label: string; onPress: () => void };
 
-// Home has three kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each row shows its own date);
-// Recent activity mirrors the Activity tab's All list — day-grouped, no subtotals
-// (it mixes money in and out), with the band label on the first day only.
-// A "node" section carries no rows: its header renders `afterDue` (the loans row) between the two.
+// Home has two kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each row shows its own date);
+// Recent activity mirrors the Activity tab's All list — day-grouped, each day showing its signed net,
+// with the band label on the first day only.
 type FlatSection = {
   kind: "flat";
   key: string;
@@ -53,26 +54,20 @@ type DaySection = {
   band?: string; // only the first day carries the band label
   bandCount?: number;
   date: Date;
-  total: number;
+  total: number | undefined;
   footer?: SectionFooter;
   data: ActivityEntry[];
 };
-type NodeSection = {
-  kind: "node";
-  key: string;
-  footer?: SectionFooter;
-  data: HomeEntry[];
-};
-type HomeSection = FlatSection | DaySection | NodeSection;
+type HomeSection = FlatSection | DaySection;
 
 interface Props {
   overdue: HomeEntry[];
   upcoming: UpcomingBand[];
   recentActivity: ActivityEntry[];
+  // Keyed like groupEntriesByDay (YYYY-MM-DD).
+  recentDayNets: Record<string, number | undefined>;
   collapsedSlots: HomeBandSlot[];
   onToggleSlot: (slot: HomeBandSlot) => void;
-  // Rendered between the due bands and Recent activity.
-  afterDue?: React.ReactNode;
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
   refreshControl?: React.ComponentProps<typeof SectionList>["refreshControl"];
@@ -99,16 +94,16 @@ export function HomeExpenseSections({
   overdue,
   upcoming,
   recentActivity,
+  recentDayNets,
   collapsedSlots,
   onToggleSlot,
-  afterDue,
   ListHeaderComponent,
   ListEmptyComponent,
   refreshControl,
 }: Props) {
   const billSheetRef = useRef<CardBillSheetRef>(null);
   const transferSheetRef = useRef<TransferSheetRef>(null);
-  const hasAfterDue = Boolean(afterDue);
+  const loanSheetRef = useRef<LoanSheetRef>(null);
   const sections = useMemo<HomeSection[]>(() => {
     const out: HomeSection[] = [];
 
@@ -141,12 +136,12 @@ export function HomeExpenseSections({
       });
     }
 
-    if (hasAfterDue) {
-      out.push({ kind: "node", key: "after-due", data: [] });
-    }
-
     if (recentActivity.length) {
-      const days: DaySection[] = groupEntriesByDay(recentActivity).map((g) => ({ kind: "day", ...g }));
+      const days: DaySection[] = groupEntriesByDay(recentActivity).map((g) => ({
+        kind: "day",
+        ...g,
+        total: recentDayNets[g.key],
+      }));
       days[0].band = "Recent activity";
       days[0].bandCount = recentActivity.length;
       days[days.length - 1].footer = { label: "All activity", onPress: () => router.navigate("/expenses") };
@@ -154,7 +149,20 @@ export function HomeExpenseSections({
     }
 
     return out;
-  }, [overdue, upcoming, recentActivity, collapsedSlots, hasAfterDue]);
+  }, [overdue, upcoming, recentActivity, recentDayNets, collapsedSlots]);
+
+  function openCardBill(bill: CardBill) {
+    billSheetRef.current?.present(bill, (dismiss) => (
+      <AppButton
+        label="Details"
+        variant="tonal"
+        onPress={() => {
+          dismiss();
+          router.push({ pathname: "/account/[id]", params: { id: bill.account.id } });
+        }}
+      />
+    ));
+  }
 
   return (
     <>
@@ -166,20 +174,18 @@ export function HomeExpenseSections({
         refreshControl={refreshControl}
         renderItem={({ item, index }) =>
           "bill" in item ? (
-            <CardBillRow bill={item.bill} onPress={() => billSheetRef.current?.present(item.bill)} />
+            <CardBillRow bill={item.bill} onPress={() => openCardBill(item.bill)} />
           ) : (
             <ActivityEntryRow
               item={item}
               index={index}
               onOpenTransfer={(transfer) => transferSheetRef.current?.present(transfer)}
+              onOpenLoan={(txn) => loanSheetRef.current?.present(txn)}
             />
           )
         }
         renderSectionHeader={({ section }) => {
           const s = section as unknown as HomeSection;
-          if (s.kind === "node") {
-            return <View className="pt-3">{afterDue}</View>;
-          }
           if (s.kind === "flat") {
             const { slot } = s;
             return (
@@ -200,7 +206,7 @@ export function HomeExpenseSections({
               {s.band ? (
                 <BandHeader label={s.band} icon="activity" accent={colors.textSecondary} count={s.bandCount} />
               ) : null}
-              <DayHeaderRow date={s.date} />
+              <DayHeaderRow date={s.date} total={s.total} isSigned />
             </View>
           );
         }}
@@ -214,6 +220,7 @@ export function HomeExpenseSections({
       />
       <CardBillSheet ref={billSheetRef} />
       <TransferSheet ref={transferSheetRef} />
+      <LoanSheet ref={loanSheetRef} />
     </>
   );
 }

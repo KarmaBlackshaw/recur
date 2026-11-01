@@ -1,17 +1,18 @@
 import React from "react";
 import { type AccessibilityActionEvent } from "react-native";
-import { router } from "expo-router";
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 import dayjs from "dayjs";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { SwipeableRow, type SwipeAction } from "@/components/ui/SwipeableRow";
-import { formatDueDate, formatDaysLate, getDueDateForMonth, isOverdueOn, formatAmount, cycleStateOn, formatMonth, nextCycleDueDate } from "@/utils/dateHelpers";
+import { formatDueDate, formatDaysLate, getDueDateForMonth, isOverdueOn, cycleStateOn, formatMonth, nextCycleDueDate } from "@/utils/dateHelpers";
 import { categoryIcon } from "@/utils/categories";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { usePayFlow } from "@/context/PayFlowContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
+import { openExpense } from "@/utils/expenses/openExpense";
+import { formatBillAmount } from "@/utils/expenses/formatBillAmount";
 import type { Expense } from "@/types";
 
 interface Props {
@@ -21,17 +22,8 @@ interface Props {
   onPress?: () => void;
   compact?: boolean;   // ledger row under a day header: no pay toggle, caption only flags card-account status
   hideDate?: boolean;  // caption shows the status word instead of the date
-  canQuickPay?: boolean; // unpaid rows get a trailing pay circle (Home and Recurring due lists)
+  canOpenBillSheet?: boolean; // unpaid rows open the bill sheet on tap (Home and Recurring due lists)
   isSwipeHintShown?: boolean; // peek the Pay swipe once to teach it
-}
-
-// Where tapping an expense goes: a recurring bill opens its bill screen for that month, a one-off its editor.
-export function openExpense(expense: Expense, year: number, month: number) {
-  if (expense.recurrence === "one-off") {
-    router.push({ pathname: "/expense/add", params: { id: expense.id } });
-    return;
-  }
-  router.push({ pathname: "/expense/[id]", params: { id: expense.id, year, month } });
 }
 
 export function ExpenseCard({
@@ -41,7 +33,7 @@ export function ExpenseCard({
   onPress,
   compact = false,
   hideDate = false,
-  canQuickPay = false,
+  canOpenBillSheet = false,
   isSwipeHintShown = false,
 }: Props) {
   const { getMonthStatus, getDisplayAmount, getMonthPaidAt } = useExpenses();
@@ -69,7 +61,7 @@ export function ExpenseCard({
 
   const title = expenseTitle(expense);
   const isCategoryTitle = title === expense.category;
-  const amountText = displayAmount !== null ? formatAmount(displayAmount) : "TBD";
+  const amountText = formatBillAmount(displayAmount);
   const inactiveText: Record<typeof cycleState, string> = {
     active: "",
     ended: expense.endYear != null && expense.endMonth != null ? `Ended ${formatMonth(expense.endYear, expense.endMonth)}` : "Ended",
@@ -104,13 +96,21 @@ export function ExpenseCard({
     : isPaid && !isInactive ? `${statusLabel} ${dateText}` : dateText;
   // One-offs are money already spent: they have no month to pay or unpay.
   const canToggle = !compact && !isInactive && !isRegular;
-  const hasPayCircle = canQuickPay && canToggle && !isPaid;
+  const shouldOpenBillSheet = canOpenBillSheet && canToggle && !isPaid;
 
   function togglePaid() {
     if (isPaid) {
       payFlow.unpay(expense, year, month);
     } else {
       payFlow.pay(expense, year, month);
+    }
+  }
+
+  function handlePress() {
+    if (shouldOpenBillSheet) {
+      payFlow.openBillSheet(expense, year, month);
+    } else {
+      openExpense(expense, year, month);
     }
   }
 
@@ -150,12 +150,7 @@ export function ExpenseCard({
           caption={caption}
           captionTone={statusTone}
           isMuted={isInactive}
-          accessory={hasPayCircle ? "circle" : undefined}
-          onAccessoryPress={hasPayCircle ? () => payFlow.pay(expense, year, month) : undefined}
-          onAccessoryLongPress={hasPayCircle ? () => payFlow.openPaySheet(expense, year, month) : undefined}
-          accessoryLabel={`Mark ${title} paid`}
-          accessoryTone={overdueFlag ? "negative" : "neutral"}
-          onPress={onPress ?? (() => openExpense(expense, year, month))}
+          onPress={onPress ?? handlePress}
           accessibilityLabel={`${isCategoryTitle ? title : `${title}, ${expense.category}`}${accountName != null ? `, from ${accountName}` : ""}, ${amountText}, ${statusLabel}, ${dateText}`}
           accessibilityHint={isRegular ? "Opens editor" : "Opens the bill"}
           accessibilityActions={accessibilityActions}

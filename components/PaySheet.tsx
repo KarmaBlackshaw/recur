@@ -2,7 +2,7 @@ import React, { forwardRef, useImperativeHandle, useRef, useState } from "react"
 import { View } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import dayjs from "dayjs";
-import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
+import { AppBottomSheet, type AppBottomSheetRef, type SheetFooter } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDateField } from "@/components/ui/AppDateField";
 import { AppSelectField } from "@/components/ui/AppSelectField";
@@ -11,7 +11,7 @@ import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
-import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { getDueDateForMonth } from "@/utils/dateHelpers";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import type { Expense } from "@/types";
@@ -30,7 +30,7 @@ export interface PayConfirmation {
 }
 
 export interface PaySheetRef {
-  present: (target: PayTarget) => void;
+  present: (target: PayTarget, footer?: SheetFooter) => void;
 }
 
 interface Props {
@@ -58,6 +58,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const [target, setTarget] = useState<PayTarget | null>(null);
+  const [footer, setFooter] = useState<SheetFooter>();
   const { getDisplayAmount, getMonthAmount, getMonthPaidAt, getMonthStatus } = useExpenses();
   const { accounts, activeAccounts, transactions } = useAccounts();
   const {
@@ -66,7 +67,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
     reset,
     watch,
     setValue,
-    formState: { isValid, isSubmitting },
+    formState: { isValid },
   } = useForm<PayFormValues>({ mode: "onChange", defaultValues: { amount: "", paidAt: "", accountId: CASH_ACCOUNT_ID } });
 
   function lastKnownAmount(expense: Expense, year: number, month: number): number | null {
@@ -81,7 +82,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   }
 
   useImperativeHandle(ref, () => ({
-    present: (next) => {
+    present: (next, nextFooter) => {
       const { expense, year, month } = next;
       const isPaid = getMonthStatus(expense.id, year, month) === "paid";
       const payment = transactions.find(
@@ -103,26 +104,28 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
           : usableAccount(expense.accountId);
       reset({ amount: amount != null ? amount.toFixed(2) : "", paidAt, accountId });
       setTarget(next);
+      // A function given to a state setter runs as an updater, so wrap it.
+      setFooter(() => nextFooter);
       sheetRef.current?.present();
     },
   }));
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onSubmit = handleSubmit((values) => {
     if (!target) {
       return;
     }
-    await onConfirm(target, {
+    const payment: PayConfirmation = {
       amount: parseFloat(values.amount),
       paidAt: values.paidAt,
       accountId: values.accountId === "" ? null : values.accountId,
-    });
-    sheetRef.current?.dismiss();
+    };
+    sheetRef.current?.dismiss(() => onConfirm(target, payment));
   });
 
   const accountId = watch("accountId");
   const dueDate = target ? dayjs(getDueDateForMonth(target.expense.dueDay, target.year, target.month)) : null;
   const isPaidAlready = target != null && getMonthStatus(target.expense.id, target.year, target.month) === "paid";
-  const accountName = accountId === "" ? "No account" : accounts.find((a) => a.id === accountId)?.name ?? "Deleted account";
+  const accountName = accountId === "" ? "No account" : accounts.find((a) => a.id === accountId)?.name ?? DELETED_ACCOUNT;
   const cycleLabel = target ? dayjs(new Date(target.year, target.month, 1)).format("MMMM") : "";
 
   return (
@@ -137,6 +140,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
             : "Pay"
         }
         snapPoints={CONTENT_HEIGHT_SNAP}
+        scrollable
         keyboardBlurBehavior="restore"
       >
         {target ? (
@@ -180,13 +184,14 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
             <View className="mt-2">
               <AppSelectField label="Pay from" value={accountName} onPress={() => accountSheetRef.current?.present()} />
             </View>
-            <AppButton
-              label={isPaidAlready ? "Save payment" : "Mark as paid"}
-              onPress={onSubmit}
-              disabled={!isValid}
-              loading={isSubmitting}
-              className="mt-4"
-            />
+            <View className="mt-4 gap-2">
+              <AppButton
+                label={isPaidAlready ? "Save payment" : "Mark as paid"}
+                onPress={onSubmit}
+                disabled={!isValid}
+              />
+              {footer?.(() => sheetRef.current?.dismiss())}
+            </View>
           </View>
         ) : null}
       </AppBottomSheet>

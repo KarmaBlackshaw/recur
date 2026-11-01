@@ -3,6 +3,7 @@ import React, { forwardRef, useCallback, useRef } from "react";
 import { View, TouchableOpacity, Keyboard } from "react-native";
 import {
   BottomSheetModal,
+  BottomSheetScrollView,
   BottomSheetView,
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
@@ -15,30 +16,57 @@ import { colors } from "@/constants/theme";
 
 export interface AppBottomSheetRef {
   present: () => void;
-  dismiss: () => void;
+  // A write that changes what the sheet shows runs in afterDismiss, once the sheet has closed: mid-close, gorhom 5.2.14
+  // leaves a ghost portal and the next present() does nothing.
+  dismiss: (afterDismiss?: () => void) => void;
 }
 
+// Actions the opener adds under a sheet's own buttons, for that opening only.
+export type SheetFooter = (dismiss: () => void) => React.ReactNode;
+
 const DEFAULT_SNAP_POINTS = ["60%", "85%"];
+
+// No fixed snap points: the sheet sizes to its content.
+export const CONTENT_HEIGHT_SNAP: string[] = [];
 
 type Props = Omit<BottomSheetModalProps, "children"> & {
   title: string;
   action?: React.ReactNode;
+  scrollable?: boolean;
   children: React.ReactNode;
 };
 
 export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppBottomSheet(
-  { title, action, children, snapPoints = DEFAULT_SNAP_POINTS, ...sheetProps },
+  { title, action, scrollable, children, snapPoints = DEFAULT_SNAP_POINTS, onDismiss, ...sheetProps },
   ref
 ) {
   const sheetRef = useRef<BottomSheetModal>(null);
+  const afterDismissRef = useRef<(() => void) | null>(null);
   const { bottom } = useSafeAreaInsets();
+
+  const runAfterDismiss = useCallback(() => {
+    const afterDismiss = afterDismissRef.current;
+    afterDismissRef.current = null;
+    afterDismiss?.();
+  }, []);
+
+  const handleDismiss = useCallback(() => {
+    onDismiss?.();
+    runAfterDismiss();
+  }, [onDismiss, runAfterDismiss]);
 
   React.useImperativeHandle(ref, () => ({
     present: () => {
+      runAfterDismiss();
       Keyboard.dismiss();
       sheetRef.current?.present();
     },
-    dismiss: () => sheetRef.current?.dismiss(),
+    dismiss: (afterDismiss) => {
+      if (afterDismiss) {
+        afterDismissRef.current = afterDismiss;
+      }
+      sheetRef.current?.dismiss();
+    },
   }));
 
   const renderBackdrop = useCallback(
@@ -51,6 +79,25 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
       />
     ),
     []
+  );
+
+  const header = (
+    <View className="flex-row items-center justify-between mb-3 px-4">
+      <AppText variant="title" accessibilityRole="header" className="shrink" numberOfLines={2}>
+        {title}
+      </AppText>
+      <View className="flex-row gap-1">
+        {action}
+        <TouchableOpacity
+          className="w-11 h-11 items-center justify-center"
+          onPress={() => sheetRef.current?.dismiss()}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <Feather name="x" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   return (
@@ -66,25 +113,20 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
       backgroundStyle={{ backgroundColor: colors.surface }}
       handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
       backdropComponent={renderBackdrop}
+      onDismiss={handleDismiss}
       {...sheetProps}
     >
-      <BottomSheetView className="flex-1" style={{ paddingBottom: bottom }}>
-        <View className="flex-row items-center justify-between mb-3 px-4">
-          <AppText variant="title" accessibilityRole="header">{title}</AppText>
-          <View className="flex-row gap-1">
-            {action}
-            <TouchableOpacity
-              className="w-11 h-11 items-center justify-center"
-              onPress={() => sheetRef.current?.dismiss()}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-            >
-              <Feather name="x" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        </View>
-        {children}
-      </BottomSheetView>
+      {scrollable ? (
+        <BottomSheetScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: bottom }}>
+          {header}
+          {children}
+        </BottomSheetScrollView>
+      ) : (
+        <BottomSheetView className="flex-1" style={{ paddingBottom: bottom }}>
+          {header}
+          {children}
+        </BottomSheetView>
+      )}
     </BottomSheetModal>
   );
 });

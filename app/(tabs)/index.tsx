@@ -7,10 +7,9 @@ import dayjs from "dayjs";
 import { range, sortBy, sumBy } from "@/utils/collections";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
-import { HomeSummary } from "@/components/HomeSummary";
+import { HomeMonthStats } from "@/components/HomeMonthStats";
 import { SetupChecklist, useSetupChecklist } from "@/components/SetupChecklist";
 import { BackupNudge } from "@/components/BackupNudge";
-import { LoanSummaryCard, useOwedToYou } from "@/components/loans/LoanSummaryCard";
 import { type DayEntry } from "@/components/DayGroupedExpenseList";
 import { HomeExpenseSections, type HomeEntry, type UpcomingBand } from "@/components/HomeExpenseSections";
 import { EmptyState } from "@/components/EmptyState";
@@ -18,6 +17,10 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { isOverdueOn, hasCycleIn, getDueDateForMonth, getGreeting } from "@/utils/dateHelpers";
 import { useActivityFeed } from "@/utils/useActivityFeed";
+import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
+import { dayTotalOf } from "@/utils/activity/dayTotalOf";
+import { netFlow } from "@/utils/activity/netFlow";
+import { useOwedToYou } from "@/utils/useOwedToYou";
 import { useLingeringEntries } from "@/utils/useLingeringEntries";
 import { openCardBills } from "@/utils/cardBills";
 import { monthKey } from "@/utils/monthKey";
@@ -32,8 +35,6 @@ const NEXT_MONTH_LOOKAHEAD_DAYS = 7;
 const ACTIVITY_LIMIT = 10;
 // How many months back an unpaid due or card bill stays in Overdue after its own month has ended.
 const OVERDUE_LOOKBACK_MONTHS = 3;
-// "Due this week" is today and the six days after it: the rows Upcoming captions "Today" to "in 6 days".
-const DUE_SOON_DAYS = 7;
 // Past this many expenses the user is set up; the checklist stops appearing above the due list.
 const SETUP_EXPENSE_LIMIT = 3;
 
@@ -92,14 +93,14 @@ export default function HomeScreen() {
 
   // Unpaid recurring cycles, split by urgency.
   // Keyed per cycle: near month end the same expense can be due in both Upcoming months.
-  // Every due row can be paid in place (the trailing pay circle and the Pay swipe).
+  // Every due row can be paid in place (the bill sheet and the Pay swipe).
   const dueEntry = (e: (typeof expenses)[number], y: number, m: number): DayEntry => ({
     key: monthKey(e.id, y, m),
     expense: e,
     effDate: getDueDateForMonth(e.dueDay, y, m),
     refDate: new Date(y, m, 1),
     amount: resolveAmount(e, y, m),
-    canQuickPay: true,
+    canOpenBillSheet: true,
   });
 
   // Next month too: a new card's first bill is due next month.
@@ -170,9 +171,21 @@ export default function HomeScreen() {
     return [band(dayjs(today), "current"), band(next, "next")].filter((b) => b.data.length > 0);
   }, [upcomingWithPaid, getMonthStatus, today]);
 
-  const recentActivity = useMemo(() => {
+  // The list stops at ACTIVITY_LIMIT rows, often partway through a day, so each day's net counts the whole day and
+  // matches that day on Activity's All list.
+  const { recentActivity, recentDayNets } = useMemo(() => {
     const endToday = dayjs(today).endOf("day").toDate();
-    return feed.all.filter(({ effDate }) => effDate <= endToday).slice(0, ACTIVITY_LIMIT);
+    const past = feed.all.filter(({ effDate }) => effDate <= endToday);
+    const shown = past.slice(0, ACTIVITY_LIMIT);
+    if (shown.length === 0) {
+      return { recentActivity: shown, recentDayNets: {} };
+    }
+    const oldestDay = dayjs(shown[shown.length - 1].effDate).startOf("day").toDate();
+    const days = groupEntriesByDay(past.filter(({ effDate }) => effDate >= oldestDay));
+    return {
+      recentActivity: shown,
+      recentDayNets: Object.fromEntries(days.map(({ key, data }) => [key, dayTotalOf(data, netFlow)])),
+    };
   }, [feed, today]);
 
   // The Pay swipe hint goes on the first due row in view: Overdue, else the first expanded Upcoming band. Only while
@@ -188,19 +201,14 @@ export default function HomeScreen() {
     [upcoming, swipeHintKey]
   );
 
-  // Just-paid rows still lingering in the lists don't count.
-  const overdueCount = overdue.filter((e) => !isPaidNow(e)).length;
-  const dueThisWeekCount = upcomingWithPaid.filter(
-    (e) => !isPaidNow(e) && dayjs(e.effDate).diff(today, "day") < DUE_SOON_DAYS
-  ).length;
-
   const hasExpenses = expenses.length > 0;
   // Mirrors the sections HomeExpenseSections builds: with none, the list shows its empty state instead.
-  const hasListContent = overdue.length > 0 || upcoming.length > 0 || owed != null || recentActivity.length > 0;
-  const isSummaryShown = hasExpenses || openBills.length > 0;
-  // With nothing listed yet the checklist is Home's empty state. It stays under the summary only while someone is
+  const hasListContent = overdue.length > 0 || upcoming.length > 0 || recentActivity.length > 0;
+  // With nothing listed yet the checklist is Home's empty state. It stays above the due list only while someone is
   // still setting up, so it never pushes an established user's due list down.
   const isChecklistInHeader = setup.isShown && (hasExpenses || hasListContent) && expenses.length < SETUP_EXPENSE_LIMIT;
+  const isMonthStatsShown =
+    !isChecklistInHeader && (hasExpenses || openBills.length > 0 || recentActivity.length > 0 || owed != null);
 
   if (loading) {
     return (
@@ -237,15 +245,13 @@ export default function HomeScreen() {
         overdue={overdueRows}
         upcoming={upcomingRows}
         recentActivity={recentActivity}
+        recentDayNets={recentDayNets}
         collapsedSlots={collapsedHomeBands}
         onToggleSlot={toggleHomeBand}
-        afterDue={owed ? <LoanSummaryCard total={owed.total} people={owed.people} /> : undefined}
         refreshControl={refreshControl}
         ListHeaderComponent={
           <View>
-            {isSummaryShown ? (
-              <HomeSummary year={year} month={month} overdueCount={overdueCount} dueThisWeekCount={dueThisWeekCount} />
-            ) : null}
+            {isMonthStatsShown ? <HomeMonthStats year={year} month={month} feed={feed} owed={owed} /> : null}
             {isChecklistInHeader ? (
               <SetupChecklist steps={setup.steps} hasExpenses={hasExpenses} onDismiss={setup.dismiss} />
             ) : null}

@@ -42,3 +42,58 @@ jobs:
       # ponytail: single ABI keeps CI ~3x faster; drop the flag to build all ABIs
       - run: ./gradlew assembleDebug -PreactNativeArchitectures=x86_64 --no-daemon
         working-directory: android
+
+  e2e:
+    name: Maestro e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 120000
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+      - run: npm ci
+      - run: npx expo prebuild --clean --platform android --no-install
+      - uses: gradle/actions/setup-gradle@v4
+      # A release build embeds the JS bundle, so the flows run without Metro
+      - run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
+        working-directory: android
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | MAESTRO_VERSION=2.11.0 bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      # Flows 02, 03 and 08 need a day after the 10th; a fixed date keeps every run on the same dates.
+      # The slow emulator can ANR its launcher, and the "isn't responding" dialog would cover the app,
+      # so hide_error_dialogs has the system restart a stuck app instead of asking.
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            adb shell settings put global hide_error_dialogs 1
+            adb shell settings put global auto_time 0
+            adb shell su 0 date 102012002026.00
+            adb install android/app/build/outputs/apk/release/app-release.apk
+            maestro test .maestro --debug-output maestro-debug || { adb logcat -d > maestro-debug/logcat.txt; exit 1; }
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: maestro-debug
+          path: maestro-debug
+          # Maestro writes under maestro-debug/.maestro/, which upload-artifact skips by default
+          include-hidden-files: true

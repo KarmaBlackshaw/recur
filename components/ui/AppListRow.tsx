@@ -9,7 +9,7 @@ import type { FeatherIconName } from "@/types";
 // indigo = card / loan / charged, muted = ended or de-emphasized.
 export type RowTone = "neutral" | "positive" | "negative" | "accent" | "muted";
 
-const ICON_TONE: Record<RowTone, { tile: string; glyph: string }> = {
+export const ICON_TONE: Record<RowTone, { tile: string; glyph: string }> = {
   neutral: { tile: "bg-white/[0.06]", glyph: colors.textSecondary },
   positive: { tile: "bg-paid/15", glyph: colors.paid },
   negative: { tile: "bg-overdue/15", glyph: colors.overdue },
@@ -17,7 +17,7 @@ const ICON_TONE: Record<RowTone, { tile: string; glyph: string }> = {
   muted: { tile: "bg-white/[0.04]", glyph: colors.textMuted },
 };
 
-const AMOUNT_TONE: Record<RowTone, string> = {
+export const AMOUNT_TONE: Record<RowTone, string> = {
   neutral: "text-white",
   positive: "text-paid",
   negative: "text-overdue",
@@ -33,14 +33,6 @@ const CAPTION_TONE: Record<RowTone, string> = {
   muted: "text-textMuted",
 };
 
-const ACCESSORY_COLOR: Record<RowTone, string> = {
-  neutral: colors.textMuted,
-  positive: colors.paid,
-  negative: colors.overdue,
-  accent: colors.secondary,
-  muted: colors.textMuted,
-};
-
 interface AppListRowProps {
   icon: FeatherIconName;
   iconTone?: RowTone;
@@ -52,11 +44,6 @@ interface AppListRowProps {
   caption?: string;
   captionTone?: RowTone;
   accessory?: FeatherIconName;
-  // Makes the accessory its own 44dp button (e.g. the pay circle). Without it the accessory is decoration.
-  onAccessoryPress?: () => void;
-  onAccessoryLongPress?: () => void;
-  accessoryLabel?: string;
-  accessoryTone?: RowTone;
   isMuted?: boolean;
   onPress?: () => void;
   accessibilityLabel: string;
@@ -78,10 +65,6 @@ export function AppListRow({
   caption,
   captionTone = "neutral",
   accessory,
-  onAccessoryPress,
-  onAccessoryLongPress,
-  accessoryLabel,
-  accessoryTone = "neutral",
   isMuted = false,
   onPress,
   accessibilityLabel,
@@ -90,12 +73,9 @@ export function AppListRow({
   onAccessibilityAction,
 }: AppListRowProps) {
   const tile = ICON_TONE[isMuted ? "muted" : iconTone];
-  const hasAccessoryButton = accessory != null && onAccessoryPress != null;
 
-  // With an accessory button the row leaves its right gutter to the button, so the button can sit beside the
-  // row's own touch target instead of inside it (a nested button is invisible to screen readers).
   const body = (
-    <View className={`flex-row items-center gap-3 py-2 min-h-[56px] bg-background ${hasAccessoryButton ? "pl-5 pr-1" : "px-5"}`}>
+    <View className="flex-row items-center gap-3 py-2 min-h-[56px] bg-background px-5">
       <View className={`w-[36px] h-[36px] rounded-xl items-center justify-center ${tile.tile}`}>
         <Feather name={icon} size={17} color={tile.glyph} />
       </View>
@@ -132,19 +112,18 @@ export function AppListRow({
           </AppText>
         ) : null}
       </View>
-      {accessory && !hasAccessoryButton ? <Feather name={accessory} size={16} color={colors.textMuted} /> : null}
+      {accessory ? <Feather name={accessory} size={16} color={colors.textMuted} /> : null}
     </View>
   );
 
-  const row = !onPress ? (
-    <View accessible accessibilityLabel={accessibilityLabel} className={hasAccessoryButton ? "flex-1" : undefined}>
+  return !onPress ? (
+    <View accessible accessibilityLabel={accessibilityLabel}>
       {body}
     </View>
   ) : (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
-      className={hasAccessoryButton ? "flex-1" : undefined}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
@@ -153,24 +132,5 @@ export function AppListRow({
     >
       {body}
     </TouchableOpacity>
-  );
-
-  if (!hasAccessoryButton || !accessory) {
-    return row;
-  }
-
-  return (
-    <View className="flex-row items-center bg-background pr-3">
-      {row}
-      <TouchableOpacity
-        onPress={onAccessoryPress}
-        onLongPress={onAccessoryLongPress}
-        className="w-11 h-11 items-center justify-center"
-        accessibilityRole="button"
-        accessibilityLabel={accessoryLabel}
-      >
-        <Feather name={accessory} size={22} color={ACCESSORY_COLOR[accessoryTone]} />
-      </TouchableOpacity>
-    </View>
   );
 }

@@ -1,7 +1,8 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
 import { useNetWorth } from "@/utils/useNetWorth";
 import { signedAmount } from "@/utils/signedAmount";
 import { colors } from "@/constants/theme";
@@ -28,15 +29,7 @@ export function NetWorthHero() {
       <AppText variant="overline">Net worth</AppText>
       <View className="flex-row items-center gap-2 mt-1">
         {isNegative && <Feather name="alert-triangle" size={20} color={colors.overdue} />}
-        <Text
-          className={`flex-1 text-[32px] font-oswald-medium ${isNegative ? "text-overdue" : "text-white"}`}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}
-          maxFontSizeMultiplier={1.4}
-        >
-          {netText}
-        </Text>
+        <AppHeroAmount value={netText} tone={isNegative ? "negative" : "neutral"} className="flex-1" />
       </View>
       <View className="flex-row gap-3 mt-3 pt-3 border-t border-white/[0.07]">
         {parts.map(({ label, value }) => (

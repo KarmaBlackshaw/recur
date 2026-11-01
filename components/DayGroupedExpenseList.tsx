@@ -3,7 +3,9 @@ import { SectionList } from "react-native";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
+import { LoanSheet, type LoanSheetRef } from "@/components/loans/LoanSheet";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
+import { dayTotalOf } from "@/utils/activity/dayTotalOf";
 import type { BillPaymentEntry, IncomeEntry, InterestEntry, TransferEntry } from "@/utils/usePaidLedger";
 import type { LoanActivityEntry } from "@/utils/useLoanActivity";
 import type { Expense } from "@/types";
@@ -17,19 +19,24 @@ export interface DayEntry {
   effDate: Date;
   refDate: Date;
   amount: number;
+  isCard?: boolean;
   compact?: boolean;
   hideDate?: boolean;
-  canQuickPay?: boolean;       // unpaid due rows get the trailing pay circle (Home)
+  canOpenBillSheet?: boolean;  // unpaid due rows open the bill sheet on tap (Home)
   isSwipeHintShown?: boolean;  // this row peeks its Pay swipe once
 }
 
 export type LedgerEntry = DayEntry | BillPaymentEntry;
 export type ActivityEntry = LedgerEntry | IncomeEntry | InterestEntry | TransferEntry | LoanActivityEntry;
 
+// "sum" adds the day's amounts (lists that only go one way). A flow function signs each row instead (money in +,
+// out −, 0 when it doesn't count) and the header shows the day's net, or nothing when no row counts.
+export type DayTotal = "sum" | "none" | ((entry: ActivityEntry) => number);
+
 interface DaySection {
   key: string;
   date: Date;
-  total: number;
+  total: number | undefined;
   data: ActivityEntry[];
 }
 
@@ -40,21 +47,21 @@ interface Props {
   // false → skip the per-day headers/subtotals and render one flat list; each card
   // shows its own date instead (recurring tab). Default true (paid ledger).
   grouped?: boolean;
-  // false → day headers without subtotals (mixed in/out lists where a sum means nothing).
-  showDayTotals?: boolean;
+  dayTotal?: DayTotal;
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
   refreshControl?: React.ComponentProps<typeof SectionList>["refreshControl"];
 }
 
-export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals = true, ListHeaderComponent, ListEmptyComponent, refreshControl }: Props) {
+export function DayGroupedExpenseList({ entries, grouped = true, dayTotal = "sum", ListHeaderComponent, ListEmptyComponent, refreshControl }: Props) {
   const transferSheetRef = useRef<TransferSheetRef>(null);
-  const sections = useMemo(() => {
+  const loanSheetRef = useRef<LoanSheetRef>(null);
+  const sections = useMemo<DaySection[]>(() => {
     if (!grouped) {
-      return [{ key: "all", date: entries[0]?.effDate ?? new Date(), total: 0, data: entries }];
+      return [{ key: "all", date: entries[0]?.effDate ?? new Date(), total: undefined, data: entries }];
     }
-    return groupEntriesByDay(entries);
-  }, [entries, grouped]);
+    return groupEntriesByDay(entries).map((day) => ({ ...day, total: dayTotalOf(day.data, dayTotal) }));
+  }, [entries, grouped, dayTotal]);
 
   return (
     <>
@@ -69,13 +76,14 @@ export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals =
             item={item}
             index={index}
             onOpenTransfer={(transfer) => transferSheetRef.current?.present(transfer)}
+            onOpenLoan={(txn) => loanSheetRef.current?.present(txn)}
           />
         )}
         renderSectionHeader={
           grouped
             ? ({ section }) => {
                 const s = section as unknown as DaySection;
-                return <DayHeaderRow date={s.date} total={showDayTotals ? s.total : undefined} />;
+                return <DayHeaderRow date={s.date} total={s.total} isSigned={typeof dayTotal === "function"} />;
               }
             : undefined
         }
@@ -84,6 +92,7 @@ export function DayGroupedExpenseList({ entries, grouped = true, showDayTotals =
         showsVerticalScrollIndicator={false}
       />
       <TransferSheet ref={transferSheetRef} />
+      <LoanSheet ref={loanSheetRef} />
     </>
   );
 }

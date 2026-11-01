@@ -40,7 +40,7 @@ Rules:
 - Never pure black (#000000).
 
 ## 3. Typography Rules
-- **Display: Oswald Medium.** Tab titles 28px, detail titles and day numbers 22px, hero balances 32 to 34px.
+- **Display: Oswald Medium.** Tab titles 28px, detail titles and day numbers 22px, hero balances 32px.
   Condensed, so large numbers stay narrow.
 - **Amounts: Oswald Regular.** 16px in list rows, 17px in cards. Band totals use Oswald Medium 13px.
 - **Body: Quicksand** 400, 500, 700. Row titles 14px bold, body 14px, button labels 12.25px bold.
@@ -72,9 +72,8 @@ account transactions. Never hand-build another row.
   "in 4 days", then "Nov 30". Late reads "3 days late" in coral. Settled reads "Paid Oct 21" in the neutral
   tone (the band or KPI already says paid, so a mint caption on every row would only repeat it) or
   "Charged Oct 21" in periwinkle. Ledger rows under a day header carry no date; they only flag "Charged".
-- **Accessory:** optional trailing Muted Graphite glyph: chevron to drill in. On unpaid bills in Home's due lists,
-  the Recurring tab and a bill's history it is a hollow circle and its own 44dp button: tap marks the bill paid
-  (Undo in the snackbar), long-press opens the Pay sheet. Coral on late bills.
+  A loan payment dated after a backdated payoff reads "₱20.00 more than owed" in the neutral tone.
+- **Accessory:** optional trailing Muted Graphite glyph: chevron to drill in.
 - **Pressed:** opacity 0.7. A row with `onPress` is a button; without it, one accessible element with the
   full spoken label.
 
@@ -91,19 +90,62 @@ account transactions. Never hand-build another row.
   delete the same way. Only one row stays open at a time, and opening one gives a selection haptic. Home peeks the
   Pay swipe once on the first unpaid row to teach it.
 
+### Detail Row (`components/ui/AppDetailRow.tsx`)
+One label and value on a line: the facts on a detail screen or sheet (a bill's plan, a loan's totals, a transfer, a
+card bill, a card's limit and dates). Never hand-build another.
+
+- Meta label on the left, Quicksand Medium 14px Ink value on the right, 5.25dp above and below, 14dp between them.
+- No side gutters: the screen or sheet around the rows sets them.
+- A long value wraps under itself, right-aligned, and never pushes the label.
+- The value takes a List Row tone when it signals something, e.g. Coral for a card over its limit.
+- A row that opens something adds a 16dp Muted chevron after the value, and the whole row is the tap target.
+
 ### Band Header
 Overline label in its signal color, optional count and caption, total on the right. Collapsible bands
 (Home months) add a chevron and announce expanded or collapsed.
 
 ### Day Header
 Day number in Oswald 22px, weekday (weekends periwinkle, weekdays muted; coral stays reserved for "late"), month and
-year, optional day total.
+year, optional day total. Lists that only go one way sum the day. Activity's All and Loans, and Home's Recent activity,
+mix money in and out, so their days show a signed net instead: "+₱82.24" in mint when more came in, "−₱392.99" when
+more went out. All's net follows the hero's rules, so the days add up to "Net this month"; Home's Recent activity uses
+the same net over the whole day, even when the list stops partway through it. A day with nothing counted in it (only
+card charges, plain transfers or loans) shows no total.
 
 ### Cards
-Only where elevation communicates hierarchy: KPI tiles, hero balances (Home's summary, Activity, loans), account
-cards, and Home's setup checklist and backup nudge.
+Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity, loans, net worth), account
+cards, Home's month card, and Home's setup checklist and backup nudge.
 14dp radius (21dp for account cards), Raised Graphite or a 10% tint, 1px Hairline. Never wrap list rows
 in cards.
+
+### Hero Amount (`components/ui/AppHeroAmount.tsx`)
+The big total on every hero card: Activity, net worth, Home's month card, Loans, a borrower, a loan and a bill. Never
+hand-build another.
+
+- Oswald Medium 32px on one line. A total too wide for the card shrinks to fit, down to 70%.
+- Its color is a List Row amount tone: Ink by default, Coral when negative, Secondary Graphite for nothing yet or a
+  bill that isn't due that month, and the card's own signal color on tinted heroes.
+
+### Hero Card (`components/ui/AppHeroCard.tsx`)
+The tinted card behind Activity's, the Loans tab's, a borrower's and a loan's hero: overline, Hero Amount, then the
+screen's own lines under it. Never hand-build another tint map.
+
+- One tone sets both the 10% tint with its 20% border and the amount color: Indigo or Periwinkle with a Periwinkle
+  total, Mint with a Mint total, or neutral (4% white, Hairline) with an Ink total.
+- A negative total turns Coral and keeps the card's tint (Activity's net).
+- 20dp padding. A footer row (Activity's Stats row) sits under the body, whose bottom padding drops to 12dp.
+- The screen sets only the card's margins.
+
+### Month card (`components/HomeMonthStats.tsx`)
+One Raised Graphite card at the top of Home, under the greeting, built like the other hero cards. Its lead is Spent
+for the month: an overline naming the figure and the month ("Spent in October") over an Oswald Medium 32px total.
+Received sits beside it (overline, Oswald 17px, Mint above zero). Below a Hairline, 44dp link rows (a 16dp Periwinkle
+glyph, label, Oswald 17px amount, Muted chevron) show Charged (only with a credit card and only while the month has
+charges) and Owed to you (only while someone owes you). Month figures stay above the rows, because Owed to you is a
+standing balance, not a month total. Zero amounts go Secondary Graphite. When nothing was spent, received or charged
+yet (the 1st of a month), the figures give way to the month name and "Nothing spent or received yet", and that block
+is not tappable. Each figure opens the matching Activity chip for the month (Spent: Paid, Received: Income, Charged:
+Charged); Owed to you opens Loans' Active chip. No tiles, progress bars or Hairline-split grids.
 
 ### Buttons (`AppButton`)
 Primary: Indigo fill, Ink label. Tonal: Indigo 15% with a Periwinkle label. Ghost: Hairline outline.
@@ -119,6 +161,18 @@ Fields that open a picker use `AppSelectField` (same frame, value + chevron). Da
 native dialog, an `AppCalendar` sheet on iOS), months `AppMonthField` (month + year wheel), days of the month
 `AppDayField` (a 1–31 grid: "Every month on the 15th"). Never type a date or day number.
 
+### Check row (`AppCheckRow`)
+The form's yes/no option, and its only one: no switches. A Raised Graphite row with a Hairline border, 12dp radius,
+at least 52dp tall like the fields around it, 14dp side padding, 12dp above it and 4dp below. A 20dp box (2dp Muted
+Graphite border; ticked, Indigo fill with an Ink check) sits 12dp left of the copy, and the whole row toggles it.
+Label in Quicksand Medium 14px Ink, an optional one-line description under it in meta.
+
+Copy: the label names the option in sentence case, no question mark ("Variable amount", "Set an end month", "Existing
+loan"); the description says what ticking it does, with no closing period ("Stops recurring after this month", "No
+account is debited"). Fields the option adds or removes sit right under the row and appear or disappear with it, never
+greyed out in place; a note about the change it makes (the loan form's "₱300.00 goes back to GCash") goes directly
+below it in meta.
+
 ### Form header (`AppFormHeader`)
 Back chevron, centered title in sentence case ("Add expense", "Edit transfer"), and on long forms a periwinkle
 "Save" on the right so it stays reachable above the keyboard. Leaving a dirty form asks "Discard changes?".
@@ -128,13 +182,30 @@ Feedback for reversible actions: one line plus an optional action ("Gym marked p
 a Hairline border, above the tab bar, gone after 5s. Never for errors (those are Alerts).
 
 ### Pay sheet
-Opened when a bill's amount isn't known, from a bill's Mark paid, or by long-pressing the pay circle: Amount
-(prefilled), Paid on (an `AppDateField`, today by default, no future dates) and Pay from.
+Opened when a bill's amount isn't known or from a bill's Mark paid: Amount (prefilled), Paid on (an `AppDateField`,
+today by default, no future dates) and Pay from. Opened from the Bill sheet's Pay on a TBD bill, it keeps that sheet's
+Details (tonal) under Mark as paid.
+
+### Bill sheet
+Opened by tapping an unpaid bill in Home's due lists or in the Recurring tab's Overdue and Unpaid bands, for that
+month's bill. A detail sheet titled with the bill: Amount ("TBD" when unknown), Due ("Oct 1", or "Oct 1 · 31 days
+late"), Pay from (only when the bill has an account), then Pay (primary) and Details (tonal). Pay closes the sheet and
+pays like the swipe (Undo in the snackbar); a TBD bill opens the Pay sheet once this sheet has closed. Details opens
+the bill's page for that month. Every other row skips the sheet: it opens the bill page, or a one-off's editor,
+directly.
 
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes
 `accessible={false}`: gorhom's default makes the whole sheet one element and hides its controls from screen readers.
 A picker opened from a sheet (Pay from, Paid on) stacks over it, and the sheet is still there when the picker closes.
+Every sheet is an `AppBottomSheet`, which draws the title, Close and backdrop; content lines up with the title at
+`px-4`. An action whose write changes what the open sheet shows (Save balance, Revert transfer) closes the sheet first
+and writes once it's gone. A save that keeps the sheet open, like a card bill's statement amount, updates it in place.
+A sheet whose content can outgrow the space above the keyboard passes `scrollable`.
+
+Detail sheets (tap a Transfer, Card bill, Loan or unpaid bill row to read it and act on it) share one layout:
+label/value rows under the title, then full-width actions stacked under them, one primary at most and the destructive
+one last. A card bill opened from Home adds Details (tonal), which opens the card's account page.
 
 ### Stats (`app/stats.tsx`)
 A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite
@@ -158,15 +229,17 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Group with headers and whitespace (band headers, day headers), not boxes.
 - Scroll views keep 140dp of bottom padding so the floating tab bar never covers the last row.
 - Touch targets are at least 44dp.
-- Money lists sort by date. Home opens on a summary card (left to pay this month, a paid-of-total bar, the overdue
-  count), then Overdue, this month, and next month once it is at most 7 days away. A single "Owed to you" row sits
-  between the due bands and Recent activity, which ends with "All activity". New users get a three-step "Get started"
-  checklist; a backup nudge appears when the last backup is over 30 days old.
+- Money lists sort by date. Home opens on the month card, then Overdue, this month, and next month once it is at
+  most 7 days away, then Recent activity, which ends with "All activity". New users get a three-step "Get started"
+  checklist, shown in place of the month card until they have three expenses; a backup nudge appears when the last
+  backup is over 30 days old.
 - Home Overdue also lists unpaid dues and card bills from the last 3 months; their caption keeps counting "N days late".
 - The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)
   and Owed under a hairline. The header's layers toggle (saved, carried in backups) groups active accounts into a
   band per bank, in account order, with accounts that have no bank last under "Other".
+- Activity's hero shows only its overline and the month's total, above the Stats row: no breakdown under the
+  total on any chip. Stats carries the detail.
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

@@ -6,6 +6,7 @@ import {
   usePaidLedger,
   useBillPayments,
   useTransfers,
+  useIncomeEntries,
   useInterestCredits,
   type IncomeEntry,
   type InterestEntry,
@@ -31,6 +32,7 @@ export function useActivityFeed(): ActivityFeed {
   const billPayments = useBillPayments();
   const transfers = useTransfers();
   const loanActivity = useLoanActivity();
+  const incomeEntries = useIncomeEntries();
   const interestCredits = useInterestCredits();
 
   return useMemo(() => {
@@ -48,9 +50,7 @@ export function useActivityFeed(): ActivityFeed {
       [
         // Income earned on a transfer rides on its TransferRow (like tax on InterestRow), not a row of its own —
         // unless both transfer sides were deleted with their accounts and it sits in a third account.
-        ...transactions
-          .filter((t) => t.kind === "income" && (t.transferId == null || !liveTransferIds.has(t.transferId)))
-          .map((t) => ({ key: t.id, income: t, effDate: new Date(t.createdAt), amount: t.amount })),
+        ...incomeEntries.filter(({ income }) => income.transferId == null || !liveTransferIds.has(income.transferId)),
         ...interestCredits,
       ],
       "effDate",
@@ -58,5 +58,5 @@ export function useActivityFeed(): ActivityFeed {
     );
     const all = orderBy([...paid, ...charged, ...income, ...transfers, ...loanActivity], "effDate", "desc");
     return { all, paid, charged, income, transfers, loans: loanActivity };
-  }, [ledger, billPayments, transfers, loanActivity, interestCredits, transactions]);
+  }, [ledger, billPayments, transfers, loanActivity, incomeEntries, interestCredits, transactions]);
 }

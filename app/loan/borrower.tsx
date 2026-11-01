@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { SectionList, Text, View } from "react-native";
+import { SectionList } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
@@ -8,20 +8,17 @@ import { sumBy, orderBy, partition } from "@/utils/collections";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
+import { AppHeroCard, type HeroTone } from "@/components/ui/AppHeroCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFab } from "@/components/ui/AppFab";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LoanRow } from "@/components/loans/LoanRow";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
+import { loanTitle } from "@/utils/loans/loanTitle";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { Loan } from "@/types";
-
-// The header already names the borrower, so rows say which loan: its note, else what was lent and when.
-function loanTitle({ note, principal, lentAt }: Loan) {
-  return note?.trim() || `${formatAmount(principal)} · ${dayjs(lentAt).format("MMM D")}`;
-}
 
 export default function BorrowerLoansScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
@@ -62,9 +59,9 @@ export default function BorrowerLoansScreen() {
   const heroAmount = isAllSettled
     ? sumBy(settled, ({ id }) => loans.summaries[id]?.paidTotal ?? 0)
     : sumBy(active, ({ id }) => loans.summaries[id]?.balance ?? 0);
-  const hero = isAllSettled
-    ? { overline: "Collected", box: "bg-paid/10 border-paid/20", amount: "text-paid" }
-    : { overline: "Owes you", box: "bg-secondary/10 border-secondary/20", amount: "text-secondary" };
+  const hero: { overline: string; tone: HeroTone } = isAllSettled
+    ? { overline: "Collected", tone: "paid" }
+    : { overline: "Owes you", tone: "secondary" };
   const meta = `${active.length} active · ${settled.length} settled`;
   const sections = [
     { title: "Active", data: active },
@@ -108,23 +105,16 @@ export default function BorrowerLoansScreen() {
         refreshControl={refreshControl}
         ListHeaderComponent={
           <>
-            <View
-              className={`mx-5 mt-3 mb-1 rounded-2xl border p-5 ${hero.box}`}
+            <AppHeroCard
+              overline={hero.overline}
+              value={formatAmount(heroAmount)}
+              tone={hero.tone}
+              className="mx-5 mt-3 mb-1"
               accessible
               accessibilityLabel={`${hero.overline} ${formatAmount(heroAmount)}. ${meta}`}
             >
-              <AppText variant="overline">{hero.overline}</AppText>
-              <Text
-                className={`text-[32px] font-oswald-medium mt-1 ${hero.amount}`}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-                maxFontSizeMultiplier={1.4}
-              >
-                {formatAmount(heroAmount)}
-              </Text>
               <AppText variant="meta">{meta}</AppText>
-            </View>
+            </AppHeroCard>
             {!isAllSettled && <AppButton label="Record payment" className="mx-5 mt-3" onPress={recordPayment} />}
           </>
         }

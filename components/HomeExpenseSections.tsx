@@ -6,6 +6,7 @@ import { sumBy } from "@/utils/collections";
 import { CardBillRow } from "@/components/accounts/CardBillRow";
 import { CardBillSheet, type CardBillSheetRef } from "@/components/accounts/CardBillSheet";
 import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
+import { LoanSheet, type LoanSheetRef } from "@/components/loans/LoanSheet";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BandHeader } from "@/components/BandHeader";
@@ -33,10 +34,9 @@ export type UpcomingBand = {
 // A link row under a section, e.g. "All activity".
 type SectionFooter = { label: string; onPress: () => void };
 
-// Home has three kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each row shows its own date);
+// Home has two kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each row shows its own date);
 // Recent activity mirrors the Activity tab's All list — day-grouped, no subtotals
 // (it mixes money in and out), with the band label on the first day only.
-// A "node" section carries no rows: its header renders `afterDue` (the loans row) between the two.
 type FlatSection = {
   kind: "flat";
   key: string;
@@ -61,13 +61,7 @@ type DaySection = {
   footer?: SectionFooter;
   data: ActivityEntry[];
 };
-type NodeSection = {
-  kind: "node";
-  key: string;
-  footer?: SectionFooter;
-  data: HomeEntry[];
-};
-type HomeSection = FlatSection | DaySection | NodeSection;
+type HomeSection = FlatSection | DaySection;
 
 interface Props {
   overdue: HomeEntry[];
@@ -75,8 +69,6 @@ interface Props {
   recentActivity: ActivityEntry[];
   collapsedSlots: HomeBandSlot[];
   onToggleSlot: (slot: HomeBandSlot) => void;
-  // Rendered between the due bands and Recent activity.
-  afterDue?: React.ReactNode;
   ListHeaderComponent?: React.ComponentProps<typeof SectionList>["ListHeaderComponent"];
   ListEmptyComponent?: React.ComponentProps<typeof SectionList>["ListEmptyComponent"];
   refreshControl?: React.ComponentProps<typeof SectionList>["refreshControl"];
@@ -105,16 +97,15 @@ export function HomeExpenseSections({
   recentActivity,
   collapsedSlots,
   onToggleSlot,
-  afterDue,
   ListHeaderComponent,
   ListEmptyComponent,
   refreshControl,
 }: Props) {
   const billSheetRef = useRef<CardBillSheetRef>(null);
   const transferSheetRef = useRef<TransferSheetRef>(null);
+  const loanSheetRef = useRef<LoanSheetRef>(null);
   const payFlow = usePayFlow();
   const { getMonthStatus } = useExpenses();
-  const hasAfterDue = Boolean(afterDue);
   const sections = useMemo<HomeSection[]>(() => {
     const out: HomeSection[] = [];
 
@@ -147,10 +138,6 @@ export function HomeExpenseSections({
       });
     }
 
-    if (hasAfterDue) {
-      out.push({ kind: "node", key: "after-due", data: [] });
-    }
-
     if (recentActivity.length) {
       const days: DaySection[] = groupEntriesByDay(recentActivity).map((g) => ({ kind: "day", ...g }));
       days[0].band = "Recent activity";
@@ -160,7 +147,7 @@ export function HomeExpenseSections({
     }
 
     return out;
-  }, [overdue, upcoming, recentActivity, collapsedSlots, hasAfterDue]);
+  }, [overdue, upcoming, recentActivity, collapsedSlots]);
 
   function isUnpaidDue(item: ActivityEntry): boolean {
     if (!("expense" in item) || !item.canQuickPay) {
@@ -204,15 +191,13 @@ export function HomeExpenseSections({
               item={item}
               index={index}
               onOpenTransfer={(transfer) => transferSheetRef.current?.present(transfer)}
+              onOpenLoan={(txn) => loanSheetRef.current?.present(txn)}
               onOpenExpense={isUnpaidDue(item) ? openPay : undefined}
             />
           )
         }
         renderSectionHeader={({ section }) => {
           const s = section as unknown as HomeSection;
-          if (s.kind === "node") {
-            return <View className="pt-3">{afterDue}</View>;
-          }
           if (s.kind === "flat") {
             const { slot } = s;
             return (
@@ -247,6 +232,7 @@ export function HomeExpenseSections({
       />
       <CardBillSheet ref={billSheetRef} />
       <TransferSheet ref={transferSheetRef} />
+      <LoanSheet ref={loanSheetRef} />
     </>
   );
 }

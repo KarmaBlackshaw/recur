@@ -1,22 +1,24 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
-import { chunk, keyBy, sumBy } from "@/utils/collections";
+import { keyBy, sumBy } from "@/utils/collections";
 import { useBoolean } from "@/utils/useBoolean";
-import { useSetState } from "@/utils/useSetState";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
-import { DayGroupedExpenseList, type ActivityEntry } from "@/components/DayGroupedExpenseList";
+import { DayGroupedExpenseList, type DayTotal } from "@/components/DayGroupedExpenseList";
+import { ActivityHero } from "@/components/activity/ActivityHero";
+import type { HeroTone } from "@/components/ui/AppHeroCard";
 import { countLabel } from "@/utils/countLabel";
-import { formatAmount } from "@/utils/dateHelpers";
-import { signedAmount } from "@/utils/signedAmount";
+import { netFlow } from "@/utils/activity/netFlow";
+import { loanFlow } from "@/utils/activity/loanFlow";
 import { useActivityFeed } from "@/utils/useActivityFeed";
+import { useMonthActivity } from "@/utils/useMonthActivity";
 import { matchesActivity, type ActivitySearchContext } from "@/utils/activitySearch";
-import type { FeatherIconName, TransactionKind } from "@/types";
+import type { ActivitySegment, FeatherIconName, TOption } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
@@ -25,9 +27,7 @@ import { AppChips } from "@/components/ui/AppChips";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
 
-type Segment = "all" | "paid" | "charged" | "income" | "transfers" | "loans";
-
-const SEGMENTS: { label: string; value: Segment }[] = [
+const SEGMENTS: TOption<ActivitySegment>[] = [
   { label: "All", value: "all" },
   { label: "Paid", value: "paid" },
   { label: "Charged", value: "charged" },
@@ -36,16 +36,16 @@ const SEGMENTS: { label: string; value: Segment }[] = [
   { label: "Loans", value: "loans" },
 ];
 
-const HERO: Record<Segment, { overline: string; box: string; text: string }> = {
-  all: { overline: "Net this month", box: "bg-primary/10 border-primary/20", text: "text-secondary" },
-  paid: { overline: "Paid this month", box: "bg-paid/10 border-paid/20", text: "text-paid" },
-  charged: { overline: "Charged this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
-  income: { overline: "Received this month", box: "bg-paid/10 border-paid/20", text: "text-paid" },
-  transfers: { overline: "Transferred this month", box: "bg-white/[0.04] border-border", text: "text-white" },
-  loans: { overline: "Lent this month", box: "bg-secondary/10 border-secondary/20", text: "text-secondary" },
+const HERO: Record<ActivitySegment, { overline: string; tone: HeroTone }> = {
+  all: { overline: "Net this month", tone: "primary" },
+  paid: { overline: "Paid this month", tone: "paid" },
+  charged: { overline: "Charged this month", tone: "secondary" },
+  income: { overline: "Received this month", tone: "paid" },
+  transfers: { overline: "Transferred this month", tone: "neutral" },
+  loans: { overline: "Lent this month", tone: "secondary" },
 };
 
-const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: string }> = {
+const EMPTY: Record<ActivitySegment, { title: string; icon: FeatherIconName; message: string }> = {
   all: { title: "No activity", icon: "list", message: "Nothing happened in" },
   paid: { title: "Nothing paid", icon: "check-circle", message: "No expenses paid in" },
   charged: { title: "Nothing charged", icon: "credit-card", message: "Nothing charged in" },
@@ -54,22 +54,31 @@ const EMPTY: Record<Segment, { title: string; icon: FeatherIconName; message: st
   loans: { title: "No loan activity", icon: "users", message: "Nothing lent or repaid in" },
 };
 
-// A meta line carries at most one " · ", so the parts pair up line by line. Falsy parts drop out.
-function metaLines(...parts: (string | false)[]): string[] {
-  return chunk(parts.filter((part): part is string => Boolean(part)), 2).map((line) => line.join(" · "));
-}
+// All and Loans mix money in and out, so their days show a signed net; All's adds up to the hero's net.
+const DAY_TOTAL: Record<ActivitySegment, DayTotal> = {
+  all: netFlow,
+  paid: "sum",
+  charged: "sum",
+  income: "sum",
+  transfers: "sum",
+  loans: loanFlow,
+};
 
 export default function ExpensesScreen() {
   const { loading } = useExpenses();
-  const { accounts, isCharged, transactions } = useAccounts();
+  const { accounts } = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
-  const params = useLocalSearchParams<{ segment?: Segment }>();
+  const params = useLocalSearchParams<{ segment?: string; year?: string; month?: string }>();
   // "Charged" only means something once there's a credit card to charge.
   const segments = accounts.some((a) => a.type === "credit") ? SEGMENTS : SEGMENTS.filter(({ value }) => value !== "charged");
   const segment = segments.find(({ value }) => value === params.segment)?.value ?? "all";
   const today = dayjs().startOf("day").toDate();
-  const [{ year, month }, setSelected] = useSetState({ year: today.getFullYear(), month: today.getMonth() });
+  const paramYear = Number.parseInt(params.year ?? "", 10);
+  const paramMonth = Number.parseInt(params.month ?? "", 10);
+  // A year past four digits can't be shown (and past ±275,760 isn't even a Date), so it falls back like a bad month.
+  const year = paramYear >= 1000 && paramYear <= 9999 ? paramYear : today.getFullYear();
+  const month = paramMonth >= 0 && paramMonth <= 11 ? paramMonth : today.getMonth();
   const [search, setSearch] = useState("");
   const [isSearchOpen, searchOpen] = useBoolean(false);
   const query = isSearchOpen ? search.trim() : "";
@@ -90,48 +99,11 @@ export default function ExpensesScreen() {
     [feed.all, query, searchContext]
   );
 
-  const { byFilter, notPaidOff, fees, transferIncome, lent, repaid } = useMemo(() => {
-    const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
-    const charged = feed.charged.filter(isInMonth);
-    const notPaidOff = sumBy(
-      charged.filter(({ expense, refDate }) =>
-        expense.recurrence === "one-off"
-          ? isCharged(expense.id, null, null)
-          : isCharged(expense.id, refDate.getFullYear(), refDate.getMonth())
-      ),
-      "amount"
-    );
-    const monthTxnTotal = (kind: TransactionKind) =>
-      sumBy(
-        transactions.filter((t) => t.kind === kind).map((t) => ({ effDate: new Date(t.createdAt), amount: Math.abs(t.amount) })).filter(isInMonth),
-        "amount"
-      );
-    const fees = monthTxnTotal("fee");
-    const transfers = feed.transfers.filter(isInMonth);
-    const loans = feed.loans.filter(isInMonth);
-    const byFilter: Record<Segment, ActivityEntry[]> = {
-      all: feed.all.filter(isInMonth),
-      paid: feed.paid.filter(isInMonth),
-      charged,
-      income: feed.income.filter(isInMonth),
-      transfers,
-      loans,
-    };
-    return {
-      byFilter,
-      notPaidOff,
-      fees,
-      transferIncome: sumBy(transfers, "earned"),
-      lent: sumBy(loans.filter(({ loanTxn }) => loanTxn.kind === "loan_out"), "amount"),
-      repaid: sumBy(loans.filter(({ loanTxn }) => loanTxn.kind === "loan_in"), "amount"),
-    };
-  }, [feed, transactions, isCharged, year, month]);
+  const { byFilter, lent, moneyIn, paidTotal } = useMonthActivity(feed, year, month);
 
   const entries = byFilter[segment];
-  const moneyIn = sumBy(byFilter.income, "amount") + transferIncome;
-  const paidTotal = sumBy(byFilter.paid, "amount") + fees;
   // Lending stays out of the net: money lent is still yours (net worth counts it as an asset).
-  const totals: Record<Segment, number> = {
+  const totals: Record<ActivitySegment, number> = {
     all: moneyIn - paidTotal,
     paid: paidTotal,
     charged: sumBy(entries, "amount"),
@@ -141,26 +113,6 @@ export default function ExpensesScreen() {
   };
   const total = totals[segment];
   const hero = HERO[segment];
-  const heroMeta: Record<Segment, string[]> = {
-    all: metaLines(
-      `${formatAmount(moneyIn)} in`,
-      `${formatAmount(paidTotal)} spent`,
-      lent > 0 && `${formatAmount(lent)} lent`,
-      repaid > 0 && `${formatAmount(repaid)} repaid`
-    ),
-    paid: metaLines(countLabel(entries.length, "payment", "payments"), fees > 0 && `incl. ${formatAmount(fees)} fees`),
-    charged: metaLines(`${formatAmount(notPaidOff)} not yet paid off`),
-    income: metaLines(
-      countLabel(entries.length, "income", "incomes"),
-      transferIncome > 0 && `incl. ${formatAmount(transferIncome)} from transfers`
-    ),
-    transfers: metaLines(
-      countLabel(entries.length, "transfer", "transfers"),
-      fees > 0 && `${formatAmount(fees)} fees`,
-      transferIncome > 0 && `${formatAmount(transferIncome)} income`
-    ),
-    loans: metaLines(`${formatAmount(repaid)} repaid`, countLabel(entries.length, "entry", "entries")),
-  };
   const empty = EMPTY[segment];
   const monthLabel = dayjs(new Date(year, month, 1)).format("MMMM");
 
@@ -188,7 +140,7 @@ export default function ExpensesScreen() {
             <PeriodNavigator
               year={year}
               month={month}
-              onChange={(year, month) => setSelected({ year, month })}
+              onChange={(year, month) => router.setParams({ year: String(year), month: String(month) })}
             />
           )}
           <TouchableOpacity
@@ -224,7 +176,7 @@ export default function ExpensesScreen() {
           </AppText>
           <DayGroupedExpenseList
             entries={results}
-            showDayTotals={false}
+            dayTotal="none"
             refreshControl={refreshControl}
             ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing matches "${query}"`} />}
           />
@@ -239,41 +191,11 @@ export default function ExpensesScreen() {
             className="mt-1"
           />
 
-          <View className={`mx-5 mt-3 mb-1 rounded-2xl border ${hero.box}`}>
-            <View className="px-5 pt-5 pb-3">
-              <AppText variant="overline">{hero.overline}</AppText>
-              <Text
-                className={`text-[32px] font-oswald-medium mt-1 ${segment === "all" && total < 0 ? "text-overdue" : hero.text}`}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-                maxFontSizeMultiplier={1.4}
-              >
-                {signedAmount(total)}
-              </Text>
-              {heroMeta[segment].map((line) => (
-                <AppText key={line} variant="meta">
-                  {line}
-                </AppText>
-              ))}
-            </View>
-            <TouchableOpacity
-              onPress={openStats}
-              activeOpacity={0.7}
-              className="min-h-[44px] flex-row items-center px-5 border-t border-white/[0.07]"
-            >
-              <Feather name="pie-chart" size={16} color={colors.textSecondary} />
-              <AppText variant="body-bold" className="flex-1 ml-3 text-sm text-white">
-                Stats
-              </AppText>
-              <Feather name="chevron-right" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
+          <ActivityHero overline={hero.overline} total={total} tone={hero.tone} onStatsPress={openStats} />
 
           <DayGroupedExpenseList
             entries={entries}
-            // Lent and repaid mix money out and in, so a day's sum means nothing there (as in All).
-            showDayTotals={segment !== "all" && segment !== "loans"}
+            dayTotal={DAY_TOTAL[segment]}
             refreshControl={refreshControl}
             ListEmptyComponent={<EmptyState title={empty.title} icon={empty.icon} message={`${empty.message} ${monthLabel}`} />}
           />

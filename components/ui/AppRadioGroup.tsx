@@ -2,15 +2,11 @@ import React from "react";
 import { View, TouchableOpacity } from "react-native";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
-
-interface Option<T extends string> {
-  label: string;
-  value: T;
-}
+import type { TOption } from "@/types";
 
 interface AppRadioGroupProps<T extends string> {
   label?: string;
-  options: Option<T>[];
+  options: TOption<T>[];
   value: T;
   onChange: (value: T) => void;
   className?: string;

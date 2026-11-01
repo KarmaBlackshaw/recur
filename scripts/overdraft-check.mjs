@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { findOverdraft } from "../utils/accounts/findOverdraft.ts";
+import { loanOutChanges } from "../utils/loans/loanOutChanges.ts";
 
 const accounts = [
   { id: "bpi", name: "BPI", type: "debit" },
@@ -39,5 +40,25 @@ const overdrawn = [txn("o1", "bpi", -80)];
 const checkOverdrawn = (changes) => findOverdraft({ accounts, transactions: overdrawn, changes });
 assert.equal(checkOverdrawn([{ accountId: "bpi", amount: 30 }]), undefined, "an overdrawn account can still be topped up");
 assert.deepEqual(checkOverdrawn([{ accountId: "bpi", amount: -20 }]), { account: accounts[0], shortfall: 100 });
+
+assert.deepEqual(loanOutChanges({ accountId: null, principal: 5000 }), [], "a loan lent before Recur moves no money");
+assert.deepEqual(loanOutChanges({ accountId: "bpi", principal: 5000 }), [{ accountId: "bpi", amount: -5000 }]);
+
+const withLoanOut = [...transactions, txn("lo", "bpi", -300, { kind: "loan_out", loanId: "L" })];
+assert.equal(
+  findOverdraft({ accounts, transactions: withLoanOut, changes: loanOutChanges({ accountId: null, principal: 5000 }) }),
+  undefined,
+  "saving an existing loan never overdraws, even at ₱0",
+);
+assert.equal(
+  findOverdraft({ accounts, transactions: withLoanOut, changes: [], isReplaced: (t) => t.loanId === "L" && t.kind === "loan_out" }),
+  undefined,
+  "marking a loan as lent before Recur refunds its loan_out",
+);
+assert.deepEqual(
+  check(loanOutChanges({ accountId: "bpi", principal: 500 })),
+  { account: accounts[0], shortfall: 200 },
+  "unmarking debits the picked account and is overdraft-checked",
+);
 
 console.log("overdraft-check passed");

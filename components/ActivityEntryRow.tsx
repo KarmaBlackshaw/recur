@@ -12,10 +12,11 @@ interface Props {
   item: ActivityEntry;
   index: number;
   onOpenTransfer: (transfer: AccountTransaction) => void;
+  onOpenLoan: (txn: AccountTransaction) => void;
   onOpenExpense?: (entry: DayEntry) => void;
 }
 
-export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenExpense }: Props) {
+export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenLoan, onOpenExpense }: Props) {
   if ("income" in item) {
     return <IncomeRow entry={item} />;
   }
@@ -26,7 +27,7 @@ export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenExpense }:
     return <TransferRow entry={item} onPress={() => onOpenTransfer(item.transfer)} />;
   }
   if ("loanTxn" in item) {
-    return <LoanActivityRow entry={item} />;
+    return <LoanActivityRow entry={item} onPress={() => onOpenLoan(item.loanTxn)} />;
   }
   if ("payment" in item) {
     return <BillPaymentRow entry={item} onPress={() => onOpenTransfer(item.payment)} />;

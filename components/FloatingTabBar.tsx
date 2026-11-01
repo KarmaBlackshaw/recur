@@ -173,7 +173,8 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                 canPreventDefault: true,
               });
               if (!focused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
+                // Pass the tab's params back: navigate replaces them, which would drop Activity's browsed month and chip.
+                navigation.navigate(route.name, route.params);
               }
             }
 

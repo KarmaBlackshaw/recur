@@ -5,7 +5,7 @@ import { AppListRow } from "@/components/ui/AppListRow";
 import { SwipeableRow } from "@/components/ui/SwipeableRow";
 import { useLoans } from "@/context/LoanContext";
 import { categoryIcon } from "@/utils/categories";
-import { formatAmount } from "@/utils/dateHelpers";
+import { formatAmount } from "@/utils/formatAmount";
 import {
   TRANSACTION_KIND_LABEL,
   type AccountTransaction,
@@ -43,12 +43,15 @@ function titleOf(transaction: AccountTransaction, borrower: string | undefined) 
   if (borrower != null && transaction.kind === "loan_in") {
     return `${borrower} repaid`;
   }
+  if (borrower != null && transaction.kind === "income") {
+    return `${TRANSACTION_KIND_LABEL.income} from ${borrower}`;
+  }
   return TRANSACTION_KIND_LABEL[transaction.kind];
 }
 
 export function TransactionRow({ transaction, accountType, onPress, onDelete }: Props) {
-  const { loans } = useLoans();
-  const borrower = transaction.loanId != null ? loans.find((l) => l.id === transaction.loanId)?.borrower : undefined;
+  const { borrowerOf } = useLoans();
+  const borrower = borrowerOf(transaction.loanId);
   const title = titleOf(transaction, borrower);
   const icon = categoryIcon(transaction.category, KIND_ICON[transaction.kind]);
   const isMoneyIn = accountType === "credit" ? transaction.amount < 0 : transaction.amount > 0;

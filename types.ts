@@ -8,6 +8,12 @@ export type FeatherIconName = keyof typeof Feather.glyphMap;
 export type Recurrence = 'monthly' | 'yearly' | 'one-off';
 export type Status = 'unpaid' | 'paid';
 export type HomeBandSlot = 'current' | 'next';
+export type ActivitySegment = "all" | "paid" | "charged" | "income" | "transfers" | "loans";
+
+export interface TOption<T> {
+  label: string;
+  value: T;
+}
 
 export interface Expense {
   id: string;
@@ -106,7 +112,7 @@ export interface Loan {
   id: string;
   borrower: string;
   principal: number;
-  accountId: string;
+  accountId: string | null;   // null = lent before Recur (no loan_out). A dangling id = deleted account.
   lentAt: string;
   interest: TLoanInterest;
   note: string | null;
@@ -121,6 +127,15 @@ export interface LoanPaymentInput {
   amount: number;
   paidAt: string;
 }
+
+// Saved as income beside the last payment: its loan, account and date.
+export interface LoanExcessInput {
+  amount: number;
+  category: string;
+}
+
+export type TLoanPayment = Pick<AccountTransaction, 'amount' | 'createdAt'>;
+export type TLoanTerms = Pick<Loan, 'principal' | 'lentAt' | 'interest'>;
 
 export interface Account {
   id: string;

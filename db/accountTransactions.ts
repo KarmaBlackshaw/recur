@@ -42,6 +42,10 @@ export async function getAll(): Promise<AccountTransaction[]> {
   return rows.map(toTransaction);
 }
 
+export function emptyTxnFields(): Omit<AccountTransaction, "id" | "accountId" | "kind" | "amount" | "createdAt"> {
+  return { expenseId: null, cycleYear: null, cycleMonth: null, transferId: null, note: null, category: null, loanId: null };
+}
+
 export async function insertRow(
   db: Awaited<ReturnType<typeof getDB>>,
   t: Omit<AccountTransaction, "id">
@@ -142,15 +146,9 @@ export async function creditInterest(accountId: string, gross: number, tax: numb
   const createdAt = dayjs(through).endOf("day").toISOString();
   await withWriteTransaction(db, async (txn) => {
     if (gross !== 0) {
-      await insertRow(txn, {
-        accountId, kind: "interest", amount: gross, expenseId: null, cycleYear: null, cycleMonth: null,
-        transferId: null, note: null, category: null, loanId: null, createdAt,
-      });
+      await insertRow(txn, { ...emptyTxnFields(), accountId, kind: "interest", amount: gross, createdAt });
       if (tax !== 0) {
-        await insertRow(txn, {
-          accountId, kind: "tax", amount: -tax, expenseId: null, cycleYear: null, cycleMonth: null,
-          transferId: null, note: null, category: null, loanId: null, createdAt,
-        });
+        await insertRow(txn, { ...emptyTxnFields(), accountId, kind: "tax", amount: -tax, createdAt });
       }
     }
     await txn.runAsync("UPDATE accounts SET interest_accrued_through = ? WHERE id = ?", [through, accountId]);

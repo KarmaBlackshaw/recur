@@ -13,6 +13,8 @@ registerHooks({
 });
 const { maxPaymentOn } = await import("../utils/loans/maxPaymentOn.ts");
 const { splitLoanPayment } = await import("../utils/loans/splitLoanPayment.ts");
+const { canChangeLoan } = await import("../utils/loans/canChangeLoan.ts");
+const { canEditPayment } = await import("../utils/loans/canEditPayment.ts");
 
 const lentAt = "2026-10-05";
 const loan = (interest, principal = 500, lentOn = lentAt) => ({ principal, lentAt: lentOn, interest });
@@ -65,9 +67,22 @@ assert.equal(anniversaryPayoff.settledAt, "2026-11-05");
 assert.deepEqual(anniversaryPayoff.charges, [{ date: "2026-11-05", amount: 10 }]);
 assert.equal(anniversaryPayoff.balance, 0);
 
-const backdated = summarizeLoan({ loan: monthly, payments: [pay(500, "2026-10-20"), pay(50, "2026-12-01")], today: "2026-12-10" });
-assert.equal(backdated.balance, -50);
-assert.equal(backdated.isValid, false);
+const late = pay(50, "2026-12-01");
+const backdated = summarizeLoan({ loan: monthly, payments: [pay(500, "2026-10-20"), late], today: "2026-12-10" });
+assert.equal(backdated.balance, 0);
+assert.equal(backdated.isValid, true);
+assert.equal(backdated.isSettled, true);
+assert.equal(backdated.settledAt, "2026-10-20");
+assert.deepEqual(backdated.charges, []);
+assert.deepEqual(backdated.overpayments, [{ payment: late, amount: 50 }]);
+assert.equal(backdated.overpaid, 50);
+
+const second = pay(300, "2026-10-07");
+const crossing = summarizeLoan({ loan: loan({ type: "none" }), payments: [second, pay(300, "2026-10-06")], today: T });
+assert.equal(crossing.balance, 0);
+assert.equal(crossing.paidTotal, 600);
+assert.deepEqual(crossing.overpayments, [{ payment: second, amount: 100 }]);
+assert.equal(crossing.overpaid, 100);
 
 const beforeLent = summarizeLoan({ loan: loan({ type: "none" }), payments: [pay(100, "2026-10-04")], today: lentAt });
 assert.equal(beforeLent.balance, 400);
@@ -101,6 +116,49 @@ assert.equal(summarizeLoan({ loan: monthly, payments: [existing], today: T }).ba
 
 assert.equal(maxPaymentOn({ loan: monthly, payments: [], paidAt: "2026-11-01", today: T }), 500);
 assert.equal(maxPaymentOn({ loan: monthly, payments: [], paidAt: "2026-10-04", today: T }), 0);
+assert.equal(maxPaymentOn({ loan: monthly, payments: [pay(510, "2026-11-05")], paidAt: T, today: T }), 0);
+
+// A Pay in full backdated before a later-dated payment settles the loan, and that later payment is flagged.
+const byPrincipal5 = loan({ type: "monthly_principal", rate: 5 }, 1000, "2026-08-01");
+const later20 = pay(20, "2026-10-10");
+const backdatedCap = maxPaymentOn({ loan: byPrincipal5, payments: [later20], paidAt: "2026-09-15", today: "2026-11-01" });
+assert.equal(backdatedCap, 1050);
+const backdatedFull = summarizeLoan({ loan: byPrincipal5, payments: [later20, pay(backdatedCap, "2026-09-15")], today: "2026-11-01" });
+assert.equal(backdatedFull.isSettled, true);
+assert.equal(backdatedFull.settledAt, "2026-09-15");
+assert.deepEqual(backdatedFull.overpayments, [{ payment: later20, amount: 20 }]);
+const shortOfCap = summarizeLoan({ loan: byPrincipal5, payments: [later20, pay(1049.99, "2026-09-15")], today: "2026-11-01" });
+assert.equal(shortOfCap.isSettled, false);
+
+// When no amount lands on ₱0, the least that settles leaves the later payment a cent over.
+const later13 = pay(13, "2026-12-01");
+const roundedCap = maxPaymentOn({ loan: monthly, payments: [later13], paidAt: "2026-10-20", today: T });
+assert.equal(roundedCap, 487.26);
+const rounded = summarizeLoan({ loan: monthly, payments: [later13, pay(roundedCap, "2026-10-20")], today: T });
+assert.equal(rounded.isSettled, true);
+assert.deepEqual(rounded.overpayments, [{ payment: later13, amount: 0.01 }]);
+assert.equal(summarizeLoan({ loan: monthly, payments: [later13, pay(487.25, "2026-10-20")], today: T }).isSettled, false);
+
+const overpaying = [pay(300, "2026-10-06"), pay(300, "2026-10-07")];
+const termsFor = (principal, lentOn = lentAt) => loan({ type: "none" }, principal, lentOn);
+const change = (next) =>
+  canChangeLoan({ current: { loan: termsFor(500), payments: overpaying }, next: { loan: next, payments: overpaying }, today: T });
+assert.equal(change(termsFor(500)), true);
+assert.equal(change(termsFor(550)), true);
+assert.equal(change(termsFor(450)), false);
+assert.equal(change(termsFor(500, "2026-10-06")), true);
+assert.equal(change(termsFor(500, "2026-10-07")), false);
+
+const backdatedPayoff = { id: "payoff", ...pay(1050, "2026-09-15") };
+const flagged = { id: "flagged", ...later20 };
+const edit = (id, next) =>
+  canEditPayment({ loan: byPrincipal5, payments: [backdatedPayoff, flagged], id, next, today: "2026-11-01" });
+assert.equal(edit("flagged", pay(20, "2026-10-10")), true);
+assert.equal(edit("flagged", pay(15, "2026-10-20")), true);
+assert.equal(edit("flagged", pay(20.01, "2026-10-10")), false);
+assert.equal(edit("payoff", pay(1050, "2026-09-15")), true);
+assert.equal(edit("payoff", pay(1050.01, "2026-09-15")), false);
+assert.equal(edit("payoff", pay(500, "2026-09-15")), true);
 
 const oldestFirst = targetsOn([loan({ type: "none" }, 500, "2026-10-01"), loan({ type: "none" }, 300), loan({ type: "none" }, 200, "2026-10-10")], T);
 const partial = splitLoanPayment({ amount: 120, targets: oldestFirst, paidAt: T, today: T });

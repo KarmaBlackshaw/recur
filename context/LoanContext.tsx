@@ -14,6 +14,9 @@ import {
 import { remove as removeTransaction, updateLoanPayment } from "@/db/accountTransactions";
 import { useAccounts } from "@/context/AccountContext";
 import { summarizeLoan, type TLoanSummary } from "@/utils/loans/summarizeLoan";
+import { maxPaymentOn } from "@/utils/loans/maxPaymentOn";
+import { canChangeLoan } from "@/utils/loans/canChangeLoan";
+import { canEditPayment } from "@/utils/loans/canEditPayment";
 import { useToday } from "@/utils/useToday";
 import type { AccountTransaction, Loan, LoanExcessInput, LoanInput, LoanPaymentInput } from "@/types";
 
@@ -46,7 +49,7 @@ function reducer(state: State, action: Action): State {
 interface LoanContextValue {
   loans: Loan[];
   isLoading: boolean;
-  summaries: Record<string, TLoanSummary>;
+  summaries: Record<string, TLoanSummary<AccountTransaction>>;
   paymentsOf: (loanId: string) => AccountTransaction[];
   incomeOf: (loanId: string) => AccountTransaction[];
   borrowerOf: (loanId: string | null) => string | undefined;
@@ -101,7 +104,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
   const today = dayjs(useToday()).format("YYYY-MM-DD");
 
   const summaries = useMemo(() => {
-    const map: Record<string, TLoanSummary> = {};
+    const map: Record<string, TLoanSummary<AccountTransaction>> = {};
     for (const loan of state.loans) {
       map[loan.id] = summarizeLoan({ loan, payments: paymentsOf(loan.id), today });
     }
@@ -142,8 +145,8 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       assertDepositAccount(input.accountId);
     }
     const next = { ...input, principal: round(input.principal, 2) };
-    const candidate = summarizeLoan({ loan: next, payments: paymentsOf(id), today });
-    if (!candidate.isValid) {
+    const payments = paymentsOf(id);
+    if (!canChangeLoan({ current: { loan: existing, payments }, next: { loan: next, payments }, today })) {
       throw new Error("Payments exceed this loan");
     }
     const error = accounts.overdraftError(
@@ -187,12 +190,8 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       if (amount < 0.01) {
         throw new Error("Payment must be at least 0.01");
       }
-      const candidate = summarizeLoan({
-        loan,
-        payments: [...paymentsOf(p.loanId), { amount, createdAt: p.paidAt }],
-        today,
-      });
-      if (!candidate.isValid) {
+      const cap = maxPaymentOn({ loan, payments: paymentsOf(p.loanId), paidAt: p.paidAt, today });
+      if (amount > cap) {
         throw new Error("Payment exceeds what's owed");
       }
       rounded.push({ ...p, amount });
@@ -215,12 +214,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       assertDepositAccount(p.accountId);
     }
     const amount = round(p.amount, 2);
-    const candidate = summarizeLoan({
-      loan,
-      payments: paymentsOf(p.loanId).map((t) => (t.id === txnId ? { ...t, amount, createdAt: p.paidAt } : t)),
-      today,
-    });
-    if (!candidate.isValid) {
+    if (!canEditPayment({ loan, payments: paymentsOf(p.loanId), id: txnId, next: { amount, createdAt: p.paidAt }, today })) {
       throw new Error("Payment exceeds what's owed");
     }
     // A smaller repayment, or one moved to another account, lowers the account it was paid into.

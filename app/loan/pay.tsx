@@ -22,6 +22,7 @@ import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { maxPaymentOn } from "@/utils/loans/maxPaymentOn";
+import { canEditPayment } from "@/utils/loans/canEditPayment";
 import { splitLoanPayment, type TLoanPaymentSplit, type TLoanPaymentTarget } from "@/utils/loans/splitLoanPayment";
 import { formatAmount } from "@/utils/dateHelpers";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
@@ -136,7 +137,16 @@ function PaymentForm({ choices, payment }: FormProps) {
       return "Enter at least 0.01";
     }
     const checked = splitFor(value, values.paidAt);
-    if (checked.unplaced <= 0) {
+    const fitsEdit =
+      payment != null &&
+      canEditPayment({
+        loan: choices[0],
+        payments: loans.paymentsOf(choices[0].id),
+        id: payment.id,
+        next: { amount: parsed, createdAt: values.paidAt },
+        today,
+      });
+    if (checked.unplaced <= 0 || fitsEdit) {
       return amountOverdraft(value)?.message ?? true;
     }
     const hasExcess = excessOf(checked) > 0;
@@ -145,6 +155,9 @@ function PaymentForm({ choices, payment }: FormProps) {
     }
     const most = formatAmount(checked.total);
     const date = dayjs(values.paidAt);
+    if (checked.total < 0.01 && payment != null) {
+      return `Already paid off by ${date.format("MMM D")}`;
+    }
     return date.isSame(dayjs(), "day")
       ? `More than the ${most} still owed`
       : `The most you can pay on ${date.format("MMM D")} is ${most}`;

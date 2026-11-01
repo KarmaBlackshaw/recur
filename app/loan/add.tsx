@@ -24,6 +24,7 @@ import { countLabel } from "@/utils/countLabel";
 import { formatAmount } from "@/utils/dateHelpers";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
+import { canChangeLoan } from "@/utils/loans/canChangeLoan";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
 import { fromLoanInterest } from "@/utils/loans/fromLoanInterest";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
@@ -217,7 +218,11 @@ export default function AddLoanScreen() {
   const isCandidateValid =
     editing == null ||
     candidate == null ||
-    summarizeLoan({ loan: candidate, payments: loans.paymentsOf(editing.id), today: dayjs().format("YYYY-MM-DD") }).isValid;
+    canChangeLoan({
+      current: { loan: editing, payments: loans.paymentsOf(editing.id) },
+      next: { loan: candidate, payments: loans.paymentsOf(editing.id) },
+      today: dayjs().format("YYYY-MM-DD"),
+    });
 
   const onSubmit = handleSubmit(async (data) => {
     const input = toLoanInput(data);

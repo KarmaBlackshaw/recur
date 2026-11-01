@@ -7,13 +7,36 @@ import { round } from "@/utils/round";
 import { saveAccountLogo } from "@/utils/accountLogo/saveAccountLogo";
 import { deleteAccountLogo } from "@/utils/accountLogo/deleteAccountLogo";
 import type { Account, AccountInput, AccountTransaction, CardBill, CardBillOverride, IncomeInput, InterestEstimate, TransferInput } from "@/types";
-import * as accountsDB from "@/db/accounts";
-import * as transactionsDB from "@/db/accountTransactions";
-import * as cardBillsDB from "@/db/cardBills";
+import {
+  getAll as getAllAccounts,
+  getById as getAccountById,
+  insert as insertAccount,
+  remove as removeAccount,
+  setArchivedAt,
+  update as updateAccountRow,
+} from "@/db/accounts";
+import {
+  creditInterest,
+  emptyTxnFields,
+  getAll as getAllTransactions,
+  insert as insertTransaction,
+  insertMany as insertTransactions,
+  remove as removeTransaction,
+  removeTransfer,
+  replacePayment,
+  replaceTransfer,
+  updateIncome as updateIncomeRow,
+} from "@/db/accountTransactions";
+import {
+  clearAmount as clearCardBillAmount,
+  getAll as getAllCardBills,
+  setAmount as setCardBillAmount,
+} from "@/db/cardBills";
 import { touchCategory } from "@/db/categories";
 import { accrueInterest, PERIODS_PER_YEAR } from "@/utils/interest";
 import { computeBill, unsettledDebitIds } from "@/utils/cardBills";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { TRANSFER_CATEGORY } from "@/constants/categories";
 import { findOverdraft, type TBalanceChange } from "@/utils/accounts/findOverdraft";
 import { OverdraftError } from "@/utils/accounts/OverdraftError";
 
@@ -130,9 +153,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   const reload = useMemoizedFn(async () => {
     const [accounts, transactions, billOverrides] = await Promise.all([
-      accountsDB.getAll(),
-      transactionsDB.getAll(),
-      cardBillsDB.getAll(),
+      getAllAccounts(),
+      getAllTransactions(),
+      getAllCardBills(),
     ]);
     dispatch({ type: "LOAD", payload: { accounts, transactions, billOverrides } });
   });
@@ -143,7 +166,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     }
     isRunningInterest.current = true;
     try {
-      const [accounts, transactions] = await Promise.all([accountsDB.getAll(), transactionsDB.getAll()]);
+      const [accounts, transactions] = await Promise.all([getAllAccounts(), getAllTransactions()]);
       const today = dayjs().format("YYYY-MM-DD");
       let hasCredited = false;
       for (const account of accounts) {
@@ -165,7 +188,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         if (!result) {
           continue;
         }
-        await transactionsDB.creditInterest(account.id, result.gross, result.tax, result.through);
+        await creditInterest(account.id, result.gross, result.tax, result.through);
         hasCredited = true;
       }
       if (hasCredited) {
@@ -186,9 +209,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   useAsyncEffect(async function* () {
     try {
       const [accounts, transactions, billOverrides] = await Promise.all([
-        accountsDB.getAll(),
-        transactionsDB.getAll(),
-        cardBillsDB.getAll(),
+        getAllAccounts(),
+        getAllTransactions(),
+        getAllCardBills(),
       ]);
       yield;
       dispatch({ type: "LOAD", payload: { accounts, transactions, billOverrides } });
@@ -252,12 +275,12 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   const addAccount = useMemoizedFn(async (input: AccountInput, openingBalance: number) => {
     const logoUri = input.logoUri ? await saveAccountLogo(input.logoUri) : null;
-    const account = await accountsDB.insert({ ...input, logoUri });
+    const account = await insertAccount({ ...input, logoUri });
     dispatch({ type: "ADD_ACCOUNT", payload: account });
     const amount = round(openingBalance, 2);
     if (amount !== 0) {
-      const txn = await transactionsDB.insert({
-        ...transactionsDB.emptyTxnFields(),
+      const txn = await insertTransaction({
+        ...emptyTxnFields(),
         accountId: account.id,
         kind: "adjust",
         amount,
@@ -273,17 +296,17 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const previousLogo = state.accounts.find((a) => a.id === id)?.logoUri;
     const logoUri =
       input.logoUri != null && input.logoUri !== previousLogo ? await saveAccountLogo(input.logoUri) : input.logoUri;
-    await accountsDB.update(id, { ...input, logoUri });
+    await updateAccountRow(id, { ...input, logoUri });
     if (previousLogo && previousLogo !== logoUri) {
       await deleteAccountLogo(previousLogo);
     }
-    const accounts = await accountsDB.getAll();
+    const accounts = await getAllAccounts();
     dispatch({ type: "SET_ACCOUNTS", payload: accounts });
   });
 
   const setArchived = useMemoizedFn(async (id: string, archivedAt: string | null) => {
-    await accountsDB.setArchivedAt(id, archivedAt);
-    dispatch({ type: "SET_ACCOUNTS", payload: await accountsDB.getAll() });
+    await setArchivedAt(id, archivedAt);
+    dispatch({ type: "SET_ACCOUNTS", payload: await getAllAccounts() });
   });
 
   // Archiving keeps an account's history and balance (still in net worth) but takes it out of pickers, bills and
@@ -303,7 +326,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   const deleteAccount = useMemoizedFn(async (id: string) => {
     const logoUri = state.accounts.find((a) => a.id === id)?.logoUri;
-    await accountsDB.remove(id);
+    await removeAccount(id);
     if (logoUri) {
       await deleteAccountLogo(logoUri);
     }
@@ -315,8 +338,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (amount === 0) {
       return;
     }
-    const txn = await transactionsDB.insert({
-      ...transactionsDB.emptyTxnFields(),
+    const txn = await insertTransaction({
+      ...emptyTxnFields(),
       accountId: id,
       kind: "adjust",
       amount,
@@ -333,8 +356,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (account?.archivedAt) {
       throw new Error("Income can't be deposited to an archived account");
     }
-    const txn = await transactionsDB.insert({
-      ...transactionsDB.emptyTxnFields(),
+    const txn = await insertTransaction({
+      ...emptyTxnFields(),
       accountId: input.accountId,
       kind: "income",
       amount: round(input.amount, 2),
@@ -359,7 +382,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       throw error;
     }
-    await transactionsDB.updateIncome(id, { ...input, amount });
+    await updateIncomeRow(id, { ...input, amount });
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.id === id });
     dispatch({
       type: "ADD_TRANSACTIONS",
@@ -382,12 +405,12 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       throw error;
     }
-    await transactionsDB.remove(id);
+    await removeTransaction(id);
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.id === id });
   });
 
   const buildTransferRows = (
-    { fromId, toId, amount, fee, income, incomeCategory, incomeAccountId, note, createdAt: when }: TransferInput,
+    { fromId, toId, amount, fee, income, incomeAccountId, note, createdAt: when }: TransferInput,
     transferId: string
   ): Omit<AccountTransaction, "id">[] => {
     const from = state.accounts.find((a) => a.id === fromId);
@@ -415,7 +438,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const createdAt = when ?? new Date().toISOString();
     const rows: Omit<AccountTransaction, "id">[] = [
       {
-        ...transactionsDB.emptyTxnFields(),
+        ...emptyTxnFields(),
         accountId: fromId,
         kind: "transfer",
         amount: -value,
@@ -424,7 +447,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         createdAt,
       },
       {
-        ...transactionsDB.emptyTxnFields(),
+        ...emptyTxnFields(),
         accountId: toId,
         kind: "transfer",
         amount: to.type === "credit" ? -value : value,
@@ -435,7 +458,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     ];
     if (feeValue > 0) {
       rows.push({
-        ...transactionsDB.emptyTxnFields(),
+        ...emptyTxnFields(),
         accountId: fromId,
         kind: "fee",
         amount: -feeValue,
@@ -446,12 +469,12 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     }
     if (incomeValue > 0) {
       rows.push({
-        ...transactionsDB.emptyTxnFields(),
+        ...emptyTxnFields(),
         accountId: incomeAccountId,
         kind: "income",
         amount: incomeValue,
         transferId,
-        category: incomeCategory,
+        category: TRANSFER_CATEGORY,
         note: note ?? `Earned on transfer ${from.name} → ${to.name}`,
         createdAt,
       });
@@ -466,11 +489,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       throw error;
     }
-    const txns = await transactionsDB.insertMany(rows);
+    const txns = await insertTransactions(rows);
     dispatch({ type: "ADD_TRANSACTIONS", payload: txns });
-    if (round(input.income, 2) > 0) {
-      await touchCategory({ name: input.incomeCategory, kind: "income" });
-    }
   });
 
   const updateTransfer = useMemoizedFn(async (transferId: string, input: TransferInput) => {
@@ -479,12 +499,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       throw error;
     }
-    const txns = await transactionsDB.replaceTransfer(transferId, rows);
+    const txns = await replaceTransfer(transferId, rows);
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.transferId === transferId });
     dispatch({ type: "ADD_TRANSACTIONS", payload: txns });
-    if (round(input.income, 2) > 0) {
-      await touchCategory({ name: input.incomeCategory, kind: "income" });
-    }
   });
 
   const deleteTransfer = useMemoizedFn(async (transferId: string) => {
@@ -492,20 +509,20 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       throw error;
     }
-    await transactionsDB.removeTransfer(transferId);
+    await removeTransfer(transferId);
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.transferId === transferId });
   });
 
   const syncPayment = useMemoizedFn(async (p: PaymentSync) => {
     let account = state.accounts.find((a) => a.id === p.accountId);
     if (!account && state.isLoading && p.accountId != null) {
-      account = await accountsDB.getById(p.accountId);
+      account = await getAccountById(p.accountId);
     }
     const existing = state.transactions.find(isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth));
     const txn: Omit<AccountTransaction, "id"> | null =
       account && p.amount != null
         ? {
-            ...transactionsDB.emptyTxnFields(),
+            ...emptyTxnFields(),
             accountId: account.id,
             kind: "payment",
             amount: account.type === "credit" ? round(p.amount, 2) : -round(p.amount, 2),
@@ -520,7 +537,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       throw error;
     }
-    const inserted = await transactionsDB.replacePayment(p.expenseId, p.cycleYear, p.cycleMonth, txn);
+    const inserted = await replacePayment(p.expenseId, p.cycleYear, p.cycleMonth, txn);
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth) });
     if (inserted) {
       dispatch({ type: "ADD_TRANSACTIONS", payload: [inserted] });
@@ -528,17 +545,17 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   });
 
   const removePayment = useMemoizedFn(async (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => {
-    await transactionsDB.replacePayment(expenseId, cycleYear, cycleMonth, null);
+    await replacePayment(expenseId, cycleYear, cycleMonth, null);
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: isPaymentFor(expenseId, cycleYear, cycleMonth) });
   });
 
   const setBillAmount = useMemoizedFn(async (accountId: string, year: number, month: number, amount: number | null) => {
     if (amount == null) {
-      await cardBillsDB.clearAmount(accountId, year, month);
+      await clearCardBillAmount(accountId, year, month);
     } else {
-      await cardBillsDB.setAmount(accountId, year, month, round(amount, 2));
+      await setCardBillAmount(accountId, year, month, round(amount, 2));
     }
-    const billOverrides = await cardBillsDB.getAll();
+    const billOverrides = await getAllCardBills();
     dispatch({ type: "SET_BILL_OVERRIDES", payload: billOverrides });
   });
 

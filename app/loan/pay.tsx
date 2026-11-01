@@ -16,7 +16,6 @@ import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
 import { AppSelectField } from "@/components/ui/AppSelectField";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { TransferInButton } from "@/components/accounts/TransferInButton";
-import { IncomeCategoryField } from "@/components/accounts/IncomeCategoryField";
 import { LoanSplitPreview } from "@/components/loans/LoanSplitPreview";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useLoans } from "@/context/LoanContext";
@@ -34,7 +33,6 @@ interface FormValues {
   amount: string;
   accountId: string;
   paidAt: string;
-  excessCategory: string;
 }
 
 interface FormProps {
@@ -75,13 +73,11 @@ function PaymentForm({ choices, payment }: FormProps) {
           amount: Math.abs(payment.amount).toFixed(2),
           accountId: payment.accountId,
           paidAt: payment.createdAt,
-          excessCategory: OVERPAYMENT_CATEGORY,
         }
       : {
           amount: "",
           accountId: suggestedAccountOf(choices[0]),
           paidAt: dayjs().startOf("day").toISOString(),
-          excessCategory: OVERPAYMENT_CATEGORY,
         },
   });
   const { allowLeave } = useDiscardGuard(isDirty);
@@ -186,7 +182,7 @@ function PaymentForm({ choices, payment }: FormProps) {
         const savedExcess = excessOf(saved);
         await loans.recordPayments(
           payments,
-          savedExcess > 0 ? { amount: savedExcess, category: values.excessCategory } : undefined
+          savedExcess > 0 ? { amount: savedExcess, category: OVERPAYMENT_CATEGORY } : undefined
         );
       }
       allowLeave();
@@ -276,16 +272,9 @@ function PaymentForm({ choices, payment }: FormProps) {
         )}
         {choices.length > 1 && <LoanSplitPreview parts={split.parts} />}
         {excess > 0 && (
-          <>
-            <AppText variant="meta" className="mt-3 mb-1">
-              {`${formatAmount(excess)} more than owed · saved as income`}
-            </AppText>
-            <Controller
-              control={control}
-              name="excessCategory"
-              render={({ field: { value, onChange } }) => <IncomeCategoryField value={value} onChange={onChange} />}
-            />
-          </>
+          <AppText variant="meta" className="mt-3 mb-1">
+            {`${formatAmount(excess)} more than owed · saved as ${OVERPAYMENT_CATEGORY} income`}
+          </AppText>
         )}
 
         <Controller

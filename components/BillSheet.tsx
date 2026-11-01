@@ -3,7 +3,7 @@ import { View } from "react-native";
 import dayjs from "dayjs";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
-import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
+import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef, type SheetFooter } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { formatDaysLate, getDueDateForMonth, isOverdueOn } from "@/utils/dateHelpers";
@@ -11,14 +11,13 @@ import { expenseTitle } from "@/utils/expenseHelpers";
 import { openExpense } from "@/utils/expenses/openExpense";
 import { formatBillAmount } from "@/utils/expenses/formatBillAmount";
 import type { PayTarget } from "@/components/PaySheet";
-import type { Expense } from "@/types";
 
 export interface BillSheetRef {
   present: (target: PayTarget) => void;
 }
 
 interface Props {
-  onPay: (expense: Expense, year: number, month: number) => void;
+  onPay: (target: PayTarget, footer: SheetFooter) => void;
 }
 
 interface Snapshot {
@@ -26,6 +25,15 @@ interface Snapshot {
   amountText: string;
   dueText: string;
   accountName?: string;
+}
+
+function DetailsButton({ target: { expense, year, month }, dismiss }: { target: PayTarget; dismiss: () => void }) {
+  function handlePress() {
+    dismiss();
+    openExpense(expense, year, month);
+  }
+
+  return <AppButton label="Details" variant="tonal" onPress={handlePress} />;
 }
 
 export const BillSheet = forwardRef<BillSheetRef, Props>(function BillSheet({ onPay }, ref) {
@@ -50,13 +58,9 @@ export const BillSheet = forwardRef<BillSheetRef, Props>(function BillSheet({ on
     },
   }));
 
-  function handlePay({ target: { expense, year, month } }: Snapshot) {
-    sheetRef.current?.dismiss(() => onPay(expense, year, month));
-  }
-
-  function handleDetails({ target: { expense, year, month } }: Snapshot) {
-    sheetRef.current?.dismiss();
-    openExpense(expense, year, month);
+  // A TBD bill asks for its amount in the Pay sheet, which keeps a way to the bill's page.
+  function handlePay({ target }: Snapshot) {
+    sheetRef.current?.dismiss(() => onPay(target, (dismiss) => <DetailsButton target={target} dismiss={dismiss} />));
   }
 
   return (
@@ -72,7 +76,7 @@ export const BillSheet = forwardRef<BillSheetRef, Props>(function BillSheet({ on
           {snapshot.accountName ? <AppDetailRow label="Pay from" value={snapshot.accountName} /> : null}
           <View className="mt-4 gap-2">
             <AppButton label="Pay" onPress={() => handlePay(snapshot)} />
-            <AppButton label="Details" variant="tonal" onPress={() => handleDetails(snapshot)} />
+            <DetailsButton target={snapshot.target} dismiss={() => sheetRef.current?.dismiss()} />
           </View>
         </View>
       ) : null}

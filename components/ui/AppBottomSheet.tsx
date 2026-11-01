@@ -21,6 +21,9 @@ export interface AppBottomSheetRef {
   dismiss: (afterDismiss?: () => void) => void;
 }
 
+// Actions the opener adds under a sheet's own buttons, for that opening only.
+export type SheetFooter = (dismiss: () => void) => React.ReactNode;
+
 const DEFAULT_SNAP_POINTS = ["60%", "85%"];
 
 // No fixed snap points: the sheet sizes to its content.

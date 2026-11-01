@@ -2,7 +2,7 @@ import React, { forwardRef, useImperativeHandle, useRef, useState } from "react"
 import { View } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import dayjs from "dayjs";
-import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
+import { AppBottomSheet, type AppBottomSheetRef, type SheetFooter } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDateField } from "@/components/ui/AppDateField";
 import { AppSelectField } from "@/components/ui/AppSelectField";
@@ -30,7 +30,7 @@ export interface PayConfirmation {
 }
 
 export interface PaySheetRef {
-  present: (target: PayTarget) => void;
+  present: (target: PayTarget, footer?: SheetFooter) => void;
 }
 
 interface Props {
@@ -58,6 +58,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const [target, setTarget] = useState<PayTarget | null>(null);
+  const [footer, setFooter] = useState<SheetFooter>();
   const { getDisplayAmount, getMonthAmount, getMonthPaidAt, getMonthStatus } = useExpenses();
   const { accounts, activeAccounts, transactions } = useAccounts();
   const {
@@ -81,7 +82,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   }
 
   useImperativeHandle(ref, () => ({
-    present: (next) => {
+    present: (next, nextFooter) => {
       const { expense, year, month } = next;
       const isPaid = getMonthStatus(expense.id, year, month) === "paid";
       const payment = transactions.find(
@@ -103,6 +104,8 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
           : usableAccount(expense.accountId);
       reset({ amount: amount != null ? amount.toFixed(2) : "", paidAt, accountId });
       setTarget(next);
+      // A function given to a state setter runs as an updater, so wrap it.
+      setFooter(() => nextFooter);
       sheetRef.current?.present();
     },
   }));
@@ -181,12 +184,14 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
             <View className="mt-2">
               <AppSelectField label="Pay from" value={accountName} onPress={() => accountSheetRef.current?.present()} />
             </View>
-            <AppButton
-              label={isPaidAlready ? "Save payment" : "Mark as paid"}
-              onPress={onSubmit}
-              disabled={!isValid}
-              className="mt-4"
-            />
+            <View className="mt-4 gap-2">
+              <AppButton
+                label={isPaidAlready ? "Save payment" : "Mark as paid"}
+                onPress={onSubmit}
+                disabled={!isValid}
+              />
+              {footer?.(() => sheetRef.current?.dismiss())}
+            </View>
           </View>
         ) : null}
       </AppBottomSheet>

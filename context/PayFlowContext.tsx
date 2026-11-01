@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo, useRef } from "react";
 import dayjs from "dayjs";
 import { PaySheet, type PayConfirmation, type PaySheetRef, type PayTarget } from "@/components/PaySheet";
 import { BillSheet, type BillSheetRef } from "@/components/BillSheet";
+import type { SheetFooter } from "@/components/ui/AppBottomSheet";
 import { useExpenses, type UndoMonth } from "@/context/ExpenseContext";
 import { useSnackbar } from "@/context/SnackbarContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
@@ -48,15 +49,18 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function payOrAsk(target: PayTarget, footer?: SheetFooter) {
+    const { expense, year, month } = target;
+    if (getDisplayAmount(expense, year, month) == null) {
+      paySheetRef.current?.present(target, footer);
+      return;
+    }
+    await run(expense, year, month, "paid", () => payMonth(expense.id, year, month));
+  }
+
   const value = useMemo<PayFlowValue>(
     () => ({
-      pay: async (expense, year, month) => {
-        if (getDisplayAmount(expense, year, month) == null) {
-          paySheetRef.current?.present({ expense, year, month });
-          return;
-        }
-        await run(expense, year, month, "paid", () => payMonth(expense.id, year, month));
-      },
+      pay: (expense, year, month) => payOrAsk({ expense, year, month }),
       unpay: (expense, year, month) => run(expense, year, month, "unpaid", () => unpayMonth(expense.id, year, month)),
       openPaySheet: (expense, year, month) => paySheetRef.current?.present({ expense, year, month }),
       openBillSheet: (expense, year, month) => billSheetRef.current?.present({ expense, year, month }),
@@ -72,7 +76,7 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     <PayFlowContext.Provider value={value}>
       {children}
       <PaySheet ref={paySheetRef} onConfirm={confirm} />
-      <BillSheet ref={billSheetRef} onPay={value.pay} />
+      <BillSheet ref={billSheetRef} onPay={payOrAsk} />
     </PayFlowContext.Provider>
   );
 }

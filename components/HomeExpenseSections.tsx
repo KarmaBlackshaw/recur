@@ -10,6 +10,7 @@ import { LoanSheet, type LoanSheetRef } from "@/components/loans/LoanSheet";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { BandHeader } from "@/components/BandHeader";
+import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
@@ -143,6 +144,19 @@ export function HomeExpenseSections({
     return out;
   }, [overdue, upcoming, recentActivity, collapsedSlots]);
 
+  function openCardBill(bill: CardBill) {
+    billSheetRef.current?.present(bill, (dismiss) => (
+      <AppButton
+        label="Details"
+        variant="tonal"
+        onPress={() => {
+          dismiss();
+          router.push({ pathname: "/account/[id]", params: { id: bill.account.id } });
+        }}
+      />
+    ));
+  }
+
   return (
     <>
       <SectionList<HomeEntry | ActivityEntry, HomeSection>
@@ -153,7 +167,7 @@ export function HomeExpenseSections({
         refreshControl={refreshControl}
         renderItem={({ item, index }) =>
           "bill" in item ? (
-            <CardBillRow bill={item.bill} onPress={() => billSheetRef.current?.present(item.bill)} />
+            <CardBillRow bill={item.bill} onPress={() => openCardBill(item.bill)} />
           ) : (
             <ActivityEntryRow
               item={item}

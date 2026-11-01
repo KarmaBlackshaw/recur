@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import dayjs from "dayjs";
 import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
-import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
+import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef, type SheetFooter } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AppTextInput } from "@/components/ui/AppTextInput";
@@ -14,7 +14,7 @@ import { formatAmount } from "@/utils/formatAmount";
 import type { CardBill } from "@/types";
 
 export interface CardBillSheetRef {
-  present: (bill: CardBill) => void;
+  present: (bill: CardBill, footer?: SheetFooter) => void;
 }
 
 interface BillFormValues {
@@ -25,6 +25,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const accounts = useAccounts();
   const [selected, setSelected] = useState<CardBill>();
+  const [footer, setFooter] = useState<SheetFooter>();
   const {
     control,
     handleSubmit,
@@ -43,8 +44,10 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
   const isPayable = bill != null && !bill.isPaid && !isBillTbd(bill);
 
   useImperativeHandle(ref, () => ({
-    present: (next) => {
+    present: (next, nextFooter) => {
       setSelected(next);
+      // A function given to a state setter runs as an updater, so wrap it.
+      setFooter(() => nextFooter);
       reset({ amount: amountField(statementOf(next)) });
       sheetRef.current?.present();
     },
@@ -133,6 +136,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
                 {!bill.isPaid && <AppButton label="Pay bill" variant="tonal" onPress={payBill} />}
               </>
             )}
+            {footer?.(() => sheetRef.current?.dismiss())}
             {!bill.isEstimate && <AppButton label="Use estimate" variant="ghost" onPress={() => saveAmount(null)} />}
           </View>
         </View>

@@ -182,7 +182,8 @@ a Hairline border, above the tab bar, gone after 5s. Never for errors (those are
 
 ### Pay sheet
 Opened when a bill's amount isn't known or from a bill's Mark paid: Amount (prefilled), Paid on (an `AppDateField`,
-today by default, no future dates) and Pay from.
+today by default, no future dates) and Pay from. Opened from the Bill sheet's Pay on a TBD bill, it keeps that sheet's
+Details (tonal) under Mark as paid.
 
 ### Bill sheet
 Opened by tapping an unpaid bill in Home's due lists or in the Recurring tab's Overdue and Unpaid bands, for that
@@ -203,7 +204,7 @@ A sheet whose content can outgrow the space above the keyboard passes `scrollabl
 
 Detail sheets (tap a Transfer, Card bill, Loan or unpaid bill row to read it and act on it) share one layout:
 label/value rows under the title, then full-width actions stacked under them, one primary at most and the destructive
-one last.
+one last. A card bill opened from Home adds Details (tonal), which opens the card's account page.
 
 ### Stats (`app/stats.tsx`)
 A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite

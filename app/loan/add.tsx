@@ -384,8 +384,8 @@ export default function AddLoanScreen() {
           name="isLentBeforeRecur"
           render={({ field: { value, onChange } }) => (
             <AppCheckRow
-              label="Lent before using Recur"
-              description="No money comes out of an account"
+              label="Existing loan"
+              description="No account is debited"
               checked={value}
               onToggle={(checked) => {
                 onChange(checked);

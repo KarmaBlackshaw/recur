@@ -5,7 +5,7 @@ import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { SwipeableRow } from "@/components/ui/SwipeableRow";
 import { formatAmount } from "@/utils/dateHelpers";
 import { DELETED_ACCOUNT } from "@/constants/accounts";
-import { LENT_BEFORE_RECUR } from "@/constants/loans";
+import { EXISTING_LOAN } from "@/constants/loans";
 import type { AccountTransaction, FeatherIconName } from "@/types";
 
 interface TLoanHistoryBase {
@@ -30,7 +30,7 @@ function labelOf(item: TLoanHistoryItem) {
   const account = item.accountName ?? DELETED_ACCOUNT;
   switch (item.kind) {
     case "lent":
-      return item.isLentBeforeRecur ? LENT_BEFORE_RECUR : `Lent from ${account}`;
+      return item.isLentBeforeRecur ? EXISTING_LOAN : `Lent from ${account}`;
     case "interest":
       return "Interest";
     case "payment":

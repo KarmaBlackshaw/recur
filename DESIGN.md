@@ -139,11 +139,11 @@ at least 52dp tall like the fields around it, 14dp side padding, 12dp above it a
 Graphite border; ticked, Indigo fill with an Ink check) sits 12dp left of the copy, and the whole row toggles it.
 Label in Quicksand Medium 14px Ink, an optional one-line description under it in meta.
 
-Copy: the label names the option in sentence case, no question mark ("Variable amount", "Set an end month", "Lent
-before using Recur"); the description says what ticking it does, with no closing period ("Stops recurring after this
-month", "No money comes out of an account"). Fields the option adds or removes sit right under the row and appear or
-disappear with it, never greyed out in place; a note about the change it makes (the loan form's "₱300.00 goes back to
-GCash") goes directly below it in meta.
+Copy: the label names the option in sentence case, no question mark ("Variable amount", "Set an end month", "Existing
+loan"); the description says what ticking it does, with no closing period ("Stops recurring after this month", "No
+account is debited"). Fields the option adds or removes sit right under the row and appear or disappear with it, never
+greyed out in place; a note about the change it makes (the loan form's "₱300.00 goes back to GCash") goes directly
+below it in meta.
 
 ### Form header (`AppFormHeader`)
 Back chevron, centered title in sentence case ("Add expense", "Edit transfer"), and on long forms a periwinkle

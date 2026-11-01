@@ -1,1 +1,1 @@
-export const LENT_BEFORE_RECUR = "Lent before Recur";
+export const EXISTING_LOAN = "Existing loan";

@@ -65,7 +65,6 @@ function PayCardForm({ card, amount }: { card: Account; amount?: string }) {
         amount: parseFloat(data.amount),
         fee: data.fee === "" ? 0 : parseFloat(data.fee),
         income: 0,
-        incomeCategory: "Other",
         incomeAccountId: card.id,
         note: data.note.trim() || null,
       });

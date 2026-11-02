@@ -1,6 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import dayjs from "dayjs";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { TRANSFER_CATEGORY } from "@/constants/categories";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import { inferStartMonth } from "@/utils/dateHelpers";
 import type { Expense, Status } from "@/types";
@@ -189,7 +190,7 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   }
 
   // Migration: add start_year / start_month to expenses (first month with a cycle; yearly anniversary month).
-  // Existing rows are filled in by backfillExpenseHistory once every table exists.
+  // Existing rows are filled in by backfillHistory once every table exists.
   const expenseStartCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(expenses)");
   if (!expenseStartCols.some((c) => c.name === "start_year")) {
     await db.execAsync("ALTER TABLE expenses ADD COLUMN start_year INTEGER");
@@ -258,7 +259,8 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       ('preset-income-salary','Salary',0,'income'),('preset-income-freelance','Freelance',1,'income'),
       ('preset-income-business','Business',2,'income'),('preset-income-gift','Gift',3,'income'),
       ('preset-income-refund','Refund',4,'income'),('preset-income-interest','Interest',5,'income'),
-      ('preset-income-other','Other',6,'income'),('preset-income-overpayment','Overpayment',7,'income');
+      ('preset-income-other','Other',6,'income'),('preset-income-overpayment','Overpayment',7,'income'),
+      ('preset-income-transfer','Transfer',8,'income');
   `);
 
   const accountsMigrated = await db.getFirstAsync<{ value: string }>(
@@ -414,14 +416,14 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   );
   await db.runAsync("DELETE FROM account_transactions WHERE account_id NOT IN (SELECT id FROM accounts)");
   await db.runAsync("DELETE FROM card_bills WHERE account_id NOT IN (SELECT id FROM accounts)");
-  await backfillExpenseHistory(db);
+  await backfillHistory(db);
 
   return db;
 }
 
-// Brings expense rows saved by older versions (or restored from an older backup) up to the current model.
+// Brings rows saved by older versions (or restored from an older backup) up to the current model.
 // Idempotent: each step only touches rows that still need it.
-export async function backfillExpenseHistory(database: SQLite.SQLiteDatabase): Promise<void> {
+export async function backfillHistory(database: SQLite.SQLiteDatabase): Promise<void> {
   // Weekly plans were only ever scheduled monthly (every cycle is a month), so they already behaved as monthly.
   await database.runAsync("UPDATE expenses SET recurrence = 'monthly' WHERE recurrence = 'weekly'");
 
@@ -456,5 +458,10 @@ export async function backfillExpenseHistory(database: SQLite.SQLiteDatabase): P
        SELECT e.amount FROM expenses e WHERE e.id = expense_months.expense_id AND e.is_variable = 0
      )
      WHERE status = 'paid' AND amount IS NULL`
+  );
+
+  await database.runAsync(
+    "UPDATE account_transactions SET category = ? WHERE kind = 'income' AND transfer_id IS NOT NULL AND category IS NOT ?",
+    [TRANSFER_CATEGORY, TRANSFER_CATEGORY]
   );
 }

@@ -8,7 +8,6 @@ import dayjs from "dayjs";
 import { maxBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
-import { CategoryBottomSheet, type CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDateField } from "@/components/ui/AppDateField";
 import { AppDisclosureCard } from "@/components/ui/AppDisclosureCard";
@@ -18,6 +17,7 @@ import { AppSelectField } from "@/components/ui/AppSelectField";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { TRANSFER_CATEGORY } from "@/constants/categories";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/formatAmount";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
@@ -30,7 +30,6 @@ interface TransferFormValues {
   amount: string;
   fee: string;
   income: string;
-  incomeCategory: string;
   incomeAccountId: string; // "" = same as To
   note: string;
   date: string; // ISO
@@ -77,11 +76,11 @@ function parseOptionalAmount(value: string) {
   return value === "" ? 0 : parseFloat(value);
 }
 
-function formatIncomeSummary(income: number, category: string) {
+function formatIncomeSummary(income: number) {
   if (isNaN(income)) {
     return "Invalid amount";
   }
-  return income > 0 ? `${formatAmount(income)} · ${category}` : "None";
+  return income > 0 ? `${formatAmount(income)} · ${TRANSFER_CATEGORY}` : "None";
 }
 
 function formatIncomeHint(toName: string, amount: string, income: number) {
@@ -126,26 +125,6 @@ function AccountField({ label, options, value, onChange }: AccountFieldProps) {
   );
 }
 
-interface IncomeCategoryFieldProps {
-  value: string;
-  onChange: (category: string) => void;
-}
-
-function IncomeCategoryField({ value, onChange }: IncomeCategoryFieldProps) {
-  const sheetRef = useRef<CategoryBottomSheetRef>(null);
-  return (
-    <>
-      <AppSelectField
-        label="Category"
-        value={value}
-        onPress={() => sheetRef.current?.present()}
-        accessibilityLabel={`Income category, ${value}`}
-      />
-      <CategoryBottomSheet ref={sheetRef} kind="income" value={value} onChange={onChange} />
-    </>
-  );
-}
-
 export default function TransferScreen() {
   const { id, accountId, toAccountId, amount } = useLocalSearchParams<{
     id?: string;
@@ -161,10 +140,6 @@ export default function TransferScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   function toFormValues(): TransferFormValues {
-    const lastTransferIncome = maxBy(
-      accounts.transactions.filter((t) => t.kind === "income" && t.transferId != null),
-      "createdAt"
-    );
     if (parts) {
       const { from, to, main, fee, income } = parts;
       const toId = to?.accountId ?? "";
@@ -176,7 +151,6 @@ export default function TransferScreen() {
         amount: Math.abs(main.amount).toString(),
         fee: fee ? Math.abs(fee.amount).toString() : "",
         income: income ? income.amount.toString() : "",
-        incomeCategory: income?.category ?? lastTransferIncome?.category ?? "Other",
         incomeAccountId: income && income.accountId !== toId ? income.accountId : "",
         note: note === `Transfer to ${toName}` ? "" : note,
         date: main.createdAt,
@@ -199,7 +173,6 @@ export default function TransferScreen() {
       amount: amount ?? "",
       fee: "",
       income: "",
-      incomeCategory: lastTransferIncome?.category ?? "Other",
       incomeAccountId: "",
       note: "",
       date: new Date().toISOString(),
@@ -274,7 +247,6 @@ export default function TransferScreen() {
       amount: parseFloat(data.amount),
       fee: parseOptionalAmount(data.fee),
       income: parseOptionalAmount(data.income),
-      incomeCategory: data.incomeCategory,
       incomeAccountId: data.incomeAccountId || data.toId,
       note: data.note.trim() || null,
       createdAt: toCreatedAt(data.date, parts?.main.createdAt),
@@ -453,7 +425,7 @@ export default function TransferScreen() {
           <AppDisclosureCard
             title="Income"
             description="Earned on this transfer, like a cash-out fee"
-            summary={formatIncomeSummary(incomeValue, watch("incomeCategory"))}
+            summary={formatIncomeSummary(incomeValue)}
             summaryClassName={incomeSummaryClassName}
             isOpen={isIncomeOpen}
             onToggle={setIsIncomeOpen}
@@ -476,19 +448,17 @@ export default function TransferScreen() {
             />
             <Controller
               control={control}
-              name="incomeCategory"
-              render={({ field: { value, onChange } }) => <IncomeCategoryField value={value} onChange={onChange} />}
-            />
-            <Controller
-              control={control}
               name="incomeAccountId"
               rules={{ deps: "amount" }}
               render={({ field: { value, onChange } }) => (
                 <AccountField label="Deposit to" options={sources} value={value || toId} onChange={onChange} />
               )}
             />
+            <AppText variant="meta" className="mt-3">
+              {`Saved as ${TRANSFER_CATEGORY} income`}
+            </AppText>
             {incomeHint && (
-              <AppText variant="meta" className="mt-3">
+              <AppText variant="meta" className="mt-1">
                 {incomeHint}
               </AppText>
             )}

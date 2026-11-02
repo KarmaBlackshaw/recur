@@ -10,7 +10,7 @@ export interface Category {
 }
 
 // Categories are ordered by recency: most-recently-used first, never-used last
-// (sort_order is the stable tiebreak for the never-used group → keeps preset order). The locked category always goes last.
+// (sort_order is the stable tiebreak for the never-used group → keeps preset order). The locked categories always go last.
 const RECENCY_ORDER = "ORDER BY last_used_at IS NULL ASC, last_used_at DESC, sort_order ASC";
 
 export async function getAll(kind: CategoryKind = "expense"): Promise<string[]> {

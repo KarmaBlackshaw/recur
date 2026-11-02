@@ -122,7 +122,6 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
         amount: parseFloat(amount),
         fee: fee === "" ? 0 : parseFloat(fee),
         income: 0,
-        incomeCategory: "Other",
         incomeAccountId: cardId,
         note: note.trim() || null,
         createdAt: paidAt,

@@ -182,10 +182,6 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
                 />
               )}
             />
-            <View className="mt-2 border-t border-border pt-2">
-              <AppDetailRow label="Paid" value={formatAmount(bill.paid)} />
-              <AppDetailRow label="Remaining" value={formatAmount(bill.remaining)} />
-            </View>
             {isPayable && (
               <View className="mt-2 border-t border-border pt-3">
                 <Controller

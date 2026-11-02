@@ -182,17 +182,23 @@ Feedback for reversible actions: one line plus an optional action ("Gym marked p
 a Hairline border, above the tab bar, gone after 5s. Never for errors (those are Alerts).
 
 ### Pay sheet
-Opened when a bill's amount isn't known or from a bill's Mark paid: Amount (prefilled), Paid on (an `AppDateField`,
-today by default, no future dates) and Pay from. Opened from the Bill sheet's Pay on a TBD bill, it keeps that sheet's
-Details (tonal) under Mark as paid.
+Opened when a bill's amount isn't known, from a bill's Mark paid, or by tapping an unpaid bill in Home's due lists or
+in the Recurring tab's Overdue and Unpaid bands (for that month's bill). Its meta line reads the cycle and due date
+("October bill · due Oct 1", plus " · 31 days late" when overdue), then three inputs: Amount (prefilled, blank when
+TBD), Paid on (an `AppDateField`, today by default, no future dates) and Pay from (an `AppSelectField` that opens the
+account picker; the bill's account, or Cash when it has none or it's archived; editing a payment keeps that payment's
+account). Mark as paid closes the sheet and pays once it's gone. Opened from a bill row, it adds Details (tonal) under
+Mark as paid, which opens the bill's page for that month. Every other row skips the sheet: it opens the bill page, or a
+one-off's editor, directly.
 
-### Bill sheet
-Opened by tapping an unpaid bill in Home's due lists or in the Recurring tab's Overdue and Unpaid bands, for that
-month's bill. A detail sheet titled with the bill: Amount ("TBD" when unknown), Due ("Oct 1", or "Oct 1 · 31 days
-late"), Pay from (only when the bill has an account), then Pay (primary) and Details (tonal). Pay closes the sheet and
-pays like the swipe (Undo in the snackbar); a TBD bill opens the Pay sheet once this sheet has closed. Details opens
-the bill's page for that month. Every other row skips the sheet: it opens the bill page, or a one-off's editor,
-directly.
+### Card bill sheet
+Cut-off and Estimate rows, the Statement amount input (Save amount, Use estimate), then Paid and Remaining. While the
+bill is unpaid it pays in place with the Pay sheet's inputs: Payment (prefilled with what's left; it follows the
+statement amount until typed over), Paid on (after the cut-off, since an earlier payment counts in the statement), Pay
+from (non-credit accounts only), Payment fee and Note (both optional). A TBD bill owes ₱0, so it shows them once a
+statement amount is saved. Pay bill closes the sheet and records the card payment once it's gone. It's the one card
+payment form: the card's page opens it from both its "Payment due" row and its Pay bill button; with nothing owed,
+Pay bill opens the Transfer screen to the card instead, to pay it ahead.
 
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes
@@ -203,7 +209,7 @@ Every sheet is an `AppBottomSheet`, which draws the title, Close and backdrop; c
 and writes once it's gone. A save that keeps the sheet open, like a card bill's statement amount, updates it in place.
 A sheet whose content can outgrow the space above the keyboard passes `scrollable`.
 
-Detail sheets (tap a Transfer, Card bill, Loan or unpaid bill row to read it and act on it) share one layout:
+Detail sheets (tap a Transfer, Card bill or Loan row to read it and act on it) share one layout:
 label/value rows under the title, then full-width actions stacked under them, one primary at most and the destructive
 one last. A card bill opened from Home adds Details (tonal), which opens the card's account page.
 

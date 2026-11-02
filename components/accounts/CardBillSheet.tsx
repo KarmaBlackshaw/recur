@@ -186,6 +186,25 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
               <View className="mt-2 border-t border-border pt-3">
                 <Controller
                   control={payForm.control}
+                  name="paidAt"
+                  render={({ field: { value, onChange } }) => (
+                    <AppDateField
+                      label="Paid on"
+                      value={value}
+                      onChange={(iso) => onChange(paidAtFor(iso))}
+                      minimumDate={firstPayDay}
+                      maximumDate={new Date()}
+                    />
+                  )}
+                />
+                <AppSelectField
+                  label="Pay from"
+                  value={sourceName}
+                  placeholder="Choose account"
+                  onPress={() => sourceSheetRef.current?.present()}
+                />
+                <Controller
+                  control={payForm.control}
                   name="amount"
                   rules={{
                     validate: (v) => {
@@ -205,27 +224,6 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
                     />
                   )}
                 />
-                <Controller
-                  control={payForm.control}
-                  name="paidAt"
-                  render={({ field: { value, onChange } }) => (
-                    <AppDateField
-                      label="Paid on"
-                      value={value}
-                      onChange={(iso) => onChange(paidAtFor(iso))}
-                      minimumDate={firstPayDay}
-                      maximumDate={new Date()}
-                    />
-                  )}
-                />
-                <View className="mt-2">
-                  <AppSelectField
-                    label="Pay from"
-                    value={sourceName}
-                    placeholder="Choose account"
-                    onPress={() => sourceSheetRef.current?.present()}
-                  />
-                </View>
                 <Controller
                   control={payForm.control}
                   name="fee"

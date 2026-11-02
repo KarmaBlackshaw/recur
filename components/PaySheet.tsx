@@ -145,6 +145,19 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
             </AppText>
             <Controller
               control={control}
+              name="paidAt"
+              render={({ field: { value, onChange } }) => (
+                <AppDateField
+                  label="Paid on"
+                  value={value}
+                  onChange={(iso) => onChange(paidAtFor(iso))}
+                  maximumDate={new Date()}
+                />
+              )}
+            />
+            <AppSelectField label="Pay from" value={accountName} onPress={() => accountSheetRef.current?.present()} />
+            <Controller
+              control={control}
               name="amount"
               rules={{
                 validate: (v) => {
@@ -164,21 +177,6 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
                 />
               )}
             />
-            <Controller
-              control={control}
-              name="paidAt"
-              render={({ field: { value, onChange } }) => (
-                <AppDateField
-                  label="Paid on"
-                  value={value}
-                  onChange={(iso) => onChange(paidAtFor(iso))}
-                  maximumDate={new Date()}
-                />
-              )}
-            />
-            <View className="mt-2">
-              <AppSelectField label="Pay from" value={accountName} onPress={() => accountSheetRef.current?.present()} />
-            </View>
             <View className="mt-4 gap-2">
               <AppButton
                 label={isPaidAlready ? "Save payment" : "Mark as paid"}

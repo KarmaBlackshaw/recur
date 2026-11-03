@@ -15,6 +15,7 @@ import { colors } from "@/constants/theme";
 import { getAll, getAllWithIds, insertCategory } from "@/db/categories";
 import type { CategoryKind } from "@/types";
 import { maxBy } from "@/utils/collections";
+import { useBoolean } from "@/utils/useBoolean";
 
 export interface CategoryBottomSheetRef {
   present: () => void;
@@ -137,6 +138,7 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
     const newestIdBeforeManage = useRef<number>(undefined);
     const [categories, setCategories] = React.useState<string[]>([]);
     const [search, setSearch] = React.useState("");
+    const [isSearchOpen, searchOpen] = useBoolean(false);
     const trimmedSearch = search.trim();
     const lowerSearch = trimmedSearch.toLowerCase();
     const options = categories
@@ -148,9 +150,18 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
         const cats = await getAll(kind);
         setCategories(cats);
         setSearch("");
+        searchOpen.setFalse();
         sheetRef.current?.present();
       },
     }));
+
+    function toggleSearch() {
+      if (isSearchOpen) {
+        setSearch("");
+        Keyboard.dismiss();
+      }
+      searchOpen.toggle();
+    }
 
     function handleChange(category: string) {
       onChange(category);
@@ -189,14 +200,26 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
     );
 
     const action = (
-      <TouchableOpacity
-        className="w-11 h-11 items-center justify-center"
-        onPress={openManage}
-        accessibilityRole="button"
-        accessibilityLabel="Manage categories"
-      >
-        <Feather name="edit-2" size={18} color={colors.textMuted} />
-      </TouchableOpacity>
+      <>
+        {/* Stays a magnifier while open (tinted): an "x" here would sit beside the sheet's close X. */}
+        <TouchableOpacity
+          className="w-11 h-11 items-center justify-center"
+          onPress={toggleSearch}
+          accessibilityRole="button"
+          accessibilityLabel={isSearchOpen ? "Close search" : "Search categories"}
+          accessibilityState={{ expanded: isSearchOpen }}
+        >
+          <Feather name="search" size={18} color={isSearchOpen ? colors.secondary : colors.textMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          className="w-11 h-11 items-center justify-center"
+          onPress={openManage}
+          accessibilityRole="button"
+          accessibilityLabel="Manage categories"
+        >
+          <Feather name="edit-2" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+      </>
     );
 
     return (
@@ -211,15 +234,18 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
           // The keyboard lifts the sheet; without the inset its header slides under the status bar.
           topInset={top}
         >
-          <View className="px-4">
-            <AppTextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search categories"
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-          </View>
+          {isSearchOpen && (
+            <View className="px-4">
+              <AppTextInput
+                autoFocus
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search categories"
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+            </View>
+          )}
           <BottomSheetScrollView contentContainerClassName="px-4 pb-[200px]" keyboardShouldPersistTaps="handled">
             {trimmedSearch !== "" && options.length === 0 ? (
               <AppText variant="meta" className="mt-3 mb-3">

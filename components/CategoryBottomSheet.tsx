@@ -5,7 +5,6 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
 import { router, useFocusEffect } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
@@ -133,7 +132,6 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
   function CategoryBottomSheet({ value, onChange, onDismiss, kind = "expense" }, ref) {
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const newCategorySheetRef = useRef<AppBottomSheetRef>(null);
-    const { top } = useSafeAreaInsets();
     // A new row gets max rowid + 1 and a rename keeps its rowid, so only a category created in Manage lands above this.
     const newestIdBeforeManage = useRef<number>(undefined);
     const [categories, setCategories] = React.useState<string[]>([]);
@@ -231,8 +229,6 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
           onDismiss={onDismiss}
           keyboardBehavior="interactive"
           keyboardBlurBehavior="restore"
-          // The keyboard lifts the sheet; without the inset its header slides under the status bar.
-          topInset={top}
         >
           {isSearchOpen && (
             <View className="px-4">

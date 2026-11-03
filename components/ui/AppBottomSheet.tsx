@@ -37,12 +37,12 @@ type Props = Omit<BottomSheetModalProps, "children"> & {
 };
 
 export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppBottomSheet(
-  { title, action, scrollable, children, snapPoints = DEFAULT_SNAP_POINTS, onDismiss, ...sheetProps },
+  { title, action, scrollable, children, snapPoints = DEFAULT_SNAP_POINTS, onDismiss, topInset, ...sheetProps },
   ref
 ) {
   const sheetRef = useRef<BottomSheetModal>(null);
   const afterDismissRef = useRef<(() => void) | null>(null);
-  const { bottom } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
 
   const runAfterDismiss = useCallback(() => {
     const afterDismiss = afterDismissRef.current;
@@ -122,6 +122,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
       handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
       backdropComponent={renderBackdrop}
       onDismiss={handleDismiss}
+      topInset={topInset ?? top}
       {...sheetProps}
     >
       {scrollable ? (

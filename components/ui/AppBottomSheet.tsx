@@ -37,12 +37,12 @@ type Props = Omit<BottomSheetModalProps, "children"> & {
 };
 
 export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppBottomSheet(
-  { title, action, scrollable, children, snapPoints = DEFAULT_SNAP_POINTS, onDismiss, ...sheetProps },
+  { title, action, scrollable, children, snapPoints = DEFAULT_SNAP_POINTS, onDismiss, topInset, ...sheetProps },
   ref
 ) {
   const sheetRef = useRef<BottomSheetModal>(null);
   const afterDismissRef = useRef<(() => void) | null>(null);
-  const { bottom } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
 
   const runAfterDismiss = useCallback(() => {
     const afterDismiss = afterDismissRef.current;
@@ -55,6 +55,13 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
     runAfterDismiss();
   }, [onDismiss, runAfterDismiss]);
 
+  // gorhom only hides the keyboard on a drag. Closed any other way with it up, Android hands focus to an input behind
+  // the sheet and the keyboard stays.
+  const dismissSheet = useCallback(() => {
+    Keyboard.dismiss();
+    sheetRef.current?.dismiss();
+  }, []);
+
   React.useImperativeHandle(ref, () => ({
     present: () => {
       runAfterDismiss();
@@ -65,7 +72,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
       if (afterDismiss) {
         afterDismissRef.current = afterDismiss;
       }
-      sheetRef.current?.dismiss();
+      dismissSheet();
     },
   }));
 
@@ -76,6 +83,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
         disappearsOnIndex={-1}
         appearsOnIndex={0}
         opacity={0.6}
+        onPress={Keyboard.dismiss}
       />
     ),
     []
@@ -90,7 +98,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
         {action}
         <TouchableOpacity
           className="w-11 h-11 items-center justify-center"
-          onPress={() => sheetRef.current?.dismiss()}
+          onPress={dismissSheet}
           accessibilityRole="button"
           accessibilityLabel="Close"
         >
@@ -114,6 +122,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
       handleIndicatorStyle={{ backgroundColor: "rgba(255,255,255,0.2)", width: 40 }}
       backdropComponent={renderBackdrop}
       onDismiss={handleDismiss}
+      topInset={topInset ?? top}
       {...sheetProps}
     >
       {scrollable ? (

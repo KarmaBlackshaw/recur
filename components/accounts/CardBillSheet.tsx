@@ -2,7 +2,6 @@ import React, { forwardRef, useImperativeHandle, useRef, useState } from "react"
 import { Alert, View } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import dayjs from "dayjs";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
@@ -39,7 +38,6 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
   const sheetRef = useRef<AppBottomSheetRef>(null);
   const sourceSheetRef = useRef<AccountPickerSheetRef>(null);
   const accounts = useAccounts();
-  const { top } = useSafeAreaInsets();
   const sources = accounts.activeAccounts.filter((a) => a.type !== "credit");
   const [selected, setSelected] = useState<CardBill>();
   const [footer, setFooter] = useState<SheetFooter>();
@@ -147,7 +145,6 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
         ref={sheetRef}
         title={bill ? `${bill.account.name} · ${dayjs(bill.dueDate).format("MMM D")} bill` : "Card bill"}
         snapPoints={CONTENT_HEIGHT_SNAP}
-        topInset={top}
         scrollable
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"

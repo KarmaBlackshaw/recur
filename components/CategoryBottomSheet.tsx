@@ -5,6 +5,7 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
 import { router, useFocusEffect } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
@@ -131,15 +132,22 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
   function CategoryBottomSheet({ value, onChange, onDismiss, kind = "expense" }, ref) {
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const newCategorySheetRef = useRef<AppBottomSheetRef>(null);
+    const { top } = useSafeAreaInsets();
     // A new row gets max rowid + 1 and a rename keeps its rowid, so only a category created in Manage lands above this.
     const newestIdBeforeManage = useRef<number>(undefined);
     const [categories, setCategories] = React.useState<string[]>([]);
-    const options = categories.map((category) => ({ label: category, value: category }));
+    const [search, setSearch] = React.useState("");
+    const trimmedSearch = search.trim();
+    const lowerSearch = trimmedSearch.toLowerCase();
+    const options = categories
+      .filter((category) => category.toLowerCase().includes(lowerSearch))
+      .map((category) => ({ label: category, value: category }));
 
     React.useImperativeHandle(ref, () => ({
       present: async () => {
         const cats = await getAll(kind);
         setCategories(cats);
+        setSearch("");
         sheetRef.current?.present();
       },
     }));
@@ -193,9 +201,33 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
 
     return (
       <>
-        <AppBottomSheet ref={sheetRef} title="Category" action={action} onDismiss={onDismiss}>
-          <BottomSheetScrollView contentContainerClassName="px-4 pb-[200px]">
-            <AppRadioGroup options={options} value={value} onChange={handleChange} />
+        <AppBottomSheet
+          ref={sheetRef}
+          title="Category"
+          action={action}
+          onDismiss={onDismiss}
+          keyboardBehavior="interactive"
+          keyboardBlurBehavior="restore"
+          // The keyboard lifts the sheet; without the inset its header slides under the status bar.
+          topInset={top}
+        >
+          <View className="px-4">
+            <AppTextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search categories"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+          </View>
+          <BottomSheetScrollView contentContainerClassName="px-4 pb-[200px]" keyboardShouldPersistTaps="handled">
+            {trimmedSearch !== "" && options.length === 0 ? (
+              <AppText variant="meta" className="mt-3 mb-3">
+                No categories match "{trimmedSearch}"
+              </AppText>
+            ) : (
+              <AppRadioGroup options={options} value={value} onChange={handleChange} />
+            )}
             <TouchableOpacity
               className="flex-row items-center self-start gap-2 min-h-[44px] px-6 mt-1 rounded-2xl border border-secondary/40"
               onPress={() => newCategorySheetRef.current?.present()}

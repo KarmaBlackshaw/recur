@@ -55,6 +55,13 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
     runAfterDismiss();
   }, [onDismiss, runAfterDismiss]);
 
+  // gorhom only hides the keyboard on a drag. Closed any other way with it up, Android hands focus to an input behind
+  // the sheet and the keyboard stays.
+  const dismissSheet = useCallback(() => {
+    Keyboard.dismiss();
+    sheetRef.current?.dismiss();
+  }, []);
+
   React.useImperativeHandle(ref, () => ({
     present: () => {
       runAfterDismiss();
@@ -65,7 +72,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
       if (afterDismiss) {
         afterDismissRef.current = afterDismiss;
       }
-      sheetRef.current?.dismiss();
+      dismissSheet();
     },
   }));
 
@@ -76,6 +83,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
         disappearsOnIndex={-1}
         appearsOnIndex={0}
         opacity={0.6}
+        onPress={Keyboard.dismiss}
       />
     ),
     []
@@ -90,7 +98,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
         {action}
         <TouchableOpacity
           className="w-11 h-11 items-center justify-center"
-          onPress={() => sheetRef.current?.dismiss()}
+          onPress={dismissSheet}
           accessibilityRole="button"
           accessibilityLabel="Close"
         >

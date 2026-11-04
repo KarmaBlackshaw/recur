@@ -40,12 +40,7 @@ export function ActivityFilters({ search, onSearchChange, category, onPickCatego
         onPress={onPickCategory}
       />
       {isFiltered && (
-        <TouchableOpacity
-          onPress={onClear}
-          activeOpacity={0.7}
-          className="self-end min-h-[44px] justify-center pl-3"
-          accessibilityRole="button"
-        >
+        <TouchableOpacity onPress={onClear} activeOpacity={0.7} className="self-end min-h-[44px] justify-center pl-3">
           <AppText variant="body-bold" className="text-sm text-secondary">
             Clear filters
           </AppText>

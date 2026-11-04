@@ -19,6 +19,7 @@ import { AppLabel } from "@/components/ui/AppLabel";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
+import { useTransferTemplates } from "@/context/TransferTemplateContext";
 import { seedRecurring, seedOneOff, clearRecurring, clearOneOff, seedLoans, clearSeedLoans } from "@/db/seed";
 import {
   PREF_LAST_BACKUP_AT,
@@ -60,6 +61,7 @@ export default function SettingsScreen() {
   const { userName, reloadAll, expenses, rescheduleNotifications } = useExpenses();
   const accounts = useAccounts();
   const loans = useLoans();
+  const templates = useTransferTemplates();
   const unpaidItems = [
     ...expenses.filter((e) => e.status === 'unpaid').map((e) => ({ title: expenseTitle(e), amount: e.amount })),
     ...getUnpaidBillReminders(accounts.getCardBills, new Date()),
@@ -200,6 +202,7 @@ export default function SettingsScreen() {
       await reloadAll();
       await accounts.reload();
       await loans.reload();
+      await templates.reload();
       await loadReminderPreferences();
       Alert.alert("Import complete", formatImportSummary(result));
     } catch (e: unknown) {
@@ -263,6 +266,28 @@ export default function SettingsScreen() {
             <AppText variant="body-medium" className="flex-1 text-white text-sm">
               Categories
             </AppText>
+            <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
+          </TouchableOpacity>
+          <View className="h-px bg-white/[0.07]" />
+          <TouchableOpacity
+            className="flex-row items-center px-5 py-4"
+            onPress={() => router.push("/transfer-templates")}
+            accessibilityRole="button"
+            accessibilityLabel="Manage transfer templates"
+          >
+            <View
+              className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-primary"
+            >
+              <Feather name="bookmark" size={15} color="#FFFFFF" />
+            </View>
+            <AppText variant="body-medium" className="flex-1 text-white text-sm">
+              Transfer templates
+            </AppText>
+            {templates.templates.length > 0 && (
+              <AppText variant="caption" className="text-textMuted mr-2">
+                {templates.templates.length}
+              </AppText>
+            )}
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
           </TouchableOpacity>
         </View>

@@ -209,3 +209,19 @@ export interface TransferInput {
   note: string | null;
   createdAt?: string;       // when it happened; defaults to now
 }
+
+// A saved transfer the Transfer form can fill itself from. Never carries a date: using one always transfers now.
+export interface TransferTemplate {
+  id: string;
+  name: string;
+  fromId: string;
+  toId: string;
+  amount: number;
+  fee: number; // 0 = none
+  income: number; // 0 = none
+  incomeAccountId: string | null; // null = same as To
+  note: string | null;
+  createdAt: string;
+}
+
+export type TransferTemplateInput = Omit<TransferTemplate, "id" | "createdAt">;

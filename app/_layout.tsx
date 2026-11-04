@@ -14,6 +14,7 @@ import * as Notifications from "expo-notifications";
 import { ExpenseProvider } from "@/context/ExpenseContext";
 import { AccountProvider } from "@/context/AccountContext";
 import { LoanProvider } from "@/context/LoanContext";
+import { TransferTemplateProvider } from "@/context/TransferTemplateContext";
 import { SnackbarProvider } from "@/context/SnackbarContext";
 import { PayFlowProvider } from "@/context/PayFlowContext";
 import { NotificationRouter } from "@/components/NotificationRouter";
@@ -68,21 +69,23 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AccountProvider>
           <LoanProvider>
-            <ExpenseProvider>
-              <SnackbarProvider>
-                <BottomSheetModalProvider>
-                  <PayFlowProvider>
-                    <Stack
-                      screenOptions={{
-                        headerShown: false,
-                        contentStyle: { backgroundColor: colors.background },
-                      }}
-                    />
-                    <NotificationRouter />
-                  </PayFlowProvider>
-                </BottomSheetModalProvider>
-              </SnackbarProvider>
-            </ExpenseProvider>
+            <TransferTemplateProvider>
+              <ExpenseProvider>
+                <SnackbarProvider>
+                  <BottomSheetModalProvider>
+                    <PayFlowProvider>
+                      <Stack
+                        screenOptions={{
+                          headerShown: false,
+                          contentStyle: { backgroundColor: colors.background },
+                        }}
+                      />
+                      <NotificationRouter />
+                    </PayFlowProvider>
+                  </BottomSheetModalProvider>
+                </SnackbarProvider>
+              </ExpenseProvider>
+            </TransferTemplateProvider>
           </LoanProvider>
         </AccountProvider>
       </SafeAreaProvider>

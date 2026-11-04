@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -7,22 +7,26 @@ import { Controller, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { maxBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
-import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
+import { useTransferTemplates } from "@/context/TransferTemplateContext";
+import { AccountField } from "@/components/AccountField";
+import { TransferTemplateChips } from "@/components/TransferTemplateChips";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDateField } from "@/components/ui/AppDateField";
 import { AppDisclosureCard } from "@/components/ui/AppDisclosureCard";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFormScrollView } from "@/components/ui/AppFormScrollView";
-import { AppSelectField } from "@/components/ui/AppSelectField";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { TRANSFER_CATEGORY } from "@/constants/categories";
 import { colors } from "@/constants/theme";
-import { formatAmount } from "@/utils/formatAmount";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { alertFailure } from "@/utils/accounts/alertFailure";
-import type { Account, AccountTransaction, TransferInput } from "@/types";
+import { formatIncomeHint } from "@/utils/accounts/formatIncomeHint";
+import { formatIncomeSummary } from "@/utils/accounts/formatIncomeSummary";
+import { parseOptionalAmount } from "@/utils/accounts/parseOptionalAmount";
+import { validateOptionalAmount } from "@/utils/accounts/validateOptionalAmount";
+import type { Account, AccountTransaction, TransferInput, TransferTemplate } from "@/types";
 
 interface TransferFormValues {
   fromId: string;
@@ -64,30 +68,6 @@ function findTransfer(transactions: AccountTransaction[], accounts: Account[], t
   };
 }
 
-function validateOptionalAmount(value: string) {
-  if (value === "") {
-    return true;
-  }
-  const n = parseFloat(value);
-  return (!isNaN(n) && n >= 0) || "Must be ≥ 0";
-}
-
-function parseOptionalAmount(value: string) {
-  return value === "" ? 0 : parseFloat(value);
-}
-
-function formatIncomeSummary(income: number) {
-  if (isNaN(income)) {
-    return "Invalid amount";
-  }
-  return income > 0 ? `${formatAmount(income)} · ${TRANSFER_CATEGORY}` : "None";
-}
-
-function formatIncomeHint(toName: string, amount: string, income: number) {
-  const transferred = parseFloat(amount);
-  return transferred > 0 && income > 0 ? `${toName} receives ${formatAmount(transferred + income)} in total` : null;
-}
-
 // Today keeps the current time; an earlier day lands at noon. An edit that keeps the day keeps its original time.
 function toCreatedAt(date: string, original: string | undefined) {
   if (original != null && dayjs(date).isSame(original, "day")) {
@@ -97,32 +77,6 @@ function toCreatedAt(date: string, original: string | undefined) {
     return new Date().toISOString();
   }
   return dayjs(date).hour(12).startOf("hour").toISOString();
-}
-
-interface AccountFieldProps {
-  label: string;
-  options: Account[];
-  value: string;
-  onChange: (id: string) => void;
-}
-
-function AccountField({ label, options, value, onChange }: AccountFieldProps) {
-  const { accounts, getBalance } = useAccounts();
-  const pickerRef = useRef<AccountPickerSheetRef>(null);
-  // Looked up across every account so an archived one on an existing transfer still shows by name.
-  const selected = accounts.find((account) => account.id === value);
-  return (
-    <>
-      <AppSelectField
-        label={label}
-        value={selected?.name ?? ""}
-        placeholder="Choose account"
-        onPress={() => pickerRef.current?.present()}
-        accessibilityLabel={selected ? `${label}, ${selected.name}, ${formatAmount(getBalance(selected.id))}` : `${label}, choose account`}
-      />
-      <AccountPickerSheet ref={pickerRef} title={label} options={options} value={value} onChange={onChange} />
-    </>
-  );
 }
 
 export default function TransferScreen() {
@@ -138,6 +92,8 @@ export default function TransferScreen() {
   const sources = accounts.activeAccounts.filter((a) => a.type !== "credit");
   const [isIncomeOpen, setIsIncomeOpen] = useState(parts?.income != null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { templates } = useTransferTemplates();
+  const [appliedTemplateId, setAppliedTemplateId] = useState("");
 
   function toFormValues(): TransferFormValues {
     if (parts) {
@@ -265,6 +221,34 @@ export default function TransferScreen() {
     }
   });
 
+  function applyTemplate(template: TransferTemplate) {
+    const templateFromId = sources.some((a) => a.id === template.fromId) ? template.fromId : "";
+    const templateToId =
+      accounts.activeAccounts.some((a) => a.id === template.toId) && template.toId !== templateFromId ? template.toId : "";
+    const hasIncome = !isCreditAccount(templateToId) && template.income > 0;
+    const templateIncomeAccountId =
+      template.incomeAccountId && sources.some((a) => a.id === template.incomeAccountId) ? template.incomeAccountId : "";
+    const options = { shouldDirty: true, shouldValidate: true };
+    setValue("fromId", templateFromId, options);
+    setValue("toId", templateToId, options);
+    setValue("amount", String(template.amount), options);
+    setValue("fee", template.fee > 0 ? String(template.fee) : "", options);
+    setValue("income", hasIncome ? String(template.income) : "", options);
+    setValue("incomeAccountId", templateIncomeAccountId, options);
+    setValue("note", template.note ?? "", options);
+    trigger();
+    setIsIncomeOpen(hasIncome);
+    setAppliedTemplateId(template.id);
+  }
+
+  function saveAsTemplate() {
+    const { fromId: from, toId: to, amount: value, fee, income, incomeAccountId: incomeTo, note } = getValues();
+    router.push({
+      pathname: "/transfer-templates/edit",
+      params: { fromId: from, toId: to, amount: value, fee, income, incomeAccountId: incomeTo, note },
+    });
+  }
+
   function confirmDelete() {
     if (id == null) {
       return;
@@ -323,6 +307,14 @@ export default function TransferScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {!isEditing && (
+          <TransferTemplateChips
+            templates={templates}
+            appliedId={appliedTemplateId}
+            onApply={applyTemplate}
+            onManage={() => router.push("/transfer-templates")}
+          />
+        )}
         {sources.length === 0 ? (
           <AppText variant="meta" className="mb-3">
             Add a debit or cash account to transfer money from.
@@ -489,6 +481,9 @@ export default function TransferScreen() {
           <AppText variant="meta" className="text-center mt-2">
             {`${archivedAccount.name} is archived. Unarchive it or choose another account to save.`}
           </AppText>
+        )}
+        {!isEditing && (
+          <AppButton label="Save as template" variant="tonal" onPress={saveAsTemplate} className="mt-3" />
         )}
         {isEditing && (
           <AppButton label="Delete transfer" variant="destructive" onPress={confirmDelete} className="mt-3" />

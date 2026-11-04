@@ -379,6 +379,20 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       `);
     });
   }
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS transfer_templates (
+      id                TEXT PRIMARY KEY NOT NULL,
+      name              TEXT NOT NULL,
+      from_account_id   TEXT NOT NULL,
+      to_account_id     TEXT NOT NULL,
+      amount            REAL NOT NULL,
+      fee               REAL NOT NULL DEFAULT 0,
+      income            REAL NOT NULL DEFAULT 0,
+      income_account_id TEXT,
+      note              TEXT,
+      created_at        TEXT NOT NULL
+    );
+  `);
   if (!accountsMigrated) {
     const v1Table = await db.getFirstAsync<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'accounts_v1'"

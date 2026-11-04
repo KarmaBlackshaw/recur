@@ -10,6 +10,7 @@ import { getAll as getAllTransactions, insertWithId as insertTransactionWithId }
 import { getAll as getAllMonths, insertOrIgnore as insertMonth } from '@/db/expenseMonths';
 import { getAll as getAllCardBills, insertOrIgnore as insertCardBill } from '@/db/cardBills';
 import { getAll as getAllLoans, insertWithId as insertLoanWithId } from '@/db/loans';
+import { getAll as getAllTransferTemplates, insertOrIgnore as insertTransferTemplate } from '@/db/transferTemplates';
 import { getPreference, setPreference } from '@/db/preferences';
 import { backfillHistory, getDB } from '@/db/schema';
 import { withWriteTransaction } from '@/db/withWriteTransaction';
@@ -26,9 +27,10 @@ import {
   type Expense,
   type Loan,
   type MonthStatus,
+  type TransferTemplate,
 } from '@/types';
 
-const BACKUP_VERSION = 6;
+const BACKUP_VERSION = 7;
 
 // The settings a backup carries. Migration flags and the permission prompt flag belong to the device.
 const BACKUP_PREFERENCE_KEYS = ['user_name', 'reminderTime', 'notificationsEnabled', 'homeCollapsedBands', 'accountsGroupByBank'];
@@ -44,7 +46,7 @@ interface BackupLogo {
 }
 
 interface BackupFile {
-  version: 1 | 2 | 3 | 4 | 5 | 6;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   exportedAt: string;
   expenses: Expense[];
   categories: string[];
@@ -54,6 +56,7 @@ interface BackupFile {
   months?: MonthStatus[];
   cardBills?: CardBillOverride[];
   loans?: Loan[];
+  transferTemplates?: TransferTemplate[];
   preferences?: Record<string, string>;
   logos?: BackupLogo[];
 }
@@ -69,13 +72,14 @@ export interface ImportSummary {
     categories: number;
     months: number;
     cardBills: number;
+    transferTemplates: number;
     preferences: number;
   };
   alreadyHere: number; // rows that already existed (INSERT OR IGNORE no-op)
   unlinked: number; // transactions/months/bills skipped because their account or expense is missing
 }
 
-type TRestoredRowKind = 'expenses' | 'accounts' | 'loans' | 'transactions' | 'months' | 'cardBills';
+type TRestoredRowKind = 'expenses' | 'accounts' | 'loans' | 'transactions' | 'months' | 'cardBills' | 'transferTemplates';
 
 const REQUIRED_EXPENSE_FIELDS: (keyof Expense)[] = [
   'id',
@@ -183,6 +187,22 @@ function isValidCardBill(value: unknown): value is CardBillOverride {
   );
 }
 
+function isValidTransferTemplate(value: unknown): value is TransferTemplate {
+  return (
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.fromId === 'string' &&
+    typeof value.toId === 'string' &&
+    typeof value.amount === 'number' &&
+    typeof value.fee === 'number' &&
+    typeof value.income === 'number' &&
+    (typeof value.incomeAccountId === 'string' || value.incomeAccountId === null) &&
+    (typeof value.note === 'string' || value.note === null) &&
+    typeof value.createdAt === 'string'
+  );
+}
+
 function isValidPreferences(value: unknown): value is Record<string, string> {
   return isRecord(value) && !Array.isArray(value) && Object.values(value).every(isString);
 }
@@ -221,6 +241,7 @@ function parseBackup(content: string): BackupContents {
   const loans = parsed.loans ?? [];
   const months = parsed.months ?? [];
   const cardBills = parsed.cardBills ?? [];
+  const transferTemplates = parsed.transferTemplates ?? [];
   const preferences = parsed.preferences ?? {};
   const logos = parsed.logos ?? [];
   if (
@@ -232,6 +253,7 @@ function parseBackup(content: string): BackupContents {
     !isArrayOf(loans, isValidLoan) ||
     !isArrayOf(months, isValidMonth) ||
     !isArrayOf(cardBills, isValidCardBill) ||
+    !isArrayOf(transferTemplates, isValidTransferTemplate) ||
     !isValidPreferences(preferences) ||
     !isArrayOf(logos, isValidLogo)
   ) {
@@ -247,6 +269,7 @@ function parseBackup(content: string): BackupContents {
     loans,
     months,
     cardBills,
+    transferTemplates,
     preferences,
     logos,
   };
@@ -337,6 +360,7 @@ export async function exportBackup(): Promise<void> {
   const months = await getAllMonths();
   const cardBills = await getAllCardBills();
   const loans = await getAllLoans();
+  const transferTemplates = await getAllTransferTemplates();
   const preferences = await readPreferences();
   const logos = await readLogos(accounts);
 
@@ -351,6 +375,7 @@ export async function exportBackup(): Promise<void> {
     months,
     cardBills,
     loans,
+    transferTemplates,
     preferences,
     logos,
   };
@@ -387,20 +412,34 @@ export async function importBackup(): Promise<ImportSummary | null> {
 
   const backup = parseBackup(await FileSystem.readAsStringAsync(result.assets[0].uri));
 
-  const [existingExpenses, existingCategories, existingIncomeCategories, existingAccounts] = await Promise.all([
-    getAllExpenses(),
-    getAllCategories(),
-    getAllCategories('income'),
-    getAllAccounts(),
-  ]);
+  const [existingExpenses, existingCategories, existingIncomeCategories, existingAccounts, existingTemplates] =
+    await Promise.all([
+      getAllExpenses(),
+      getAllCategories(),
+      getAllCategories('income'),
+      getAllAccounts(),
+      getAllTransferTemplates(),
+    ]);
   const existingCategorySet = new Set(existingCategories);
+  // Template names are unique, ignoring case, like the template form enforces.
+  const takenTemplateNames = new Set(existingTemplates.map((t) => t.name.trim().toLowerCase()));
   const existingIncomeCategorySet = new Set(existingIncomeCategories);
   const existingAccountIds = new Set(existingAccounts.map((a) => a.id));
   const knownAccountIds = new Set([...existingAccountIds, ...backup.accounts.map((a) => a.id)]);
   const knownExpenseIds = new Set([...existingExpenses.map((e) => e.id), ...backup.expenses.map((e) => e.id)]);
 
   const summary: ImportSummary = {
-    added: { expenses: 0, accounts: 0, loans: 0, transactions: 0, categories: 0, months: 0, cardBills: 0, preferences: 0 },
+    added: {
+      expenses: 0,
+      accounts: 0,
+      loans: 0,
+      transactions: 0,
+      categories: 0,
+      months: 0,
+      cardBills: 0,
+      transferTemplates: 0,
+      preferences: 0,
+    },
     alreadyHere: 0,
     unlinked: 0,
   };
@@ -455,6 +494,16 @@ export async function importBackup(): Promise<ImportSummary | null> {
           summary.unlinked++;
         }
       }
+      // A template whose account is gone still restores: picking it just asks for that account again. One whose
+      // name is already taken counts as already here.
+      for (const template of backup.transferTemplates) {
+        const nameKey = template.name.trim().toLowerCase();
+        const changes = takenTemplateNames.has(nameKey) ? 0 : await insertTransferTemplate(template, txn);
+        if (changes > 0) {
+          takenTemplateNames.add(nameKey);
+        }
+        tally(summary, 'transferTemplates', changes);
+      }
       // Settings only fill gaps: anything already set on this device wins.
       for (const key of BACKUP_PREFERENCE_KEYS) {
         const value = backup.preferences[key];
@@ -479,11 +528,12 @@ export async function importBackup(): Promise<ImportSummary | null> {
   return summary;
 }
 
-const SUMMARY_KINDS: [kind: 'expenses' | 'accounts' | 'loans' | 'transactions', noun: string][] = [
+const SUMMARY_KINDS: [kind: 'expenses' | 'accounts' | 'loans' | 'transactions' | 'transferTemplates', noun: string][] = [
   ['expenses', 'expense'],
   ['accounts', 'account'],
   ['loans', 'loan'],
   ['transactions', 'transaction'],
+  ['transferTemplates', 'transfer template'],
 ];
 
 function countOf(count: number, singular: string, plural = `${singular}s`): string {

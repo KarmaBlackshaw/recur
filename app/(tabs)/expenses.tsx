@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { View, TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,6 +11,7 @@ import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type ActivityEntry, type DayTotal } from "@/components/DayGroupedExpenseList";
 import { ActivityHero } from "@/components/activity/ActivityHero";
+import { CategoryFilterSheet, type CategoryFilterSheetRef } from "@/components/activity/CategoryFilterSheet";
 import { CategoryScopeRow } from "@/components/activity/CategoryScopeRow";
 import type { HeroTone } from "@/components/ui/AppHeroCard";
 import { countLabel } from "@/utils/countLabel";
@@ -131,14 +132,16 @@ export default function ExpensesScreen() {
   const year = paramYear >= 1000 && paramYear <= 9999 ? paramYear : today.getFullYear();
   const month = paramMonth >= 0 && paramMonth <= 11 ? paramMonth : today.getMonth();
   const period = parsePeriod(params.period);
-  // Set when Stats opened a category: the list narrows to that slice's rows, whatever the segment.
+  // Set from the category sheet or a Stats category: the list narrows to that slice's rows, whatever the segment.
   const category = params.category || undefined;
   const flow = parseMoneyFlow(params.type);
   const [search, setSearch] = useState("");
   const [isSearchOpen, searchOpen] = useBoolean(false);
   const query = isSearchOpen ? search.trim() : "";
   const segmentFlow: MoneyFlow = segment === "income" ? "income" : "expenses";
+  // Stats and the category picker open on the filtered category's side, else on the segment's.
   const statsType = category != null ? flow : segmentFlow;
+  const categorySheetRef = useRef<CategoryFilterSheetRef>(null);
 
   function openStats() {
     router.push(`/stats?year=${year}&month=${month}&period=${period}&type=${statsType}`, { dangerouslySingular: true });
@@ -146,6 +149,10 @@ export default function ExpensesScreen() {
 
   function clearCategory() {
     router.setParams({ category: undefined, type: undefined });
+  }
+
+  function openCategoryPicker() {
+    categorySheetRef.current?.present();
   }
 
   const searchContext = useMemo<ActivitySearchContext>(() => {
@@ -264,16 +271,32 @@ export default function ExpensesScreen() {
               category={filtered.category}
               icon={filtered.icon}
               meta={countLabel(filtered.entries.length, "transaction", "transactions")}
+              onPick={openCategoryPicker}
               onShowAll={clearCategory}
             />
           ) : (
-            <AppChips
-              chips={segments}
-              value={segment}
-              onChange={(next) => router.setParams({ segment: next })}
-              accessibilityLabel="Filter activity"
-              className="mt-1"
-            />
+            <View className="flex-row items-center mt-1">
+              {/* Stays put while the segments scroll; the hairline is where they clip. */}
+              <TouchableOpacity
+                onPress={openCategoryPicker}
+                activeOpacity={0.7}
+                className="flex-row items-center gap-1.5 min-h-[44px] ml-5 px-4 rounded-full border bg-surface border-border"
+              >
+                <AppText variant="body-medium" className="text-sm text-textSecondary">
+                  Category
+                </AppText>
+                <Feather name="chevron-down" size={14} color={colors.textMuted} />
+              </TouchableOpacity>
+              <View className="w-px h-6 ml-3 bg-border" />
+              <View className="flex-1">
+                <AppChips
+                  chips={segments}
+                  value={segment}
+                  onChange={(next) => router.setParams({ segment: next })}
+                  accessibilityLabel="Filter activity"
+                />
+              </View>
+            </View>
           )}
 
           <ActivityHero overline={`${view.hero.label} this ${period}`} total={view.total} tone={view.hero.tone} onStatsPress={openStats} />
@@ -288,6 +311,15 @@ export default function ExpensesScreen() {
           />
         </>
       )}
+
+      <CategoryFilterSheet
+        ref={categorySheetRef}
+        entries={byFilter.all}
+        category={category}
+        flow={statsType}
+        periodLabel={periodLabel}
+        onSelect={(category, type) => router.setParams({ category, type })}
+      />
     </SafeAreaView>
   );
 }

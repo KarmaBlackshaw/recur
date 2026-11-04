@@ -16,11 +16,11 @@ import { AppUnderlineTabs, type TUnderlineTab } from "@/components/ui/AppUnderli
 import { LoadingState } from "@/components/ui/LoadingState";
 import { chartHues, chartRest, colors } from "@/constants/theme";
 import { parseMoneyFlow, parsePeriod, PERIODS } from "@/constants/periods";
-import { categoryLine } from "@/utils/activity/categoryLine";
+import { categoryRows } from "@/utils/activity/categoryLine";
 import { countLabel } from "@/utils/countLabel";
 import { isInPeriod } from "@/utils/dateHelpers";
 import { formatAmount } from "@/utils/formatAmount";
-import { categoryBreakdown, type TCategorySpend } from "@/utils/stats/categoryBreakdown";
+import type { TCategorySpend } from "@/utils/stats/categoryBreakdown";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { useSetState } from "@/utils/useSetState";
 import type { FeatherIconName, MoneyFlow, Period } from "@/types";
@@ -80,11 +80,7 @@ export default function StatsScreen() {
   // Slices come from the same rows Activity lists, so a category's rows there always add up to its slice here.
   const { expenseRows, incomeRows } = useMemo(() => {
     const entries = feed.all.filter(({ effDate }) => isInPeriod(effDate, year, month, period));
-    const linesOf = (flow: MoneyFlow) => entries.flatMap((entry) => categoryLine(entry, flow) ?? []);
-    return {
-      expenseRows: categoryBreakdown(linesOf("expenses")),
-      incomeRows: categoryBreakdown(linesOf("income")),
-    };
+    return { expenseRows: categoryRows(entries, "expenses"), incomeRows: categoryRows(entries, "income") };
   }, [feed.all, year, month, period]);
 
   const rows = type === "income" ? incomeRows : expenseRows;

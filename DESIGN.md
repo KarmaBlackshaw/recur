@@ -137,11 +137,23 @@ screen's own lines under it. Never hand-build another tint map.
 - The screen sets only the card's margins.
 
 ### Scope row (`components/activity/CategoryScopeRow.tsx`)
-Activity filtered to one Stats category: quiet context in place of the segment chips, with one exit.
+Activity filtered to one category: quiet context in place of the segment chips, with one exit.
 
-- A 36dp neutral tile with a 17px glyph (as in List Row), the name in Quicksand Bold 14px Ink over the row count as meta.
-- A periwinkle "Show all" text action on the right clears the filter. Its 44dp target is the only tappable part.
+- A 36dp neutral tile with a 17px glyph (as in List Row), the name in Quicksand Bold 14px Ink with a Muted 16px
+  chevron-down, over the row count as meta. Tile and name reopen the category sheet, to switch category.
+- A periwinkle "Show all" text action on the right clears the filter.
 - No fill, border or pill. 52dp minimum height, 17.5dp side gutters.
+
+### Category filter (`components/activity/CategoryFilterSheet.tsx`)
+How Activity narrows to one category without going through Stats.
+
+- Trigger: a "Category" chip (chip shape, Secondary Graphite label, Muted 14px chevron-down) at the start of the
+  segment chips. It stays put while they scroll; a 24dp Hairline after it is where they clip.
+- Sheet: "Category", content-sized. Income/Expenses underline tabs with their period totals (as on Stats), opening on
+  the filtered category's side, else Income from the Income chip and Expenses from any other. Under them, the
+  categories the period's rows add to as radio chips, biggest first (Stats' slices); the current one is selected.
+  Nothing to pick reads "Nothing spent in October" / "No income in October" as meta.
+- Picking one closes the sheet, then filters Activity to it.
 
 ### Month card (`components/HomeMonthStats.tsx`)
 One Raised Graphite card at the top of Home, under the greeting, built like the other hero cards. Its lead is Spent
@@ -259,10 +271,11 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
   band per bank, in account order, with accounts that have no bank last under "Other".
 - Activity's hero shows only its overline and the period's total, above the Stats row: no breakdown under the
   total on any chip. Stats carries the detail.
-- Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header. Opened from a Stats category, its segment
-  chips give way to a scope row (neutral category tile, name over the row count, and a periwinkle "Show all" that
-  clears the filter); the hero reads "Spent" or "Received this month/year", and each day shows a signed total of
-  what its rows added to the category.
+- Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header. Filtered to a category (picked from the
+  "Category" chip before its segment chips, or opened from a Stats category), its segment chips give way to a scope
+  row (neutral category tile, name over the row count, and a periwinkle "Show all" that clears the filter); the hero
+  reads "Spent" or "Received this month/year", and each day shows a signed total of what its rows added to the
+  category.
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

@@ -3,7 +3,7 @@ import { sumBy } from "@/utils/collections";
 import { categoryIcon } from "@/utils/categories";
 import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
 import type { MoneyFlow } from "@/types";
-import type { TCategoryLine } from "@/utils/stats/categoryBreakdown";
+import { categoryBreakdown, type TCategoryLine } from "@/utils/stats/categoryBreakdown";
 
 const FEES_CATEGORY = "Fees";
 const UNCATEGORIZED_INCOME = "Other";
@@ -58,4 +58,9 @@ export function categoryLine(entry: ActivityEntry, flow: MoneyFlow): TCategoryLi
 export function categorySlice(entries: readonly ActivityEntry[], flow: MoneyFlow, category: string) {
   const matches = entries.filter((entry) => categoryLine(entry, flow)?.category === category);
   return { entries: matches, total: sumBy(matches, (entry) => categoryLine(entry, flow)?.amount ?? 0) };
+}
+
+// Every category the rows add to, biggest first: Stats' slices, and the choices in Activity's category filter.
+export function categoryRows(entries: readonly ActivityEntry[], flow: MoneyFlow) {
+  return categoryBreakdown(entries.flatMap((entry) => categoryLine(entry, flow) ?? []));
 }

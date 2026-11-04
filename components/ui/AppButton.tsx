@@ -6,7 +6,8 @@ import { colors } from "@/constants/theme";
 type Variant = "primary" | "tonal" | "ghost" | "destructive";
 type Size = "md" | "sm";
 
-interface AppButtonProps extends TouchableOpacityProps {
+interface AppButtonProps extends Omit<TouchableOpacityProps, "onPress"> {
+  onPress?: () => void;
   label: string;
   variant?: Variant;
   size?: Size;

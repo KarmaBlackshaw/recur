@@ -274,7 +274,7 @@ export default function HomeScreen() {
               secondaryLabel="Log an expense"
               onSecondary={() => router.push("/expense/add?type=regular")}
             />
-          ) : null
+          ) : undefined
         }
       />
     </SafeAreaView>

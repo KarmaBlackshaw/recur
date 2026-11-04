@@ -108,7 +108,7 @@ export default function AddCategoryScreen() {
               autoFocus
               maxLength={30}
               returnKeyType="done"
-              onSubmitEditing={onSubmit}
+              onSubmitEditing={() => onSubmit()}
             />
           )}
         />

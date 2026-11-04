@@ -100,7 +100,7 @@ export default function AccountsScreen() {
   }
 
   const archivedFooter =
-    archivedAccounts.length > 0 ? <ArchivedAccounts accounts={archivedAccounts} numColumns={numColumns} /> : null;
+    archivedAccounts.length > 0 ? <ArchivedAccounts accounts={archivedAccounts} numColumns={numColumns} /> : undefined;
 
   if (isLoading) {
     return (

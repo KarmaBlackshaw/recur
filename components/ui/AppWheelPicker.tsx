@@ -1,6 +1,6 @@
 // components/ui/AppWheelPicker.tsx
 import React, { useEffect, useRef } from "react";
-import { View, ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from "react-native";
+import { View, ScrollView, type NativeSyntheticEvent, type NativeScrollEvent, type ScrollViewInstance } from "react-native";
 import { AppText } from "@/components/ui/AppText";
 import type { TOption } from "@/types";
 
@@ -24,7 +24,7 @@ export function AppWheelPicker<T>({
   accessibilityLabel,
   className = "",
 }: AppWheelPickerProps<T>) {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const selectedIndex = Math.max(0, options.findIndex((opt) => opt.value === value));
 
   useEffect(() => {

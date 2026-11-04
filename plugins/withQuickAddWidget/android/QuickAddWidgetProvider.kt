@@ -27,7 +27,7 @@ class QuickAddWidgetProvider : AppWidgetProvider() {
   }
 
   private companion object {
-    const val URL_PREFIX = "recur://quick-add/" // must match QUICK_ADD_URL_PREFIX in constants/quickActions.ts
+    const val URL_PREFIX = "recur://quick-add/" // must match QUICK_ADD_URL_PREFIX in constants/quickActions.ts; scripts/quick-actions-check.mjs pins the prefix and action list
     val BUTTONS = listOf(
       R.id.quick_add_widget_expense to "expense",
       R.id.quick_add_widget_income to "income",

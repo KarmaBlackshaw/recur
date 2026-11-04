@@ -97,7 +97,7 @@ utils/collections.ts     # orderBy, groupBy, sumBy… (lodash semantics, no loda
 constants/theme.ts       # Color tokens (mirrors tailwind.config.js)
 constants/quickActions.ts # Quick-action → href map shared by the FAB and the widget
 plugins/                 # Local Expo config plugins (android/ and ios/ are generated)
-plugins/withQuickAddWidget/ # Android "Quick add" widget: Kotlin provider + res, copied into android/ at prebuild
+plugins/withQuickAddWidget/ # Android "Quick add" widget: Kotlin provider + res, copied into android/ at prebuild; its URL contract is pinned by scripts/quick-actions-check.mjs
 scripts/                 # *-check.mjs logic checks; asset generators (fonts, icons, bank logos)
 types.ts                 # Shared TS types
 ```

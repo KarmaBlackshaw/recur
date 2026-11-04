@@ -11,7 +11,7 @@ import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type ActivityEntry, type DayTotal } from "@/components/DayGroupedExpenseList";
 import { ActivityHero } from "@/components/activity/ActivityHero";
-import { CategoryFilterChip } from "@/components/activity/CategoryFilterChip";
+import { CategoryScopeRow } from "@/components/activity/CategoryScopeRow";
 import type { HeroTone } from "@/components/ui/AppHeroCard";
 import { countLabel } from "@/utils/countLabel";
 import { netFlow } from "@/utils/activity/netFlow";
@@ -260,11 +260,11 @@ export default function ExpensesScreen() {
           />
 
           {filtered != null ? (
-            <CategoryFilterChip
+            <CategoryScopeRow
               category={filtered.category}
               icon={filtered.icon}
               meta={countLabel(filtered.entries.length, "transaction", "transactions")}
-              onClear={clearCategory}
+              onShowAll={clearCategory}
             />
           ) : (
             <AppChips

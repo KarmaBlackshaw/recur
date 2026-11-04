@@ -136,6 +136,13 @@ screen's own lines under it. Never hand-build another tint map.
 - 20dp padding. A footer row (Activity's Stats row) sits under the body, whose bottom padding drops to 12dp.
 - The screen sets only the card's margins.
 
+### Scope row (`components/activity/CategoryScopeRow.tsx`)
+Activity filtered to one Stats category: quiet context in place of the segment chips, with one exit.
+
+- A 36dp neutral tile with a 17px glyph (as in List Row), the name in Quicksand Bold 14px Ink over the row count as meta.
+- A periwinkle "Show all" text action on the right clears the filter. Its 44dp target is the only tappable part.
+- No fill, border or pill. 52dp minimum height, 17.5dp side gutters.
+
 ### Month card (`components/HomeMonthStats.tsx`)
 One Raised Graphite card at the top of Home, under the greeting, built like the other hero cards. Its lead is Spent
 for the month: an overline naming the figure and the month ("Spent in October") over an Oswald Medium 32px total.
@@ -253,8 +260,9 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Activity's hero shows only its overline and the period's total, above the Stats row: no breakdown under the
   total on any chip. Stats carries the detail.
 - Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header. Opened from a Stats category, its segment
-  chips give way to one selected chip (category glyph, name, ✕) with the row count beside it; the hero reads "Spent"
-  or "Received this month/year", and each day shows a signed total of what its rows added to the category.
+  chips give way to a scope row (neutral category tile, name over the row count, and a periwinkle "Show all" that
+  clears the filter); the hero reads "Spent" or "Received this month/year", and each day shows a signed total of
+  what its rows added to the category.
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

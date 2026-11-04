@@ -144,15 +144,21 @@ Activity filtered to one category: quiet context in place of the segment chips, 
 - A periwinkle "Show all" text action on the right clears the filter.
 - No fill, border or pill. 52dp minimum height, 17.5dp side gutters.
 
-### Category filter (`components/activity/CategoryFilterSheet.tsx`)
-How Activity narrows to one category without going through Stats.
+### Activity filters (`components/activity/ActivityFilters.tsx`, `CategoryFilterSheet.tsx`)
+How Activity narrows by keyword and category without going through Stats.
 
-- Trigger: a "Category" chip (chip shape, Secondary Graphite label, Muted 14px chevron-down) at the start of the
-  segment chips. It stays put while they scroll; a 24dp Hairline after it is where they clip.
-- Sheet: "Category", content-sized. Income/Expenses underline tabs with their period totals (as on Stats), opening on
-  the filtered category's side, else Income from the Income chip and Expenses from any other. Under them, the
-  categories the period's rows add to as radio chips, biggest first (Stats' slices); the current one is selected.
-  Nothing to pick reads "Nothing spent in October" / "No income in October" as meta.
+- Toggle: a 20px Feather `sliders` glyph at the end of the header, 44dp. Secondary Graphite at rest, periwinkle while
+  the panel is open or a filter is on; with the panel hidden and a filter on, an 8dp periwinkle dot sits on its
+  top-right corner. Hiding the panel keeps its filters.
+- Panel (fades in under the header, 17.5dp gutters): a "Keyword" text field (name, note, account or amount) and a
+  "Category" select field reading "All categories" until one is picked; it opens the category sheet. With a filter on,
+  a periwinkle "Clear filters" text action closes it, right-aligned.
+- A keyword searches every month (the period navigator hides) and combines with the category: "3 results for
+  "phone" in Utilities".
+- Sheet: "Category", content-sized. Income/Expenses underline tabs with their totals (as on Stats), opening on the
+  filtered category's side, else Income from the Income chip and Expenses from any other. Under them, the categories
+  the listed rows add to (the period's, or the keyword's matches) as radio chips, biggest first (Stats' slices); the
+  current one is selected. Nothing to pick reads "Nothing spent in October" / `No income matching "phone"` as meta.
 - Picking one closes the sheet, then filters Activity to it.
 
 ### Month card (`components/HomeMonthStats.tsx`)
@@ -271,8 +277,9 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
   band per bank, in account order, with accounts that have no bank last under "Other".
 - Activity's hero shows only its overline and the period's total, above the Stats row: no breakdown under the
   total on any chip. Stats carries the detail.
-- Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header. Filtered to a category (picked from the
-  "Category" chip before its segment chips, or opened from a Stats category), its segment chips give way to a scope
+- Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header, and a filter toggle at the header's end
+  that discloses a Keyword and Category panel. Filtered to a category (picked in the panel, or opened from a Stats
+  category), its segment chips give way to a scope
   row (neutral category tile, name over the row count, and a periwinkle "Show all" that clears the filter); the hero
   reads "Spent" or "Received this month/year", and each day shows a signed total of what its rows added to the
   category.

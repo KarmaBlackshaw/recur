@@ -14,22 +14,24 @@ export interface CategoryFilterSheetRef {
 }
 
 interface CategoryFilterSheetProps {
-  // The period's Activity rows: the sheet offers the categories they add to, like Stats' slices.
+  // The rows Activity would list (the period's, or a keyword's across every month): the sheet offers the categories
+  // they add to, like Stats' slices.
   entries: ActivityEntry[];
   category?: string;
   // The tab the sheet opens on.
   flow: MoneyFlow;
-  periodLabel: string;
+  // What the rows are: "in October", or `matching "phone"` while a keyword is on.
+  scope: string;
   onSelect: (category: string, flow: MoneyFlow) => void;
 }
 
 const EMPTY_MESSAGE: Record<MoneyFlow, string> = {
-  expenses: "Nothing spent in",
-  income: "No income in",
+  expenses: "Nothing spent",
+  income: "No income",
 };
 
 // Mounts with each opening (gorhom mounts a modal's content on present), so it always starts on the opener's tab.
-function CategoryOptions({ entries, category, flow, periodLabel, onSelect }: CategoryFilterSheetProps) {
+function CategoryOptions({ entries, category, flow, scope, onSelect }: CategoryFilterSheetProps) {
   const [tab, setTab] = useState(flow);
   const { expenseRows, incomeRows } = useMemo(
     () => ({ expenseRows: categoryRows(entries, "expenses"), incomeRows: categoryRows(entries, "income") }),
@@ -46,7 +48,7 @@ function CategoryOptions({ entries, category, flow, periodLabel, onSelect }: Cat
       <AppUnderlineTabs tabs={tabs} value={tab} onChange={setTab} />
       {rows.length === 0 ? (
         <AppText variant="meta" className="px-4 mt-3 mb-3">
-          {`${EMPTY_MESSAGE[tab]} ${periodLabel}`}
+          {`${EMPTY_MESSAGE[tab]} ${scope}`}
         </AppText>
       ) : (
         <AppRadioGroup
@@ -60,7 +62,7 @@ function CategoryOptions({ entries, category, flow, periodLabel, onSelect }: Cat
   );
 }
 
-// Picks the category Activity narrows to, from the ones the period's rows add to.
+// Picks the category Activity narrows to, from the ones its rows add to.
 export const CategoryFilterSheet = forwardRef<CategoryFilterSheetRef, CategoryFilterSheetProps>(function CategoryFilterSheet(
   { onSelect, ...props },
   ref

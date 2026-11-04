@@ -13,6 +13,7 @@ import { DayGroupedExpenseList, type ActivityEntry, type DayTotal } from "@/comp
 import { ActivityHero } from "@/components/activity/ActivityHero";
 import { CategoryFilterSheet, type CategoryFilterSheetRef } from "@/components/activity/CategoryFilterSheet";
 import { CategoryScopeRow } from "@/components/activity/CategoryScopeRow";
+import { ActivityFilters } from "@/components/activity/ActivityFilters";
 import type { HeroTone } from "@/components/ui/AppHeroCard";
 import { countLabel } from "@/utils/countLabel";
 import { netFlow } from "@/utils/activity/netFlow";
@@ -29,7 +30,6 @@ import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
 import { AppChips } from "@/components/ui/AppChips";
 import { AppTabs } from "@/components/ui/AppTabs";
-import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
 import { parseMoneyFlow, parsePeriod, PERIODS } from "@/constants/periods";
 
@@ -136,8 +136,10 @@ export default function ExpensesScreen() {
   const category = params.category || undefined;
   const flow = parseMoneyFlow(params.type);
   const [search, setSearch] = useState("");
-  const [isSearchOpen, searchOpen] = useBoolean(false);
-  const query = isSearchOpen ? search.trim() : "";
+  // Hiding the panel keeps its filters; the toggle's dot says they're still on.
+  const [isFilterOpen, filterOpen] = useBoolean(false);
+  const query = search.trim();
+  const isFiltered = query !== "" || category != null;
   const segmentFlow: MoneyFlow = segment === "income" ? "income" : "expenses";
   // Stats and the category picker open on the filtered category's side, else on the segment's.
   const statsType = category != null ? flow : segmentFlow;
@@ -155,16 +157,26 @@ export default function ExpensesScreen() {
     categorySheetRef.current?.present();
   }
 
+  function clearFilters() {
+    setSearch("");
+    clearCategory();
+  }
+
   const searchContext = useMemo<ActivitySearchContext>(() => {
     const accountsById = keyBy(accounts, "id");
     return { accountName: (id) => (id == null ? undefined : accountsById[id]?.name) };
   }, [accounts]);
 
-  // Search spans every month, newest first (the feed is already sorted).
-  const results = useMemo(
+  // A keyword spans every month, newest first (the feed is already sorted).
+  const keywordMatches = useMemo(
     () => (query === "" ? [] : feed.all.filter((entry) => matchesActivity(entry, query, searchContext))),
     [feed.all, query, searchContext]
   );
+  const results = useMemo(
+    () => (category == null ? keywordMatches : categorySlice(keywordMatches, flow, category).entries),
+    [keywordMatches, category, flow]
+  );
+  const inCategory = category == null ? "" : ` in ${category}`;
 
   const { byFilter, lent, moneyIn, paidTotal } = usePeriodActivity(feed, year, month, period);
 
@@ -191,13 +203,6 @@ export default function ExpensesScreen() {
   };
   const periodLabel = dayjs(new Date(year, month, 1)).format(period === "year" ? "YYYY" : "MMMM");
 
-  function toggleSearch() {
-    if (isSearchOpen) {
-      setSearch("");
-    }
-    searchOpen.toggle();
-  }
-
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-background">
@@ -220,41 +225,38 @@ export default function ExpensesScreen() {
             />
           )}
           <TouchableOpacity
-            onPress={toggleSearch}
+            onPress={filterOpen.toggle}
             className="w-11 h-11 items-center justify-center"
             accessibilityRole="button"
-            accessibilityLabel={isSearchOpen ? "Close search" : "Search activity"}
-            accessibilityState={{ expanded: isSearchOpen }}
+            accessibilityLabel={isFiltered ? "Filters, on" : "Filters"}
+            accessibilityState={{ expanded: isFilterOpen }}
           >
-            <Feather name={isSearchOpen ? "x" : "search"} size={20} color={isSearchOpen ? colors.secondary : colors.textSecondary} />
+            <Feather name="sliders" size={20} color={isFilterOpen || isFiltered ? colors.secondary : colors.textSecondary} />
+            {isFiltered && !isFilterOpen && <View className="absolute top-2 right-2 w-2 h-2 rounded-full bg-secondary" />}
           </TouchableOpacity>
         </View>
       </View>
 
-      {isSearchOpen && (
-        <View className="mx-5 -mt-3">
-          <AppTextInput
-            autoFocus
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search activity"
-            accessibilityLabel="Search activity"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-        </View>
+      {isFilterOpen && (
+        <ActivityFilters
+          search={search}
+          onSearchChange={setSearch}
+          category={category}
+          onPickCategory={openCategoryPicker}
+          onClear={clearFilters}
+        />
       )}
 
       {query !== "" ? (
         <>
           <AppText variant="meta" className="px-5 pt-2 pb-1" accessibilityLiveRegion="polite">
-            {`${countLabel(results.length, "result", "results")} for "${query}"`}
+            {`${countLabel(results.length, "result", "results")} for "${query}"${inCategory}`}
           </AppText>
           <DayGroupedExpenseList
             entries={results}
             dayTotal="none"
             refreshControl={refreshControl}
-            ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing matches "${query}"`} />}
+            ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing matches "${query}"${inCategory}`} />}
           />
         </>
       ) : (
@@ -275,28 +277,13 @@ export default function ExpensesScreen() {
               onShowAll={clearCategory}
             />
           ) : (
-            <View className="flex-row items-center mt-1">
-              {/* Stays put while the segments scroll; the hairline is where they clip. */}
-              <TouchableOpacity
-                onPress={openCategoryPicker}
-                activeOpacity={0.7}
-                className="flex-row items-center gap-1.5 min-h-[44px] ml-5 px-4 rounded-full border bg-surface border-border"
-              >
-                <AppText variant="body-medium" className="text-sm text-textSecondary">
-                  Category
-                </AppText>
-                <Feather name="chevron-down" size={14} color={colors.textMuted} />
-              </TouchableOpacity>
-              <View className="w-px h-6 ml-3 bg-border" />
-              <View className="flex-1">
-                <AppChips
-                  chips={segments}
-                  value={segment}
-                  onChange={(next) => router.setParams({ segment: next })}
-                  accessibilityLabel="Filter activity"
-                />
-              </View>
-            </View>
+            <AppChips
+              chips={segments}
+              value={segment}
+              onChange={(next) => router.setParams({ segment: next })}
+              accessibilityLabel="Filter activity"
+              className="mt-1"
+            />
           )}
 
           <ActivityHero overline={`${view.hero.label} this ${period}`} total={view.total} tone={view.hero.tone} onStatsPress={openStats} />
@@ -314,10 +301,10 @@ export default function ExpensesScreen() {
 
       <CategoryFilterSheet
         ref={categorySheetRef}
-        entries={byFilter.all}
+        entries={query === "" ? byFilter.all : keywordMatches}
         category={category}
         flow={statsType}
-        periodLabel={periodLabel}
+        scope={query === "" ? `in ${periodLabel}` : `matching "${query}"`}
         onSelect={(category, type) => router.setParams({ category, type })}
       />
     </SafeAreaView>

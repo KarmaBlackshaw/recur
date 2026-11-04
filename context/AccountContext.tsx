@@ -519,8 +519,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       account = await getAccountById(p.accountId);
     }
     const existing = state.transactions.find(isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth));
+    // A ₱0 bill moved no money, so it leaves no row in the account.
     const txn: Omit<AccountTransaction, "id"> | null =
-      account && p.amount != null
+      account && p.amount != null && round(p.amount, 2) > 0
         ? {
             ...emptyTxnFields(),
             accountId: account.id,

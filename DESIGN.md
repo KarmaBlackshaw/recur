@@ -185,11 +185,11 @@ a Hairline border, above the tab bar, gone after 5s. Never for errors (those are
 Opened when a bill's amount isn't known, from a bill's Mark paid, or by tapping an unpaid bill in Home's due lists or
 in the Recurring tab's Overdue and Unpaid bands (for that month's bill). Its meta line reads the cycle and due date
 ("October bill · due Oct 1", plus " · 31 days late" when overdue), then three inputs: Amount (prefilled, blank when
-TBD), Paid on (an `AppDateField`, today by default, no future dates) and Pay from (an `AppSelectField` that opens the
-account picker; the bill's account, or Cash when it has none or it's archived; editing a payment keeps that payment's
-account). Mark as paid closes the sheet and pays once it's gone. Opened from a bill row, it adds Details (tonal) under
-Mark as paid, which opens the bill's page for that month. Every other row skips the sheet: it opens the bill page, or a
-one-off's editor, directly.
+TBD; ₱0 is allowed for a month with no bill), Paid on (an `AppDateField`, today by default, no future dates) and Pay
+from (an `AppSelectField` that opens the account picker; the bill's account, or Cash when it has none or it's archived;
+editing a payment keeps that payment's account). Mark as paid closes the sheet and pays once it's gone. Opened from a
+bill row, it adds Details (tonal) under Mark as paid, which opens the bill's page for that month. Every other row skips
+the sheet: it opens the bill page, or a one-off's editor, directly.
 
 ### Card bill sheet
 Cut-off and Estimate rows, the Statement amount input (Save amount, Use estimate), then Paid and Remaining. While the

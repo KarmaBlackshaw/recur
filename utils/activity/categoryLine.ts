@@ -15,29 +15,36 @@ function line(category: string, amount: number, iconCategory = category): TCateg
 // Card charges count on the day they were charged, so a bill payment adds only its fee: it settles what's already
 // counted. Loans add nothing: lent money is still yours (net worth counts it).
 function expenseLine(entry: ActivityEntry): TCategoryLine | null {
-  if ("expense" in entry) {
-    return line(entry.expense.category, entry.amount);
+  switch (entry.kind) {
+    case "expense":
+      return line(entry.expense.category, entry.amount);
+    case "billPayment":
+    case "transfer":
+      return line(FEES_CATEGORY, entry.fee);
+    case "income":
+    case "interest":
+    case "loan":
+      return null;
   }
-  if ("payment" in entry || "transfer" in entry) {
-    return line(FEES_CATEGORY, entry.fee);
-  }
-  return null;
 }
 
 // Loan repayments add nothing either: getting lent money back isn't earning it. Income a loan brought in gets its
 // own category, so a loan's income never reads as bank interest.
 function incomeLine(entry: ActivityEntry): TCategoryLine | null {
-  if ("income" in entry) {
-    const category = entry.income.category ?? UNCATEGORIZED_INCOME;
-    return line(entry.loan ? `${category} from loans` : category, entry.amount, category);
+  switch (entry.kind) {
+    case "income": {
+      const category = entry.income.category ?? UNCATEGORIZED_INCOME;
+      return line(entry.loan ? `${category} from loans` : category, entry.amount, category);
+    }
+    case "interest":
+      return line(INTEREST_CATEGORY, entry.amount);
+    case "transfer":
+      return line(entry.earnedCategory ?? UNCATEGORIZED_INCOME, entry.earned);
+    case "expense":
+    case "billPayment":
+    case "loan":
+      return null;
   }
-  if ("interest" in entry) {
-    return line(INTEREST_CATEGORY, entry.amount);
-  }
-  if ("transfer" in entry) {
-    return line(entry.earnedCategory ?? UNCATEGORIZED_INCOME, entry.earned);
-  }
-  return null;
 }
 
 // What an Activity row adds to one Stats category, or null when it adds nothing. Stats and Activity's category

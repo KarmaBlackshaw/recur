@@ -64,12 +64,12 @@ assert.ok(layout([100]).slices[0].isLabelled, "a single slice keeps its label");
 const tinyTail = layout([50000, 12000, 1500, 300, 200, 80]).slices.map((slice) => slice.isLabelled);
 assert.deepEqual(tinyTail, [true, true, true, false, false, false], "slices under 2% get no label or line, so they can't bundle at the top");
 
-const paid = (category, amount) => ({ expense: { category }, amount });
-const billPayment = (fee) => ({ payment: {}, amount: 5000, fee });
-const transfer = (fee, earned, earnedCategory = null) => ({ transfer: {}, amount: 2000, fee, earned, earnedCategory });
-const income = (category, amount, loan) => ({ income: { category }, loan, amount });
-const interest = (amount) => ({ interest: {}, amount, tax: 1 });
-const loanTxn = { loanTxn: { kind: "loan_out" }, amount: 900 };
+const paid = (category, amount) => ({ kind: "expense", expense: { category }, amount });
+const billPayment = (fee) => ({ kind: "billPayment", payment: {}, amount: 5000, fee });
+const transfer = (fee, earned, earnedCategory = null) => ({ kind: "transfer", transfer: {}, amount: 2000, fee, earned, earnedCategory });
+const income = (category, amount, loan) => ({ kind: "income", income: { category }, loan, amount });
+const interest = (amount) => ({ kind: "interest", interest: {}, amount, tax: 1 });
+const loanTxn = { kind: "loan", loanTxn: { kind: "loan_out" }, amount: 900 };
 const slice = (entry, flow) => {
   const result = categoryLine(entry, flow);
   return result && `${result.category} ${result.amount}`;

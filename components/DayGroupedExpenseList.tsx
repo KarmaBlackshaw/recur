@@ -14,6 +14,7 @@ import type { Expense } from "@/types";
 // in (pay-date if paid, due-date if unpaid); `refDate` is the cycle month the card
 // resolves its amount/status/edit-nav against. Same shape as PaidEntry (+ compact).
 export interface DayEntry {
+  kind: "expense";
   key: string;
   expense: Expense;
   effDate: Date;

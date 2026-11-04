@@ -6,6 +6,7 @@ import { useLoans } from "@/context/LoanContext";
 import type { AccountTransaction, Loan } from "@/types";
 
 export interface LoanActivityEntry {
+  kind: "loan";
   key: string;
   loanTxn: AccountTransaction;
   loan: Loan | undefined;
@@ -21,7 +22,8 @@ export function useLoanActivity(): LoanActivityEntry[] {
     const byId = keyBy(loans.loans, "id");
     const items = accounts.transactions
       .filter(({ kind }) => kind === "loan_out" || kind === "loan_in")
-      .map((t) => ({
+      .map((t): LoanActivityEntry => ({
+        kind: "loan",
         key: t.id,
         loanTxn: t,
         loan: t.loanId != null ? byId[t.loanId] : undefined,

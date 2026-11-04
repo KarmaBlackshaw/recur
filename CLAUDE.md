@@ -84,6 +84,7 @@ Fonts: Oswald (headings, subset TTFs in `assets/fonts/oswald`, regenerated from 
 
 ```
 app/_layout.tsx          # Root: GestureHandlerRootView, BottomSheetModalProvider, fonts
+app/+native-intent.tsx   # Rewrites recur://quick-add/<action> (Android widget) to add routes; warm taps push
 app/index.tsx            # Main screen
 components/              # All UI components
 context/ExpenseContext.tsx
@@ -94,7 +95,9 @@ utils/dateHelpers.ts     # getDueDate, isOverdue, formatDue
 utils/categories.ts      # PRESET_CATEGORIES
 utils/collections.ts     # orderBy, groupBy, sumBy… (lodash semantics, no lodash)
 constants/theme.ts       # Color tokens (mirrors tailwind.config.js)
+constants/quickActions.ts # Quick-action → href map shared by the FAB and the widget
 plugins/                 # Local Expo config plugins (android/ and ios/ are generated)
+plugins/withQuickAddWidget/ # Android "Quick add" widget: Kotlin provider + res, copied into android/ at prebuild
 scripts/                 # *-check.mjs logic checks; asset generators (fonts, icons, bank logos)
 types.ts                 # Shared TS types
 ```

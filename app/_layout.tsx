@@ -32,6 +32,8 @@ Notifications.setNotificationHandler({
   }),
 });
 
+export const unstable_settings = { anchor: "(tabs)" };
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Oswald_Regular: require("@/assets/fonts/oswald/Oswald-Regular.ttf"),

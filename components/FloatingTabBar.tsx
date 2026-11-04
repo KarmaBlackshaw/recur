@@ -8,6 +8,7 @@ import type { BottomTabBarProps } from "expo-router/tabs";
 import { AppText } from "@/components/ui/AppText";
 import { AppFab } from "@/components/ui/AppFab";
 import { colors } from "@/constants/theme";
+import { QUICK_ACTION_HREF, type QuickAction } from "@/constants/quickActions";
 import type { FeatherIconName } from "@/types";
 
 const TAB_META: Record<string, { label: string; icon: FeatherIconName }> = {
@@ -23,8 +24,6 @@ const FAB_TYPE: Record<string, "regular" | "recurring"> = {
   expenses: "regular",
   recurring: "recurring",
 };
-
-type QuickAction = "expense" | "recurring" | "income" | "transfer" | "loan";
 
 // Listed top to bottom; the most common sits nearest the thumb.
 const QUICK_ACTIONS: { key: QuickAction; label: string; icon: FeatherIconName }[] = [
@@ -86,23 +85,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
   function runQuickAction(action: QuickAction) {
     setIsMenuOpen(false);
-    if (action === "expense") {
-      router.push("/expense/add?type=regular");
-      return;
-    }
-    if (action === "recurring") {
-      router.push("/expense/add?type=recurring");
-      return;
-    }
-    if (action === "income") {
-      router.push("/income/add");
-      return;
-    }
-    if (action === "loan") {
-      router.push("/loan/add");
-      return;
-    }
-    router.push("/transfer");
+    router.push(QUICK_ACTION_HREF[action]);
   }
 
   return (

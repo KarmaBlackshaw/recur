@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
 import { DONUT_LABEL_HEIGHT, layoutDonut } from "../utils/charts/layoutDonut.ts";
 import { categoryBreakdown } from "../utils/stats/categoryBreakdown.ts";
+
+const root = new URL("../", import.meta.url);
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier.startsWith("@/")) {
+      return nextResolve(new URL(`${specifier.slice(2)}.ts`, root).href, context);
+    }
+    return nextResolve(specifier, context);
+  },
+});
+const { categoryLine, categorySlice } = await import("../utils/activity/categoryLine.ts");
 
 const line = (category, amount, icon = "tag") => ({ category, icon, amount });
 const names = (rows) => rows.map((r) => r.category).join(",");
@@ -51,5 +63,51 @@ assert.ok(layout([100]).slices[0].isLabelled, "a single slice keeps its label");
 
 const tinyTail = layout([50000, 12000, 1500, 300, 200, 80]).slices.map((slice) => slice.isLabelled);
 assert.deepEqual(tinyTail, [true, true, true, false, false, false], "slices under 2% get no label or line, so they can't bundle at the top");
+
+const paid = (category, amount) => ({ expense: { category }, amount });
+const billPayment = (fee) => ({ payment: {}, amount: 5000, fee });
+const transfer = (fee, earned, earnedCategory = null) => ({ transfer: {}, amount: 2000, fee, earned, earnedCategory });
+const income = (category, amount, loan) => ({ income: { category }, loan, amount });
+const interest = (amount) => ({ interest: {}, amount, tax: 1 });
+const loanTxn = { loanTxn: { kind: "loan_out" }, amount: 900 };
+const slice = (entry, flow) => {
+  const result = categoryLine(entry, flow);
+  return result && `${result.category} ${result.amount}`;
+};
+
+assert.equal(slice(paid("Food", 120), "expenses"), "Food 120");
+assert.equal(slice(paid("Food", 120), "income"), null);
+assert.equal(slice(paid("Food", 0), "expenses"), null, "a ₱0 payment adds no row, as it adds no slice");
+assert.equal(slice(billPayment(15), "expenses"), "Fees 15", "a bill payment adds only its fee");
+assert.equal(slice(billPayment(0), "expenses"), null);
+assert.equal(slice(transfer(10, 50), "expenses"), "Fees 10", "a transfer adds its fee, not the amount moved");
+assert.equal(slice(transfer(0, 50), "income"), "Other 50", "income on a transfer with no category is Other");
+assert.equal(slice(transfer(0, 50, "Transfer"), "income"), "Transfer 50");
+assert.equal(slice(transfer(0, 0), "income"), null);
+assert.equal(slice(income("Salary", 1000), "income"), "Salary 1000");
+assert.equal(slice(income(null, 30), "income"), "Other 30");
+assert.equal(slice(income("Overpayment", 80, { id: "l1" }), "income"), "Overpayment from loans 80");
+assert.equal(
+  categoryLine(income("Salary", 80, { id: "l1" }), "income").icon,
+  categoryLine(income("Salary", 1000), "income").icon,
+  "a loan's income keeps its category's icon"
+);
+assert.equal(slice(income("Salary", 1000), "expenses"), null);
+assert.equal(slice(interest(5), "income"), "Interest 5");
+assert.equal(slice(interest(0), "income"), null, "interest all withheld as tax adds nothing");
+assert.equal(slice(loanTxn, "expenses"), null, "lent money is still yours");
+assert.equal(slice(loanTxn, "income"), null, "a repayment isn't income");
+
+// Activity's category filter lists the rows whose line lands in the slice, so its count and total match the slice.
+const feed = [paid("Food", 100), paid("Food", 0), transfer(10, 0), billPayment(5), paid("Housing", 600), loanTxn, income("Salary", 900)];
+const slices = categoryBreakdown(feed.flatMap((entry) => categoryLine(entry, "expenses") ?? []));
+for (const { category, count, amount } of slices) {
+  const { entries, total } = categorySlice(feed, "expenses", category);
+  assert.equal(entries.length, count, `${category}: same count`);
+  assert.equal(total, amount, `${category}: same total`);
+}
+assert.deepEqual(categorySlice(feed, "expenses", "Fees").entries, [feed[2], feed[3]], "a fee slice lists the transfer and bill payment");
+assert.equal(categorySlice(feed, "expenses", "Fees").total, 15, "and adds only their fees");
+assert.equal(names(slices), "Housing,Food,Fees");
 
 console.log("stats-check ok");

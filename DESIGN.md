@@ -216,8 +216,8 @@ one last. A card bill opened from Home adds Details (tonal), which opens the car
 ### Stats (`app/stats.tsx`)
 A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite
 pie-chart glyph, Ink label, Muted chevron; neutral because it sits on mint and periwinkle heroes alike) that opens it
-on Activity's month and Income/Expenses. Header: back chevron, 22px `title`,
-`PeriodNavigator`; no tab bar or FAB.
+on Activity's month or year and Income/Expenses. Header: back chevron, 22px `title`,
+`PeriodNavigator`; no tab bar or FAB. Each category row ends with a Muted chevron and opens Activity filtered to it.
 Underline tabs (`AppUnderlineTabs`) switch Income and Expenses and show each total, with a Periwinkle underline on the
 active one, since mint and coral stay states. The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so
 a hue says which slice is which row and never belongs to a category. Past the sixth, categories fold into one neutral
@@ -250,8 +250,11 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)
   and Owed under a hairline. The header's layers toggle (saved, carried in backups) groups active accounts into a
   band per bank, in account order, with accounts that have no bank last under "Other".
-- Activity's hero shows only its overline and the month's total, above the Stats row: no breakdown under the
+- Activity's hero shows only its overline and the period's total, above the Stats row: no breakdown under the
   total on any chip. Stats carries the detail.
+- Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header. Opened from a Stats category, its segment
+  chips give way to one selected chip (category glyph, name, ✕) with the row count beside it; the hero reads "Spent"
+  or "Received this month/year", and each day shows a signed total of what its rows added to the category.
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

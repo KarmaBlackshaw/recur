@@ -9,23 +9,28 @@ import { useBoolean } from "@/utils/useBoolean";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
-import { DayGroupedExpenseList, type DayTotal } from "@/components/DayGroupedExpenseList";
+import { DayGroupedExpenseList, type ActivityEntry, type DayTotal } from "@/components/DayGroupedExpenseList";
 import { ActivityHero } from "@/components/activity/ActivityHero";
+import { CategoryFilterChip } from "@/components/activity/CategoryFilterChip";
 import type { HeroTone } from "@/components/ui/AppHeroCard";
 import { countLabel } from "@/utils/countLabel";
 import { netFlow } from "@/utils/activity/netFlow";
 import { loanFlow } from "@/utils/activity/loanFlow";
+import { categoryLine, categorySlice } from "@/utils/activity/categoryLine";
+import { categoryIcon } from "@/utils/categories";
 import { useActivityFeed } from "@/utils/useActivityFeed";
-import { useMonthActivity } from "@/utils/useMonthActivity";
+import { usePeriodActivity } from "@/utils/usePeriodActivity";
 import { matchesActivity, type ActivitySearchContext } from "@/utils/activitySearch";
-import type { ActivitySegment, FeatherIconName, TOption } from "@/types";
+import type { ActivitySegment, FeatherIconName, MoneyFlow, TOption } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
 import { AppChips } from "@/components/ui/AppChips";
+import { AppTabs } from "@/components/ui/AppTabs";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
+import { parseMoneyFlow, parsePeriod, PERIODS } from "@/constants/periods";
 
 const SEGMENTS: TOption<ActivitySegment>[] = [
   { label: "All", value: "all" },
@@ -36,13 +41,20 @@ const SEGMENTS: TOption<ActivitySegment>[] = [
   { label: "Loans", value: "loans" },
 ];
 
-const HERO: Record<ActivitySegment, { overline: string; tone: HeroTone }> = {
-  all: { overline: "Net this month", tone: "primary" },
-  paid: { overline: "Paid this month", tone: "paid" },
-  charged: { overline: "Charged this month", tone: "secondary" },
-  income: { overline: "Received this month", tone: "paid" },
-  transfers: { overline: "Transferred this month", tone: "neutral" },
-  loans: { overline: "Lent this month", tone: "secondary" },
+// The hero reads "<label> this month" (or "this year").
+const HERO: Record<ActivitySegment, { label: string; tone: HeroTone }> = {
+  all: { label: "Net", tone: "primary" },
+  paid: { label: "Paid", tone: "paid" },
+  charged: { label: "Charged", tone: "secondary" },
+  income: { label: "Received", tone: "paid" },
+  transfers: { label: "Transferred", tone: "neutral" },
+  loans: { label: "Lent", tone: "secondary" },
+};
+
+// Filtered to one category, Activity mirrors that Stats slice: "Spent" or "Received", like Stats' donut.
+const CATEGORY_HERO: Record<MoneyFlow, { label: string; tone: HeroTone; emptyTitle: string }> = {
+  expenses: { label: "Spent", tone: "primary", emptyTitle: "Nothing spent" },
+  income: { label: "Received", tone: "paid", emptyTitle: "No income" },
 };
 
 const EMPTY: Record<ActivitySegment, { title: string; icon: FeatherIconName; message: string }> = {
@@ -64,12 +76,51 @@ const DAY_TOTAL: Record<ActivitySegment, DayTotal> = {
   loans: loanFlow,
 };
 
+// A category's days add up what each row brought to it (a transfer's fee, not the amount moved), signed like All's.
+const CATEGORY_DAY_TOTAL: Record<MoneyFlow, DayTotal> = {
+  income: (entry) => categoryLine(entry, "income")?.amount ?? 0,
+  expenses: (entry) => -(categoryLine(entry, "expenses")?.amount ?? 0),
+};
+
+interface ListView {
+  entries: ActivityEntry[];
+  total: number;
+  hero: { label: string; tone: HeroTone };
+  empty: { title: string; icon: FeatherIconName; message: string };
+  dayTotal: DayTotal;
+}
+
+type CategoryView = ListView & { category: string; icon: FeatherIconName };
+
+function categoryView(periodEntries: ActivityEntry[], flow: MoneyFlow, category: string): CategoryView {
+  const { entries, total } = categorySlice(periodEntries, flow, category);
+  const hero = CATEGORY_HERO[flow];
+  // "<category> from loans" has no icon of its own, so it takes the one its rows carry, like its Stats slice.
+  const icon = (entries.length > 0 ? categoryLine(entries[0], flow)?.icon : undefined) ?? categoryIcon(category);
+  return {
+    entries,
+    total,
+    hero,
+    empty: { title: hero.emptyTitle, icon, message: `No ${category} in` },
+    dayTotal: CATEGORY_DAY_TOTAL[flow],
+    category,
+    icon,
+  };
+}
+
 export default function ExpensesScreen() {
   const { loading } = useExpenses();
   const { accounts } = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
-  const params = useLocalSearchParams<{ segment?: string; year?: string; month?: string }>();
+  const params = useLocalSearchParams<{
+    segment?: string;
+    year?: string;
+    month?: string;
+    period?: string;
+    category?: string;
+    type?: string;
+  }>();
   // "Charged" only means something once there's a credit card to charge.
   const segments = accounts.some((a) => a.type === "credit") ? SEGMENTS : SEGMENTS.filter(({ value }) => value !== "charged");
   const segment = segments.find(({ value }) => value === params.segment)?.value ?? "all";
@@ -79,13 +130,22 @@ export default function ExpensesScreen() {
   // A year past four digits can't be shown (and past ±275,760 isn't even a Date), so it falls back like a bad month.
   const year = paramYear >= 1000 && paramYear <= 9999 ? paramYear : today.getFullYear();
   const month = paramMonth >= 0 && paramMonth <= 11 ? paramMonth : today.getMonth();
+  const period = parsePeriod(params.period);
+  // Set when Stats opened a category: the list narrows to that slice's rows, whatever the segment.
+  const category = params.category || undefined;
+  const flow = parseMoneyFlow(params.type);
   const [search, setSearch] = useState("");
   const [isSearchOpen, searchOpen] = useBoolean(false);
   const query = isSearchOpen ? search.trim() : "";
-  const statsType = segment === "income" ? "income" : "expenses";
+  const segmentFlow: MoneyFlow = segment === "income" ? "income" : "expenses";
+  const statsType = category != null ? flow : segmentFlow;
 
   function openStats() {
-    router.push(`/stats?year=${year}&month=${month}&type=${statsType}`, { dangerouslySingular: true });
+    router.push(`/stats?year=${year}&month=${month}&period=${period}&type=${statsType}`, { dangerouslySingular: true });
+  }
+
+  function clearCategory() {
+    router.setParams({ category: undefined, type: undefined });
   }
 
   const searchContext = useMemo<ActivitySearchContext>(() => {
@@ -99,22 +159,30 @@ export default function ExpensesScreen() {
     [feed.all, query, searchContext]
   );
 
-  const { byFilter, lent, moneyIn, paidTotal } = useMonthActivity(feed, year, month);
+  const { byFilter, lent, moneyIn, paidTotal } = usePeriodActivity(feed, year, month, period);
 
-  const entries = byFilter[segment];
+  const filtered = useMemo(
+    () => (category == null ? null : categoryView(byFilter.all, flow, category)),
+    [byFilter.all, category, flow]
+  );
+  const segmentEntries = byFilter[segment];
   // Lending stays out of the net: money lent is still yours (net worth counts it as an asset).
-  const totals: Record<ActivitySegment, number> = {
-    all: moneyIn - paidTotal,
-    paid: paidTotal,
-    charged: sumBy(entries, "amount"),
-    income: moneyIn,
-    transfers: sumBy(entries, "amount"),
-    loans: lent,
+  const segmentTotals: Record<ActivitySegment, () => number> = {
+    all: () => moneyIn - paidTotal,
+    paid: () => paidTotal,
+    charged: () => sumBy(segmentEntries, "amount"),
+    income: () => moneyIn,
+    transfers: () => sumBy(segmentEntries, "amount"),
+    loans: () => lent,
   };
-  const total = totals[segment];
-  const hero = HERO[segment];
-  const empty = EMPTY[segment];
-  const monthLabel = dayjs(new Date(year, month, 1)).format("MMMM");
+  const view: ListView = filtered ?? {
+    entries: segmentEntries,
+    total: segmentTotals[segment](),
+    hero: HERO[segment],
+    empty: EMPTY[segment],
+    dayTotal: DAY_TOTAL[segment],
+  };
+  const periodLabel = dayjs(new Date(year, month, 1)).format(period === "year" ? "YYYY" : "MMMM");
 
   function toggleSearch() {
     if (isSearchOpen) {
@@ -138,6 +206,7 @@ export default function ExpensesScreen() {
         <View className="flex-row items-center">
           {query === "" && (
             <PeriodNavigator
+              unit={period}
               year={year}
               month={month}
               onChange={(year, month) => router.setParams({ year: String(year), month: String(month) })}
@@ -183,21 +252,39 @@ export default function ExpensesScreen() {
         </>
       ) : (
         <>
-          <AppChips
-            chips={segments}
-            value={segment}
-            onChange={(next) => router.setParams({ segment: next })}
-            accessibilityLabel="Filter activity"
-            className="mt-1"
+          <AppTabs
+            tabs={PERIODS}
+            value={period}
+            onChange={(next) => router.setParams({ period: next })}
+            className="mx-5 mt-1"
           />
 
-          <ActivityHero overline={hero.overline} total={total} tone={hero.tone} onStatsPress={openStats} />
+          {filtered != null ? (
+            <CategoryFilterChip
+              category={filtered.category}
+              icon={filtered.icon}
+              meta={countLabel(filtered.entries.length, "transaction", "transactions")}
+              onClear={clearCategory}
+            />
+          ) : (
+            <AppChips
+              chips={segments}
+              value={segment}
+              onChange={(next) => router.setParams({ segment: next })}
+              accessibilityLabel="Filter activity"
+              className="mt-1"
+            />
+          )}
+
+          <ActivityHero overline={`${view.hero.label} this ${period}`} total={view.total} tone={view.hero.tone} onStatsPress={openStats} />
 
           <DayGroupedExpenseList
-            entries={entries}
-            dayTotal={DAY_TOTAL[segment]}
+            entries={view.entries}
+            dayTotal={view.dayTotal}
             refreshControl={refreshControl}
-            ListEmptyComponent={<EmptyState title={empty.title} icon={empty.icon} message={`${empty.message} ${monthLabel}`} />}
+            ListEmptyComponent={
+              <EmptyState title={view.empty.title} icon={view.empty.icon} message={`${view.empty.message} ${periodLabel}`} />
+            }
           />
         </>
       )}

@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import type { Expense, Status } from "@/types";
+import type { Expense, Period, Status } from "@/types";
 
 export function getDueDate(dueDay: number): Date {
   const now = new Date();
@@ -88,6 +88,10 @@ export function isEndedOn(
     return false;
   }
   return year > endYear || (year === endYear && month > endMonth);
+}
+
+export function isInPeriod(date: Date, year: number, month: number, period: Period): boolean {
+  return date.getFullYear() === year && (period === "year" || date.getMonth() === month);
 }
 
 export function formatMonth(year: number, month: number): string {

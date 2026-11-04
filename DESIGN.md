@@ -226,6 +226,12 @@ hue; labels stack so they never touch, and long names truncate. Smaller slices r
 would bundle at the top of the ring. Row tiles stay neutral with a glyph. Amounts and labels stay in Ink
 and Secondary Graphite.
 
+### Home-screen widget (Android)
+"Quick add", a 4x1 row of Expense, Income, Transfer and Loan that opens each add form (`plugins/withQuickAddWidget`).
+Raised Graphite with a Hairline border and the system widget radius (21dp before Android 12). Each button is a List
+Row tile (36dp, 10.5dp radius, Indigo 15%, 17dp Periwinkle Feather glyph) over a 12sp Ink label, and announces its
+FAB label ("New expense").
+
 ### Empty and Loading States
 Empty: one large muted glyph, a short title, one plain sentence, and the action that fills it when there
 is one. Loading: `LoadingState` for whole screens only; lists never flash a spinner per row.
@@ -269,4 +275,5 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - More than one " · " in a meta or caption line; decorative dots.
 - Neon glows, gradient text, pure black.
 - Em-dashes in UI copy.
-- Inter, serif or system fonts.
+- Inter, serif or system fonts. One exception: the Android widget's labels use `sans-serif-medium`, because
+  RemoteViews can't load app fonts.

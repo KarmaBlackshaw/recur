@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/quick_add_widget_background"
+    android:clipToOutline="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="6dp">
+
+    <LinearLayout
+        android:id="@+id/quick_add_widget_expense"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/quick_add_widget_button"
+        android:contentDescription="@string/quick_add_widget_expense_description"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/quick_add_widget_chip"
+            android:importantForAccessibility="no"
+            android:scaleType="center"
+            android:src="@drawable/quick_add_widget_ic_expense" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:importantForAccessibility="no"
+            android:maxLines="1"
+            android:text="@string/quick_add_widget_expense"
+            android:textColor="@color/quick_add_widget_label"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/quick_add_widget_income"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/quick_add_widget_button"
+        android:contentDescription="@string/quick_add_widget_income_description"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/quick_add_widget_chip"
+            android:importantForAccessibility="no"
+            android:scaleType="center"
+            android:src="@drawable/quick_add_widget_ic_income" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:importantForAccessibility="no"
+            android:maxLines="1"
+            android:text="@string/quick_add_widget_income"
+            android:textColor="@color/quick_add_widget_label"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/quick_add_widget_transfer"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/quick_add_widget_button"
+        android:contentDescription="@string/quick_add_widget_transfer_description"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/quick_add_widget_chip"
+            android:importantForAccessibility="no"
+            android:scaleType="center"
+            android:src="@drawable/quick_add_widget_ic_transfer" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:importantForAccessibility="no"
+            android:maxLines="1"
+            android:text="@string/quick_add_widget_transfer"
+            android:textColor="@color/quick_add_widget_label"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/quick_add_widget_loan"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/quick_add_widget_button"
+        android:contentDescription="@string/quick_add_widget_loan_description"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/quick_add_widget_chip"
+            android:importantForAccessibility="no"
+            android:scaleType="center"
+            android:src="@drawable/quick_add_widget_ic_loan" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:importantForAccessibility="no"
+            android:maxLines="1"
+            android:text="@string/quick_add_widget_loan"
+            android:textColor="@color/quick_add_widget_label"
+            android:textSize="12sp" />
+    </LinearLayout>
+</LinearLayout>

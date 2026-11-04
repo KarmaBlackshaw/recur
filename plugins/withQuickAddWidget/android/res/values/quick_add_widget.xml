@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="quick_add_widget_surface">#1C1C1E</color>
+    <color name="quick_add_widget_border">#12FFFFFF</color>
+    <color name="quick_add_widget_chip">#266366F1</color>
+    <color name="quick_add_widget_glyph">#818CF8</color>
+    <color name="quick_add_widget_label">#FFFFFF</color>
+    <color name="quick_add_widget_ripple">#1FFFFFFF</color>
+
+    <dimen name="quick_add_widget_radius">21dp</dimen>
+
+    <string name="quick_add_widget_label">Quick add</string>
+    <string name="quick_add_widget_description">Add an expense, income, transfer or loan in one tap.</string>
+    <string name="quick_add_widget_expense">Expense</string>
+    <string name="quick_add_widget_income">Income</string>
+    <string name="quick_add_widget_transfer">Transfer</string>
+    <string name="quick_add_widget_loan">Loan</string>
+    <string name="quick_add_widget_expense_description">New expense</string>
+    <string name="quick_add_widget_income_description">New income</string>
+    <string name="quick_add_widget_transfer_description">Transfer</string>
+    <string name="quick_add_widget_loan_description">New loan</string>
+</resources>

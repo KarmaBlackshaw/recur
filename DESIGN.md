@@ -185,11 +185,11 @@ a Hairline border, above the tab bar, gone after 5s. Never for errors (those are
 Opened when a bill's amount isn't known, from a bill's Mark paid, or by tapping an unpaid bill in Home's due lists or
 in the Recurring tab's Overdue and Unpaid bands (for that month's bill). Its meta line reads the cycle and due date
 ("October bill · due Oct 1", plus " · 31 days late" when overdue), then three inputs: Amount (prefilled, blank when
-TBD), Paid on (an `AppDateField`, today by default, no future dates) and Pay from (an `AppSelectField` that opens the
-account picker; the bill's account, or Cash when it has none or it's archived; editing a payment keeps that payment's
-account). Mark as paid closes the sheet and pays once it's gone. Opened from a bill row, it adds Details (tonal) under
-Mark as paid, which opens the bill's page for that month. Every other row skips the sheet: it opens the bill page, or a
-one-off's editor, directly.
+TBD; ₱0 is allowed for a month with no bill), Paid on (an `AppDateField`, today by default, no future dates) and Pay
+from (an `AppSelectField` that opens the account picker; the bill's account, or Cash when it has none or it's archived;
+editing a payment keeps that payment's account). Mark as paid closes the sheet and pays once it's gone. Opened from a
+bill row, it adds Details (tonal) under Mark as paid, which opens the bill's page for that month. Every other row skips
+the sheet: it opens the bill page, or a one-off's editor, directly.
 
 ### Card bill sheet
 Cut-off and Estimate rows, the Statement amount input (Save amount, Use estimate), then Paid and Remaining. While the
@@ -225,6 +225,12 @@ a hue says which slice is which row and never belongs to a category. Past the si
 hue; labels stack so they never touch, and long names truncate. Smaller slices rely on the list, because their lines
 would bundle at the top of the ring. Row tiles stay neutral with a glyph. Amounts and labels stay in Ink
 and Secondary Graphite.
+
+### Home-screen widget (Android)
+"Quick add", a 4x1 row of Expense, Income, Transfer and Loan that opens each add form (`plugins/withQuickAddWidget`).
+Raised Graphite with a Hairline border and the system widget radius (21dp before Android 12). Each button is a List
+Row tile (36dp, 10.5dp radius, Indigo 15%, 17dp Periwinkle Feather glyph) over a 12sp Ink label, and announces its
+FAB label ("New expense").
 
 ### Empty and Loading States
 Empty: one large muted glyph, a short title, one plain sentence, and the action that fills it when there
@@ -269,4 +275,5 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - More than one " · " in a meta or caption line; decorative dots.
 - Neon glows, gradient text, pure black.
 - Em-dashes in UI copy.
-- Inter, serif or system fonts.
+- Inter, serif or system fonts. One exception: the Android widget's labels use `sans-serif-medium`, because
+  RemoteViews can't load app fonts.

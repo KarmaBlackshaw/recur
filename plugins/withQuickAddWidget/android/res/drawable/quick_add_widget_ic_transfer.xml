@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Feather 4.29.2 repeat -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="17dp"
+    android:height="17dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M17,1 L21,5 L17,9"
+        android:strokeColor="@color/quick_add_widget_glyph"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M3,11 V9 a4,4 0 0,1 4,-4 h14"
+        android:strokeColor="@color/quick_add_widget_glyph"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M7,23 L3,19 L7,15"
+        android:strokeColor="@color/quick_add_widget_glyph"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M21,13 v2 a4,4 0 0,1 -4,4 H3"
+        android:strokeColor="@color/quick_add_widget_glyph"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2" />
+</vector>

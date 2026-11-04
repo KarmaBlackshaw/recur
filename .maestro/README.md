@@ -3,9 +3,10 @@
 End-to-end flows for the Android app. Each top-level flow is independent: it clears app state and
 relaunches the app through `subflows/launch-fresh.yaml`.
 
-CI runs the whole suite on every pull request (the `Maestro e2e` job in `.github/workflows/build.yml`):
-a release build, which embeds its JS bundle, on an API 34 emulator, so a broken assert fails the PR
-that broke it. A failed run uploads its screenshots and logs as the `maestro-debug` artifact.
+CI doesn't run the suite for now: the `Maestro e2e` job was dropped from `.github/workflows/build.yml`
+after the bill sheet rework (https://github.com/KarmaBlackshaw/recur/pull/100) left `02-card-bill`,
+`03-kpis` and `08-transfer-no-source` asserting UI it removed: the card bill's "Remaining" row and the
+old Pay bill screen's "Pay from" field. Fix those flows before adding the job back.
 
 ## Run
 
@@ -23,7 +24,7 @@ maestro test .maestro/02-card-bill.yaml    # one flow
 
 Clearing app state also clears the bundle location set from the dev menu, so a debug build loads from
 the Metro port it was built with (`10.0.2.2:8081` on an emulator by default). A release build
-(`npx expo run:android --variant release`) needs no Metro, as in CI.
+(`npx expo run:android --variant release`) needs no Metro.
 
 ## Flows
 
@@ -46,4 +47,5 @@ artifact upload rejects paths containing them.
 
 Flows `02`, `03` and `08` backdate a card charge to the 1st of the current month and use a card with
 cut-off 1 / due 10, so the bill is overdue. They expect today's day-of-month to be **after the 10th**.
-CI pins the emulator clock to 20 Oct 2026, 12:00, so every run sees the same dates.
+To pin the emulator clock to 20 Oct 2026, 12:00, as CI did: `adb shell settings put global auto_time 0`
+then `adb shell su 0 date 102012002026.00`.

@@ -162,7 +162,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
               rules={{
                 validate: (v) => {
                   const n = parseFloat(v);
-                  return (!isNaN(n) && n >= 0.01) || "Enter what you paid";
+                  return (!isNaN(n) && n >= 0) || "Enter what you paid";
                 },
               }}
               render={({ field: { value, onChange, onBlur }, fieldState }) => (

@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import { AppBottomSheet, type AppBottomSheetRef, type SheetFooter } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppDateField } from "@/components/ui/AppDateField";
+import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AppSelectField } from "@/components/ui/AppSelectField";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
@@ -15,6 +16,8 @@ import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { formatDaysLate, getDueDateForMonth, isOverdueOn } from "@/utils/dateHelpers";
 import { paidAtFor } from "@/utils/dates/paidAtFor";
 import { expenseTitle } from "@/utils/expenseHelpers";
+import { billProgress, canPayPart } from "@/utils/expenses/billProgress";
+import { formatAmount } from "@/utils/formatAmount";
 import { payFromAccountId } from "@/utils/accounts/payFromAccountId";
 import type { Expense } from "@/types";
 
@@ -22,12 +25,14 @@ export interface PayTarget {
   expense: Expense;
   year: number;
   month: number;
+  paymentId?: string;
 }
 
 export interface PayConfirmation {
   amount: number;
   paidAt: string;
   accountId: string;
+  mode: "settle" | "part" | "edit";
 }
 
 export interface PaySheetRef {
@@ -54,8 +59,8 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const [target, setTarget] = useState<PayTarget | null>(null);
   const [footer, setFooter] = useState<SheetFooter>();
-  const { getDisplayAmount, getMonthAmount, getMonthPaidAt, getMonthStatus } = useExpenses();
-  const { accounts, activeAccounts, transactions } = useAccounts();
+  const { getBillProgress, getDisplayAmount, getMonthAmount, getMonthPaidAt, getMonthStatus } = useExpenses();
+  const { accounts, activeAccounts, getPayments } = useAccounts();
   const {
     control,
     handleSubmit,
@@ -80,42 +85,65 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
     present: (next, nextFooter) => {
       const { expense, year, month } = next;
       const isPaid = getMonthStatus(expense.id, year, month) === "paid";
-      const payment = transactions.find(
-        (t) => t.kind === "payment" && t.expenseId === expense.id && t.cycleYear === year && t.cycleMonth === month
-      );
-      const amount = lastKnownAmount(expense, year, month);
-      // Editing a recorded payment starts from that payment: its own date (the due date for months paid before pay
-      // dates were recorded) and its own account, archived or not. A new payment, or one recorded without an account,
-      // starts from the bill's.
-      const paidAt = isPaid
-        ? getMonthPaidAt(expense.id, year, month) ??
-          payment?.createdAt ??
-          dayjs(getDueDateForMonth(expense.dueDay, year, month)).endOf("day").toISOString()
-        : new Date().toISOString();
-      const accountId = (isPaid ? payment?.accountId : null) ?? payFromAccountId(expense, activeAccounts);
-      reset({ amount: amount != null ? amount.toFixed(2) : "", paidAt, accountId });
-      setTarget(next);
+      const payments = getPayments(expense.id, year, month);
+      const editing = payments.find((t) => t.id === next.paymentId) ?? (isPaid ? payments.at(-1) : undefined);
+      if (editing) {
+        reset({ amount: Math.abs(editing.amount).toFixed(2), paidAt: editing.createdAt, accountId: editing.accountId });
+      } else {
+        const progress = getBillProgress(expense, year, month);
+        const amount = progress.paid > 0 ? progress.left : lastKnownAmount(expense, year, month);
+        // Months paid before pay dates were recorded date by their due date.
+        const paidAt = isPaid
+          ? getMonthPaidAt(expense.id, year, month) ??
+            dayjs(getDueDateForMonth(expense.dueDay, year, month)).endOf("day").toISOString()
+          : new Date().toISOString();
+        reset({
+          amount: amount != null ? amount.toFixed(2) : "",
+          paidAt,
+          accountId: payFromAccountId(expense, activeAccounts),
+        });
+      }
+      setTarget({ ...next, paymentId: editing?.id });
       // A function given to a state setter runs as an updater, so wrap it.
       setFooter(() => nextFooter);
       sheetRef.current?.present();
     },
   }));
 
-  const onSubmit = handleSubmit((values) => {
-    if (!target) {
-      return;
-    }
-    const payment: PayConfirmation = {
-      amount: parseFloat(values.amount),
-      paidAt: values.paidAt,
-      accountId: values.accountId,
-    };
-    sheetRef.current?.dismiss(() => onConfirm(target, payment));
-  });
+  const submit = (mode: PayConfirmation["mode"]) =>
+    handleSubmit((values) => {
+      if (!target) {
+        return;
+      }
+      const payment: PayConfirmation = {
+        amount: parseFloat(values.amount),
+        paidAt: values.paidAt,
+        accountId: values.accountId,
+        mode,
+      };
+      sheetRef.current?.dismiss(() => onConfirm(target, payment));
+    });
 
   const accountId = watch("accountId");
+  const parsedAmount = parseFloat(watch("amount"));
   const dueDate = target ? dayjs(getDueDateForMonth(target.expense.dueDay, target.year, target.month)) : null;
   const isPaidAlready = target != null && getMonthStatus(target.expense.id, target.year, target.month) === "paid";
+  const isEditingPayment = target?.paymentId != null;
+  const progress =
+    target && !isEditingPayment && !isPaidAlready ? getBillProgress(target.expense, target.year, target.month) : null;
+  const editProgress =
+    target && isEditingPayment && !isPaidAlready
+      ? billProgress({
+          bill: getDisplayAmount(target.expense, target.year, target.month),
+          payments: getPayments(target.expense.id, target.year, target.month)
+            .filter((t) => t.id !== target.paymentId)
+            .map((t) => Math.abs(t.amount)),
+          isPaid: false,
+        })
+      : null;
+  const latestPaidAt =
+    target && progress ? getPayments(target.expense.id, target.year, target.month).at(-1)?.createdAt : undefined;
+  const isCoveringBill = progress?.left != null && parsedAmount > 0 && !canPayPart(progress, parsedAmount);
   const accountName = accounts.find((a) => a.id === accountId)?.name ?? DELETED_ACCOUNT;
   const cycleLabel = target ? dayjs(new Date(target.year, target.month, 1)).format("MMMM") : "";
   const lateText =
@@ -129,7 +157,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
         ref={sheetRef}
         title={
           target
-            ? isPaidAlready
+            ? progress == null
               ? `Edit ${expenseTitle(target.expense)} payment`
               : `Pay ${expenseTitle(target.expense)}`
             : "Pay"
@@ -143,6 +171,12 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
             <AppText variant="meta" className="-mt-2 mb-2">
               {dueDate ? `${cycleLabel} bill · due ${dueDate.format("MMM D")}${lateText}` : `${cycleLabel} bill`}
             </AppText>
+            {progress && progress.paid > 0 ? (
+              <View className="mb-2">
+                <AppDetailRow label="Paid so far" value={formatAmount(progress.paid)} />
+                {progress.left != null && <AppDetailRow label="Left" value={formatAmount(progress.left)} />}
+              </View>
+            ) : null}
             <Controller
               control={control}
               name="paidAt"
@@ -151,6 +185,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
                   label="Paid on"
                   value={value}
                   onChange={(iso) => onChange(paidAtFor(iso))}
+                  minimumDate={latestPaidAt ? dayjs(latestPaidAt).toDate() : undefined}
                   maximumDate={new Date()}
                 />
               )}
@@ -162,27 +197,51 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
               rules={{
                 validate: (v) => {
                   const n = parseFloat(v);
-                  return (!isNaN(n) && n >= 0) || "Enter what you paid";
+                  if (isNaN(n) || !(isEditingPayment ? n > 0 : n >= 0)) {
+                    return "Enter what you paid";
+                  }
+                  return (
+                    editProgress == null ||
+                    canPayPart(editProgress, n) ||
+                    "That covers the bill — delete this payment and use Mark as paid"
+                  );
                 },
               }}
               render={({ field: { value, onChange, onBlur }, fieldState }) => (
-                <AppTextInput
-                  label="Amount (₱)"
-                  isAmount
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholder="0.00"
-                  error={fieldState.isTouched ? fieldState.error?.message : undefined}
-                />
+                <>
+                  <AppTextInput
+                    label="Amount (₱)"
+                    isAmount
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    placeholder="0.00"
+                    error={fieldState.isTouched ? fieldState.error?.message : undefined}
+                  />
+                  {fieldState.isDirty && isCoveringBill ? (
+                    <AppText variant="meta" className="mb-1">That covers the bill — use Mark as paid</AppText>
+                  ) : null}
+                </>
               )}
             />
             <View className="mt-4 gap-2">
-              <AppButton
-                label={isPaidAlready ? "Save payment" : "Mark as paid"}
-                onPress={onSubmit}
-                disabled={!isValid}
-              />
+              {progress ? (
+                <>
+                  <AppButton label="Mark as paid" onPress={submit("settle")} disabled={!isValid} />
+                  <AppButton
+                    label="Pay part, rest later"
+                    variant="tonal"
+                    onPress={submit("part")}
+                    disabled={!isValid || !canPayPart(progress, parsedAmount)}
+                  />
+                </>
+              ) : (
+                <AppButton
+                  label="Save payment"
+                  onPress={submit(isEditingPayment ? "edit" : "settle")}
+                  disabled={!isValid}
+                />
+              )}
               {footer?.(() => sheetRef.current?.dismiss())}
             </View>
           </View>

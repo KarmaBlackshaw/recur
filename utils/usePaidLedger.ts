@@ -16,6 +16,7 @@ export interface PaidEntry {
   effDate: Date; // when it counts (pay date) — drives grouping/window/sort
   amount: number;
   isCard: boolean;
+  paidTxn?: AccountTransaction;
 }
 
 export interface BillPaymentEntry {
@@ -73,7 +74,7 @@ function transferFee(transactions: AccountTransaction[], transferId: string | nu
 // rolling last-N-day window; Expenses = the whole selected month) over `effDate`.
 export function usePaidLedger(): PaidEntry[] {
   const { expenses, paidCycles, resolveAmount } = useExpenses();
-  const { isCardCharge } = useAccounts();
+  const { transactions, isCardCharge, isCardAccount } = useAccounts();
 
   return useMemo(() => {
     const byId = keyBy(expenses, "id");
@@ -96,11 +97,33 @@ export function usePaidLedger(): PaidEntry[] {
       });
     }
 
-    // Recurring: every paid cycle, dated by its effective pay-date so an advance
-    // payment surfaces in the month it was paid, not the due month.
+    // Recurring: one entry per payment, dated by when it was paid so an advance or part payment surfaces in the
+    // month it was paid, not the due month. A paid cycle with no payment row (₱0, legacy) is one entry of its own.
+    const cyclesWithPayments = new Set<string>();
+    for (const t of transactions) {
+      if (t.kind !== "payment" || t.expenseId == null || t.cycleYear == null || t.cycleMonth == null) {
+        continue;
+      }
+      const e = byId[t.expenseId];
+      if (!e || e.recurrence === "one-off") {
+        continue;
+      }
+      cyclesWithPayments.add(monthKey(e.id, t.cycleYear, t.cycleMonth));
+      items.push({
+        kind: "expense",
+        key: t.id,
+        expense: e,
+        refDate: new Date(t.cycleYear, t.cycleMonth, 1),
+        effDate: new Date(t.createdAt),
+        amount: Math.abs(t.amount),
+        isCard: isCardAccount(t.accountId),
+        paidTxn: t,
+      });
+    }
+
     for (const c of paidCycles) {
       const e = byId[c.expenseId];
-      if (!e || e.recurrence === "one-off") {
+      if (!e || e.recurrence === "one-off" || cyclesWithPayments.has(monthKey(e.id, c.year, c.month))) {
         continue;
       }
       items.push({
@@ -115,7 +138,7 @@ export function usePaidLedger(): PaidEntry[] {
     }
 
     return orderBy(items, "effDate", "desc");
-  }, [expenses, paidCycles, resolveAmount, isCardCharge]);
+  }, [expenses, paidCycles, resolveAmount, transactions, isCardCharge, isCardAccount]);
 }
 
 export function useBillPayments(): BillPaymentEntry[] {

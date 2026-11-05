@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { useAsyncEffect } from "@/utils/useAsyncEffect";
 import { useMemoizedFn } from "@/utils/useMemoizedFn";
 import { round } from "@/utils/round";
+import { sortBy } from "@/utils/collections";
 import { saveAccountLogo } from "@/utils/accountLogo/saveAccountLogo";
 import { deleteAccountLogo } from "@/utils/accountLogo/deleteAccountLogo";
 import type { Account, AccountInput, AccountTransaction, CardBill, CardBillOverride, IncomeInput, InterestEstimate, TransferInput } from "@/types";
@@ -23,7 +24,7 @@ import {
   insertMany as insertTransactions,
   remove as removeTransaction,
   removeTransfer,
-  replacePayment,
+  replacePayments as replacePaymentRows,
   replaceTransfer,
   updateIncome as updateIncomeRow,
 } from "@/db/accountTransactions";
@@ -93,6 +94,13 @@ export interface PaymentSync {
   createdAt?: string;
 }
 
+export interface PaymentInput {
+  accountId: string | null | undefined;
+  amount: number | null;
+  note: string;
+  createdAt: string;
+}
+
 interface AccountContextValue {
   accounts: Account[];
   // Accounts that can take new money: everything except archived ones. Pickers list these.
@@ -121,7 +129,15 @@ interface AccountContextValue {
   updateTransfer: (transferId: string, input: TransferInput) => Promise<void>;
   deleteTransfer: (transferId: string) => Promise<void>;
   syncPayment: (p: PaymentSync) => Promise<void>;
+  replacePayments: (
+    expenseId: string,
+    cycleYear: number | null,
+    cycleMonth: number | null,
+    payments: PaymentInput[]
+  ) => Promise<void>;
   removePayment: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => Promise<void>;
+  getPayments: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => AccountTransaction[];
+  isTxnCharged: (txn: AccountTransaction) => boolean;
   getCardBills: (year: number, month: number) => CardBill[];
   setBillAmount: (accountId: string, year: number, month: number, amount: number | null) => Promise<void>;
   isCharged: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => boolean;
@@ -513,42 +529,57 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.transferId === transferId });
   });
 
-  const syncPayment = useMemoizedFn(async (p: PaymentSync) => {
-    let account = state.accounts.find((a) => a.id === p.accountId);
-    if (!account && state.isLoading && p.accountId != null) {
-      account = await getAccountById(p.accountId);
-    }
-    const existing = state.transactions.find(isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth));
-    // A ₱0 bill moved no money, so it leaves no row in the account.
-    const txn: Omit<AccountTransaction, "id"> | null =
-      account && p.amount != null && round(p.amount, 2) > 0
-        ? {
+  const replacePayments = useMemoizedFn(
+    async (expenseId: string, cycleYear: number | null, cycleMonth: number | null, payments: PaymentInput[]) => {
+      const rows: Omit<AccountTransaction, "id">[] = [];
+      for (const p of payments) {
+        let account = state.accounts.find((a) => a.id === p.accountId);
+        if (!account && state.isLoading && p.accountId != null) {
+          account = await getAccountById(p.accountId);
+        }
+        // A ₱0 bill moved no money, so it leaves no row in the account.
+        if (account && p.amount != null && round(p.amount, 2) > 0) {
+          rows.push({
             ...emptyTxnFields(),
             accountId: account.id,
             kind: "payment",
             amount: account.type === "credit" ? round(p.amount, 2) : -round(p.amount, 2),
-            expenseId: p.expenseId,
-            cycleYear: p.cycleYear,
-            cycleMonth: p.cycleMonth,
+            expenseId,
+            cycleYear,
+            cycleMonth,
             note: p.note,
-            createdAt: p.createdAt ?? existing?.createdAt ?? new Date().toISOString(),
-          }
-        : null;
-    const error = txn && overdraftError([txn], isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth));
-    if (error) {
-      throw error;
+            createdAt: p.createdAt,
+          });
+        }
+      }
+      const isReplaced = isPaymentFor(expenseId, cycleYear, cycleMonth);
+      const error = overdraftError(rows, isReplaced);
+      if (error) {
+        throw error;
+      }
+      const inserted = await replacePaymentRows(expenseId, cycleYear, cycleMonth, rows);
+      dispatch({ type: "REMOVE_TRANSACTIONS", payload: isReplaced });
+      if (inserted.length > 0) {
+        dispatch({ type: "ADD_TRANSACTIONS", payload: inserted });
+      }
     }
-    const inserted = await replacePayment(p.expenseId, p.cycleYear, p.cycleMonth, txn);
-    dispatch({ type: "REMOVE_TRANSACTIONS", payload: isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth) });
-    if (inserted) {
-      dispatch({ type: "ADD_TRANSACTIONS", payload: [inserted] });
-    }
+  );
+
+  const syncPayment = useMemoizedFn(async (p: PaymentSync) => {
+    const existing = state.transactions.find(isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth));
+    await replacePayments(p.expenseId, p.cycleYear, p.cycleMonth, [
+      {
+        accountId: p.accountId,
+        amount: p.amount,
+        note: p.note,
+        createdAt: p.createdAt ?? existing?.createdAt ?? new Date().toISOString(),
+      },
+    ]);
   });
 
-  const removePayment = useMemoizedFn(async (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => {
-    await replacePayment(expenseId, cycleYear, cycleMonth, null);
-    dispatch({ type: "REMOVE_TRANSACTIONS", payload: isPaymentFor(expenseId, cycleYear, cycleMonth) });
-  });
+  const removePayment = useMemoizedFn((expenseId: string, cycleYear: number | null, cycleMonth: number | null) =>
+    replacePayments(expenseId, cycleYear, cycleMonth, [])
+  );
 
   const setBillAmount = useMemoizedFn(async (accountId: string, year: number, month: number, amount: number | null) => {
     if (amount == null) {
@@ -598,15 +629,21 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     return map;
   }, [state.accounts, state.transactions]);
 
+  const getPayments = useCallback(
+    (expenseId: string, cycleYear: number | null, cycleMonth: number | null) =>
+      sortBy(state.transactions.filter(isPaymentFor(expenseId, cycleYear, cycleMonth)), "createdAt"),
+    [state.transactions]
+  );
+
+  const isTxnCharged = useCallback(
+    (txn: AccountTransaction) => unsettledByCard.get(txn.accountId)?.has(txn.id) ?? false,
+    [unsettledByCard]
+  );
+
   const isCharged = useCallback(
-    (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => {
-      const payment = state.transactions.find(isPaymentFor(expenseId, cycleYear, cycleMonth));
-      if (!payment) {
-        return false;
-      }
-      return unsettledByCard.get(payment.accountId)?.has(payment.id) ?? false;
-    },
-    [state.transactions, unsettledByCard]
+    (expenseId: string, cycleYear: number | null, cycleMonth: number | null) =>
+      getPayments(expenseId, cycleYear, cycleMonth).some(isTxnCharged),
+    [getPayments, isTxnCharged]
   );
 
   const isCardAccount = useCallback(
@@ -622,10 +659,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       cycleMonth: number | null,
       fallbackAccountId: string | null | undefined
     ) => {
-      const payment = state.transactions.find(isPaymentFor(expenseId, cycleYear, cycleMonth));
+      const payment = getPayments(expenseId, cycleYear, cycleMonth)[0];
       return isCardAccount(payment?.accountId ?? fallbackAccountId);
     },
-    [state.transactions, isCardAccount]
+    [getPayments, isCardAccount]
   );
 
   const value = useMemo(
@@ -652,7 +689,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       updateTransfer,
       deleteTransfer,
       syncPayment,
+      replacePayments,
       removePayment,
+      getPayments,
+      isTxnCharged,
       getCardBills,
       setBillAmount,
       isCharged,
@@ -661,7 +701,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       reload,
       refresh,
     }),
-    [state, activeAccounts, netWorth, getCardBills, isCharged, isCardAccount, isCardCharge]
+    [state, activeAccounts, netWorth, getCardBills, getPayments, isTxnCharged, isCharged, isCardAccount, isCardCharge]
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

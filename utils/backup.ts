@@ -6,7 +6,12 @@ import { uniqBy } from '@/utils/collections';
 import { getAll as getAllExpenses, insertWithId as insertExpenseWithId } from '@/db/expenses';
 import { getAll as getAllCategories, insertCategory } from '@/db/categories';
 import { getAll as getAllAccounts, insertWithId as insertAccountWithId } from '@/db/accounts';
-import { getAll as getAllTransactions, insertWithId as insertTransactionWithId } from '@/db/accountTransactions';
+import {
+  getAll as getAllTransactions,
+  getPaymentMonthKeys,
+  insertWithId as insertTransactionWithId,
+  paymentMonthKey,
+} from '@/db/accountTransactions';
 import { getAll as getAllMonths, insertOrIgnore as insertMonth } from '@/db/expenseMonths';
 import { getAll as getAllCardBills, insertOrIgnore as insertCardBill } from '@/db/cardBills';
 import { getAll as getAllLoans, insertWithId as insertLoanWithId } from '@/db/loans';
@@ -30,7 +35,7 @@ import {
   type TransferTemplate,
 } from '@/types';
 
-const BACKUP_VERSION = 7;
+const BACKUP_VERSION = 8;
 
 // The settings a backup carries. Migration flags and the permission prompt flag belong to the device.
 const BACKUP_PREFERENCE_KEYS = ['user_name', 'reminderTime', 'notificationsEnabled', 'homeCollapsedBands', 'accountsGroupByBank'];
@@ -46,7 +51,7 @@ interface BackupLogo {
 }
 
 interface BackupFile {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   exportedAt: string;
   expenses: Expense[];
   categories: string[];
@@ -473,9 +478,15 @@ export async function importBackup(): Promise<ImportSummary | null> {
       for (const loan of backup.loans) {
         tally(summary, 'loans', await insertLoanWithId(loan, txn));
       }
+      // A month's payments restore as one set, and only when this device has none for that month: adding them next
+      // to a local payment would pay the month twice.
+      const paymentMonths = await getPaymentMonthKeys(txn);
       for (const transaction of backup.transactions) {
         if (knownAccountIds.has(transaction.accountId)) {
-          tally(summary, 'transactions', await insertTransactionWithId(transaction, txn));
+          const hasLocalPayment =
+            transaction.kind === 'payment' &&
+            paymentMonths.has(paymentMonthKey(transaction.expenseId, transaction.cycleYear, transaction.cycleMonth));
+          tally(summary, 'transactions', hasLocalPayment ? 0 : await insertTransactionWithId(transaction, txn));
         } else {
           summary.unlinked++;
         }

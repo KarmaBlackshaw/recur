@@ -5,7 +5,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
 import { sumBy } from "@/utils/collections";
-import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { EmptyState } from "@/components/EmptyState";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
@@ -16,30 +15,21 @@ import { AppText } from "@/components/ui/AppText";
 import { AppUnderlineTabs, type TUnderlineTab } from "@/components/ui/AppUnderlineTabs";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { chartHues, chartRest, colors } from "@/constants/theme";
-import { INTEREST_CATEGORY } from "@/constants/categories";
-import { categoryIcon } from "@/utils/categories";
+import { parseMoneyFlow, parsePeriod, PERIODS } from "@/constants/periods";
+import { categoryRows } from "@/utils/activity/categoryLine";
 import { countLabel } from "@/utils/countLabel";
+import { isInPeriod } from "@/utils/dateHelpers";
 import { formatAmount } from "@/utils/formatAmount";
-import { categoryBreakdown, type TCategorySpend } from "@/utils/stats/categoryBreakdown";
-import { useIncomeEntries, useInterestCredits, usePaidLedger } from "@/utils/usePaidLedger";
+import type { TCategorySpend } from "@/utils/stats/categoryBreakdown";
+import { useActivityFeed } from "@/utils/useActivityFeed";
 import { useSetState } from "@/utils/useSetState";
-import type { FeatherIconName, TOption } from "@/types";
+import type { FeatherIconName, MoneyFlow, Period } from "@/types";
 
-type Period = "month" | "year";
-type StatsType = "income" | "expenses";
-
-const PERIODS: TOption<Period>[] = [
-  { label: "Month", value: "month" },
-  { label: "Year", value: "year" },
-];
-
-const COPY: Record<StatsType, { overline: string; emptyTitle: string; emptyIcon: FeatherIconName; emptyMessage: string }> = {
+const COPY: Record<MoneyFlow, { overline: string; emptyTitle: string; emptyIcon: FeatherIconName; emptyMessage: string }> = {
   income: { overline: "Received", emptyTitle: "No income", emptyIcon: "arrow-down-left", emptyMessage: "No income in" },
   expenses: { overline: "Spent", emptyTitle: "Nothing spent", emptyIcon: "pie-chart", emptyMessage: "No expenses in" },
 };
 
-const FEES_CATEGORY = "Fees";
-const UNCATEGORIZED_INCOME = "Other";
 const OTHER_SEGMENT_KEY = "other-categories";
 const DONUT_RADIUS_RATIO = 0.22;
 const DONUT_THICKNESS_RATIO = 0.3;
@@ -52,7 +42,7 @@ function shareLabel(share: number) {
   return percent === 100 && share < 1 ? ">99%" : `${percent}%`;
 }
 
-function CategoryRow({ row, color }: { row: TCategorySpend; color: string }) {
+function CategoryRow({ row, color, onPress }: { row: TCategorySpend; color: string; onPress: () => void }) {
   const share = shareLabel(row.share);
   const amount = formatAmount(row.amount);
 
@@ -64,9 +54,11 @@ function CategoryRow({ row, color }: { row: TCategorySpend; color: string }) {
         meta={countLabel(row.count, "transaction", "transactions")}
         amount={amount}
         caption={share}
+        accessory="chevron-right"
+        onPress={onPress}
         accessibilityLabel={`${row.category}, ${amount}, ${share}`}
       />
-      <View className="absolute left-[64px] right-5 bottom-[2px] h-[3px] rounded-full bg-white/[0.06]">
+      <View className="pointer-events-none absolute left-[64px] right-5 bottom-[2px] h-[3px] rounded-full bg-white/[0.06]">
         <View className="h-full rounded-full" style={{ width: `${row.share * 100}%`, backgroundColor: color }} />
       </View>
     </View>
@@ -75,72 +67,26 @@ function CategoryRow({ row, color }: { row: TCategorySpend; color: string }) {
 
 export default function StatsScreen() {
   const { loading } = useExpenses();
-  const { transactions } = useAccounts();
   const { width } = useWindowDimensions();
-  const ledger = usePaidLedger();
-  const incomeEntries = useIncomeEntries();
-  const interestCredits = useInterestCredits();
-  const params = useLocalSearchParams<{ year?: string; month?: string; type?: string }>();
-  const [{ year, month, period, type }, setSelected] = useSetState<{ year: number; month: number; period: Period; type: StatsType }>({
+  const feed = useActivityFeed();
+  const params = useLocalSearchParams<{ year?: string; month?: string; period?: string; type?: string }>();
+  const [{ year, month, period, type }, setSelected] = useSetState<{ year: number; month: number; period: Period; type: MoneyFlow }>({
     year: Number(params.year ?? dayjs().year()),
     month: Number(params.month ?? dayjs().month()),
-    period: "month",
-    type: params.type === "income" ? "income" : "expenses",
+    period: parsePeriod(params.period),
+    type: parseMoneyFlow(params.type),
   });
 
-  // Card charges count on the day they were charged, so bill payments stay out: they only settle what's already here.
-  // Loans stay out too: lent money is still yours and counts in net worth.
-  const expenseLines = useMemo(
-    () => [
-      ...ledger.map(({ expense, amount, effDate }) => ({
-        category: expense.category,
-        icon: categoryIcon(expense.category),
-        amount,
-        effDate,
-      })),
-      ...transactions
-        .filter(({ kind }) => kind === "fee")
-        .map(({ amount, createdAt }) => ({
-          category: FEES_CATEGORY,
-          icon: categoryIcon(FEES_CATEGORY),
-          amount: Math.abs(amount),
-          effDate: new Date(createdAt),
-        })),
-    ],
-    [ledger, transactions]
-  );
-
-  // Loan repayments stay out for the same reason: getting lent money back isn't earning it. Income a loan brought
-  // in gets its own slice, so a loan's income never reads as bank interest.
-  const incomeLines = useMemo(
-    () => [
-      ...incomeEntries.map(({ income, loan, amount, effDate }) => {
-        const category = income.category ?? UNCATEGORIZED_INCOME;
-        return { category: loan ? `${category} from loans` : category, icon: categoryIcon(category), amount, effDate };
-      }),
-      ...interestCredits.map(({ amount, effDate }) => ({
-        category: INTEREST_CATEGORY,
-        icon: categoryIcon(INTEREST_CATEGORY),
-        amount,
-        effDate,
-      })),
-    ],
-    [incomeEntries, interestCredits]
-  );
-
+  // Slices come from the same rows Activity lists, so a category's rows there always add up to its slice here.
   const { expenseRows, incomeRows } = useMemo(() => {
-    const isInPeriod = ({ effDate }: { effDate: Date }) =>
-      effDate.getFullYear() === year && (period === "year" || effDate.getMonth() === month);
-    return {
-      expenseRows: categoryBreakdown(expenseLines.filter(isInPeriod)),
-      incomeRows: categoryBreakdown(incomeLines.filter(isInPeriod)),
-    };
-  }, [expenseLines, incomeLines, year, month, period]);
+    const entries = feed.all.filter(({ effDate }) => isInPeriod(effDate, year, month, period));
+    return { expenseRows: categoryRows(entries, "expenses"), incomeRows: categoryRows(entries, "income") };
+  }, [feed.all, year, month, period]);
 
   const rows = type === "income" ? incomeRows : expenseRows;
   const copy = COPY[type];
   const total = sumBy(rows, "amount");
-  const typeTabs: TUnderlineTab<StatsType>[] = [
+  const typeTabs: TUnderlineTab<MoneyFlow>[] = [
     { label: "Income", detail: formatAmount(sumBy(incomeRows, "amount")), value: "income" },
     { label: "Expenses", detail: formatAmount(sumBy(expenseRows, "amount")), value: "expenses" },
   ];
@@ -167,6 +113,15 @@ export default function StatsScreen() {
   ];
   const donutRadius = Math.round(width * DONUT_RADIUS_RATIO);
   const periodLabel = dayjs(new Date(year, month, 1)).format(period === "year" ? "YYYY" : "MMMM YYYY");
+
+  // Back to the Activity tab underneath, showing just this category's rows for the same period. Slices count every
+  // row, so Activity's type filter goes back to All.
+  function openCategory(category: string) {
+    router.dismissTo({
+      pathname: "/expenses",
+      params: { category, type, segment: "all", period, year: String(year), month: String(month) },
+    });
+  }
 
   if (loading) {
     return (
@@ -200,7 +155,9 @@ export default function StatsScreen() {
       <FlatList
         data={rows}
         keyExtractor={({ category }) => category}
-        renderItem={({ item, index }) => <CategoryRow row={item} color={chartHues[index] ?? chartRest} />}
+        renderItem={({ item, index }) => (
+          <CategoryRow row={item} color={chartHues[index] ?? chartRest} onPress={() => openCategory(item.category)} />
+        )}
         contentContainerClassName="pb-5"
         ListHeaderComponent={
           rows.length > 0 ? (

@@ -4,9 +4,10 @@ import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
 import { colors } from "@/constants/theme";
 import { AppButton } from "@/components/ui/AppButton";
+import type { Period } from "@/types";
 
 interface Props {
-  unit?: "month" | "year";
+  unit?: Period;
   year: number;
   month: number;
   onChange: (year: number, month: number) => void;

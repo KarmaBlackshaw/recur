@@ -17,7 +17,7 @@ import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
 import type { ActivityEntry, LedgerEntry } from "@/components/DayGroupedExpenseList";
 import type { CardBill, FeatherIconName, HomeBandSlot } from "@/types";
 
-export type BillEntry = { key: string; bill: CardBill; effDate: Date; amount: number };
+export type BillEntry = { kind: "cardBill"; key: string; bill: CardBill; effDate: Date; amount: number };
 export type HomeEntry = LedgerEntry | BillEntry;
 export type UpcomingBand = {
   key: string;
@@ -173,7 +173,7 @@ export function HomeExpenseSections({
         ListEmptyComponent={ListEmptyComponent}
         refreshControl={refreshControl}
         renderItem={({ item, index }) =>
-          "bill" in item ? (
+          item.kind === "cardBill" ? (
             <CardBillRow bill={item.bill} onPress={() => openCardBill(item.bill)} />
           ) : (
             <ActivityEntryRow

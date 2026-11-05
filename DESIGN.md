@@ -71,7 +71,8 @@ account transactions. Never hand-build another row.
 - **Caption:** when, or which state, 10.5px under the amount. Upcoming dates read "Today", "Tomorrow",
   "in 4 days", then "Nov 30". Late reads "3 days late" in coral. Settled reads "Paid Oct 21" in the neutral
   tone (the band or KPI already says paid, so a mint caption on every row would only repeat it) or
-  "Charged Oct 21" in periwinkle. Ledger rows under a day header carry no date; they only flag "Charged".
+  "Charged Oct 21" in periwinkle. A part-paid bill's amount is what's left and its caption reads
+  "₱1,000.00 paid · in 4 days" (or "· 3 days late", coral). Ledger rows under a day header carry no date; they only flag "Charged".
   A loan payment dated after a backdated payoff reads "₱20.00 more than owed" in the neutral tone.
 - **Accessory:** optional trailing Muted Graphite glyph: chevron to drill in.
 - **Pressed:** opacity 0.7. A row with `onPress` is a button; without it, one accessible element with the
@@ -187,9 +188,16 @@ in the Recurring tab's Overdue and Unpaid bands (for that month's bill). Its met
 ("October bill · due Oct 1", plus " · 31 days late" when overdue), then three inputs: Amount (prefilled, blank when
 TBD; ₱0 is allowed for a month with no bill), Paid on (an `AppDateField`, today by default, no future dates) and Pay
 from (an `AppSelectField` that opens the account picker; the bill's account, or Cash when it has none or it's archived;
-editing a payment keeps that payment's account). Mark as paid closes the sheet and pays once it's gone. Opened from a
+editing a payment keeps that payment's account). On an unpaid bill, Paid so far and Left rows sit under the meta line
+(Left is hidden for a TBD bill), and there are two buttons: Mark as paid and Pay part, rest later (tonal). Paid on can't
+be earlier than the month's latest part payment, and once the edited amount covers what's left the hint reads "That
+covers the bill — use Mark as paid". Editing one payment (from the bill page's Payments list or a paid bill) shows a
+single Save payment. Mark as paid closes the sheet and pays once it's gone. Opened from a
 bill row, it adds Details (tonal) under Mark as paid, which opens the bill's page for that month. Every other row skips
 the sheet: it opens the bill page, or a one-off's editor, directly.
+The bill page lists a month's payments under a "Payments" header, between the hero and the details, while that month
+is unpaid with a part payment or paid with two or more: one List Row per payment (date, account, amount), tap to edit it,
+swipe left to delete it. A month paid in several parts shows only Mark unpaid in the hero.
 
 ### Card bill sheet
 Cut-off and Estimate rows, the Statement amount input (Save amount, Use estimate), then Paid and Remaining. While the

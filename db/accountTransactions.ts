@@ -74,14 +74,14 @@ export async function insertMany(ts: Omit<AccountTransaction, "id">[]): Promise<
   return inserted;
 }
 
-export async function replacePayment(
+export async function replacePayments(
   expenseId: string,
   cycleYear: number | null,
   cycleMonth: number | null,
-  t: Omit<AccountTransaction, "id"> | null
-): Promise<AccountTransaction | null> {
+  ts: Omit<AccountTransaction, "id">[]
+): Promise<AccountTransaction[]> {
   const db = await getDB();
-  let inserted: AccountTransaction | null = null;
+  const inserted: AccountTransaction[] = [];
   await withWriteTransaction(db, async (txn) => {
     await txn.runAsync(
       `DELETE FROM account_transactions
@@ -89,11 +89,23 @@ export async function replacePayment(
          AND IFNULL(cycle_year, -1) = IFNULL(?, -1) AND IFNULL(cycle_month, -1) = IFNULL(?, -1)`,
       [expenseId, cycleYear, cycleMonth]
     );
-    if (t) {
-      inserted = await insertRow(txn, t);
+    for (const t of ts) {
+      inserted.push(await insertRow(txn, t));
     }
   });
   return inserted;
+}
+
+export function paymentMonthKey(expenseId: string | null, cycleYear: number | null, cycleMonth: number | null): string {
+  return `${expenseId}|${cycleYear ?? -1}|${cycleMonth ?? -1}`;
+}
+
+export async function getPaymentMonthKeys(db: SQLiteDatabase): Promise<Set<string>> {
+  const rows = await db.getAllAsync<{ expense_id: string; cycle_year: number; cycle_month: number }>(
+    `SELECT DISTINCT expense_id, IFNULL(cycle_year, -1) AS cycle_year, IFNULL(cycle_month, -1) AS cycle_month
+     FROM account_transactions WHERE kind = 'payment'`
+  );
+  return new Set(rows.map((r) => paymentMonthKey(r.expense_id, r.cycle_year, r.cycle_month)));
 }
 
 // Rewrites every row of a transfer (both sides, fee, income) in one write, keeping its transfer id.

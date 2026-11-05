@@ -80,7 +80,7 @@ function withSwipeHint(entries: HomeEntry[], hintKey: string | null): HomeEntry[
 }
 
 export default function HomeScreen() {
-  const { expenses, loading, userName, getMonthStatus, resolveAmount, collapsedHomeBands, toggleHomeBand } = useExpenses();
+  const { expenses, loading, userName, getMonthStatus, getBillProgress, collapsedHomeBands, toggleHomeBand } = useExpenses();
   const accounts = useAccounts();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
@@ -99,7 +99,7 @@ export default function HomeScreen() {
     expense: e,
     effDate: getDueDateForMonth(e.dueDay, y, m),
     refDate: new Date(y, m, 1),
-    amount: resolveAmount(e, y, m),
+    amount: getBillProgress(e, y, m).left ?? 0,
     canOpenBillSheet: true,
   });
 
@@ -130,7 +130,7 @@ export default function HomeScreen() {
     });
     const bills = openBills.filter((b) => !b.bill.isPaid && b.effDate < today);
     return [...entries, ...bills];
-  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills, today]);
+  }, [expenses, getMonthStatus, getBillProgress, year, month, openBills, today]);
   const overdueWithPaid = useLingeringEntries(overdueLive, isPaidNow);
   const overdue = useMemo(() => sortBy(overdueWithPaid, "effDate"), [overdueWithPaid]);
 
@@ -152,7 +152,7 @@ export default function HomeScreen() {
           ]
         : []),
     ];
-  }, [expenses, getMonthStatus, resolveAmount, year, month, openBills, isNextMonthNear, today]);
+  }, [expenses, getMonthStatus, getBillProgress, year, month, openBills, isNextMonthNear, today]);
   const upcomingWithPaid = useLingeringEntries(upcomingLive, isPaidNow);
 
   const upcoming = useMemo<UpcomingBand[]>(() => {

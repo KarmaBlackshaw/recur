@@ -331,9 +331,10 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   await db.execAsync(
     "CREATE INDEX IF NOT EXISTS idx_txn_account ON account_transactions(account_id)"
   );
+  await db.execAsync("DROP INDEX IF EXISTS idx_txn_payment");
   await db.execAsync(
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_txn_payment
-     ON account_transactions(expense_id, IFNULL(cycle_year, -1), IFNULL(cycle_month, -1)) WHERE kind = 'payment'`
+    `CREATE INDEX IF NOT EXISTS idx_txn_payment_cycle
+     ON account_transactions(expense_id, cycle_year, cycle_month) WHERE kind = 'payment'`
   );
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS card_bills (

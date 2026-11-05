@@ -40,6 +40,7 @@ export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenLoan }: Pr
       referenceDate={item.refDate}
       canOpenBillSheet={item.canOpenBillSheet}
       isSwipeHintShown={item.isSwipeHintShown}
+      paidTxn={item.paidTxn}
     />
   );
 }

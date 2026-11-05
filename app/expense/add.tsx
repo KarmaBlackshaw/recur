@@ -1,5 +1,7 @@
 import React, { useRef } from "react";
-import { maxBy } from "@/utils/collections";
+import { maxBy, sumBy } from "@/utils/collections";
+import { round } from "@/utils/round";
+import { formatAmount } from "@/utils/formatAmount";
 import { useUpdateEffect } from "@/utils/useUpdateEffect";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -104,7 +106,7 @@ export default function AddExpenseScreen() {
     type?: ExpenseType;
     endPrompt?: string; // "1" from the delete dialog's "Set end month": opens with the end month switched on
   }>();
-  const { addExpense, updateExpense, expenses, getMonthAmount } = useExpenses();
+  const { addExpense, updateExpense, expenses, getMonthAmount, getMonthStatus } = useExpenses();
   const confirmDelete = useDeleteExpense();
   const navigation = useNavigation();
   const now = new Date();
@@ -116,7 +118,7 @@ export default function AddExpenseScreen() {
   const lastUsedCategory = maxBy(expenses, "createdAt")?.category ?? "Other";
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
-  const { accounts, activeAccounts, transactions, overdraftError, isLoading: isAccountsLoading } = useAccounts();
+  const { accounts, activeAccounts, transactions, getPayments, overdraftError, isLoading: isAccountsLoading } = useAccounts();
   const lastUsedAccountId = maxBy(
     expenses.filter((e) => activeAccounts.some((a) => a.id === e.accountId)),
     "createdAt"
@@ -185,10 +187,38 @@ export default function AddExpenseScreen() {
     if (!editingExpense || !isVariableAmount) {
       return undefined;
     }
-    const isPaidCycle = isPaymentFor(editingExpense.id, currentYear, currentMonth);
-    const payment = transactions.find(isPaidCycle);
-    return payment && overdraftError([{ accountId: payment.accountId, amount: -parsedAmount }], isPaidCycle);
+    const { latest, othersPaid } = monthPayments(editingExpense);
+    if (!latest) {
+      return undefined;
+    }
+    return overdraftError(
+      [{ accountId: latest.accountId, amount: -round(parsedAmount - othersPaid, 2) }],
+      (t) => t.id === latest.id
+    );
   }
+
+  function monthPayments(expense: Expense) {
+    const rows = getPayments(expense.id, currentYear, currentMonth);
+    const isPaid = getMonthStatus(expense.id, currentYear, currentMonth) === "paid";
+    const settled = isPaid ? rows.slice(0, -1) : rows;
+    return {
+      latest: isPaid ? rows[rows.length - 1] : undefined,
+      othersPaid: round(sumBy(settled, (t) => Math.abs(t.amount)), 2),
+      isPaid,
+      hasRows: rows.length > 0,
+    };
+  }
+
+  function paidSoFarError(amount: string) {
+    const parsedAmount = parseFloat(amount);
+    if (!editingExpense || !isVariableAmount || isRegular || isNaN(parsedAmount)) {
+      return undefined;
+    }
+    const { isPaid, hasRows, othersPaid } = monthPayments(editingExpense);
+    const isBelowPaid = isPaid ? othersPaid > 0 && parsedAmount <= othersPaid : hasRows && parsedAmount < othersPaid;
+    return isBelowPaid ? `Already paid ${formatAmount(othersPaid)} this month` : undefined;
+  }
+
   // Ends can't be before this month (or before the plan starts).
   const earliestEnd = dayjs(
     Math.max(new Date(now.getFullYear(), now.getMonth(), 1).getTime(), dayjs(startDateWatched).startOf("month").valueOf())
@@ -415,7 +445,7 @@ export default function AddExpenseScreen() {
                   return "Must be ≥ 0.01";
                 }
               }
-              return amountOverdraft(v)?.message ?? true;
+              return paidSoFarError(v) ?? amountOverdraft(v)?.message ?? true;
             },
           }}
           render={({ field: { value, onChange, onBlur }, fieldState }) => (

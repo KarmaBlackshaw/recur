@@ -12,10 +12,12 @@ import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
+import { SwipeableRow } from "@/components/ui/SwipeableRow";
 import { AppText } from "@/components/ui/AppText";
 import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { colors } from "@/constants/theme";
+import { DELETED_ACCOUNT } from "@/constants/accounts";
 import {
   cycleStateOn,
   formatDaysLate,
@@ -105,8 +107,8 @@ function reminderLabel(daysBefore: number | null | undefined): string {
 
 export default function BillScreen() {
   const params = useLocalSearchParams<{ id: string; year?: string; month?: string; action?: string }>();
-  const { expenses, loading, getMonthStatus, getMonthPaidAt, getDisplayAmount } = useExpenses();
-  const { accounts, transactions, isCardAccount } = useAccounts();
+  const { expenses, loading, getMonthStatus, getMonthPaidAt, getDisplayAmount, getBillProgress } = useExpenses();
+  const { accounts, getPayments, isCardAccount } = useAccounts();
   const payFlow = usePayFlow();
   const confirmDelete = useDeleteExpense();
   const scrollRef = useRef<ScrollView>(null);
@@ -173,11 +175,15 @@ export default function BillScreen() {
   const isPaid = getMonthStatus(expense.id, year, month) === "paid";
   const isLate = isDue && !isPaid && isOverdueOn(expense.dueDay, year, month);
   const amount = getDisplayAmount(expense, year, month);
-  const amountText = formatBillAmount(amount);
-  const payment = transactions.find(
-    (t) => t.kind === "payment" && t.expenseId === expense.id && t.cycleYear === year && t.cycleMonth === month
-  );
-  const paidFrom = payment ? accounts.find((a) => a.id === payment.accountId)?.name : undefined;
+  const payments = getPayments(expense.id, year, month);
+  const progress = getBillProgress(expense, year, month);
+  const isPartPaid = isDue && !isPaid && progress.paid > 0;
+  const hasSharedAccount = payments.every((p) => p.accountId === payments[0]?.accountId);
+  const paidFrom =
+    payments.length > 0 && hasSharedAccount ? accounts.find((a) => a.id === payments[0]?.accountId)?.name : undefined;
+  const amountText = formatBillAmount(isPartPaid ? progress.left : amount);
+  const isSplitPaid = isPaid && payments.length >= 2;
+  const hasPaymentsList = isDue && (isPaid ? payments.length >= 2 : payments.length >= 1);
   const notDueText: Record<Exclude<CycleState, "active">, string> = {
     "off-cycle": "Not due this month",
     "not-started": `Starts ${formatMonth(start.year, start.month)}`,
@@ -188,9 +194,11 @@ export default function BillScreen() {
       ? notDueText[cycleState]
       : isPaid
         ? `Paid ${dayjs(getMonthPaidAt(expense.id, year, month) ?? due).format("MMM D")}${paidFrom ? ` from ${paidFrom}` : ""}`
-        : isLate
-          ? `${formatDaysLate(due)} · due ${dayjs(due).format("MMM D")}`
-          : dueLabel(due);
+        : isPartPaid
+          ? `${formatAmount(progress.paid)} paid · ${isLate ? formatDaysLate(due) : `due ${dayjs(due).format("MMM D")}`}`
+          : isLate
+            ? `${formatDaysLate(due)} · due ${dayjs(due).format("MMM D")}`
+            : dueLabel(due);
   const overline = `${dayjs(new Date(year, month, 1)).format("MMMM YYYY")} bill`;
 
   const yearlyDue = dayjs(getDueDateForMonth(expense.dueDay, start.year, start.month));
@@ -213,13 +221,16 @@ export default function BillScreen() {
     const rowDue = getDueDateForMonth(expense.dueDay, rowYear, rowMonth);
     const isRowPaid = getMonthStatus(expense.id, rowYear, rowMonth) === "paid";
     const isRowLate = !isRowPaid && isOverdueOn(expense.dueDay, rowYear, rowMonth);
-    const rowAmount = getDisplayAmount(expense, rowYear, rowMonth);
-    const rowAmountText = formatBillAmount(rowAmount);
+    const rowProgress = getBillProgress(expense, rowYear, rowMonth);
+    const isRowPartPaid = !isRowPaid && rowProgress.paid > 0;
+    const rowAmountText = formatBillAmount(isRowPartPaid ? rowProgress.left : getDisplayAmount(expense, rowYear, rowMonth));
     const meta = isRowPaid
       ? `Paid ${dayjs(getMonthPaidAt(expense.id, rowYear, rowMonth) ?? rowDue).format("MMM D")}`
-      : isRowLate
-        ? formatDaysLate(rowDue)
-        : `Due ${dayjs(rowDue).format("MMM D")}`;
+      : isRowPartPaid
+        ? `${formatAmount(rowProgress.paid)} paid`
+        : isRowLate
+          ? formatDaysLate(rowDue)
+          : `Due ${dayjs(rowDue).format("MMM D")}`;
     const tone: RowTone = isRowPaid ? "positive" : isRowLate ? "negative" : "neutral";
     const icon: FeatherIconName = isRowPaid ? "check-circle" : isRowLate ? "alert-triangle" : "circle";
     const payLabel = `Mark ${monthStart.format("MMMM")} paid`;
@@ -274,7 +285,14 @@ export default function BillScreen() {
             </AppText>
           </View>
           {isDue &&
-            (isPaid ? (
+            (isSplitPaid ? (
+              <AppButton
+                label="Mark unpaid"
+                variant="ghost"
+                className="mt-4"
+                onPress={() => payFlow.unpay(expense, year, month)}
+              />
+            ) : isPaid ? (
               <View className="flex-row gap-3 mt-4">
                 <AppButton
                   label="Edit payment"
@@ -293,6 +311,32 @@ export default function BillScreen() {
               <AppButton label="Mark paid" className="mt-4" onPress={() => payFlow.openPaySheet(expense, year, month)} />
             ))}
         </View>
+
+        {hasPaymentsList && (
+          <>
+            <AppLabel className="px-5 mt-4">Payments</AppLabel>
+            {payments.map((row) => {
+              const rowDate = dayjs(row.createdAt).format("MMM D, YYYY");
+              const rowAccount = accounts.find((a) => a.id === row.accountId)?.name ?? DELETED_ACCOUNT;
+              const rowAmountText = formatAmount(Math.abs(row.amount));
+              return (
+                <SwipeableRow
+                  key={row.id}
+                  rightAction={{ label: "Delete", icon: "trash-2", tone: "negative", onPress: () => payFlow.deletePayment(expense, row) }}
+                >
+                  <AppListRow
+                    icon="check-circle"
+                    title={rowDate}
+                    meta={rowAccount}
+                    amount={rowAmountText}
+                    onPress={() => payFlow.openPaymentSheet(expense, row)}
+                    accessibilityLabel={`${rowDate}, ${rowAccount}, ${rowAmountText}`}
+                  />
+                </SwipeableRow>
+              );
+            })}
+          </>
+        )}
 
         <View className="mt-3 px-5">
           <AppDetailRow label="Repeats" value={repeatsText} />

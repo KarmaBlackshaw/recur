@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { expenseTitle } from "@/utils/expenseHelpers";
+import { monthKey } from "@/utils/monthKey";
 import type { Expense } from "@/types";
 
 // Confirms before deleting an expense. A recurring expense with paid months gets the longer warning (its history
@@ -27,12 +28,20 @@ export function useDeleteExpense() {
         }
       },
     };
-    const paidMonths = isRegular ? 0 : paidCycles.filter((c) => c.expenseId === expense.id).length;
+    const payments = transactions.filter((t) => t.kind === "payment" && t.expenseId === expense.id);
+    const paidMonths = isRegular
+      ? 0
+      : new Set([
+          ...paidCycles.filter((c) => c.expenseId === expense.id).map((c) => monthKey(expense.id, c.year, c.month)),
+          ...payments.flatMap((t) =>
+            t.cycleYear != null && t.cycleMonth != null ? [monthKey(expense.id, t.cycleYear, t.cycleMonth)] : []
+          ),
+        ]).size;
     if (paidMonths === 0) {
       Alert.alert("Delete expense", `Remove "${title}"?`, [{ text: "Cancel", style: "cancel" }, remove]);
       return;
     }
-    const hasPayments = transactions.some((t) => t.kind === "payment" && t.expenseId === expense.id);
+    const hasPayments = payments.length > 0;
     const history = `Its ${paidMonths} paid ${paidMonths === 1 ? "month leaves" : "months leave"} Activity and the totals.`;
     const balances = hasPayments ? " The payments stay in your account balances." : "";
     Alert.alert(

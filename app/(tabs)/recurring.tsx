@@ -40,7 +40,7 @@ const BANDS: Omit<Band, "total" | "data">[] = [
 const NOT_DUE_RANK = 3;
 
 export default function RecurringScreen() {
-  const { expenses, loading, getMonthStatus, resolveAmount, getMonthPaidAt } = useExpenses();
+  const { expenses, loading, getMonthStatus, resolveAmount, getBillProgress, getMonthPaidAt } = useExpenses();
   const refreshControl = useRefreshControl();
   const today = dayjs().startOf("day").toDate();
   const [{ year, month }, setSelected] = useSetState({ year: today.getFullYear(), month: today.getMonth() });
@@ -70,7 +70,13 @@ export default function RecurringScreen() {
       // overdue → unpaid → paid
       const rank = overdue ? 0 : status === "unpaid" ? 1 : 2;
 
-      const entry: DayEntry = { key: e.id, expense: e, effDate, refDate, amount };
+      const entry: DayEntry = {
+        key: e.id,
+        expense: e,
+        effDate,
+        refDate,
+        amount: status === "unpaid" ? getBillProgress(e, year, month).left ?? 0 : amount,
+      };
       return { entry, rank, isEnded: false };
     });
     const sorted = sortBy(ranked, ["rank", "isEnded", (r) => r.entry.effDate]);
@@ -78,7 +84,7 @@ export default function RecurringScreen() {
       const data = sorted.filter((r) => r.rank === rank).map((r) => r.entry);
       return { ...band, data, total: rank === NOT_DUE_RANK ? undefined : sumBy(data, "amount") };
     }).filter((band) => band.data.length > 0);
-  }, [recurringExpenses, getMonthStatus, resolveAmount, getMonthPaidAt, year, month]);
+  }, [recurringExpenses, getMonthStatus, resolveAmount, getBillProgress, getMonthPaidAt, year, month]);
 
   const monthLabel = dayjs(new Date(year, month, 1)).format("MMMM YYYY");
 

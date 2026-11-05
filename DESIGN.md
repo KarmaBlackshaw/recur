@@ -136,30 +136,49 @@ screen's own lines under it. Never hand-build another tint map.
 - 20dp padding. A footer row (Activity's Stats row) sits under the body, whose bottom padding drops to 12dp.
 - The screen sets only the card's margins.
 
-### Scope row (`components/activity/CategoryScopeRow.tsx`)
-Activity filtered to one category: quiet context in place of the segment chips, with one exit.
+### Activity filters (`components/activity/ActivityFilterPopup.tsx`, `CategoryFilterSheet.tsx`)
+How Activity narrows by keyword, type and category without going through Stats. Every filter lives in one popup,
+so the page itself stays header, Month/Year tabs, hero and list.
 
-- A 36dp neutral tile with a 17px glyph (as in List Row), the name in Quicksand Bold 14px Ink with a Muted 16px
-  chevron-down, over the row count as meta. Tile and name reopen the category sheet, to switch category.
-- A periwinkle "Show all" text action on the right clears the filter.
-- No fill, border or pill. 52dp minimum height, 17.5dp side gutters.
-
-### Activity filters (`components/activity/ActivityFilters.tsx`, `CategoryFilterSheet.tsx`)
-How Activity narrows by keyword and category without going through Stats.
+```
+Activity              ‹ 2026 ›  [≡]②
+┌──────────────────────────────────────┐
+│ Keyword                              │
+│ [ Name, note, account or amount    ] │
+│ Type                                 │
+│ (All)(Paid)(Charged)(Income)(Transf… │
+│ Category                             │
+│ ┌──────────────────────────────────┐ │
+│ │ [▦] Utilities                 ⌄  │ │
+│ │     14 transactions              │ │
+│ └──────────────────────────────────┘ │
+│ Clear all                   [ Done ] │
+└──────────────────────────────────────┘
+  (page dimmed underneath)
+```
 
 - Toggle: a 20px Feather `sliders` glyph at the end of the header, 44dp. Secondary Graphite at rest, periwinkle while
-  the panel is open or a filter is on; with the panel hidden and a filter on, an 8dp periwinkle dot sits on its
-  top-right corner. Hiding the panel keeps its filters.
-- Panel (fades in under the header, 17.5dp gutters): a "Keyword" text field (name, note, account or amount) and a
-  "Category" select field reading "All categories" until one is picked; it opens the category sheet. With a filter on,
-  a periwinkle "Clear filters" text action closes it, right-aligned.
-- A keyword searches every month (the period navigator hides) and combines with the category: "3 results for
-  "phone" in Utilities".
+  the popup is open or a filter is on. With the popup closed and filters on, a 16dp Indigo badge on its top-right
+  corner counts them (keyword, type, category) in Quicksand Bold 10px Ink.
+- Popup: a Raised Graphite card with a Hairline border and 21dp corners, 10.5dp from the screen edges, just under
+  the header. It fades in (150ms, none with reduced motion) over the page, which a 60% black scrim dims; tapping
+  the scrim, Done, the toggle or Android back closes it. Filters apply as they change and stay on when it closes.
+- Sections, each under a label: "Keyword" text field (name, note, account or amount); "Type" chips (All, Paid,
+  Charged, Income, Transfers, Loans), scrolling edge to edge inside the card;
+  "Category" row in the input frame: a 36dp neutral tile with the category's glyph (a grid for none), its name over
+  the listed row count ("All categories" over "Income and expenses" when none), and a Muted chevron-down. It opens
+  the category sheet.
+- Footer: a periwinkle "Clear all" text action on the left, only while a filter is on, and a primary "Done" button
+  on the right.
+- The three combine. A keyword searches every month of the type's rows (the period navigator, tabs and hero hide)
+  and reads "3 results for "phone" in Paid, Utilities". A category keeps the rows of its slice that the type
+  lists; the hero names it: "Utilities spent this year".
 - Sheet: "Category", content-sized. Income/Expenses underline tabs with their totals (as on Stats), opening on the
-  filtered category's side, else Income from the Income chip and Expenses from any other. Under them, the categories
+  filtered category's side, else Income from the Income type and Expenses from any other. Under them, the categories
   the listed rows add to (the period's, or the keyword's matches) as radio chips, biggest first (Stats' slices); the
   current one is selected. Nothing to pick reads "Nothing spent in October" / `No income matching "phone"` as meta.
-- Picking one closes the sheet, then filters Activity to it.
+- Picking one closes the sheet, then filters Activity to it. Opening a Stats category resets the type to All, since
+  its slice counts every row.
 
 ### Month card (`components/HomeMonthStats.tsx`)
 One Raised Graphite card at the top of Home, under the greeting, built like the other hero cards. Its lead is Spent
@@ -169,7 +188,7 @@ glyph, label, Oswald 17px amount, Muted chevron) show Charged (only with a credi
 charges) and Owed to you (only while someone owes you). Month figures stay above the rows, because Owed to you is a
 standing balance, not a month total. Zero amounts go Secondary Graphite. When nothing was spent, received or charged
 yet (the 1st of a month), the figures give way to the month name and "Nothing spent or received yet", and that block
-is not tappable. Each figure opens the matching Activity chip for the month (Spent: Paid, Received: Income, Charged:
+is not tappable. Each figure opens Activity on the matching type for the month (Spent: Paid, Received: Income, Charged:
 Charged); Owed to you opens Loans' Active chip. No tiles, progress bars or Hairline-split grids.
 
 ### Buttons (`AppButton`)
@@ -276,13 +295,11 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
   and Owed under a hairline. The header's layers toggle (saved, carried in backups) groups active accounts into a
   band per bank, in account order, with accounts that have no bank last under "Other".
 - Activity's hero shows only its overline and the period's total, above the Stats row: no breakdown under the
-  total on any chip. Stats carries the detail.
+  total for any type. Stats carries the detail.
 - Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header, and a filter toggle at the header's end
-  that discloses a Keyword and Category panel. Filtered to a category (picked in the panel, or opened from a Stats
-  category), its segment chips give way to a scope
-  row (neutral category tile, name over the row count, and a periwinkle "Show all" that clears the filter); the hero
-  reads "Spent" or "Received this month/year", and each day shows a signed total of what its rows added to the
-  category.
+  that opens the filters popup (Keyword, Type, Category); a badge on it counts the filters on. Filtered to a category
+  (picked in the popup, or opened from a Stats category), the hero reads "<category> spent" or "received this
+  month/year", and each day shows a signed total of what its rows added to the category.
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

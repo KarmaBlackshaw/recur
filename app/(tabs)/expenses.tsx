@@ -12,8 +12,7 @@ import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type ActivityEntry, type DayTotal } from "@/components/DayGroupedExpenseList";
 import { ActivityHero } from "@/components/activity/ActivityHero";
 import { CategoryFilterSheet, type CategoryFilterSheetRef } from "@/components/activity/CategoryFilterSheet";
-import { CategoryScopeRow } from "@/components/activity/CategoryScopeRow";
-import { ActivityFilters } from "@/components/activity/ActivityFilters";
+import { ActivityFilterPopup } from "@/components/activity/ActivityFilterPopup";
 import type { HeroTone } from "@/components/ui/AppHeroCard";
 import { countLabel } from "@/utils/countLabel";
 import { netFlow } from "@/utils/activity/netFlow";
@@ -28,7 +27,6 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
-import { AppChips } from "@/components/ui/AppChips";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { colors } from "@/constants/theme";
 import { parseMoneyFlow, parsePeriod, PERIODS } from "@/constants/periods";
@@ -52,7 +50,7 @@ const HERO: Record<ActivitySegment, { label: string; tone: HeroTone }> = {
   loans: { label: "Lent", tone: "secondary" },
 };
 
-// Filtered to one category, Activity mirrors that Stats slice: "Spent" or "Received", like Stats' donut.
+// Filtered to one category, Activity mirrors that Stats slice: "<category> spent" or "received", like Stats' donut.
 const CATEGORY_HERO: Record<MoneyFlow, { label: string; tone: HeroTone; emptyTitle: string }> = {
   expenses: { label: "Spent", tone: "primary", emptyTitle: "Nothing spent" },
   income: { label: "Received", tone: "paid", emptyTitle: "No income" },
@@ -132,14 +130,15 @@ export default function ExpensesScreen() {
   const year = paramYear >= 1000 && paramYear <= 9999 ? paramYear : today.getFullYear();
   const month = paramMonth >= 0 && paramMonth <= 11 ? paramMonth : today.getMonth();
   const period = parsePeriod(params.period);
-  // Set from the category sheet or a Stats category: the list narrows to that slice's rows, whatever the segment.
+  // Set from the category sheet or a Stats category: the list narrows to the rows of that slice the type keeps.
   const category = params.category || undefined;
   const flow = parseMoneyFlow(params.type);
   const [search, setSearch] = useState("");
-  // Hiding the panel keeps its filters; the toggle's dot says they're still on.
+  // Closing the popup keeps its filters; the toggle's badge counts them.
   const [isFilterOpen, filterOpen] = useBoolean(false);
   const query = search.trim();
-  const isFiltered = query !== "" || category != null;
+  const filterCount = [query !== "", segment !== "all", category != null].filter(Boolean).length;
+  const isFiltered = filterCount > 0;
   const segmentFlow: MoneyFlow = segment === "income" ? "income" : "expenses";
   // Stats and the category picker open on the filtered category's side, else on the segment's.
   const statsType = category != null ? flow : segmentFlow;
@@ -149,17 +148,13 @@ export default function ExpensesScreen() {
     router.push(`/stats?year=${year}&month=${month}&period=${period}&type=${statsType}`, { dangerouslySingular: true });
   }
 
-  function clearCategory() {
-    router.setParams({ category: undefined, type: undefined });
-  }
-
   function openCategoryPicker() {
     categorySheetRef.current?.present();
   }
 
   function clearFilters() {
     setSearch("");
-    clearCategory();
+    router.setParams({ segment: undefined, category: undefined, type: undefined });
   }
 
   const searchContext = useMemo<ActivitySearchContext>(() => {
@@ -167,24 +162,26 @@ export default function ExpensesScreen() {
     return { accountName: (id) => (id == null ? undefined : accountsById[id]?.name) };
   }, [accounts]);
 
-  // A keyword spans every month, newest first (the feed is already sorted).
+  // A keyword spans every month of the type's rows, newest first (the feed is already sorted).
+  const typeFeed: ActivityEntry[] = feed[segment];
   const keywordMatches = useMemo(
-    () => (query === "" ? [] : feed.all.filter((entry) => matchesActivity(entry, query, searchContext))),
-    [feed.all, query, searchContext]
+    () => (query === "" ? [] : typeFeed.filter((entry) => matchesActivity(entry, query, searchContext))),
+    [typeFeed, query, searchContext]
   );
   const results = useMemo(
     () => (category == null ? keywordMatches : categorySlice(keywordMatches, flow, category).entries),
     [keywordMatches, category, flow]
   );
-  const inCategory = category == null ? "" : ` in ${category}`;
+  const scopeNames = [segment === "all" ? null : segments.find(({ value }) => value === segment)?.label, category].filter(Boolean);
+  const inScope = scopeNames.length === 0 ? "" : ` in ${scopeNames.join(", ")}`;
 
   const { byFilter, lent, moneyIn, paidTotal } = usePeriodActivity(feed, year, month, period);
 
-  const filtered = useMemo(
-    () => (category == null ? null : categoryView(byFilter.all, flow, category)),
-    [byFilter.all, category, flow]
-  );
   const segmentEntries = byFilter[segment];
+  const filtered = useMemo(
+    () => (category == null ? null : categoryView(segmentEntries, flow, category)),
+    [segmentEntries, category, flow]
+  );
   // Lending stays out of the net: money lent is still yours (net worth counts it as an asset).
   const segmentTotals: Record<ActivitySegment, () => number> = {
     all: () => moneyIn - paidTotal,
@@ -202,6 +199,8 @@ export default function ExpensesScreen() {
     dayTotal: DAY_TOTAL[segment],
   };
   const periodLabel = dayjs(new Date(year, month, 1)).format(period === "year" ? "YYYY" : "MMMM");
+  const heroLabel = filtered == null ? view.hero.label : `${filtered.category} ${view.hero.label.toLowerCase()}`;
+  const listedCount = query === "" ? view.entries.length : results.length;
 
   if (loading) {
     return (
@@ -232,76 +231,74 @@ export default function ExpensesScreen() {
             accessibilityState={{ expanded: isFilterOpen }}
           >
             <Feather name="sliders" size={20} color={isFilterOpen || isFiltered ? colors.secondary : colors.textSecondary} />
-            {isFiltered && !isFilterOpen && <View className="absolute top-2 right-2 w-2 h-2 rounded-full bg-secondary" />}
+            {isFiltered && !isFilterOpen && (
+              <View className="absolute top-1 right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-primary items-center justify-center">
+                <AppText variant="body-bold" className="text-[10px] leading-[13px]">
+                  {filterCount}
+                </AppText>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
 
-      {isFilterOpen && (
-        <ActivityFilters
-          search={search}
-          onSearchChange={setSearch}
-          category={category}
-          onPickCategory={openCategoryPicker}
-          onClear={clearFilters}
-        />
-      )}
-
-      {query !== "" ? (
-        <>
-          <AppText variant="meta" className="px-5 pt-2 pb-1" accessibilityLiveRegion="polite">
-            {`${countLabel(results.length, "result", "results")} for "${query}"${inCategory}`}
-          </AppText>
-          <DayGroupedExpenseList
-            entries={results}
-            dayTotal="none"
-            refreshControl={refreshControl}
-            ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing matches "${query}"${inCategory}`} />}
-          />
-        </>
-      ) : (
-        <>
-          <AppTabs
-            tabs={PERIODS}
-            value={period}
-            onChange={(next) => router.setParams({ period: next })}
-            className="mx-5 mt-1"
-          />
-
-          {filtered != null ? (
-            <CategoryScopeRow
-              category={filtered.category}
-              icon={filtered.icon}
-              meta={countLabel(filtered.entries.length, "transaction", "transactions")}
-              onPick={openCategoryPicker}
-              onShowAll={clearCategory}
+      <View className="flex-1">
+        {query !== "" ? (
+          <>
+            <AppText variant="meta" className="px-5 pt-2 pb-1" accessibilityLiveRegion="polite">
+              {`${countLabel(results.length, "result", "results")} for "${query}"${inScope}`}
+            </AppText>
+            <DayGroupedExpenseList
+              entries={results}
+              dayTotal="none"
+              refreshControl={refreshControl}
+              ListEmptyComponent={<EmptyState icon="search" title="No matches" message={`Nothing matches "${query}"${inScope}`} />}
             />
-          ) : (
-            <AppChips
-              chips={segments}
-              value={segment}
-              onChange={(next) => router.setParams({ segment: next })}
-              accessibilityLabel="Filter activity"
-              className="mt-1"
+          </>
+        ) : (
+          <>
+            <AppTabs
+              tabs={PERIODS}
+              value={period}
+              onChange={(next) => router.setParams({ period: next })}
+              className="mx-5 mt-1"
             />
-          )}
 
-          <ActivityHero overline={`${view.hero.label} this ${period}`} total={view.total} tone={view.hero.tone} onStatsPress={openStats} />
+            <ActivityHero overline={`${heroLabel} this ${period}`} total={view.total} tone={view.hero.tone} onStatsPress={openStats} />
 
-          <DayGroupedExpenseList
-            entries={view.entries}
-            dayTotal={view.dayTotal}
-            refreshControl={refreshControl}
-            ListEmptyComponent={
-              <EmptyState title={view.empty.title} icon={view.empty.icon} message={`${view.empty.message} ${periodLabel}`} />
+            <DayGroupedExpenseList
+              entries={view.entries}
+              dayTotal={view.dayTotal}
+              refreshControl={refreshControl}
+              ListEmptyComponent={
+                <EmptyState title={view.empty.title} icon={view.empty.icon} message={`${view.empty.message} ${periodLabel}`} />
+              }
+            />
+          </>
+        )}
+
+        {isFilterOpen && (
+          <ActivityFilterPopup
+            search={search}
+            onSearchChange={setSearch}
+            types={segments}
+            type={segment}
+            onTypeChange={(next) => router.setParams({ segment: next })}
+            category={
+              filtered == null
+                ? undefined
+                : { name: filtered.category, icon: filtered.icon, meta: countLabel(listedCount, "transaction", "transactions") }
             }
+            onPickCategory={openCategoryPicker}
+            onClear={clearFilters}
+            onClose={filterOpen.setFalse}
           />
-        </>
-      )}
+        )}
+      </View>
 
       <CategoryFilterSheet
         ref={categorySheetRef}
-        entries={query === "" ? byFilter.all : keywordMatches}
+        entries={query === "" ? segmentEntries : keywordMatches}
         category={category}
         flow={statsType}
         scope={query === "" ? `in ${periodLabel}` : `matching "${query}"`}

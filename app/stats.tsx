@@ -114,11 +114,12 @@ export default function StatsScreen() {
   const donutRadius = Math.round(width * DONUT_RADIUS_RATIO);
   const periodLabel = dayjs(new Date(year, month, 1)).format(period === "year" ? "YYYY" : "MMMM YYYY");
 
-  // Back to the Activity tab underneath, showing just this category's rows for the same period.
+  // Back to the Activity tab underneath, showing just this category's rows for the same period. Slices count every
+  // row, so Activity's type filter goes back to All.
   function openCategory(category: string) {
     router.dismissTo({
       pathname: "/expenses",
-      params: { category, type, period, year: String(year), month: String(month) },
+      params: { category, type, segment: "all", period, year: String(year), month: String(month) },
     });
   }
 

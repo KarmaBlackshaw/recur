@@ -34,7 +34,7 @@ const QUICK_ACTIONS: { key: QuickAction; label: string; icon: FeatherIconName }[
   { key: "expense", label: "New expense", icon: "arrow-up-right" },
 ];
 
-export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+export function FloatingTabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const [tabHeight, setTabHeight] = useState(56);
   const activeRoute = state.routes[state.index];
@@ -150,14 +150,14 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
             const tabClass = `${isCompact && focused ? "flex-[1.8]" : "flex-1"} min-h-[44px] items-center py-2.5 rounded-[18px] ${focused ? "bg-primary/15" : ""}`;
 
             function onPress() {
-              const event = navigation.emit({
+              const event = emitter.emit({
                 type: "tabPress",
                 target: route.key,
                 canPreventDefault: true,
               });
               if (!focused && !event.defaultPrevented) {
-                // Pass the tab's params back: navigate replaces them, which would drop Activity's browsed month and chip.
-                navigation.navigate(route.name, route.params);
+                // navigateToTab passes the tab's params back, so Activity keeps its browsed month and chip.
+                navigateToTab(route.key);
               }
             }
 

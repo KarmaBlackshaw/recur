@@ -78,7 +78,7 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             className={`rounded-xl items-center py-3 ${isDirty && isValid ? "bg-primary" : "bg-white/10"}`}
-            onPress={handleSubmit(onSave)}
+            onPress={() => handleSubmit(onSave)()}
             disabled={!isDirty || !isValid}
           >
             <AppText variant="body-medium" className="text-white text-[15px]">

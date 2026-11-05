@@ -59,7 +59,7 @@ export default function RecurringScreen() {
         // Upcoming plans by their next due date, then ended ones by when they ended.
         const nextDue = nextCycleDueDate(e, year, month);
         const endedAt = e.endYear != null && e.endMonth != null ? getDueDateForMonth(e.dueDay, e.endYear, e.endMonth) : refDate;
-        const entry: DayEntry = { key: e.id, expense: e, effDate: nextDue ?? endedAt, refDate, amount };
+        const entry: DayEntry = { kind: "expense", key: e.id, expense: e, effDate: nextDue ?? endedAt, refDate, amount };
         return { entry, rank: NOT_DUE_RANK, isEnded: nextDue == null };
       }
       const paidAt = getMonthPaidAt(e.id, year, month);
@@ -71,6 +71,7 @@ export default function RecurringScreen() {
       const rank = overdue ? 0 : status === "unpaid" ? 1 : 2;
 
       const entry: DayEntry = {
+        kind: "expense",
         key: e.id,
         expense: e,
         effDate,

@@ -15,32 +15,30 @@ interface Props {
   onOpenLoan: (txn: AccountTransaction) => void;
 }
 
-export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenLoan }: Props) {
-  if ("income" in item) {
-    return <IncomeRow entry={item} />;
+export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenLoan }: Props): React.JSX.Element {
+  switch (item.kind) {
+    case "income":
+      return <IncomeRow entry={item} />;
+    case "interest":
+      return <InterestRow entry={item} />;
+    case "transfer":
+      return <TransferRow entry={item} onPress={() => onOpenTransfer(item.transfer)} />;
+    case "loan":
+      return <LoanActivityRow entry={item} onPress={() => onOpenLoan(item.loanTxn)} />;
+    case "billPayment":
+      return <BillPaymentRow entry={item} onPress={() => onOpenTransfer(item.payment)} />;
+    case "expense":
+      return (
+        <ExpenseCard
+          expense={item.expense}
+          index={index}
+          compact={item.compact}
+          hideDate={item.hideDate}
+          referenceDate={item.refDate}
+          canOpenBillSheet={item.canOpenBillSheet}
+          isSwipeHintShown={item.isSwipeHintShown}
+          paidTxn={item.paidTxn}
+        />
+      );
   }
-  if ("interest" in item) {
-    return <InterestRow entry={item} />;
-  }
-  if ("transfer" in item) {
-    return <TransferRow entry={item} onPress={() => onOpenTransfer(item.transfer)} />;
-  }
-  if ("loanTxn" in item) {
-    return <LoanActivityRow entry={item} onPress={() => onOpenLoan(item.loanTxn)} />;
-  }
-  if ("payment" in item) {
-    return <BillPaymentRow entry={item} onPress={() => onOpenTransfer(item.payment)} />;
-  }
-  return (
-    <ExpenseCard
-      expense={item.expense}
-      index={index}
-      compact={item.compact}
-      hideDate={item.hideDate}
-      referenceDate={item.refDate}
-      canOpenBillSheet={item.canOpenBillSheet}
-      isSwipeHintShown={item.isSwipeHintShown}
-      paidTxn={item.paidTxn}
-    />
-  );
 }

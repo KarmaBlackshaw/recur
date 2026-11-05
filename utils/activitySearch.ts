@@ -8,27 +8,28 @@ export interface ActivitySearchContext {
 
 // What a row shows (plus its kind), so a search finds it by name, category, account, person or keyword.
 function searchableText(entry: ActivityEntry, { accountName }: ActivitySearchContext): (string | null | undefined)[] {
-  if ("expense" in entry) {
-    const { expense } = entry;
-    return [expenseTitle(expense), expense.category, accountName(expense.accountId)];
+  switch (entry.kind) {
+    case "expense": {
+      const { expense } = entry;
+      return [expenseTitle(expense), expense.category, accountName(expense.accountId)];
+    }
+    case "income": {
+      const { income, loan } = entry;
+      return [incomeTitle(entry), "income", loan && "loan", income.category, income.note, accountName(income.accountId)];
+    }
+    case "interest":
+      return ["interest", entry.accountName ?? accountName(entry.interest.accountId)];
+    case "transfer":
+      return ["transfer", entry.fromName, entry.toName, entry.transfer.note, entry.earnedCategory, entry.earnedAccountName];
+    case "loan": {
+      const { loanTxn, loan } = entry;
+      const borrower = loan?.borrower;
+      const title = borrower == null ? null : loanTxn.kind === "loan_in" ? `${borrower} repaid` : `Lent to ${borrower}`;
+      return [title, "loan", accountName(loanTxn.accountId)];
+    }
+    case "billPayment":
+      return [`${entry.account.name} bill`, entry.sourceName];
   }
-  if ("income" in entry) {
-    const { income, loan } = entry;
-    return [incomeTitle(entry), "income", loan && "loan", income.category, income.note, accountName(income.accountId)];
-  }
-  if ("interest" in entry) {
-    return ["interest", entry.accountName ?? accountName(entry.interest.accountId)];
-  }
-  if ("transfer" in entry) {
-    return ["transfer", entry.fromName, entry.toName, entry.transfer.note, entry.earnedCategory, entry.earnedAccountName];
-  }
-  if ("loanTxn" in entry) {
-    const { loanTxn, loan } = entry;
-    const borrower = loan?.borrower;
-    const title = borrower == null ? null : loanTxn.kind === "loan_in" ? `${borrower} repaid` : `Lent to ${borrower}`;
-    return [title, "loan", accountName(loanTxn.accountId)];
-  }
-  return [`${entry.account.name} bill`, entry.sourceName];
 }
 
 export function matchesActivity(entry: ActivityEntry, query: string, ctx: ActivitySearchContext): boolean {

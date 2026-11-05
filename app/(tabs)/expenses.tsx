@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { View, TouchableOpacity } from "react-native";
+import { Keyboard, View, TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -12,7 +12,7 @@ import { PeriodNavigator } from "@/components/PeriodNavigator";
 import { DayGroupedExpenseList, type ActivityEntry, type DayTotal } from "@/components/DayGroupedExpenseList";
 import { ActivityHero } from "@/components/activity/ActivityHero";
 import { CategoryFilterSheet, type CategoryFilterSheetRef } from "@/components/activity/CategoryFilterSheet";
-import { ActivityFilterPopup } from "@/components/activity/ActivityFilterPopup";
+import { ActivityFilterPanel } from "@/components/activity/ActivityFilterPanel";
 import type { HeroTone } from "@/components/ui/AppHeroCard";
 import { countLabel } from "@/utils/countLabel";
 import { netFlow } from "@/utils/activity/netFlow";
@@ -134,7 +134,7 @@ export default function ExpensesScreen() {
   const category = params.category || undefined;
   const flow = parseMoneyFlow(params.type);
   const [search, setSearch] = useState("");
-  // Closing the popup keeps its filters; the toggle's badge counts them.
+  // Closing the panel keeps its filters; the toggle's badge counts them.
   const [isFilterOpen, filterOpen] = useBoolean(false);
   const query = search.trim();
   const filterCount = [query !== "", segment !== "all", category != null].filter(Boolean).length;
@@ -150,6 +150,11 @@ export default function ExpensesScreen() {
 
   function openCategoryPicker() {
     categorySheetRef.current?.present();
+  }
+
+  function toggleFilters() {
+    if (isFilterOpen) Keyboard.dismiss();
+    filterOpen.toggle();
   }
 
   function clearFilters() {
@@ -224,7 +229,7 @@ export default function ExpensesScreen() {
             />
           )}
           <TouchableOpacity
-            onPress={filterOpen.toggle}
+            onPress={toggleFilters}
             className="w-11 h-11 items-center justify-center"
             accessibilityRole="button"
             accessibilityLabel={isFiltered ? "Filters, on" : "Filters"}
@@ -241,6 +246,24 @@ export default function ExpensesScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {isFilterOpen && (
+        <ActivityFilterPanel
+          search={search}
+          onSearchChange={setSearch}
+          types={segments}
+          type={segment}
+          onTypeChange={(next) => router.setParams({ segment: next })}
+          category={
+            filtered == null
+              ? undefined
+              : { name: filtered.category, icon: filtered.icon, meta: countLabel(listedCount, "transaction", "transactions") }
+          }
+          onPickCategory={openCategoryPicker}
+          onClear={clearFilters}
+          onClose={filterOpen.setFalse}
+        />
+      )}
 
       <View className="flex-1">
         {query !== "" ? (
@@ -275,24 +298,6 @@ export default function ExpensesScreen() {
               }
             />
           </>
-        )}
-
-        {isFilterOpen && (
-          <ActivityFilterPopup
-            search={search}
-            onSearchChange={setSearch}
-            types={segments}
-            type={segment}
-            onTypeChange={(next) => router.setParams({ segment: next })}
-            category={
-              filtered == null
-                ? undefined
-                : { name: filtered.category, icon: filtered.icon, meta: countLabel(listedCount, "transaction", "transactions") }
-            }
-            onPickCategory={openCategoryPicker}
-            onClear={clearFilters}
-            onClose={filterOpen.setFalse}
-          />
         )}
       </View>
 

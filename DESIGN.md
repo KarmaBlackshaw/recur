@@ -136,8 +136,8 @@ screen's own lines under it. Never hand-build another tint map.
 - 20dp padding. A footer row (Activity's Stats row) sits under the body, whose bottom padding drops to 12dp.
 - The screen sets only the card's margins.
 
-### Activity filters (`components/activity/ActivityFilterPopup.tsx`, `CategoryFilterSheet.tsx`)
-How Activity narrows by keyword, type and category without going through Stats. Every filter lives in one popup,
+### Activity filters (`components/activity/ActivityFilterPanel.tsx`, `CategoryFilterSheet.tsx`)
+How Activity narrows by keyword, type and category without going through Stats. Every filter lives in one panel,
 so the page itself stays header, Month/Year tabs, hero and list.
 
 ```
@@ -154,15 +154,17 @@ Activity              ‹ 2026 ›  [≡]②
 │ └──────────────────────────────────┘ │
 │ Clear all                   [ Done ] │
 └──────────────────────────────────────┘
-  (page dimmed underneath)
+[ Month | Year ]
+ Utilities spent this year ...
+  (page pushed down, not dimmed)
 ```
 
 - Toggle: a 20px Feather `sliders` glyph at the end of the header, 44dp. Secondary Graphite at rest, periwinkle while
-  the popup is open or a filter is on. With the popup closed and filters on, a 16dp Indigo badge on its top-right
+  the panel is open or a filter is on. With the panel closed and filters on, a 16dp Indigo badge on its top-right
   corner counts them (keyword, type, category) in Quicksand Bold 10px Ink.
-- Popup: a Raised Graphite card with a Hairline border and 21dp corners, 10.5dp from the screen edges, just under
-  the header. It fades in (150ms, none with reduced motion) over the page, which a 60% black scrim dims; tapping
-  the scrim, Done, the toggle or Android back closes it. Filters apply as they change and stay on when it closes.
+- Panel: a Raised Graphite card with a Hairline border and 21dp corners, 10.5dp from the screen edges, in the page
+  flow just under the header, so the tabs, hero and list move down below it; no scrim. It fades in (150ms, none
+  with reduced motion); Done or the toggle closes it. Filters apply as they change and stay on when it closes.
 - Sections, each under a label: "Keyword" text field (name, note, account or amount); "Type" chips (All, Paid,
   Charged, Income, Transfers, Loans), scrolling edge to edge inside the card;
   "Category" row in the input frame: a 36dp neutral tile with the category's glyph (a grid for none), its name over
@@ -297,9 +299,9 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Activity's hero shows only its overline and the period's total, above the Stats row: no breakdown under the
   total for any type. Stats carries the detail.
 - Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header, and a filter toggle at the header's end
-  that opens the filters popup (Keyword, Type, Category); a badge on it counts the filters on. Filtered to a category
-  (picked in the popup, or opened from a Stats category), the hero reads "<category> spent" or "received this
-  month/year", and each day shows a signed total of what its rows added to the category.
+  that opens the filters panel under it (Keyword, Type, Category); a badge on it counts the filters on. Filtered to
+  a category (picked in the panel, or opened from a Stats category), the hero reads "<category> spent" or "received
+  this month/year", and each day shows a signed total of what its rows added to the category.
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

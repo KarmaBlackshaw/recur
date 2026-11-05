@@ -108,7 +108,7 @@ const NewCategorySheet = forwardRef<AppBottomSheetRef, NewCategorySheetProps>(fu
               autoFocus
               maxLength={40}
               returnKeyType="done"
-              onSubmitEditing={onSubmit}
+              onSubmitEditing={() => onSubmit()}
               // A taken name shows while typing so a disabled Add explains itself; an empty one waits for a blur.
               error={
                 fieldState.isTouched || fieldState.error?.type === "unique" ? fieldState.error?.message : undefined

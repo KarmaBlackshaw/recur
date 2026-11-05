@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { ScrollView, TouchableOpacity, View, type ScrollViewInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
@@ -109,7 +109,7 @@ export default function BillScreen() {
   const { accounts, transactions, isCardAccount } = useAccounts();
   const payFlow = usePayFlow();
   const confirmDelete = useDeleteExpense();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const hasHandledAction = useRef(false);
   const [pickedCycle, setPickedCycle] = useState<Cycle | null>(null);
 

@@ -181,7 +181,7 @@ export default function StatsScreen() {
                 <AppText variant="meta">{countLabel(sumBy(rows, "count"), "transaction", "transactions")}</AppText>
               </AppDonutChart>
             </View>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={<EmptyState title={copy.emptyTitle} icon={copy.emptyIcon} message={`${copy.emptyMessage} ${periodLabel}`} />}
       />

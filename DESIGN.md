@@ -295,8 +295,8 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Group with headers and whitespace (band headers, day headers), not boxes.
 - Scroll views keep 140dp of bottom padding so the floating tab bar never covers the last row.
 - Touch targets are at least 44dp.
-- Money lists sort by date. Home opens on the month card, then Overdue, this month, and next month once it is at
-  most 7 days away, then Recent activity, which ends with "All activity". New users get a three-step "Get started"
+- Money lists sort by date. Home opens on the month card, then Overdue, this month, and all of next month (so its
+  bills can be paid ahead), then Recent activity, which ends with "All activity". New users get a three-step "Get started"
   checklist, shown in place of the month card until they have three expenses; a backup nudge appears when the last
   backup is over 30 days old.
 - Home Overdue also lists unpaid dues and card bills from the last 3 months; their caption keeps counting "N days late".

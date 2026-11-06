@@ -10,16 +10,26 @@ import React, {
 } from "react";
 import { useAsyncEffect } from "@/utils/useAsyncEffect";
 import { useMemoizedFn } from "@/utils/useMemoizedFn";
-import { sortBy } from "@/utils/collections";
+import { sortBy, sumBy } from "@/utils/collections";
+import { round } from "@/utils/round";
+import { formatAmount } from "@/utils/formatAmount";
 import dayjs from "dayjs";
 import type { AccountTransaction, Expense, Status, MonthStatus, HomeBandSlot } from "@/types";
-import * as expensesDB from "@/db/expenses";
-import * as preferencesDB from "@/db/preferences";
-import * as monthsDB from "@/db/expenseMonths";
+import {
+  getAll as getAllExpenses,
+  insert as insertExpense,
+  remove as removeExpense,
+  update as updateExpenseRow,
+  updateStatus as updateExpenseStatus,
+} from "@/db/expenses";
+import { getPreference, setPreference } from "@/db/preferences";
+import { getAll as getAllMonths, setMonth, upsertMonthlyAmount } from "@/db/expenseMonths";
 import { monthKey, parseMonthKey } from "@/utils/monthKey";
 import { scheduleAllNotifications, cancelAllNotifications, getExpenseReminders, getUnpaidBillReminders } from '@/utils/notifications';
-import { useAccounts } from "@/context/AccountContext";
+import { useAccounts, type PaymentInput } from "@/context/AccountContext";
 import { payFromAccountId } from "@/utils/accounts/payFromAccountId";
+import { billProgress, canPayPart, type BillProgress } from "@/utils/expenses/billProgress";
+import { BillPaymentError } from "@/utils/expenses/BillPaymentError";
 
 interface State {
   expenses: Expense[];
@@ -37,15 +47,16 @@ interface MonthState {
   paidAt: string | null;
 }
 
-// What paying a month records. Anything left out falls back to the expense: its amount (or the month's own amount
-// for variable bills), now, and its Pay from account (Cash when it has none or that one is archived or deleted).
+// What paying a month records. Anything left out falls back to the expense: its amount (what's left once part-paid,
+// or the month's own amount for variable bills), now, and its Pay from account (Cash when it has none or that one is
+// archived or deleted).
 export interface PayDetails {
   amount?: number | null;
   paidAt?: string;
   accountId?: string;
 }
 
-// Puts a month back exactly as it was before a pay/unpay, payment transaction included.
+// Puts a month back exactly as it was before a write, all its payment transactions included.
 export type UndoMonth = () => Promise<void>;
 
 type Action =
@@ -148,14 +159,18 @@ interface ExpenseContextValue {
   toggleHomeBand: (slot: HomeBandSlot) => Promise<void>;
   getMonthStatus: (id: string, year: number, month: number) => Status;
   getMonthAmount: (id: string, year: number, month: number) => number | null;
-  // What the cycle costs: the amount paid for paid months, the month's own amount for variable expenses,
-  // else the expense's amount. Null when unknown (shown as TBD).
+  // What the cycle costs: the amount paid for paid months, the amount frozen at a fixed bill's first part payment,
+  // the month's own amount for variable expenses, else the expense's amount. Null when unknown (shown as TBD).
   getDisplayAmount: (expense: Expense, year: number, month: number) => number | null;
+  getBillProgress: (expense: Expense, year: number, month: number) => BillProgress;
   resolveAmount: (expense: Expense, year: number, month: number) => number;
   getMonthPaidAt: (id: string, year: number, month: number) => string | null;
   toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
-  // Recurring months only. Both throw when the write fails (the month is left as it was).
+  // Recurring months only. All throw when the write fails (the month is left as it was).
   payMonth: (id: string, year: number, month: number, details?: PayDetails) => Promise<UndoMonth>;
+  payPart: (id: string, year: number, month: number, details: PayDetails & { amount: number }) => Promise<UndoMonth>;
+  updatePayment: (paymentId: string, details: { amount: number; paidAt: string; accountId: string }) => Promise<UndoMonth>;
+  deletePayment: (paymentId: string) => Promise<UndoMonth>;
   unpayMonth: (id: string, year: number, month: number) => Promise<UndoMonth>;
   reloadAll: () => Promise<void>;
   rescheduleNotifications: () => void;
@@ -169,6 +184,23 @@ function paidDateTimestamp(expense: Pick<Expense, "paidDate">): string | undefin
 
 function paymentNote(expense: Pick<Expense, "name" | "category">): string {
   return expense.name || expense.category;
+}
+
+function paymentInputOf(txn: AccountTransaction, expense: Pick<Expense, "name" | "category">): PaymentInput {
+  return {
+    accountId: txn.accountId,
+    amount: Math.abs(txn.amount),
+    note: txn.note ?? paymentNote(expense),
+    createdAt: txn.createdAt,
+  };
+}
+
+function paidSum(txns: AccountTransaction[]): number {
+  return round(sumBy(txns, (t) => Math.abs(t.amount)), 2);
+}
+
+function latestDate(dates: string[]): string {
+  return dates.reduce((latest, date) => (dayjs(date).isAfter(latest) ? date : latest));
 }
 
 function parseCollapsedBands(raw: string | null): HomeBandSlot[] {
@@ -198,10 +230,10 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   useAsyncEffect(async function* () {
     try {
       const [rows, name, months, collapsedBands] = await Promise.all([
-        expensesDB.getAll(),
-        preferencesDB.getPreference("user_name"),
-        monthsDB.getAll(),
-        preferencesDB.getPreference("homeCollapsedBands"),
+        getAllExpenses(),
+        getPreference("user_name"),
+        getAllMonths(),
+        getPreference("homeCollapsedBands"),
       ]);
       yield;
       dispatch({ type: "LOAD", payload: rows });
@@ -239,7 +271,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       ? state.collapsedHomeBands.filter((s) => s !== slot)
       : [...state.collapsedHomeBands, slot];
     try {
-      await preferencesDB.setPreference("homeCollapsedBands", JSON.stringify(next));
+      await setPreference("homeCollapsedBands", JSON.stringify(next));
       dispatch({ type: "SET_COLLAPSED_BANDS", payload: next });
     } catch (err) {
       console.error("Saving collapsed bands failed", err);
@@ -248,7 +280,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
   const addExpense = useMemoizedFn(
     async (e: Omit<Expense, "id" | "createdAt">, monthlyAmount?: { year: number; month: number; amount: number | null }) => {
-      const saved = await expensesDB.insert(e);
+      const saved = await insertExpense(e);
       dispatch({ type: "ADD", payload: saved });
       if (saved.recurrence === "one-off") {
         try {
@@ -263,13 +295,13 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           });
         } catch (err) {
           console.error("Failed to sync one-off payment, removing expense", err);
-          await expensesDB.remove(saved.id);
+          await removeExpense(saved.id);
           dispatch({ type: "REMOVE", payload: saved.id });
           throw err;
         }
       }
       if (e.isVariable && monthlyAmount !== undefined) {
-        await monthsDB.upsertMonthlyAmount(saved.id, monthlyAmount.year, monthlyAmount.month, monthlyAmount.amount);
+        await upsertMonthlyAmount(saved.id, monthlyAmount.year, monthlyAmount.month, monthlyAmount.amount);
         dispatch({
           type: "SET_MONTH_AMOUNT",
           payload: { expenseId: saved.id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
@@ -288,29 +320,20 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       if (!existing) {
         return;
       }
-      await expensesDB.update(id, fields);
+      const monthPayments =
+        fields.isVariable && fields.recurrence !== "one-off" && monthlyAmount !== undefined
+          ? variableMonthPayments(id, fields, monthlyAmount)
+          : undefined;
+      await updateExpenseRow(id, fields);
       dispatch({ type: "UPDATE", payload: { ...existing, ...fields } });
       if (fields.isVariable && monthlyAmount !== undefined) {
-        await monthsDB.upsertMonthlyAmount(id, monthlyAmount.year, monthlyAmount.month, monthlyAmount.amount);
+        await upsertMonthlyAmount(id, monthlyAmount.year, monthlyAmount.month, monthlyAmount.amount);
         dispatch({
           type: "SET_MONTH_AMOUNT",
           payload: { expenseId: id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
         });
-        const { year, month } = monthlyAmount;
-        if (fields.recurrence !== "one-off" && state.monthStatuses[monthKey(id, year, month)] === "paid") {
-          const paidTxn = accounts.transactions.find(
-            (t) => t.kind === "payment" && t.expenseId === id && t.cycleYear === year && t.cycleMonth === month
-          );
-          if (paidTxn) {
-            await accounts.syncPayment({
-              expenseId: id,
-              accountId: paidTxn.accountId,
-              cycleYear: year,
-              cycleMonth: month,
-              amount: monthlyAmount.amount,
-              note: paymentNote(fields),
-            });
-          }
+        if (monthPayments) {
+          await accounts.replacePayments(id, monthlyAmount.year, monthlyAmount.month, monthPayments);
         }
       }
       try {
@@ -329,7 +352,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.error("Failed to sync one-off payment, reverting expense", err);
-        await expensesDB.update(id, existing);
+        await updateExpenseRow(id, existing);
         dispatch({ type: "UPDATE", payload: existing });
         throw err;
       }
@@ -364,12 +387,34 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       }
       const k = monthKey(expense.id, year, month);
       const stored = state.monthAmounts[k] ?? null;
-      if (expense.isVariable || (state.monthStatuses[k] === "paid" && stored != null)) {
+      if (expense.isVariable) {
+        return stored;
+      }
+      if (stored != null && (state.monthStatuses[k] === "paid" || accounts.getPayments(expense.id, year, month).length > 0)) {
         return stored;
       }
       return expense.amount;
     },
-    [state.monthAmounts, state.monthStatuses]
+    [state.monthAmounts, state.monthStatuses, accounts.getPayments]
+  );
+
+  const getBillProgress = useCallback(
+    (expense: Expense, year: number, month: number): BillProgress => {
+      if (expense.recurrence === "one-off") {
+        const isPaid = expense.status === "paid";
+        return billProgress({
+          bill: expense.amount,
+          payments: isPaid && expense.amount != null ? [expense.amount] : [],
+          isPaid,
+        });
+      }
+      return billProgress({
+        bill: getDisplayAmount(expense, year, month),
+        payments: accounts.getPayments(expense.id, year, month).map((t) => Math.abs(t.amount)),
+        isPaid: state.monthStatuses[monthKey(expense.id, year, month)] === "paid",
+      });
+    },
+    [getDisplayAmount, accounts.getPayments, state.monthStatuses]
   );
 
   const resolveAmount = useCallback(
@@ -397,7 +442,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     const run = (async () => {
       await previous;
       try {
-        const enabled = await preferencesDB.getPreference('notificationsEnabled');
+        const enabled = await getPreference('notificationsEnabled');
         if (generation !== rescheduleGeneration.current) {
           return;
         }
@@ -405,14 +450,14 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           await cancelAllNotifications();
           return;
         }
-        const time = (await preferencesDB.getPreference('reminderTime')) ?? '09:00';
+        const time = (await getPreference('reminderTime')) ?? '09:00';
         if (generation !== rescheduleGeneration.current) {
           return;
         }
         const now = new Date();
         await scheduleAllNotifications(
           [
-            ...getExpenseReminders(state.expenses, getMonthStatus, getDisplayAmount, now),
+            ...getExpenseReminders(state.expenses, getMonthStatus, (e, y, m) => getBillProgress(e, y, m).left, now),
             ...getUnpaidBillReminders(accounts.getCardBills, now),
           ],
           time
@@ -438,7 +483,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const writeMonth = useMemoizedFn(async (expenseId: string, year: number, month: number, next: MonthState) => {
-    await monthsDB.setMonth(expenseId, year, month, next.status, next.amount, next.paidAt);
+    await setMonth(expenseId, year, month, next.status, next.amount, next.paidAt);
     dispatch({ type: "SET_MONTH", payload: { expenseId, year, month, ...next } });
   });
 
@@ -451,11 +496,6 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
-  const paymentTxnOf = (id: string, year: number, month: number) =>
-    accounts.transactions.find(
-      (t) => t.kind === "payment" && t.expenseId === id && t.cycleYear === year && t.cycleMonth === month
-    );
-
   const recurringExpense = (id: string): Expense => {
     const expense = state.expenses.find((e) => e.id === id);
     if (!expense || expense.recurrence === "one-off") {
@@ -464,29 +504,78 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     return expense;
   };
 
-  const restoreMonth = useMemoizedFn(
-    async (expense: Expense, year: number, month: number, previous: MonthState, previousTxn?: AccountTransaction) => {
-      const current = monthStateOf(expense.id, year, month);
-      await writeMonth(expense.id, year, month, previous);
+  const paymentMonth = (paymentId: string) => {
+    const payment = accounts.transactions.find((t) => t.id === paymentId && t.kind === "payment");
+    if (!payment || payment.expenseId == null || payment.cycleYear == null || payment.cycleMonth == null) {
+      throw new Error("Payment not found");
+    }
+    return { expense: recurringExpense(payment.expenseId), year: payment.cycleYear, month: payment.cycleMonth };
+  };
+
+  const withNewPayment = (
+    expense: Expense,
+    year: number,
+    month: number,
+    amount: number | null,
+    { paidAt, accountId }: { paidAt: string; accountId?: string }
+  ): PaymentInput[] => [
+    ...accounts.getPayments(expense.id, year, month).map((t) => paymentInputOf(t, expense)),
+    {
+      accountId: accountId ?? payFromAccountId(expense, accounts.activeAccounts),
+      amount,
+      note: paymentNote(expense),
+      createdAt: paidAt,
+    },
+  ];
+
+  // Throws before anything is written when the month's new amount is below what's already paid toward it.
+  const variableMonthPayments = (
+    id: string,
+    fields: Pick<Expense, "name" | "category">,
+    { year, month, amount }: { year: number; month: number; amount: number | null }
+  ): PaymentInput[] | undefined => {
+    const rows = accounts.getPayments(id, year, month);
+    if (state.monthStatuses[monthKey(id, year, month)] !== "paid") {
+      const paid = paidSum(rows);
+      if (rows.length > 0 && amount != null && amount < paid) {
+        throw new BillPaymentError(`Already paid ${formatAmount(paid)} this month.`);
+      }
+      return undefined;
+    }
+    const settling = rows[rows.length - 1];
+    if (!settling) {
+      return undefined;
+    }
+    const others = rows.slice(0, -1);
+    let settlingAmount = amount;
+    if (others.length > 0) {
+      const othersPaid = paidSum(others);
+      settlingAmount = round((amount ?? 0) - othersPaid, 2);
+      if (settlingAmount <= 0) {
+        throw new BillPaymentError(`Already paid ${formatAmount(othersPaid)} this month.`);
+      }
+    }
+    return [
+      ...others.map((t) => paymentInputOf(t, fields)),
+      { accountId: settling.accountId, amount: settlingAmount, note: paymentNote(fields), createdAt: settling.createdAt },
+    ];
+  };
+
+  // The undo throws (leaving the month as it was) when restoring a payment would overdraw its account.
+  const writeMonthPayments = useMemoizedFn(
+    async (expense: Expense, year: number, month: number, next: MonthState, payments: PaymentInput[]): Promise<UndoMonth> => {
+      const previous = monthStateOf(expense.id, year, month);
+      const previousRows = accounts.getPayments(expense.id, year, month);
+      await writeMonth(expense.id, year, month, next);
       try {
-        if (previousTxn) {
-          await accounts.syncPayment({
-            expenseId: expense.id,
-            accountId: previousTxn.accountId,
-            cycleYear: year,
-            cycleMonth: month,
-            amount: Math.abs(previousTxn.amount),
-            note: previousTxn.note ?? paymentNote(expense),
-            createdAt: previousTxn.createdAt,
-          });
-        } else {
-          await accounts.removePayment(expense.id, year, month);
-        }
+        await accounts.replacePayments(expense.id, year, month, payments);
       } catch (err) {
-        // Restoring a payment can overdraw its account; leave the month as it was.
-        await writeMonth(expense.id, year, month, current);
+        await writeMonth(expense.id, year, month, previous);
         throw err;
       }
+      return async () => {
+        await writeMonthPayments(expense, year, month, previous, previousRows.map((t) => paymentInputOf(t, expense)));
+      };
     }
   );
 
@@ -494,43 +583,112 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     async (id: string, year: number, month: number, details: PayDetails = {}): Promise<UndoMonth> => {
       const expense = recurringExpense(id);
       const previous = monthStateOf(id, year, month);
-      const previousTxn = paymentTxnOf(id, year, month);
+      const progress = getBillProgress(expense, year, month);
       // Variable months keep their own amount. A fixed expense's paid month records what it cost, so a later
       // edit doesn't rewrite paid history.
-      const amount = details.amount !== undefined ? details.amount : expense.isVariable ? previous.amount : expense.amount;
+      const amount =
+        details.amount !== undefined
+          ? details.amount
+          : progress.paid > 0 && progress.left != null
+            ? progress.left
+            : expense.isVariable
+              ? previous.amount
+              : expense.amount;
       const paidAt = details.paidAt ?? new Date().toISOString();
-      await writeMonth(id, year, month, { status: "paid", amount, paidAt });
-      try {
-        await accounts.syncPayment({
-          expenseId: id,
-          accountId: details.accountId ?? payFromAccountId(expense, accounts.activeAccounts),
-          cycleYear: year,
-          cycleMonth: month,
-          amount,
-          note: paymentNote(expense),
-          createdAt: paidAt,
-        });
-      } catch (err) {
-        await writeMonth(id, year, month, previous);
-        throw err;
-      }
-      return () => restoreMonth(expense, year, month, previous, previousTxn);
+      const cost = progress.paid === 0 && amount == null ? null : round(progress.paid + (amount ?? 0), 2);
+      return writeMonthPayments(
+        expense,
+        year,
+        month,
+        { status: "paid", amount: cost, paidAt },
+        withNewPayment(expense, year, month, amount, { paidAt, accountId: details.accountId })
+      );
     }
   );
+
+  const payPart = useMemoizedFn(
+    async (id: string, year: number, month: number, details: PayDetails & { amount: number }): Promise<UndoMonth> => {
+      const expense = recurringExpense(id);
+      const progress = getBillProgress(expense, year, month);
+      if (!canPayPart(progress, details.amount)) {
+        throw new BillPaymentError("That covers the bill. Use Mark as paid.");
+      }
+      const paidAt = details.paidAt ?? new Date().toISOString();
+      return writeMonthPayments(
+        expense,
+        year,
+        month,
+        { status: "unpaid", amount: progress.bill, paidAt: null },
+        withNewPayment(expense, year, month, details.amount, { paidAt, accountId: details.accountId })
+      );
+    }
+  );
+
+  const updatePayment = useMemoizedFn(
+    async (paymentId: string, details: { amount: number; paidAt: string; accountId: string }): Promise<UndoMonth> => {
+      const { expense, year, month } = paymentMonth(paymentId);
+      if (!(details.amount > 0)) {
+        throw new Error("Payment must be at least 0.01");
+      }
+      const previous = monthStateOf(expense.id, year, month);
+      const rows = accounts.getPayments(expense.id, year, month);
+      const others = rows.filter((t) => t.id !== paymentId);
+      const payments = rows.map((t) =>
+        t.id === paymentId
+          ? { accountId: details.accountId, amount: details.amount, note: t.note ?? paymentNote(expense), createdAt: details.paidAt }
+          : paymentInputOf(t, expense)
+      );
+      if (previous.status !== "paid") {
+        const progress = billProgress({
+          bill: getDisplayAmount(expense, year, month),
+          payments: others.map((t) => Math.abs(t.amount)),
+          isPaid: false,
+        });
+        if (!canPayPart(progress, details.amount)) {
+          throw new BillPaymentError("That covers the bill. Use Mark as paid.");
+        }
+        return writeMonthPayments(expense, year, month, previous, payments);
+      }
+      const isSettlingRow = rows[rows.length - 1]?.id === paymentId;
+      const paidAt = isSettlingRow
+        ? latestDate([details.paidAt, ...others.map((t) => t.createdAt)])
+        : latestDate(previous.paidAt != null ? [previous.paidAt, details.paidAt] : [details.paidAt]);
+      return writeMonthPayments(
+        expense,
+        year,
+        month,
+        { status: "paid", amount: round(paidSum(others) + details.amount, 2), paidAt },
+        payments
+      );
+    }
+  );
+
+  const deletePayment = useMemoizedFn(async (paymentId: string): Promise<UndoMonth> => {
+    const { expense, year, month } = paymentMonth(paymentId);
+    const previous = monthStateOf(expense.id, year, month);
+    const others = accounts.getPayments(expense.id, year, month).filter((t) => t.id !== paymentId);
+    // The month keeps its amount, so what's left is what was deleted; with no payments left a fixed month follows
+    // the expense again.
+    return writeMonthPayments(
+      expense,
+      year,
+      month,
+      { status: "unpaid", amount: others.length === 0 && !expense.isVariable ? null : previous.amount, paidAt: null },
+      others.map((t) => paymentInputOf(t, expense))
+    );
+  });
 
   const unpayMonth = useMemoizedFn(async (id: string, year: number, month: number): Promise<UndoMonth> => {
     const expense = recurringExpense(id);
     const previous = monthStateOf(id, year, month);
-    const previousTxn = paymentTxnOf(id, year, month);
     // A fixed expense's month follows the expense again once unpaid; variable months keep their own amount.
-    await writeMonth(id, year, month, { status: "unpaid", amount: expense.isVariable ? previous.amount : null, paidAt: null });
-    try {
-      await accounts.removePayment(id, year, month);
-    } catch (err) {
-      await writeMonth(id, year, month, previous);
-      throw err;
-    }
-    return () => restoreMonth(expense, year, month, previous, previousTxn);
+    return writeMonthPayments(
+      expense,
+      year,
+      month,
+      { status: "unpaid", amount: expense.isVariable ? previous.amount : null, paidAt: null },
+      []
+    );
   });
 
   const toggleMonthStatus = useMemoizedFn(
@@ -542,7 +700,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
       if (expense.recurrence === "one-off") {
         const next: Status = expense.status === "unpaid" ? "paid" : "unpaid";
-        await expensesDB.updateStatus(id, next);
+        await updateExpenseStatus(id, next);
         dispatch({ type: "UPDATE", payload: { ...expense, status: next } });
         try {
           if (next === "paid") {
@@ -560,7 +718,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (err) {
           console.error("Failed to sync payment, reverting status", err);
-          await expensesDB.updateStatus(id, expense.status);
+          await updateExpenseStatus(id, expense.status);
           dispatch({ type: "UPDATE", payload: expense });
           throw err;
         }
@@ -584,16 +742,16 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     if (expense?.recurrence === "one-off") {
       await accounts.removePayment(id, null, null);
     }
-    await expensesDB.remove(id);
+    await removeExpense(id);
     dispatch({ type: "REMOVE", payload: id });
   });
 
   const reloadAll = useMemoizedFn(async () => {
     const [rows, months, name, collapsedBands] = await Promise.all([
-      expensesDB.getAll(),
-      monthsDB.getAll(),
-      preferencesDB.getPreference("user_name"),
-      preferencesDB.getPreference("homeCollapsedBands"),
+      getAllExpenses(),
+      getAllMonths(),
+      getPreference("user_name"),
+      getPreference("homeCollapsedBands"),
     ]);
     dispatch({ type: "LOAD", payload: rows });
     dispatch({ type: "LOAD_MONTHS", payload: months });
@@ -616,10 +774,14 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       getMonthStatus,
       getMonthAmount,
       getDisplayAmount,
+      getBillProgress,
       resolveAmount,
       getMonthPaidAt,
       toggleMonthStatus,
       payMonth,
+      payPart,
+      updatePayment,
+      deletePayment,
       unpayMonth,
       reloadAll,
       rescheduleNotifications,
@@ -633,6 +795,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       getMonthStatus,
       getMonthAmount,
       getDisplayAmount,
+      getBillProgress,
       resolveAmount,
       getMonthPaidAt,
     ]

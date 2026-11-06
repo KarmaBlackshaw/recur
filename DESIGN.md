@@ -71,7 +71,8 @@ account transactions. Never hand-build another row.
 - **Caption:** when, or which state, 10.5px under the amount. Upcoming dates read "Today", "Tomorrow",
   "in 4 days", then "Nov 30". Late reads "3 days late" in coral. Settled reads "Paid Oct 21" in the neutral
   tone (the band or KPI already says paid, so a mint caption on every row would only repeat it) or
-  "Charged Oct 21" in periwinkle. Ledger rows under a day header carry no date; they only flag "Charged".
+  "Charged Oct 21" in periwinkle. A part-paid bill's amount is what's left and its caption reads
+  "₱1,000.00 paid · in 4 days" (or "· 3 days late", coral). Ledger rows under a day header carry no date; they only flag "Charged".
   A loan payment dated after a backdated payoff reads "₱20.00 more than owed" in the neutral tone.
 - **Accessory:** optional trailing Muted Graphite glyph: chevron to drill in.
 - **Pressed:** opacity 0.7. A row with `onPress` is a button; without it, one accessible element with the
@@ -136,6 +137,52 @@ screen's own lines under it. Never hand-build another tint map.
 - 20dp padding. A footer row (Activity's Stats row) sits under the body, whose bottom padding drops to 12dp.
 - The screen sets only the card's margins.
 
+### Activity filters (`components/activity/ActivityFilterPanel.tsx`, `CategoryFilterSheet.tsx`)
+How Activity narrows by keyword, type and category without going through Stats. Every filter lives in one panel,
+so the page itself stays header, Month/Year tabs, hero and list.
+
+```
+Activity              ‹ 2026 ›  [≡]②
+┌──────────────────────────────────────┐
+│ Keyword                              │
+│ [ Name, note, account or amount    ] │
+│ Type                                 │
+│ (All)(Paid)(Charged)(Income)(Transf… │
+│ Category                             │
+│ ┌──────────────────────────────────┐ │
+│ │ [▦] Utilities                 ⌄  │ │
+│ │     14 transactions              │ │
+│ └──────────────────────────────────┘ │
+│ Clear all                   [ Done ] │
+└──────────────────────────────────────┘
+[ Month | Year ]
+ Utilities spent this year ...
+  (page pushed down, not dimmed)
+```
+
+- Toggle: a 20px Feather `sliders` glyph at the end of the header, 44dp. Secondary Graphite at rest, periwinkle while
+  the panel is open or a filter is on. With the panel closed and filters on, a 16dp Indigo badge on its top-right
+  corner counts them (keyword, type, category) in Quicksand Bold 10px Ink.
+- Panel: a Raised Graphite card with a Hairline border and 21dp corners, 10.5dp from the screen edges, in the page
+  flow just under the header, so the tabs, hero and list move down below it; no scrim. It fades in (150ms, none
+  with reduced motion); Done or the toggle closes it. Filters apply as they change and stay on when it closes.
+- Sections, each under a label: "Keyword" text field (name, note, account or amount); "Type" chips (All, Paid,
+  Charged, Income, Transfers, Loans), scrolling edge to edge inside the card;
+  "Category" row in the input frame: a 36dp neutral tile with the category's glyph (a grid for none), its name over
+  the listed row count ("All categories" over "Income and expenses" when none), and a Muted chevron-down. It opens
+  the category sheet.
+- Footer: a periwinkle "Clear all" text action on the left, only while a filter is on, and a primary "Done" button
+  on the right.
+- The three combine. A keyword searches every month of the type's rows (the period navigator, tabs and hero hide)
+  and reads "3 results for "phone" in Paid, Utilities". A category keeps the rows of its slice that the type
+  lists; the hero names it: "Utilities spent this year".
+- Sheet: "Category", content-sized. Income/Expenses underline tabs with their totals (as on Stats), opening on the
+  filtered category's side, else Income from the Income type and Expenses from any other. Under them, the categories
+  the listed rows add to (the period's, or the keyword's matches) as radio chips, biggest first (Stats' slices); the
+  current one is selected. Nothing to pick reads "Nothing spent in October" / `No income matching "phone"` as meta.
+- Picking one closes the sheet, then filters Activity to it. Opening a Stats category resets the type to All, since
+  its slice counts every row.
+
 ### Month card (`components/HomeMonthStats.tsx`)
 One Raised Graphite card at the top of Home, under the greeting, built like the other hero cards. Its lead is Spent
 for the month: an overline naming the figure and the month ("Spent in October") over an Oswald Medium 32px total.
@@ -144,7 +191,7 @@ glyph, label, Oswald 17px amount, Muted chevron) show Charged (only with a credi
 charges) and Owed to you (only while someone owes you). Month figures stay above the rows, because Owed to you is a
 standing balance, not a month total. Zero amounts go Secondary Graphite. When nothing was spent, received or charged
 yet (the 1st of a month), the figures give way to the month name and "Nothing spent or received yet", and that block
-is not tappable. Each figure opens the matching Activity chip for the month (Spent: Paid, Received: Income, Charged:
+is not tappable. Each figure opens Activity on the matching type for the month (Spent: Paid, Received: Income, Charged:
 Charged); Owed to you opens Loans' Active chip. No tiles, progress bars or Hairline-split grids.
 
 ### Buttons (`AppButton`)
@@ -187,9 +234,16 @@ in the Recurring tab's Overdue and Unpaid bands (for that month's bill). Its met
 ("October bill · due Oct 1", plus " · 31 days late" when overdue), then three inputs: Amount (prefilled, blank when
 TBD; ₱0 is allowed for a month with no bill), Paid on (an `AppDateField`, today by default, no future dates) and Pay
 from (an `AppSelectField` that opens the account picker; the bill's account, or Cash when it has none or it's archived;
-editing a payment keeps that payment's account). Mark as paid closes the sheet and pays once it's gone. Opened from a
+editing a payment keeps that payment's account). On an unpaid bill, Paid so far and Left rows sit under the meta line
+(Left is hidden for a TBD bill), and there are two buttons: Mark as paid and Pay part, rest later (tonal). Paid on can't
+be earlier than the month's latest part payment, and once the edited amount covers what's left the hint reads "That
+covers the bill — use Mark as paid". Editing one payment (from the bill page's Payments list or a paid bill) shows a
+single Save payment. Mark as paid closes the sheet and pays once it's gone. Opened from a
 bill row, it adds Details (tonal) under Mark as paid, which opens the bill's page for that month. Every other row skips
 the sheet: it opens the bill page, or a one-off's editor, directly.
+The bill page lists a month's payments under a "Payments" header, between the hero and the details, while that month
+is unpaid with a part payment or paid with two or more: one List Row per payment (date, account, amount), tap to edit it,
+swipe left to delete it. A month paid in several parts shows only Mark unpaid in the hero.
 
 ### Card bill sheet
 Cut-off and Estimate rows, the Statement amount input (Save amount, Use estimate), then Paid and Remaining. While the
@@ -216,8 +270,8 @@ one last. A card bill opened from Home adds Details (tonal), which opens the car
 ### Stats (`app/stats.tsx`)
 A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite
 pie-chart glyph, Ink label, Muted chevron; neutral because it sits on mint and periwinkle heroes alike) that opens it
-on Activity's month and Income/Expenses. Header: back chevron, 22px `title`,
-`PeriodNavigator`; no tab bar or FAB.
+on Activity's month or year and Income/Expenses. Header: back chevron, 22px `title`,
+`PeriodNavigator`; no tab bar or FAB. Each category row ends with a Muted chevron and opens Activity filtered to it.
 Underline tabs (`AppUnderlineTabs`) switch Income and Expenses and show each total, with a Periwinkle underline on the
 active one, since mint and coral stay states. The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so
 a hue says which slice is which row and never belongs to a category. Past the sixth, categories fold into one neutral
@@ -250,8 +304,12 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)
   and Owed under a hairline. The header's layers toggle (saved, carried in backups) groups active accounts into a
   band per bank, in account order, with accounts that have no bank last under "Other".
-- Activity's hero shows only its overline and the month's total, above the Stats row: no breakdown under the
-  total on any chip. Stats carries the detail.
+- Activity's hero shows only its overline and the period's total, above the Stats row: no breakdown under the
+  total for any type. Stats carries the detail.
+- Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header, and a filter toggle at the header's end
+  that opens the filters panel under it (Keyword, Type, Category); a badge on it counts the filters on. Filtered to
+  a category (picked in the panel, or opened from a Stats category), the hero reads "<category> spent" or "received
+  this month/year", and each day shows a signed total of what its rows added to the category.
 - The Recurring tab ends with a muted "Not due" band for plans with no cycle that month (not started yet,
   ended, or a yearly plan outside its month): counted, never totalled, captioned "Starts Nov 2026",
   "Ended Aug 2026" or "Every Mar 10".

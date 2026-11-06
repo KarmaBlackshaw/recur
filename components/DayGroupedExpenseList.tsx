@@ -8,12 +8,13 @@ import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
 import { dayTotalOf } from "@/utils/activity/dayTotalOf";
 import type { BillPaymentEntry, IncomeEntry, InterestEntry, TransferEntry } from "@/utils/usePaidLedger";
 import type { LoanActivityEntry } from "@/utils/useLoanActivity";
-import type { Expense } from "@/types";
+import type { AccountTransaction, Expense } from "@/types";
 
 // A single row in a day-grouped list. `effDate` decides which day bucket it lands
 // in (pay-date if paid, due-date if unpaid); `refDate` is the cycle month the card
 // resolves its amount/status/edit-nav against. Same shape as PaidEntry (+ compact).
 export interface DayEntry {
+  kind: "expense";
   key: string;
   expense: Expense;
   effDate: Date;
@@ -24,6 +25,7 @@ export interface DayEntry {
   hideDate?: boolean;
   canOpenBillSheet?: boolean;  // unpaid due rows open the bill sheet on tap (Home)
   isSwipeHintShown?: boolean;  // this row peeks its Pay swipe once
+  paidTxn?: AccountTransaction;
 }
 
 export type LedgerEntry = DayEntry | BillPaymentEntry;

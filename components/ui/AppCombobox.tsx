@@ -1,5 +1,5 @@
 import React, { forwardRef, type ComponentPropsWithoutRef } from "react";
-import { TextInput, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View, type TextInputInstance } from "react-native";
 import { useBoolean } from "@/utils/useBoolean";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
@@ -11,7 +11,7 @@ interface AppComboboxProps extends ComponentPropsWithoutRef<typeof AppTextInput>
 
 const MAX_MATCHES = 5;
 
-export const AppCombobox = forwardRef<TextInput, AppComboboxProps>(
+export const AppCombobox = forwardRef<TextInputInstance, AppComboboxProps>(
   function AppCombobox({ items, onPick, value = "", onPressIn, onChangeText, onBlur, ...props }, ref) {
     const [isOpen, { setTrue: open, setFalse: close }] = useBoolean(false);
     const query = value.trim().toLowerCase();

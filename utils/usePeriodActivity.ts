@@ -1,16 +1,17 @@
 import { useMemo } from "react";
 import { sumBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
+import { isInPeriod } from "@/utils/dateHelpers";
 import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
 import type { ActivityFeed } from "@/utils/useActivityFeed";
-import type { ActivitySegment, TransactionKind } from "@/types";
+import type { ActivitySegment, Period, TransactionKind } from "@/types";
 
-export function useMonthActivity(feed: ActivityFeed, year: number, month: number) {
+export function usePeriodActivity(feed: ActivityFeed, year: number, month: number, period: Period) {
   const { isCharged, transactions } = useAccounts();
 
   return useMemo(() => {
-    const isInMonth = ({ effDate }: { effDate: Date }) => effDate.getFullYear() === year && effDate.getMonth() === month;
-    const charged = feed.charged.filter(isInMonth);
+    const inPeriod = ({ effDate }: { effDate: Date }) => isInPeriod(effDate, year, month, period);
+    const charged = feed.charged.filter(inPeriod);
     const notPaidOff = sumBy(
       charged.filter(({ expense, refDate }) =>
         expense.recurrence === "one-off"
@@ -19,19 +20,19 @@ export function useMonthActivity(feed: ActivityFeed, year: number, month: number
       ),
       "amount"
     );
-    const monthTxnTotal = (kind: TransactionKind) =>
+    const periodTxnTotal = (kind: TransactionKind) =>
       sumBy(
-        transactions.filter((t) => t.kind === kind).map((t) => ({ effDate: new Date(t.createdAt), amount: Math.abs(t.amount) })).filter(isInMonth),
+        transactions.filter((t) => t.kind === kind).map((t) => ({ effDate: new Date(t.createdAt), amount: Math.abs(t.amount) })).filter(inPeriod),
         "amount"
       );
-    const fees = monthTxnTotal("fee");
-    const transfers = feed.transfers.filter(isInMonth);
-    const loans = feed.loans.filter(isInMonth);
+    const fees = periodTxnTotal("fee");
+    const transfers = feed.transfers.filter(inPeriod);
+    const loans = feed.loans.filter(inPeriod);
     const byFilter: Record<ActivitySegment, ActivityEntry[]> = {
-      all: feed.all.filter(isInMonth),
-      paid: feed.paid.filter(isInMonth),
+      all: feed.all.filter(inPeriod),
+      paid: feed.paid.filter(inPeriod),
       charged,
-      income: feed.income.filter(isInMonth),
+      income: feed.income.filter(inPeriod),
       transfers,
       loans,
     };
@@ -47,5 +48,5 @@ export function useMonthActivity(feed: ActivityFeed, year: number, month: number
       paidTotal: sumBy(byFilter.paid, "amount") + fees,
       chargedTotal: sumBy(charged, "amount"),
     };
-  }, [feed, transactions, isCharged, year, month]);
+  }, [feed, transactions, isCharged, year, month, period]);
 }

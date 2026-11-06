@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { maxBy, orderBy, uniqBy } from "@/utils/collections";
-import { View, Alert, TextInput } from "react-native";
+import { View, Alert, type TextInputInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
@@ -129,7 +129,7 @@ export default function AddLoanScreen() {
   const prefilledBorrower = id ? "" : (borrowerParam?.trim() ?? "");
   const isLoading = loans.isLoading || accounts.isLoading;
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
-  const amountRef = useRef<TextInput>(null);
+  const amountRef = useRef<TextInputInstance>(null);
 
   const depositAccounts = accounts.activeAccounts.filter((a) => a.type !== "credit");
 

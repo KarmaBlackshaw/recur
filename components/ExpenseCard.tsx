@@ -13,7 +13,8 @@ import { expenseTitle } from "@/utils/expenseHelpers";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
 import { openExpense } from "@/utils/expenses/openExpense";
 import { formatBillAmount } from "@/utils/expenses/formatBillAmount";
-import type { Expense } from "@/types";
+import { formatAmount } from "@/utils/formatAmount";
+import type { AccountTransaction, Expense } from "@/types";
 
 interface Props {
   expense: Expense;
@@ -24,6 +25,7 @@ interface Props {
   hideDate?: boolean;  // caption shows the status word instead of the date
   canOpenBillSheet?: boolean; // unpaid rows open the bill sheet on tap (Home and Recurring due lists)
   isSwipeHintShown?: boolean; // peek the Pay swipe once to teach it
+  paidTxn?: AccountTransaction;
 }
 
 export function ExpenseCard({
@@ -35,9 +37,10 @@ export function ExpenseCard({
   hideDate = false,
   canOpenBillSheet = false,
   isSwipeHintShown = false,
+  paidTxn,
 }: Props) {
-  const { getMonthStatus, getDisplayAmount, getMonthPaidAt } = useExpenses();
-  const { accounts, isCharged, isCardAccount } = useAccounts();
+  const { getMonthStatus, getBillProgress, getMonthPaidAt } = useExpenses();
+  const { accounts, isCharged, isCardAccount, isTxnCharged } = useAccounts();
   const payFlow = usePayFlow();
   const confirmDelete = useDeleteExpense();
   const accountName = accounts.find((a) => a.id === expense.accountId)?.name;
@@ -47,21 +50,26 @@ export function ExpenseCard({
   const month = refDate.getMonth();
   const isRegular = expense.recurrence === "one-off";
   const dueDate = getDueDateForMonth(expense.dueDay, year, month);
-  const resolvedStatus = getMonthStatus(expense.id, year, month);
+  const resolvedStatus = paidTxn ? "paid" : getMonthStatus(expense.id, year, month);
   const isPaid = resolvedStatus === "paid";
-  const isChargedNow = isPaid && isCharged(expense.id, isRegular ? null : year, isRegular ? null : month);
+  const isChargedNow = paidTxn
+    ? isTxnCharged(paidTxn)
+    : isPaid && isCharged(expense.id, isRegular ? null : year, isRegular ? null : month);
   // Paid recurring shows when it was actually paid (paid_at), not its due date.
   // Fall back to dueDate only for legacy rows recorded before paid_at existed.
-  const paidAt = !isRegular ? getMonthPaidAt(expense.id, year, month) : null;
+  const paidAt = paidTxn?.createdAt ?? (!isRegular ? getMonthPaidAt(expense.id, year, month) : null);
   // Not started yet, ended, or a yearly plan outside its month: nothing is due, so the row is muted.
   const cycleState = cycleStateOn(expense, year, month);
   const isInactive = cycleState !== "active";
   const overdueFlag = !isRegular && !isInactive && resolvedStatus === "unpaid" && isOverdueOn(expense.dueDay, year, month);
-  const displayAmount = getDisplayAmount(expense, year, month);
+  const progress = getBillProgress(expense, year, month);
+  const isPartPaid = !isRegular && !isInactive && !isPaid && progress.paid > 0;
 
   const title = expenseTitle(expense);
   const isCategoryTitle = title === expense.category;
-  const amountText = formatBillAmount(displayAmount);
+  const amountText = paidTxn
+    ? formatAmount(Math.abs(paidTxn.amount))
+    : formatBillAmount(isPartPaid ? progress.left : progress.bill);
   const inactiveText: Record<typeof cycleState, string> = {
     active: "",
     ended: expense.endYear != null && expense.endMonth != null ? `Ended ${formatMonth(expense.endYear, expense.endMonth)}` : "Ended",
@@ -93,7 +101,11 @@ export function ExpenseCard({
   // Ledger rows sit under a day header, so they only flag card-account status.
   const caption = compact || hideDate
     ? (!compact || isCardAccount(expense.accountId) ? statusLabel : undefined)
-    : isPaid && !isInactive ? `${statusLabel} ${dateText}` : dateText;
+    : isPaid && !isInactive
+      ? `${statusLabel} ${dateText}`
+      : isPartPaid
+        ? `${formatAmount(progress.paid)} paid · ${dateText}`
+        : dateText;
   // One-offs are money already spent: they have no month to pay or unpay.
   const canToggle = !compact && !isInactive && !isRegular;
   const shouldOpenBillSheet = canOpenBillSheet && canToggle && !isPaid;

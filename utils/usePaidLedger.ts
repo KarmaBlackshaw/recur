@@ -9,15 +9,18 @@ import { monthKey } from "@/utils/monthKey";
 import type { Account, AccountTransaction, Expense, Loan } from "@/types";
 
 export interface PaidEntry {
+  kind: "expense";
   key: string;
   expense: Expense;
   refDate: Date; // the cycle's due month — drives ExpenseCard amount resolution + edit nav
   effDate: Date; // when it counts (pay date) — drives grouping/window/sort
   amount: number;
   isCard: boolean;
+  paidTxn?: AccountTransaction;
 }
 
 export interface BillPaymentEntry {
+  kind: "billPayment";
   key: string;
   payment: AccountTransaction;
   account: Account;
@@ -28,6 +31,7 @@ export interface BillPaymentEntry {
 }
 
 export interface IncomeEntry {
+  kind: "income";
   key: string;
   income: AccountTransaction;
   loan: Loan | undefined; // set when a loan overpayment saved it
@@ -36,6 +40,7 @@ export interface IncomeEntry {
 }
 
 export interface InterestEntry {
+  kind: "interest";
   key: string;
   interest: AccountTransaction;
   accountName: string | undefined;
@@ -45,6 +50,7 @@ export interface InterestEntry {
 }
 
 export interface TransferEntry {
+  kind: "transfer";
   key: string;
   transfer: AccountTransaction;
   fromName: string | undefined;
@@ -52,7 +58,7 @@ export interface TransferEntry {
   effDate: Date;
   amount: number;
   fee: number;
-  earned: number; // income recorded with the transfer — not `income`, which ActivityEntryRow uses to detect IncomeEntry
+  earned: number; // income recorded with the transfer
   earnedCategory: string | null;
   earnedAccountName: string | null; // set only when the income went to an account other than To
 }
@@ -68,7 +74,7 @@ function transferFee(transactions: AccountTransaction[], transferId: string | nu
 // rolling last-N-day window; Expenses = the whole selected month) over `effDate`.
 export function usePaidLedger(): PaidEntry[] {
   const { expenses, paidCycles, resolveAmount } = useExpenses();
-  const { isCardCharge } = useAccounts();
+  const { transactions, isCardCharge, isCardAccount } = useAccounts();
 
   return useMemo(() => {
     const byId = keyBy(expenses, "id");
@@ -81,6 +87,7 @@ export function usePaidLedger(): PaidEntry[] {
       }
       const created = new Date(e.createdAt);
       items.push({
+        kind: "expense",
         key: e.id,
         expense: e,
         refDate: created,
@@ -90,14 +97,37 @@ export function usePaidLedger(): PaidEntry[] {
       });
     }
 
-    // Recurring: every paid cycle, dated by its effective pay-date so an advance
-    // payment surfaces in the month it was paid, not the due month.
-    for (const c of paidCycles) {
-      const e = byId[c.expenseId];
+    // Recurring: one entry per payment, dated by when it was paid so an advance or part payment surfaces in the
+    // month it was paid, not the due month. A paid cycle with no payment row (₱0, legacy) is one entry of its own.
+    const cyclesWithPayments = new Set<string>();
+    for (const t of transactions) {
+      if (t.kind !== "payment" || t.expenseId == null || t.cycleYear == null || t.cycleMonth == null) {
+        continue;
+      }
+      const e = byId[t.expenseId];
       if (!e || e.recurrence === "one-off") {
         continue;
       }
+      cyclesWithPayments.add(monthKey(e.id, t.cycleYear, t.cycleMonth));
       items.push({
+        kind: "expense",
+        key: t.id,
+        expense: e,
+        refDate: new Date(t.cycleYear, t.cycleMonth, 1),
+        effDate: new Date(t.createdAt),
+        amount: Math.abs(t.amount),
+        isCard: isCardAccount(t.accountId),
+        paidTxn: t,
+      });
+    }
+
+    for (const c of paidCycles) {
+      const e = byId[c.expenseId];
+      if (!e || e.recurrence === "one-off" || cyclesWithPayments.has(monthKey(e.id, c.year, c.month))) {
+        continue;
+      }
+      items.push({
+        kind: "expense",
         key: monthKey(e.id, c.year, c.month),
         expense: e,
         refDate: new Date(c.year, c.month, 1),
@@ -108,7 +138,7 @@ export function usePaidLedger(): PaidEntry[] {
     }
 
     return orderBy(items, "effDate", "desc");
-  }, [expenses, paidCycles, resolveAmount, isCardCharge]);
+  }, [expenses, paidCycles, resolveAmount, transactions, isCardCharge, isCardAccount]);
 }
 
 export function useBillPayments(): BillPaymentEntry[] {
@@ -128,6 +158,7 @@ export function useBillPayments(): BillPaymentEntry[] {
       }
       const source = transactions.find((o) => t.transferId != null && o.transferId === t.transferId && o.id !== t.id && o.kind === "transfer");
       items.push({
+        kind: "billPayment",
         key: t.id,
         payment: t,
         account,
@@ -168,6 +199,7 @@ export function useTransfers(): TransferEntry[] {
       const toAccountId = isFromSide ? counterpart?.accountId : t.accountId;
       const income = transactions.find((o) => t.transferId != null && o.transferId === t.transferId && o.kind === "income");
       items.push({
+        kind: "transfer",
         key: t.id,
         transfer: t,
         fromName: isFromSide ? ownName : undefined,
@@ -195,7 +227,8 @@ export function useIncomeEntries(): IncomeEntry[] {
     const loansById = keyBy(loans, "id");
     const items = transactions
       .filter(({ kind }) => kind === "income")
-      .map((t) => ({
+      .map((t): IncomeEntry => ({
+        kind: "income",
         key: t.id,
         income: t,
         loan: t.loanId != null ? loansById[t.loanId] : undefined,
@@ -219,9 +252,10 @@ export function useInterestCredits(): InterestEntry[] {
     );
     const items = transactions
       .filter((t) => t.kind === "interest")
-      .map((t) => {
+      .map((t): InterestEntry => {
         const tax = Math.abs(taxByCredit[`${t.accountId}|${t.createdAt}`]?.amount ?? 0);
         return {
+          kind: "interest",
           key: t.id,
           interest: t,
           accountName: accountsById[t.accountId]?.name,

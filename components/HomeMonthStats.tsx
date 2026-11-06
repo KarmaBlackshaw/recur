@@ -9,7 +9,7 @@ import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
 import { AMOUNT_TONE, ICON_TONE } from "@/components/ui/AppListRow";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/formatAmount";
-import { useMonthActivity } from "@/utils/useMonthActivity";
+import { usePeriodActivity } from "@/utils/usePeriodActivity";
 import type { ActivityFeed } from "@/utils/useActivityFeed";
 import type { OwedToYou } from "@/utils/useOwedToYou";
 import type { ActivitySegment, FeatherIconName } from "@/types";
@@ -42,7 +42,7 @@ function FigureLabel({ children }: { children: string }) {
 
 export function HomeMonthStats({ year, month, feed, owed }: Props) {
   const { accounts } = useAccounts();
-  const { paidTotal, moneyIn, chargedTotal } = useMonthActivity(feed, year, month);
+  const { paidTotal, moneyIn, chargedTotal } = usePeriodActivity(feed, year, month, "month");
   const hasCards = accounts.some((a) => a.type === "credit");
   const monthName = dayjs(new Date(year, month, 1)).format("MMMM");
   const isQuiet = paidTotal === 0 && moneyIn === 0 && chargedTotal === 0;

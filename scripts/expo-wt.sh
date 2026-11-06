@@ -15,6 +15,7 @@
 #   SIM="iPhone 17 Pro" expo-wt --ios  # pick the simulator by name or UDID
 # One emulator: expo-wt quits every other one, headless (-no-window) ones included, and keeps the first
 # with a window (or the one named with -s). The last worktree you run is the one you see.
+# An emulator that hasn't booted after 90s (often a bad Quick Boot snapshot) is killed and cold booted.
 # Needs a debuggable (debug) build: the pref is written with `run-as`.
 # iOS needs the debug app installed once: `npx expo run:ios -d "<simulator>"`. Its prebuilt React Native
 # ignores the build-time port, so expo-wt sets the "Configure Bundler" location (RCT_jsLocation) instead.
@@ -31,7 +32,7 @@ while [ $# -gt 0 ]; do
     --ios)       IOS=true ;;
     --attach)    ATTACH=true ;;
     --port)      PRINT_PORT=true ;;
-    -h|--help)   grep '^#' "$0" | sed -n '2,20p' | cut -c3-; exit 0 ;;
+    -h|--help)   grep '^#' "$0" | sed -n '2,21p' | cut -c3-; exit 0 ;;
     *)           EXPO_ARGS+=("$1") ;;
   esac
   shift
@@ -104,6 +105,26 @@ is_headless() {
   ps -o command= -p "$1" | grep -q -- ' -no-window'
 }
 
+# Waits up to $2 seconds for emulator process $1 to finish booting and sets SERIAL to it. Past that it's
+# killed with -9, so the stuck state isn't saved as the AVD's next Quick Boot snapshot.
+wait_boot() {
+  local deadline=$((SECONDS + $2))
+  SERIAL=""
+  while [ "$SECONDS" -lt "$deadline" ] && kill -0 "$1" 2>/dev/null; do
+    [ -n "$SERIAL" ] || SERIAL=$(emulator_serial "$1")
+    if [ -n "$SERIAL" ] && [ "$("$ADB" -s "$SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
+      return 0
+    fi
+    sleep 1
+  done
+  SERIAL=""
+  kill -9 "$1" 2>/dev/null || true
+  while kill -0 "$1" 2>/dev/null; do
+    sleep 1
+  done
+  return 1
+}
+
 if ! $IOS && [[ -z "$SERIAL" || "$SERIAL" == emulator-* ]]; then
   KEEP=""
   QUIT=""
@@ -135,18 +156,35 @@ if ! $IOS && [ -z "$SERIAL" ]; then
   COUNT=$(printf '%s' "$DEVICES" | grep -c . || true)
   if [ "$COUNT" -eq 0 ]; then
     EMULATOR=$(command -v emulator || echo /opt/homebrew/share/android-commandlinetools/emulator/emulator)
-    AVD="${AVD:-$("$EMULATOR" -list-avds | head -1)}"
-    if [ -z "$AVD" ]; then
-      echo "expo-wt: no device attached and no AVD found" >&2
-      exit 1
+    if [ -n "${KEEP:-}" ]; then
+      # An emulator window that adb doesn't list as a device yet: still booting, or stuck.
+      AVD=$(ps -o command= -p "$KEEP" | sed -nE 's/.* -avd ([^ ]+).*/\1/p')
+      echo "expo-wt: waiting for ${AVD:-the emulator} to boot…"
+      EMU_PID=$KEEP
+    else
+      AVD="${AVD:-$("$EMULATOR" -list-avds | head -1)}"
+      if [ -z "$AVD" ]; then
+        echo "expo-wt: no device attached and no AVD found" >&2
+        exit 1
+      fi
+      echo "expo-wt: no device attached, booting ${AVD}…"
+      nohup "$EMULATOR" -avd "$AVD" >/dev/null 2>&1 &
+      EMU_PID=$!
     fi
-    echo "expo-wt: no device attached, booting ${AVD}…"
-    nohup "$EMULATOR" -avd "$AVD" >/dev/null 2>&1 &
-    "$ADB" wait-for-device
-    until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
-      sleep 1
-    done
-    DEVICES=$("$ADB" devices | awk 'NR>1 && $2=="device" {print $1}')
+    # A Quick Boot snapshot saved in a bad state restores into a guest adb never sees come online.
+    if ! wait_boot "$EMU_PID" 90; then
+      if [ -z "$AVD" ]; then
+        echo "expo-wt: the emulator didn't boot and its AVD is unknown" >&2
+        exit 1
+      fi
+      echo "expo-wt: ${AVD} didn't boot, cold booting it (skipping its Quick Boot snapshot)…"
+      nohup "$EMULATOR" -avd "$AVD" -no-snapshot-load >/dev/null 2>&1 &
+      if ! wait_boot $! 300; then
+        echo "expo-wt: ${AVD} didn't cold boot either. Run \`$EMULATOR -avd $AVD -no-snapshot-load\` to see why" >&2
+        exit 1
+      fi
+    fi
+    DEVICES="$SERIAL"
     COUNT=1
   fi
   if [ "$COUNT" -gt 1 ]; then

@@ -35,7 +35,7 @@ import {
   type TransferTemplate,
 } from '@/types';
 
-const BACKUP_VERSION = 8;
+const BACKUP_VERSION = 9;
 
 // The settings a backup carries. Migration flags and the permission prompt flag belong to the device.
 const BACKUP_PREFERENCE_KEYS = ['user_name', 'reminderTime', 'notificationsEnabled', 'homeCollapsedBands', 'accountsGroupByBank'];
@@ -51,7 +51,7 @@ interface BackupLogo {
 }
 
 interface BackupFile {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   exportedAt: string;
   expenses: Expense[];
   categories: string[];
@@ -67,6 +67,10 @@ interface BackupFile {
 }
 
 type BackupContents = Required<Omit<BackupFile, 'version' | 'exportedAt'>>;
+
+type TBackupTransaction = Omit<AccountTransaction, 'reversesId'> & { reversesId?: string | null };
+
+type TBackupLoan = Omit<Loan, 'revertedAt'> & { revertedAt?: string | null };
 
 export interface ImportSummary {
   added: {
@@ -111,6 +115,10 @@ function isString(value: unknown): value is string {
   return typeof value === 'string';
 }
 
+function isOptionalString(value: unknown): value is string | null | undefined {
+  return value === undefined || value === null || typeof value === 'string';
+}
+
 function isArrayOf<T>(value: unknown, isItem: (item: unknown) => item is T): value is T[] {
   return Array.isArray(value) && value.every(isItem);
 }
@@ -135,7 +143,7 @@ function isValidAccount(value: unknown): value is Account {
   );
 }
 
-function isValidTransaction(value: unknown): value is AccountTransaction {
+function isValidTransaction(value: unknown): value is TBackupTransaction {
   return (
     isRecord(value) &&
     typeof value.id === 'string' &&
@@ -143,11 +151,13 @@ function isValidTransaction(value: unknown): value is AccountTransaction {
     typeof value.kind === 'string' &&
     TRANSACTION_KINDS.includes(value.kind) &&
     typeof value.amount === 'number' &&
-    typeof value.createdAt === 'string'
+    typeof value.createdAt === 'string' &&
+    isOptionalString(value.reversesId) &&
+    (value.kind === 'reversal') === (typeof value.reversesId === 'string')
   );
 }
 
-function isValidLoan(value: unknown): value is Loan {
+function isValidLoan(value: unknown): value is TBackupLoan {
   if (
     !isRecord(value) ||
     typeof value.id !== 'string' ||
@@ -156,6 +166,7 @@ function isValidLoan(value: unknown): value is Loan {
     typeof value.lentAt !== 'string' ||
     typeof value.createdAt !== 'string' ||
     typeof value.principal !== 'number' ||
+    !isOptionalString(value.revertedAt) ||
     !isRecord(value.interest) ||
     typeof value.interest.type !== 'string' ||
     !LOAN_INTEREST_TYPES.includes(value.interest.type)
@@ -270,8 +281,8 @@ function parseBackup(content: string): BackupContents {
     categories: categories.filter(isString),
     incomeCategories: incomeCategories.filter(isString),
     accounts,
-    transactions,
-    loans,
+    transactions: transactions.map((transaction) => ({ ...transaction, reversesId: transaction.reversesId ?? null })),
+    loans: loans.map((loan) => ({ ...loan, revertedAt: loan.revertedAt ?? null })),
     months,
     cardBills,
     transferTemplates,
@@ -481,12 +492,28 @@ export async function importBackup(): Promise<ImportSummary | null> {
       // A month's payments restore as one set, and only when this device has none for that month: adding them next
       // to a local payment would pay the month twice.
       const paymentMonths = await getPaymentMonthKeys(txn);
-      for (const transaction of backup.transactions) {
+      const insertedIds = new Set<string>();
+      for (const transaction of backup.transactions.filter((t) => t.kind !== 'reversal')) {
         if (knownAccountIds.has(transaction.accountId)) {
           const hasLocalPayment =
             transaction.kind === 'payment' &&
             paymentMonths.has(paymentMonthKey(transaction.expenseId, transaction.cycleYear, transaction.cycleMonth));
-          tally(summary, 'transactions', hasLocalPayment ? 0 : await insertTransactionWithId(transaction, txn));
+          const changes = hasLocalPayment ? 0 : await insertTransactionWithId(transaction, txn);
+          if (changes > 0) {
+            insertedIds.add(transaction.id);
+          }
+          tally(summary, 'transactions', changes);
+        } else {
+          summary.unlinked++;
+        }
+      }
+      // A reversal restores only with the original this import just added, after all of them (it can be dated
+      // earlier): an original already on this device keeps its own history.
+      for (const reversal of backup.transactions.filter((t) => t.kind === 'reversal')) {
+        if (knownAccountIds.has(reversal.accountId)) {
+          const isOriginalInserted = reversal.reversesId != null && insertedIds.has(reversal.reversesId);
+          const changes = isOriginalInserted ? await insertTransactionWithId(reversal, txn) : 0;
+          tally(summary, 'transactions', changes);
         } else {
           summary.unlinked++;
         }

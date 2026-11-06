@@ -23,6 +23,9 @@ import {
   insert as insertTransaction,
   insertMany as insertTransactions,
   remove as removeTransaction,
+  insertReversals,
+  removePayments,
+  removeReversals,
   removeTransfer,
   replacePayments as replacePaymentRows,
   replaceTransfer,
@@ -40,21 +43,24 @@ import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { TRANSFER_CATEGORY } from "@/constants/categories";
 import { findOverdraft, type TBalanceChange } from "@/utils/accounts/findOverdraft";
 import { OverdraftError } from "@/utils/accounts/OverdraftError";
+import { buildReversal } from "@/utils/reversals/buildReversal";
+import { inEffectTransactions } from "@/utils/reversals/inEffectTransactions";
+import { withReversals } from "@/utils/reversals/withReversals";
 
 interface State {
   accounts: Account[];
-  transactions: AccountTransaction[];
+  ledger: AccountTransaction[];
   billOverrides: CardBillOverride[];
   isLoading: boolean;
 }
 
 type Action =
-  | { type: "LOAD"; payload: { accounts: Account[]; transactions: AccountTransaction[]; billOverrides: CardBillOverride[] } }
+  | { type: "LOAD"; payload: { accounts: Account[]; ledger: AccountTransaction[]; billOverrides: CardBillOverride[] } }
   | { type: "SET_BILL_OVERRIDES"; payload: CardBillOverride[] }
   | { type: "SET_ACCOUNTS"; payload: Account[] }
   | { type: "ADD_ACCOUNT"; payload: Account }
   | { type: "ADD_TRANSACTIONS"; payload: AccountTransaction[] }
-  | { type: "REMOVE_TRANSACTIONS"; payload: (t: AccountTransaction) => boolean };
+  | { type: "REMOVE_TRANSACTIONS"; payload: string[] };
 
 function isBillCard(account: Account) {
   return account.type === "credit" && account.statementDay != null && account.dueDay != null;
@@ -74,11 +80,13 @@ function reducer(state: State, action: Action): State {
       }
       return { ...state, accounts: [...state.accounts, action.payload] };
     case "ADD_TRANSACTIONS": {
-      const ids = new Set(state.transactions.map((t) => t.id));
-      return { ...state, transactions: [...state.transactions, ...action.payload.filter((t) => !ids.has(t.id))] };
+      const ids = new Set(state.ledger.map((t) => t.id));
+      return { ...state, ledger: [...state.ledger, ...action.payload.filter((t) => !ids.has(t.id))] };
     }
-    case "REMOVE_TRANSACTIONS":
-      return { ...state, transactions: state.transactions.filter((t) => !action.payload(t)) };
+    case "REMOVE_TRANSACTIONS": {
+      const ids = new Set(action.payload);
+      return { ...state, ledger: state.ledger.filter((t) => !ids.has(t.id)) };
+    }
     default:
       return state;
   }
@@ -106,6 +114,7 @@ interface AccountContextValue {
   // Accounts that can take new money: everything except archived ones. Pickers list these.
   activeAccounts: Account[];
   transactions: AccountTransaction[];
+  ledger: AccountTransaction[];
   billOverrides: CardBillOverride[];
   isLoading: boolean;
   getBalance: (accountId: string) => number;
@@ -135,7 +144,9 @@ interface AccountContextValue {
     cycleMonth: number | null,
     payments: PaymentInput[]
   ) => Promise<void>;
-  removePayment: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => Promise<void>;
+  reverseTransactions: (ids: string[]) => Promise<AccountTransaction[]>;
+  undoReversals: (reversalIds: string[]) => Promise<void>;
+  deletePayments: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => Promise<void>;
   getPayments: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => AccountTransaction[];
   isTxnCharged: (txn: AccountTransaction) => boolean;
   getCardBills: (year: number, month: number) => CardBill[];
@@ -164,16 +175,18 @@ export function isPaymentFor(expenseId: string, cycleYear: number | null, cycleM
 }
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { accounts: [], transactions: [], billOverrides: [], isLoading: true });
+  const [state, dispatch] = useReducer(reducer, { accounts: [], ledger: [], billOverrides: [], isLoading: true });
   const isRunningInterest = useRef(false);
 
+  const transactions = useMemo(() => inEffectTransactions(state.ledger), [state.ledger]);
+
   const reload = useMemoizedFn(async () => {
-    const [accounts, transactions, billOverrides] = await Promise.all([
+    const [accounts, ledger, billOverrides] = await Promise.all([
       getAllAccounts(),
       getAllTransactions(),
       getAllCardBills(),
     ]);
-    dispatch({ type: "LOAD", payload: { accounts, transactions, billOverrides } });
+    dispatch({ type: "LOAD", payload: { accounts, ledger, billOverrides } });
   });
 
   const runInterest = useMemoizedFn(async () => {
@@ -182,14 +195,15 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     }
     isRunningInterest.current = true;
     try {
-      const [accounts, transactions] = await Promise.all([getAllAccounts(), getAllTransactions()]);
+      // Raw rows, reversals included: the balance history follows the reversal date.
+      const [accounts, rawRows] = await Promise.all([getAllAccounts(), getAllTransactions()]);
       const today = dayjs().format("YYYY-MM-DD");
       let hasCredited = false;
       for (const account of accounts) {
         if (account.type !== "debit" || account.archivedAt || !account.interestRate || account.interestRate <= 0 || !account.interestPeriod) {
           continue;
         }
-        const own = transactions.filter((t) => t.accountId === account.id);
+        const own = rawRows.filter((t) => t.accountId === account.id);
         const result = accrueInterest({
           rate: account.interestRate,
           period: account.interestPeriod,
@@ -224,17 +238,17 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   useAsyncEffect(async function* () {
     try {
-      const [accounts, transactions, billOverrides] = await Promise.all([
+      const [accounts, ledger, billOverrides] = await Promise.all([
         getAllAccounts(),
         getAllTransactions(),
         getAllCardBills(),
       ]);
       yield;
-      dispatch({ type: "LOAD", payload: { accounts, transactions, billOverrides } });
+      dispatch({ type: "LOAD", payload: { accounts, ledger, billOverrides } });
     } catch (e) {
       console.error(e);
       yield;
-      dispatch({ type: "LOAD", payload: { accounts: [], transactions: [], billOverrides: [] } });
+      dispatch({ type: "LOAD", payload: { accounts: [], ledger: [], billOverrides: [] } });
     }
     await runInterest();
   }, []);
@@ -250,17 +264,17 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   const balances = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const t of state.transactions) {
+    for (const t of transactions) {
       map[t.accountId] = (map[t.accountId] ?? 0) + t.amount;
     }
     return map;
-  }, [state.transactions]);
+  }, [transactions]);
 
   const getBalance = useMemoizedFn((accountId: string) => round(balances[accountId] ?? 0, 2));
 
   const overdraftError = useMemoizedFn(
     (changes: TBalanceChange[], isReplaced?: (transaction: AccountTransaction) => boolean) => {
-      const overdraft = findOverdraft({ accounts: state.accounts, transactions: state.transactions, changes, isReplaced });
+      const overdraft = findOverdraft({ accounts: state.accounts, transactions, changes, isReplaced });
       return overdraft && new OverdraftError(overdraft);
     }
   );
@@ -389,7 +403,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (state.accounts.find((a) => a.id === input.accountId)?.type === "credit") {
       throw new Error("Income can't be deposited to a credit card");
     }
-    const existing = state.transactions.find((t) => t.id === id && t.kind === "income");
+    const existing = transactions.find((t) => t.id === id && t.kind === "income");
     if (!existing) {
       throw new Error("Income not found");
     }
@@ -399,7 +413,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
     await updateIncomeRow(id, { ...input, amount });
-    dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.id === id });
+    dispatch({ type: "REMOVE_TRANSACTIONS", payload: [id] });
     dispatch({
       type: "ADD_TRANSACTIONS",
       payload: [
@@ -421,8 +435,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       throw error;
     }
+    const removedIds = [...withReversals(state.ledger, [id])];
     await removeTransaction(id);
-    dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.id === id });
+    dispatch({ type: "REMOVE_TRANSACTIONS", payload: removedIds });
   });
 
   const buildTransferRows = (
@@ -515,8 +530,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       throw error;
     }
+    const replacedIds = transactions.filter((t) => t.transferId === transferId).map((t) => t.id);
     const txns = await replaceTransfer(transferId, rows);
-    dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.transferId === transferId });
+    dispatch({ type: "REMOVE_TRANSACTIONS", payload: replacedIds });
     dispatch({ type: "ADD_TRANSACTIONS", payload: txns });
   });
 
@@ -525,8 +541,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       throw error;
     }
+    const removedIds = [
+      ...withReversals(
+        state.ledger,
+        state.ledger.filter((t) => t.transferId === transferId).map((t) => t.id)
+      ),
+    ];
     await removeTransfer(transferId);
-    dispatch({ type: "REMOVE_TRANSACTIONS", payload: (t) => t.transferId === transferId });
+    dispatch({ type: "REMOVE_TRANSACTIONS", payload: removedIds });
   });
 
   const replacePayments = useMemoizedFn(
@@ -557,8 +579,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         throw error;
       }
+      const replacedIds = transactions.filter(isReplaced).map((t) => t.id);
       const inserted = await replacePaymentRows(expenseId, cycleYear, cycleMonth, rows);
-      dispatch({ type: "REMOVE_TRANSACTIONS", payload: isReplaced });
+      dispatch({ type: "REMOVE_TRANSACTIONS", payload: replacedIds });
       if (inserted.length > 0) {
         dispatch({ type: "ADD_TRANSACTIONS", payload: inserted });
       }
@@ -566,7 +589,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   );
 
   const syncPayment = useMemoizedFn(async (p: PaymentSync) => {
-    const existing = state.transactions.find(isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth));
+    const existing = transactions.find(isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth));
     await replacePayments(p.expenseId, p.cycleYear, p.cycleMonth, [
       {
         accountId: p.accountId,
@@ -577,9 +600,51 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     ]);
   });
 
-  const removePayment = useMemoizedFn((expenseId: string, cycleYear: number | null, cycleMonth: number | null) =>
-    replacePayments(expenseId, cycleYear, cycleMonth, [])
-  );
+  const reverseTransactions = useMemoizedFn(async (ids: string[]): Promise<AccountTransaction[]> => {
+    if (ids.length === 0) {
+      return [];
+    }
+    const originals: AccountTransaction[] = [];
+    for (const id of ids) {
+      const original = transactions.find((t) => t.id === id);
+      if (!original) {
+        throw new Error("Already reverted");
+      }
+      originals.push(original);
+    }
+    const now = new Date().toISOString();
+    const rows = originals.map((o) => buildReversal(o, now));
+    const error = overdraftError(rows);
+    if (error) {
+      throw error;
+    }
+    const inserted = await insertReversals(rows);
+    dispatch({ type: "ADD_TRANSACTIONS", payload: inserted });
+    return inserted;
+  });
+
+  const undoReversals = useMemoizedFn(async (reversalIds: string[]): Promise<void> => {
+    const ids = new Set(reversalIds);
+    const reversals = state.ledger.filter((t) => t.kind === "reversal" && ids.has(t.id));
+    const error = overdraftError(reversals.map((r) => ({ accountId: r.accountId, amount: -r.amount })));
+    if (error) {
+      throw error;
+    }
+    const removedIds = reversals.map((r) => r.id);
+    await removeReversals(removedIds);
+    dispatch({ type: "REMOVE_TRANSACTIONS", payload: removedIds });
+  });
+
+  const deletePayments = useMemoizedFn(async (expenseId: string, cycleYear: number | null, cycleMonth: number | null): Promise<void> => {
+    const removedIds = [
+      ...withReversals(
+        state.ledger,
+        state.ledger.filter(isPaymentFor(expenseId, cycleYear, cycleMonth)).map((t) => t.id)
+      ),
+    ];
+    await removePayments(expenseId, cycleYear, cycleMonth);
+    dispatch({ type: "REMOVE_TRANSACTIONS", payload: removedIds });
+  });
 
   const setBillAmount = useMemoizedFn(async (accountId: string, year: number, month: number, amount: number | null) => {
     if (amount == null) {
@@ -600,7 +665,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         if (account.type !== "credit" || statementDay == null || dueDay == null) {
           continue;
         }
-        const txns = state.transactions.filter((t) => t.accountId === account.id);
+        const txns = transactions.filter((t) => t.accountId === account.id);
         const override =
           state.billOverrides.find((o) => o.accountId === account.id && o.year === year && o.month === month)?.amount ??
           null;
@@ -616,23 +681,23 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       }
       return bills;
     },
-    [state.accounts, state.transactions, state.billOverrides]
+    [state.accounts, transactions, state.billOverrides]
   );
 
   const unsettledByCard = useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (const account of state.accounts) {
       if (isBillCard(account)) {
-        map.set(account.id, unsettledDebitIds(state.transactions.filter((t) => t.accountId === account.id)));
+        map.set(account.id, unsettledDebitIds(transactions.filter((t) => t.accountId === account.id)));
       }
     }
     return map;
-  }, [state.accounts, state.transactions]);
+  }, [state.accounts, transactions]);
 
   const getPayments = useCallback(
     (expenseId: string, cycleYear: number | null, cycleMonth: number | null) =>
-      sortBy(state.transactions.filter(isPaymentFor(expenseId, cycleYear, cycleMonth)), "createdAt"),
-    [state.transactions]
+      sortBy(transactions.filter(isPaymentFor(expenseId, cycleYear, cycleMonth)), "createdAt"),
+    [transactions]
   );
 
   const isTxnCharged = useCallback(
@@ -669,7 +734,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     () => ({
       accounts: state.accounts,
       activeAccounts,
-      transactions: state.transactions,
+      transactions,
+      ledger: state.ledger,
       billOverrides: state.billOverrides,
       isLoading: state.isLoading,
       getBalance,
@@ -690,7 +756,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       deleteTransfer,
       syncPayment,
       replacePayments,
-      removePayment,
+      reverseTransactions,
+      undoReversals,
+      deletePayments,
       getPayments,
       isTxnCharged,
       getCardBills,
@@ -701,7 +769,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       reload,
       refresh,
     }),
-    [state, activeAccounts, netWorth, getCardBills, getPayments, isTxnCharged, isCharged, isCardAccount, isCardCharge]
+    [state, transactions, activeAccounts, netWorth, getCardBills, getPayments, isTxnCharged, isCharged, isCardAccount, isCardCharge]
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

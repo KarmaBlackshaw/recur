@@ -328,8 +328,16 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!txnCols.some((c) => c.name === "loan_id")) {
     await db.execAsync("ALTER TABLE account_transactions ADD COLUMN loan_id TEXT");
   }
+  if (!txnCols.some((c) => c.name === "reverses_id")) {
+    await db.execAsync(
+      "ALTER TABLE account_transactions ADD COLUMN reverses_id TEXT REFERENCES account_transactions(id) ON DELETE CASCADE"
+    );
+  }
   await db.execAsync(
     "CREATE INDEX IF NOT EXISTS idx_txn_account ON account_transactions(account_id)"
+  );
+  await db.execAsync(
+    "CREATE INDEX IF NOT EXISTS idx_txn_reverses ON account_transactions(reverses_id)"
   );
   await db.execAsync("DROP INDEX IF EXISTS idx_txn_payment");
   await db.execAsync(
@@ -379,6 +387,9 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
         ALTER TABLE loans_v2 RENAME TO loans;
       `);
     });
+  }
+  if (!loanCols.some((c) => c.name === "reverted_at")) {
+    await db.execAsync("ALTER TABLE loans ADD COLUMN reverted_at TEXT");
   }
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS transfer_templates (
@@ -465,6 +476,8 @@ export async function backfillHistory(database: SQLite.SQLiteDatabase): Promise<
        SELECT ABS(t.amount) FROM account_transactions t
        WHERE t.kind = 'payment' AND t.expense_id = expense_months.expense_id
          AND t.cycle_year = expense_months.year AND t.cycle_month = expense_months.month
+         AND t.kind != 'reversal'
+         AND NOT EXISTS (SELECT 1 FROM account_transactions r WHERE r.reverses_id = t.id)
      )
      WHERE status = 'paid' AND amount IS NULL`
   );

@@ -330,7 +330,7 @@ export default function EditAccountScreen() {
     ].filter((note) => note !== "");
     const loanNote = loanNotes.length > 0 ? `\n\n${loanNotes.join(" ")}` : "";
     const canArchiveInstead =
-      editingAccount.archivedAt == null && accounts.transactions.some((t) => t.accountId === editingAccount.id);
+      editingAccount.archivedAt == null && accounts.ledger.some((t) => t.accountId === editingAccount.id);
     const archiveNote = canArchiveInstead ? "\n\nTo keep its history, archive it instead." : "";
     Alert.alert(
       `Delete ${editingAccount.name}?`,

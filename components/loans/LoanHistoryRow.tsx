@@ -42,11 +42,11 @@ interface Props {
   item: TLoanHistoryItem;
   // Opens the payment for editing.
   onPress?: () => void;
-  // Swipe-left (or the screen reader's Delete action) deletes the payment.
-  onDelete?: () => void;
+  // Swipe-left (or the screen reader's Revert action) reverts the payment.
+  onRevert?: () => void;
 }
 
-export function LoanHistoryRow({ item, onPress, onDelete }: Props) {
+export function LoanHistoryRow({ item, onPress, onRevert }: Props) {
   const { icon, tone, sign } = KIND_META[item.kind];
   const label = labelOf(item);
   const signed = `${sign}${formatAmount(item.amount)}`;
@@ -55,8 +55,8 @@ export function LoanHistoryRow({ item, onPress, onDelete }: Props) {
     item.kind === "payment" && item.overpaid != null ? `${formatAmount(item.overpaid)} more than owed` : undefined;
 
   function handleAccessibilityAction({ nativeEvent }: AccessibilityActionEvent) {
-    if (nativeEvent.actionName === "delete") {
-      onDelete?.();
+    if (nativeEvent.actionName === "revert") {
+      onRevert?.();
     }
   }
 
@@ -71,17 +71,17 @@ export function LoanHistoryRow({ item, onPress, onDelete }: Props) {
       onPress={onPress}
       accessibilityLabel={`${label}, ${signed}, ${dateLabel}`}
       accessibilityHint={onPress ? "Edits this payment" : undefined}
-      accessibilityActions={onDelete ? [{ name: "delete", label: "Delete" }] : undefined}
-      onAccessibilityAction={onDelete ? handleAccessibilityAction : undefined}
+      accessibilityActions={onRevert ? [{ name: "revert", label: "Revert" }] : undefined}
+      onAccessibilityAction={onRevert ? handleAccessibilityAction : undefined}
     />
   );
 
-  if (!onDelete) {
+  if (!onRevert) {
     return row;
   }
 
   return (
-    <SwipeableRow rightAction={{ label: "Delete", icon: "trash-2", tone: "negative", onPress: onDelete }}>
+    <SwipeableRow rightAction={{ label: "Revert", icon: "rotate-ccw", tone: "negative", onPress: onRevert }}>
       {row}
     </SwipeableRow>
   );

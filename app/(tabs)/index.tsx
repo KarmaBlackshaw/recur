@@ -31,7 +31,6 @@ import { getPreference, setPreference } from "@/db/preferences";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { HomeBandSlot } from "@/types";
 
-const NEXT_MONTH_LOOKAHEAD_DAYS = 7;
 const ACTIVITY_LIMIT = 10;
 // How many months back an unpaid due or card bill stays in Overdue after its own month has ended.
 const OVERDUE_LOOKBACK_MONTHS = 3;
@@ -137,7 +136,6 @@ export default function HomeScreen() {
   const overdue = useMemo(() => sortBy(overdueWithPaid, "effDate"), [overdueWithPaid]);
 
   const next = dayjs(today).add(1, "month").startOf("month");
-  const isNextMonthNear = next.diff(today, "day") <= NEXT_MONTH_LOOKAHEAD_DAYS;
 
   const upcomingLive = useMemo<HomeEntry[]>(() => {
     const unpaidDues = (y: number, m: number) =>
@@ -147,14 +145,10 @@ export default function HomeScreen() {
     return [
       ...unpaidDues(year, month).filter((d) => d.effDate >= today),
       ...openBills.filter((b) => b.effDate >= today && dayjs(b.effDate).isSame(today, "month")),
-      ...(isNextMonthNear
-        ? [
-            ...unpaidDues(next.year(), next.month()),
-            ...openBills.filter((b) => dayjs(b.effDate).isSame(next, "month")),
-          ]
-        : []),
+      ...unpaidDues(next.year(), next.month()),
+      ...openBills.filter((b) => dayjs(b.effDate).isSame(next, "month")),
     ];
-  }, [expenses, getMonthStatus, getBillProgress, year, month, openBills, isNextMonthNear, today]);
+  }, [expenses, getMonthStatus, getBillProgress, year, month, openBills, today]);
   const upcomingWithPaid = useLingeringEntries(upcomingLive, isPaidNow);
 
   const upcoming = useMemo<UpcomingBand[]>(() => {

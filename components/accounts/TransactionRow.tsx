@@ -2,7 +2,7 @@ import React from "react";
 import type { AccessibilityActionEvent } from "react-native";
 import dayjs from "dayjs";
 import { AppListRow } from "@/components/ui/AppListRow";
-import { SwipeableRow } from "@/components/ui/SwipeableRow";
+import { SwipeableRow, type SwipeAction } from "@/components/ui/SwipeableRow";
 import { useLoans } from "@/context/LoanContext";
 import { categoryIcon } from "@/utils/categories";
 import { formatAmount } from "@/utils/formatAmount";
@@ -24,16 +24,16 @@ const KIND_ICON: Record<TransactionKind, FeatherIconName> = {
   income: "arrow-down-left",
   loan_out: "arrow-up-right",
   loan_in: "arrow-down-left",
+  reversal: "rotate-ccw",
 };
-
-const DELETE_ACTIONS = [{ name: "delete", label: "Delete" }];
 
 interface Props {
   transaction: AccountTransaction;
   accountType: AccountType;
+  reversal?: AccountTransaction;
+  original?: AccountTransaction;
   onPress?: () => void;
-  // Swipe left (or the screen reader's Delete action) to remove it.
-  onDelete?: () => void;
+  rightAction?: SwipeAction;
 }
 
 function titleOf(transaction: AccountTransaction, borrower: string | undefined) {
@@ -49,20 +49,47 @@ function titleOf(transaction: AccountTransaction, borrower: string | undefined) 
   return TRANSACTION_KIND_LABEL[transaction.kind];
 }
 
-export function TransactionRow({ transaction, accountType, onPress, onDelete }: Props) {
+function reversalTitleOf(
+  original: AccountTransaction | undefined,
+  borrowerOf: (loanId: string | null) => string | undefined
+) {
+  if (!original) {
+    return TRANSACTION_KIND_LABEL.reversal;
+  }
+  return `Reversal: ${titleOf(original, borrowerOf(original.loanId))}`;
+}
+
+export function TransactionRow({
+  transaction,
+  accountType,
+  reversal,
+  original,
+  onPress,
+  rightAction,
+}: Props) {
   const { borrowerOf } = useLoans();
-  const borrower = borrowerOf(transaction.loanId);
-  const title = titleOf(transaction, borrower);
-  const icon = categoryIcon(transaction.category, KIND_ICON[transaction.kind]);
+  const isReversal = transaction.kind === "reversal";
+  const isReverted = reversal != null;
+  const isInert = isReversal || isReverted;
+  const title = isReversal
+    ? reversalTitleOf(original, borrowerOf)
+    : titleOf(transaction, borrowerOf(transaction.loanId));
+  const source = isReversal ? original : transaction;
+  const icon = isReversal
+    ? categoryIcon(null, KIND_ICON.reversal)
+    : categoryIcon(transaction.category, KIND_ICON[transaction.kind]);
   const isMoneyIn = accountType === "credit" ? transaction.amount < 0 : transaction.amount > 0;
   const signed = `${transaction.amount < 0 ? "−" : "+"}${formatAmount(Math.abs(transaction.amount))}`;
   const time = dayjs(transaction.createdAt).format("h:mm A");
-  const meta = [transaction.category, transaction.note].filter(Boolean).join(" · ") || undefined;
-  const details = [transaction.category, transaction.note, time].filter(Boolean).join(", ");
+  const meta = [source?.category, source?.note].filter(Boolean).join(" · ") || undefined;
+  const caption = reversal != null ? `Reverted ${dayjs(reversal.createdAt).format("MMM D")}` : time;
+  const details = [source?.category, source?.note, caption].filter(Boolean).join(", ");
+  const rowAction = isInert ? undefined : rightAction;
+  const rowPress = isInert ? undefined : onPress;
 
   function handleAccessibilityAction({ nativeEvent }: AccessibilityActionEvent) {
-    if (nativeEvent.actionName === "delete") {
-      onDelete?.();
+    if (nativeEvent.actionName === "rightAction") {
+      rowAction?.onPress();
     }
   }
 
@@ -74,21 +101,18 @@ export function TransactionRow({ transaction, accountType, onPress, onDelete }: 
       meta={meta}
       amount={signed}
       amountTone={isMoneyIn ? "positive" : "neutral"}
-      caption={time}
-      onPress={onPress}
+      caption={caption}
+      isMuted={isReverted}
+      onPress={rowPress}
       accessibilityLabel={`${title}, ${signed}, ${details}`}
-      accessibilityHint={onPress ? "Opens details" : undefined}
-      accessibilityActions={onDelete ? DELETE_ACTIONS : undefined}
-      onAccessibilityAction={onDelete ? handleAccessibilityAction : undefined}
+      accessibilityHint={rowPress ? "Opens details" : undefined}
+      accessibilityActions={rowAction ? [{ name: "rightAction", label: rowAction.label }] : undefined}
+      onAccessibilityAction={rowAction ? handleAccessibilityAction : undefined}
     />
   );
 
-  if (!onDelete) {
+  if (!rowAction) {
     return row;
   }
-  return (
-    <SwipeableRow rightAction={{ label: "Delete", icon: "trash-2", tone: "negative", onPress: onDelete }}>
-      {row}
-    </SwipeableRow>
-  );
+  return <SwipeableRow rightAction={rowAction}>{row}</SwipeableRow>;
 }

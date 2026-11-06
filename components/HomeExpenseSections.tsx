@@ -31,7 +31,7 @@ export type UpcomingBand = {
 // A link row under a section, e.g. "All activity".
 type SectionFooter = { label: string; onPress: () => void };
 
-// Home has two kinds of band. Overdue + Upcoming (this month, and next month when it's near) are flat (each row shows its own date);
+// Home has two kinds of band. Overdue + Upcoming (this month and next month) are flat (each row shows its own date);
 // Recent activity mirrors the Activity tab's All list — day-grouped, each day showing its signed net,
 // with the band label on the first day only.
 type FlatSection = {

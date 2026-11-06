@@ -8,11 +8,14 @@ export function useRevertTransfer() {
 
   return (transferId: string, runAction: (revert: () => Promise<void>) => void = (revert) => revert()) => {
     const rows = accounts.transactions.filter((t) => t.transferId === transferId);
+    if (rows.length === 0) {
+      return;
+    }
     const { isBillPayment } = splitTransfer(rows, accounts.accounts);
 
     const revert = async () => {
       try {
-        await accounts.deleteTransfer(transferId);
+        await accounts.reverseTransactions(rows.map(({ id }) => id));
       } catch (e) {
         console.error("Revert transfer failed", e);
         alertFailure("Revert failed", e);
@@ -22,8 +25,8 @@ export function useRevertTransfer() {
     Alert.alert(
       isBillPayment ? "Revert payment?" : "Revert transfer?",
       isBillPayment
-        ? "This payment and any fee are removed. The money goes back to its account and the card owes it again."
-        : "Both sides of this transfer and any fee or income recorded with it are removed, and the balances restored.",
+        ? "The money goes back to its account and the card owes it again. The payment and any fee stay in the history, marked as reverted."
+        : "The balances go back. Both sides of this transfer, and any fee or income recorded with it, stay in the history, marked as reverted.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Revert", style: "destructive", onPress: () => runAction(revert) },

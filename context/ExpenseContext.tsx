@@ -170,7 +170,7 @@ interface ExpenseContextValue {
   payMonth: (id: string, year: number, month: number, details?: PayDetails) => Promise<UndoMonth>;
   payPart: (id: string, year: number, month: number, details: PayDetails & { amount: number }) => Promise<UndoMonth>;
   updatePayment: (paymentId: string, details: { amount: number; paidAt: string; accountId: string }) => Promise<UndoMonth>;
-  deletePayment: (paymentId: string) => Promise<UndoMonth>;
+  revertPayment: (paymentId: string) => Promise<UndoMonth>;
   unpayMonth: (id: string, year: number, month: number) => Promise<UndoMonth>;
   reloadAll: () => Promise<void>;
   rescheduleNotifications: () => void;
@@ -348,7 +348,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
             createdAt: paidDateTimestamp(fields),
           });
         } else if (existing.recurrence === "one-off") {
-          await accounts.removePayment(id, null, null);
+          await reverseOneOffPayment(id);
         }
       } catch (err) {
         console.error("Failed to sync one-off payment, reverting expense", err);
@@ -579,6 +579,76 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     }
   );
 
+  const undoMonthReversal = useMemoizedFn(
+    async ({
+      expenseId,
+      year,
+      month,
+      previous,
+      reversalIds,
+      liveIds,
+    }: {
+      expenseId: string;
+      year: number;
+      month: number;
+      previous: MonthState;
+      reversalIds: string[];
+      liveIds: string[];
+    }): Promise<void> => {
+      const currentIds = new Set(accounts.getPayments(expenseId, year, month).map((t) => t.id));
+      const isUnchanged = currentIds.size === liveIds.length && liveIds.every((id) => currentIds.has(id));
+      if (!isUnchanged) {
+        throw new BillPaymentError("This month changed since. Undo isn't available.");
+      }
+      if (reversalIds.length > 0) {
+        await accounts.undoReversals(reversalIds);
+      }
+      await writeMonth(expenseId, year, month, previous);
+    }
+  );
+
+  const reverseMonthPayments = useMemoizedFn(
+    async ({
+      expense,
+      year,
+      month,
+      next,
+      paymentIds,
+    }: {
+      expense: Expense;
+      year: number;
+      month: number;
+      next: MonthState;
+      paymentIds: string[];
+    }): Promise<UndoMonth> => {
+      const previous = monthStateOf(expense.id, year, month);
+      const reversing = new Set(paymentIds);
+      const liveIds = accounts
+        .getPayments(expense.id, year, month)
+        .map((t) => t.id)
+        .filter((id) => !reversing.has(id));
+      await writeMonth(expense.id, year, month, next);
+      let reversals: AccountTransaction[] = [];
+      try {
+        if (paymentIds.length > 0) {
+          reversals = await accounts.reverseTransactions(paymentIds);
+        }
+      } catch (err) {
+        await writeMonth(expense.id, year, month, previous);
+        throw err;
+      }
+      const reversalIds = reversals.map((t) => t.id);
+      return () => undoMonthReversal({ expenseId: expense.id, year, month, previous, reversalIds, liveIds });
+    }
+  );
+
+  const reverseOneOffPayment = useMemoizedFn(async (id: string) => {
+    const paymentIds = accounts.getPayments(id, null, null).map((t) => t.id);
+    if (paymentIds.length > 0) {
+      await accounts.reverseTransactions(paymentIds);
+    }
+  });
+
   const payMonth = useMemoizedFn(
     async (id: string, year: number, month: number, details: PayDetails = {}): Promise<UndoMonth> => {
       const expense = recurringExpense(id);
@@ -663,32 +733,32 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     }
   );
 
-  const deletePayment = useMemoizedFn(async (paymentId: string): Promise<UndoMonth> => {
+  const revertPayment = useMemoizedFn(async (paymentId: string): Promise<UndoMonth> => {
     const { expense, year, month } = paymentMonth(paymentId);
     const previous = monthStateOf(expense.id, year, month);
     const others = accounts.getPayments(expense.id, year, month).filter((t) => t.id !== paymentId);
     // The month keeps its amount, so what's left is what was deleted; with no payments left a fixed month follows
     // the expense again.
-    return writeMonthPayments(
+    return reverseMonthPayments({
       expense,
       year,
       month,
-      { status: "unpaid", amount: others.length === 0 && !expense.isVariable ? null : previous.amount, paidAt: null },
-      others.map((t) => paymentInputOf(t, expense))
-    );
+      next: { status: "unpaid", amount: others.length === 0 && !expense.isVariable ? null : previous.amount, paidAt: null },
+      paymentIds: [paymentId],
+    });
   });
 
   const unpayMonth = useMemoizedFn(async (id: string, year: number, month: number): Promise<UndoMonth> => {
     const expense = recurringExpense(id);
     const previous = monthStateOf(id, year, month);
     // A fixed expense's month follows the expense again once unpaid; variable months keep their own amount.
-    return writeMonthPayments(
+    return reverseMonthPayments({
       expense,
       year,
       month,
-      { status: "unpaid", amount: expense.isVariable ? previous.amount : null, paidAt: null },
-      []
-    );
+      next: { status: "unpaid", amount: expense.isVariable ? previous.amount : null, paidAt: null },
+      paymentIds: accounts.getPayments(id, year, month).map((t) => t.id),
+    });
   });
 
   const toggleMonthStatus = useMemoizedFn(
@@ -714,7 +784,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
               createdAt: paidDateTimestamp(expense),
             });
           } else {
-            await accounts.removePayment(id, null, null);
+            await reverseOneOffPayment(id);
           }
         } catch (err) {
           console.error("Failed to sync payment, reverting status", err);
@@ -740,7 +810,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
   const deleteExpense = useMemoizedFn(async (id: string) => {
     const expense = state.expenses.find((e) => e.id === id);
     if (expense?.recurrence === "one-off") {
-      await accounts.removePayment(id, null, null);
+      await accounts.deletePayments(id, null, null);
     }
     await removeExpense(id);
     dispatch({ type: "REMOVE", payload: id });
@@ -781,7 +851,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       payMonth,
       payPart,
       updatePayment,
-      deletePayment,
+      revertPayment,
       unpayMonth,
       reloadAll,
       rescheduleNotifications,

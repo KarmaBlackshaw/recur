@@ -26,6 +26,7 @@ import { formatAmount } from "@/utils/formatAmount";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useRevertTransfer } from "@/utils/accounts/useRevertTransfer";
+import type { SwipeAction } from "@/components/ui/SwipeableRow";
 import {
   ACCOUNT_TYPE_LABEL,
   type Account,
@@ -153,7 +154,7 @@ export default function AccountDetailScreen() {
 
   const sections = useMemo(() => {
     const own = orderBy(
-      accounts.transactions.filter((t) => t.accountId === id),
+      accounts.ledger.filter((t) => t.accountId === id),
       "createdAt",
       "desc"
     );
@@ -162,7 +163,18 @@ export default function AccountDetailScreen() {
       date: dayjs(key).toDate(),
       data,
     }));
-  }, [accounts.transactions, id]);
+  }, [accounts.ledger, id]);
+
+  const reversalOf = useMemo(() => {
+    const map = new Map<string, AccountTransaction>();
+    for (const transaction of accounts.ledger) {
+      if (transaction.kind === "reversal" && transaction.reversesId != null) {
+        map.set(transaction.reversesId, transaction);
+      }
+    }
+    return map;
+  }, [accounts.ledger]);
+  const byId = useMemo(() => new Map(accounts.ledger.map((t) => [t.id, t])), [accounts.ledger]);
 
   useEffect(() => {
     if (!account || hasPresentedAction.current) {
@@ -207,8 +219,31 @@ export default function AccountDetailScreen() {
     ]);
   }
 
+  function isInertRow(transaction: AccountTransaction) {
+    return transaction.kind === "reversal" || reversalOf.has(transaction.id);
+  }
+
+  function originalFor(transaction: AccountTransaction) {
+    if (transaction.reversesId == null) {
+      return undefined;
+    }
+    return byId.get(transaction.reversesId);
+  }
+
+  function deleteAction(title: string, message: string, remove: () => Promise<void>): SwipeAction {
+    return {
+      label: "Delete",
+      icon: "trash-2",
+      tone: "negative",
+      onPress: () => confirmDelete(title, message, remove),
+    };
+  }
+
   // Tapping a row opens what it came from: the transfer, the income, the bill or the loan.
   function openHandlerFor(transaction: AccountTransaction): (() => void) | undefined {
+    if (isInertRow(transaction)) {
+      return undefined;
+    }
     const { transferId, loanId, expenseId } = transaction;
     if (transferId && (transaction.kind === "transfer" || transaction.kind === "fee" || transaction.kind === "income")) {
       return () => transferSheetRef.current?.present(transaction);
@@ -231,20 +266,23 @@ export default function AccountDetailScreen() {
     return undefined;
   }
 
-  function deleteHandlerFor(transaction: AccountTransaction): (() => void) | undefined {
+  function rightActionFor(transaction: AccountTransaction): SwipeAction | undefined {
+    if (isInertRow(transaction)) {
+      return undefined;
+    }
     const { transferId } = transaction;
     if (transferId) {
-      return () => revertTransfer(transferId);
+      return { label: "Revert", icon: "rotate-ccw", tone: "negative", onPress: () => revertTransfer(transferId) };
     }
     if (transaction.kind === "income") {
-      return () =>
-        confirmDelete("Delete income?", "This removes it and updates the account balance.", () =>
-          accounts.deleteIncome(transaction.id)
-        );
+      return deleteAction("Delete income?", "This removes it and updates the account balance.", () =>
+        accounts.deleteIncome(transaction.id)
+      );
     }
     if (transaction.kind === "loan_in") {
-      return () =>
-        confirmDelete("Delete this payment?", "The balance will go back up.", () => loans.deletePayment(transaction.id));
+      return deleteAction("Delete this payment?", "The balance will go back up.", () =>
+        loans.deletePayment(transaction.id)
+      );
     }
     return undefined;
   }
@@ -326,8 +364,10 @@ export default function AccountDetailScreen() {
           <TransactionRow
             transaction={item}
             accountType={account.type}
+            reversal={reversalOf.get(item.id)}
+            original={originalFor(item)}
             onPress={openHandlerFor(item)}
-            onDelete={deleteHandlerFor(item)}
+            rightAction={rightActionFor(item)}
           />
         )}
         ListEmptyComponent={

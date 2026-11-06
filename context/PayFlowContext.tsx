@@ -25,8 +25,8 @@ interface PayFlowValue {
   openBillSheet: (expense: Expense, year: number, month: number) => void;
   // The Pay sheet editing that one payment.
   openPaymentSheet: (expense: Expense, payment: AccountTransaction) => void;
-  // Asks first, then deletes that one payment (with an Undo snackbar).
-  deletePayment: (expense: Expense, payment: AccountTransaction) => Promise<void>;
+  // Asks first, then reverts that one payment (with an Undo snackbar).
+  revertPayment: (expense: Expense, payment: AccountTransaction) => Promise<void>;
 }
 
 const PayFlowContext = createContext<PayFlowValue | null>(null);
@@ -45,7 +45,7 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     payMonth,
     payPart,
     updatePayment,
-    deletePayment: deletePaymentRow,
+    revertPayment: revertPaymentRow,
     unpayMonth,
   } = useExpenses();
   const snackbar = useSnackbar();
@@ -76,7 +76,7 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     await mark(expense, year, month, "paid", () => payMonth(expense.id, year, month));
   }
 
-  function deletePayment(expense: Expense, payment: AccountTransaction): Promise<void> {
+  function revertPayment(expense: Expense, payment: AccountTransaction): Promise<void> {
     const { cycleYear: year, cycleMonth: month } = payment;
     if (year == null || month == null) {
       return Promise.resolve();
@@ -86,16 +86,16 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
       getMonthStatus(expense.id, year, month) === "paid"
         ? ` ${dayjs(new Date(year, month, 1)).format("MMMM")} goes back to unpaid.`
         : "";
-    const message = `${formatAmount(Math.abs(payment.amount))} paid ${dayjs(payment.createdAt).format("MMM D")}.${reopens}`;
+    const message = `${formatAmount(Math.abs(payment.amount))} paid ${dayjs(payment.createdAt).format("MMM D")}.${reopens} The payment stays in the account history, marked as reverted.`;
     return new Promise((resolve) => {
-      Alert.alert("Delete this payment?", message, [
+      Alert.alert("Revert payment?", message, [
         { text: "Cancel", style: "cancel", onPress: () => resolve() },
         {
-          text: "Delete",
+          text: "Revert",
           style: "destructive",
           onPress: async () => {
-            await run(`delete ${title} payment`, `${title}${cycleSuffix(year, month)} payment deleted`, () =>
-              deletePaymentRow(payment.id)
+            await run(`revert ${title} payment`, `${title}${cycleSuffix(year, month)} payment reverted`, () =>
+              revertPaymentRow(payment.id)
             );
             resolve();
           },
@@ -130,9 +130,9 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
         }
         paySheetRef.current?.present({ expense, year: cycleYear, month: cycleMonth, paymentId: id });
       },
-      deletePayment,
+      revertPayment,
     }),
-    [getDisplayAmount, getMonthStatus, payMonth, unpayMonth, deletePaymentRow, snackbar]
+    [getDisplayAmount, getMonthStatus, payMonth, unpayMonth, revertPaymentRow, snackbar]
   );
 
   async function confirm({ expense, year, month, paymentId }: PayTarget, { mode, ...payment }: PayConfirmation) {

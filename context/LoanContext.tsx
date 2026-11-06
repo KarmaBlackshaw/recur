@@ -10,9 +10,11 @@ import {
   update as updateLoanRow,
   remove as removeLoan,
   insertPayments,
+  revert,
 } from "@/db/loans";
 import { remove as removeTransaction, updateLoanPayment } from "@/db/accountTransactions";
 import { useAccounts } from "@/context/AccountContext";
+import { buildReversal } from "@/utils/reversals/buildReversal";
 import { summarizeLoan, type TLoanSummary } from "@/utils/loans/summarizeLoan";
 import { loanOutChanges } from "@/utils/loans/loanOutChanges";
 import { isLoanOutOf } from "@/utils/loans/isLoanOutOf";
@@ -61,6 +63,8 @@ interface LoanContextValue {
   recordPayments: (payments: LoanPaymentInput[], excess?: LoanExcessInput) => Promise<void>;
   updatePayment: (txnId: string, p: LoanPaymentInput) => Promise<void>;
   deletePayment: (txnId: string) => Promise<void>;
+  revertPayment: (txnId: string) => Promise<void>;
+  revertLoan: (id: string) => Promise<void>;
   reload: () => Promise<void>;
 }
 
@@ -97,6 +101,8 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     [accounts.transactions]
   );
 
+  const activeLoans = useMemo(() => state.loans.filter((l) => l.revertedAt == null), [state.loans]);
+
   const loansById = useMemo(() => keyBy(state.loans, "id"), [state.loans]);
   const borrowerOf = useCallback(
     (loanId: string | null) => (loanId == null ? undefined : loansById[loanId]?.borrower),
@@ -107,11 +113,11 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
 
   const summaries = useMemo(() => {
     const map: Record<string, TLoanSummary<AccountTransaction>> = {};
-    for (const loan of state.loans) {
+    for (const loan of activeLoans) {
       map[loan.id] = summarizeLoan({ loan, payments: paymentsOf(loan.id), today });
     }
     return map;
-  }, [state.loans, paymentsOf, today]);
+  }, [activeLoans, paymentsOf, today]);
 
   const assertDepositAccount = (accountId: string) => {
     const account = accounts.accounts.find((a) => a.id === accountId);
@@ -141,7 +147,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
   });
 
   const updateLoan = useMemoizedFn(async (id: string, input: LoanInput) => {
-    const existing = state.loans.find((l) => l.id === id);
+    const existing = activeLoans.find((l) => l.id === id);
     if (!existing) {
       throw new Error("Loan not found");
     }
@@ -182,7 +188,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     }
     const rounded: LoanPaymentInput[] = [];
     for (const p of payments) {
-      const loan = state.loans.find((l) => l.id === p.loanId);
+      const loan = activeLoans.find((l) => l.id === p.loanId);
       if (!loan) {
         throw new Error("Loan not found");
       }
@@ -206,7 +212,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
   });
 
   const updatePayment = useMemoizedFn(async (txnId: string, p: LoanPaymentInput) => {
-    const loan = state.loans.find((l) => l.id === p.loanId);
+    const loan = activeLoans.find((l) => l.id === p.loanId);
     const existing = paymentsOf(p.loanId).find((t) => t.id === txnId);
     if (!loan || !existing) {
       throw new Error("Payment not found");
@@ -236,9 +242,29 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     await accounts.reload();
   });
 
+  const revertPayment = useMemoizedFn(async (txnId: string) => {
+    await accounts.reverseTransactions([txnId]);
+  });
+
+  const revertLoan = useMemoizedFn(async (id: string) => {
+    const loan = activeLoans.find((l) => l.id === id);
+    if (!loan) {
+      throw new Error("Loan not found");
+    }
+    const now = new Date().toISOString();
+    const reversals = accounts.transactions.filter((t) => t.loanId === id).map((t) => buildReversal(t, now));
+    const error = accounts.overdraftError(reversals);
+    if (error) {
+      throw error;
+    }
+    await revert(id, reversals, now);
+    dispatch({ type: "UPDATE_LOAN", payload: { ...loan, revertedAt: now } });
+    await accounts.reload();
+  });
+
   const value = useMemo(
     () => ({
-      loans: state.loans,
+      loans: activeLoans,
       isLoading: state.isLoading,
       summaries,
       paymentsOf,
@@ -250,9 +276,11 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       recordPayments,
       updatePayment,
       deletePayment,
+      revertPayment,
+      revertLoan,
       reload,
     }),
-    [state, summaries, paymentsOf, incomeOf, borrowerOf]
+    [activeLoans, state.isLoading, summaries, paymentsOf, incomeOf, borrowerOf]
   );
 
   return <LoanContext.Provider value={value}>{children}</LoanContext.Provider>;

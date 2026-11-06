@@ -322,7 +322,7 @@ export default function BillScreen() {
               return (
                 <SwipeableRow
                   key={row.id}
-                  rightAction={{ label: "Delete", icon: "trash-2", tone: "negative", onPress: () => payFlow.deletePayment(expense, row) }}
+                  rightAction={{ label: "Revert", icon: "rotate-ccw", tone: "negative", onPress: () => payFlow.revertPayment(expense, row) }}
                 >
                   <AppListRow
                     icon="check-circle"

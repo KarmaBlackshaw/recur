@@ -64,7 +64,7 @@ export interface MonthStatus {
 
 export type AccountType = 'debit' | 'credit' | 'cash';
 export type InterestPeriod = 'daily' | 'monthly' | 'yearly';
-export type TransactionKind = 'payment' | 'interest' | 'tax' | 'transfer' | 'fee' | 'adjust' | 'income' | 'loan_out' | 'loan_in';
+export type TransactionKind = 'payment' | 'interest' | 'tax' | 'transfer' | 'fee' | 'adjust' | 'income' | 'loan_out' | 'loan_in' | 'reversal';
 
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   debit: 'Debit account',
@@ -93,6 +93,7 @@ export const TRANSACTION_KIND_LABEL: Record<TransactionKind, string> = {
   income: 'Income',
   loan_out: 'Loan out',
   loan_in: 'Loan repayment',
+  reversal: 'Reversal',
 };
 
 export type TLoanInterest =
@@ -119,9 +120,10 @@ export interface Loan {
   interest: TLoanInterest;
   note: string | null;
   createdAt: string;
+  revertedAt: string | null;
 }
 
-export type LoanInput = Omit<Loan, 'id' | 'createdAt'>;
+export type LoanInput = Omit<Loan, 'id' | 'createdAt' | 'revertedAt'>;
 
 export interface LoanPaymentInput {
   loanId: string;
@@ -188,6 +190,7 @@ export interface AccountTransaction {
   note: string | null;
   category: string | null;
   loanId: string | null;
+  reversesId: string | null;
   createdAt: string;
 }
 

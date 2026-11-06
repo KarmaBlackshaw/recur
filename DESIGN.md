@@ -84,12 +84,16 @@ account transactions. Never hand-build another row.
 | positive | Mint 15% | Mint | Mint | money in (income, interest, repayments, collected loans) |
 | negative | Coral 15% | Coral | Coral | late |
 | accent | Periwinkle 15% | Periwinkle | Periwinkle | card bills and charges, loans, people |
-| muted | white 4% | Secondary Graphite | Muted Graphite | ended or not-due rows, transfer amounts |
+| muted | white 4% | Secondary Graphite | Muted Graphite | ended or not-due rows, reverted originals, transfer amounts |
 
 - **Swipe (`SwipeableRow`):** a full drag right pays or unpays at once (mint, 80dp; Undo in the snackbar). Dragging
-  left reveals Delete (coral, 80dp), which confirms with an Alert; history rows (transfers, income, loan payments)
-  delete the same way. Only one row stays open at a time, and opening one gives a selection haptic. Home peeks the
+  left reveals Delete (`trash-2`) or, for a bill payment, a transfer or a loan repayment, Revert (`rotate-ccw`), both
+  coral, 80dp; both confirm with an Alert, and Revert keeps the original in history (history rows: transfers and
+  loan payments revert; income deletes). Only one row stays open at a time, and opening one gives a selection haptic. Home peeks the
   Pay swipe once on the first unpaid row to teach it.
+- **Reverted and reversal rows:** a reverted original keeps its glyph and signed amount, is muted, captions
+  "Reverted Nov 5" (the date of its reversal) and has no tap or swipe. Its reversal row (`rotate-ccw` tile, "Reversal: <original title>") is an
+  ordinary row in its direction's tone, also with no tap or swipe.
 
 ### Detail Row (`components/ui/AppDetailRow.tsx`)
 One label and value on a line: the facts on a detail screen or sheet (a bill's plan, a loan's totals, a transfer, a
@@ -243,7 +247,7 @@ bill row, it adds Details (tonal) under Mark as paid, which opens the bill's pag
 the sheet: it opens the bill page, or a one-off's editor, directly.
 The bill page lists a month's payments under a "Payments" header, between the hero and the details, while that month
 is unpaid with a part payment or paid with two or more: one List Row per payment (date, account, amount), tap to edit it,
-swipe left to delete it. A month paid in several parts shows only Mark unpaid in the hero.
+swipe left to revert it. A month paid in several parts shows only Mark unpaid in the hero.
 
 ### Card bill sheet
 Cut-off and Estimate rows, the Statement amount input (Save amount, Use estimate), then Paid and Remaining. While the

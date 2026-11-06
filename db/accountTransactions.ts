@@ -8,10 +8,13 @@ interface TransactionRow {
   id: string; account_id: string; kind: string; amount: number;
   expense_id: string | null; cycle_year: number | null; cycle_month: number | null;
   transfer_id: string | null; note: string | null; category: string | null; loan_id: string | null; created_at: string;
+  reverses_id: string | null;
 }
 
 const COLUMNS =
-  "id, account_id, kind, amount, expense_id, cycle_year, cycle_month, transfer_id, note, category, loan_id, created_at";
+  "id, account_id, kind, amount, expense_id, cycle_year, cycle_month, transfer_id, note, category, loan_id, created_at, reverses_id";
+
+export const LIVE_SQL = "kind != 'reversal' AND NOT EXISTS (SELECT 1 FROM account_transactions r WHERE r.reverses_id = account_transactions.id)";
 
 export function newId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -31,6 +34,7 @@ function toTransaction(r: TransactionRow): AccountTransaction {
     category: r.category,
     loanId: r.loan_id,
     createdAt: r.created_at,
+    reversesId: r.reverses_id,
   };
 }
 
@@ -43,7 +47,7 @@ export async function getAll(): Promise<AccountTransaction[]> {
 }
 
 export function emptyTxnFields(): Omit<AccountTransaction, "id" | "accountId" | "kind" | "amount" | "createdAt"> {
-  return { expenseId: null, cycleYear: null, cycleMonth: null, transferId: null, note: null, category: null, loanId: null };
+  return { expenseId: null, cycleYear: null, cycleMonth: null, transferId: null, note: null, category: null, loanId: null, reversesId: null };
 }
 
 export async function insertRow(
@@ -52,8 +56,8 @@ export async function insertRow(
 ): Promise<AccountTransaction> {
   const id = newId();
   await db.runAsync(
-    `INSERT INTO account_transactions (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, t.accountId, t.kind, t.amount, t.expenseId, t.cycleYear, t.cycleMonth, t.transferId, t.note, t.category, t.loanId, t.createdAt]
+    `INSERT INTO account_transactions (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, t.accountId, t.kind, t.amount, t.expenseId, t.cycleYear, t.cycleMonth, t.transferId, t.note, t.category, t.loanId, t.createdAt, t.reversesId]
   );
   return { ...t, id };
 }
@@ -85,7 +89,7 @@ export async function replacePayments(
   await withWriteTransaction(db, async (txn) => {
     await txn.runAsync(
       `DELETE FROM account_transactions
-       WHERE kind = 'payment' AND expense_id = ?
+       WHERE kind = 'payment' AND expense_id = ? AND ${LIVE_SQL}
          AND IFNULL(cycle_year, -1) = IFNULL(?, -1) AND IFNULL(cycle_month, -1) = IFNULL(?, -1)`,
       [expenseId, cycleYear, cycleMonth]
     );
@@ -103,7 +107,7 @@ export function paymentMonthKey(expenseId: string | null, cycleYear: number | nu
 export async function getPaymentMonthKeys(db: SQLiteDatabase): Promise<Set<string>> {
   const rows = await db.getAllAsync<{ expense_id: string; cycle_year: number; cycle_month: number }>(
     `SELECT DISTINCT expense_id, IFNULL(cycle_year, -1) AS cycle_year, IFNULL(cycle_month, -1) AS cycle_month
-     FROM account_transactions WHERE kind = 'payment'`
+     FROM account_transactions WHERE kind = 'payment' AND ${LIVE_SQL}`
   );
   return new Set(rows.map((r) => paymentMonthKey(r.expense_id, r.cycle_year, r.cycle_month)));
 }
@@ -116,7 +120,7 @@ export async function replaceTransfer(
   const db = await getDB();
   const inserted: AccountTransaction[] = [];
   await withWriteTransaction(db, async (txn) => {
-    await txn.runAsync("DELETE FROM account_transactions WHERE transfer_id = ?", [transferId]);
+    await txn.runAsync(`DELETE FROM account_transactions WHERE transfer_id = ? AND ${LIVE_SQL}`, [transferId]);
     for (const t of ts) {
       inserted.push(await insertRow(txn, t));
     }
@@ -132,7 +136,7 @@ export async function removeTransfer(transferId: string): Promise<void> {
 export async function updateIncome(id: string, input: IncomeInput): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    "UPDATE account_transactions SET account_id = ?, amount = ?, category = ?, note = ?, created_at = ? WHERE id = ? AND kind = 'income'",
+    `UPDATE account_transactions SET account_id = ?, amount = ?, category = ?, note = ?, created_at = ? WHERE id = ? AND kind = 'income' AND ${LIVE_SQL}`,
     [input.accountId, input.amount, input.category, input.note, input.receivedAt, id]
   );
 }
@@ -143,7 +147,7 @@ export async function updateLoanPayment(
 ): Promise<void> {
   const db = await getDB();
   await db.runAsync(
-    "UPDATE account_transactions SET account_id = ?, amount = ?, created_at = ? WHERE id = ? AND kind = 'loan_in'",
+    `UPDATE account_transactions SET account_id = ?, amount = ?, created_at = ? WHERE id = ? AND kind = 'loan_in' AND ${LIVE_SQL}`,
     [p.accountId, p.amount, p.paidAt, id]
   );
 }
@@ -172,8 +176,59 @@ export async function creditInterest(accountId: string, gross: number, tax: numb
 export async function insertWithId(t: AccountTransaction, db?: SQLiteDatabase): Promise<number> {
   const conn = db ?? (await getDB());
   const result = await conn.runAsync(
-    `INSERT OR IGNORE INTO account_transactions (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [t.id, t.accountId, t.kind, t.amount, t.expenseId, t.cycleYear, t.cycleMonth, t.transferId, t.note, t.category ?? null, t.loanId ?? null, t.createdAt]
+    `INSERT OR IGNORE INTO account_transactions (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [t.id, t.accountId, t.kind, t.amount, t.expenseId, t.cycleYear, t.cycleMonth, t.transferId, t.note, t.category ?? null, t.loanId ?? null, t.createdAt, t.reversesId]
   );
   return result.changes;
+}
+
+async function isLive(txn: SQLiteDatabase, id: string): Promise<boolean> {
+  const row = await txn.getFirstAsync<{ id: string }>(
+    `SELECT id FROM account_transactions WHERE id = ? AND ${LIVE_SQL}`,
+    [id]
+  );
+  return row !== null;
+}
+
+export async function insertReversalRows(txn: SQLiteDatabase, rows: Omit<AccountTransaction, "id">[]): Promise<AccountTransaction[]> {
+  const inserted: AccountTransaction[] = [];
+  for (const row of rows) {
+    if (row.kind !== "reversal" || row.reversesId === null) {
+      throw new Error("A reversal row needs kind 'reversal' and a reversed id");
+    }
+    const isOriginalLive = await isLive(txn, row.reversesId);
+    if (!isOriginalLive) {
+      throw new Error("Already reverted");
+    }
+    inserted.push(await insertRow(txn, row));
+  }
+  return inserted;
+}
+
+export async function insertReversals(rows: Omit<AccountTransaction, "id">[]): Promise<AccountTransaction[]> {
+  const db = await getDB();
+  let inserted: AccountTransaction[] = [];
+  await withWriteTransaction(db, async (txn) => {
+    inserted = await insertReversalRows(txn, rows);
+  });
+  return inserted;
+}
+
+export async function removeReversals(ids: string[]): Promise<void> {
+  if (ids.length === 0) {
+    return;
+  }
+  const db = await getDB();
+  const placeholders = ids.map(() => "?").join(", ");
+  await db.runAsync(`DELETE FROM account_transactions WHERE kind = 'reversal' AND id IN (${placeholders})`, ids);
+}
+
+export async function removePayments(expenseId: string, cycleYear: number | null, cycleMonth: number | null): Promise<void> {
+  const db = await getDB();
+  await db.runAsync(
+    `DELETE FROM account_transactions
+     WHERE kind = 'payment' AND expense_id = ?
+       AND IFNULL(cycle_year, -1) = IFNULL(?, -1) AND IFNULL(cycle_month, -1) = IFNULL(?, -1)`,
+    [expenseId, cycleYear, cycleMonth]
+  );
 }

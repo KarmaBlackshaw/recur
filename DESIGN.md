@@ -87,9 +87,9 @@ account transactions. Never hand-build another row.
 | muted | white 4% | Secondary Graphite | Muted Graphite | ended or not-due rows, reverted originals, transfer amounts |
 
 - **Swipe (`SwipeableRow`):** a full drag right pays or unpays at once (mint, 80dp; Undo in the snackbar). Dragging
-  left reveals Delete (`trash-2`) or, for a bill payment or a transfer, Revert (`rotate-ccw`), both coral, 80dp; both
-  confirm with an Alert, and Revert keeps the original in history (history rows: transfers revert; income and loan
-  payments delete). Only one row stays open at a time, and opening one gives a selection haptic. Home peeks the
+  left reveals Delete (`trash-2`) or, for a bill payment, a transfer or a loan repayment, Revert (`rotate-ccw`), both
+  coral, 80dp; both confirm with an Alert, and Revert keeps the original in history (history rows: transfers and
+  loan payments revert; income deletes). Only one row stays open at a time, and opening one gives a selection haptic. Home peeks the
   Pay swipe once on the first unpaid row to teach it.
 - **Reverted and reversal rows:** a reverted original keeps its glyph and signed amount, is muted, captions
   "Reverted Nov 5" (the date of its reversal) and has no tap or swipe. Its reversal row (`rotate-ccw` tile, "Reversal: <original title>") is an

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Alert, SectionList, TouchableOpacity, View } from "react-native";
+import { SectionList, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
@@ -19,9 +19,8 @@ import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/formatAmount";
 import { formatLoanAge } from "@/utils/loans/formatLoanAge";
 import { formatLoanInterest } from "@/utils/loans/formatLoanInterest";
-import { alertFailure } from "@/utils/accounts/alertFailure";
+import { useRevertLoan } from "@/utils/loans/useRevertLoan";
 import { useRefreshControl } from "@/utils/useRefreshControl";
-import type { AccountTransaction } from "@/types";
 
 const KIND_RANK: Record<TLoanHistoryItem["kind"], number> = { lent: 0, interest: 1, payment: 2 };
 
@@ -34,6 +33,7 @@ export default function LoanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const loans = useLoans();
   const accounts = useAccounts();
+  const revertLoan = useRevertLoan();
   const refreshControl = useRefreshControl();
   const loan = loans.loans.find((l) => l.id === id);
   const summary = loan ? loans.summaries[loan.id] : undefined;
@@ -82,24 +82,6 @@ export default function LoanDetailScreen() {
     }));
   }, [loan, summary, loans.paymentsOf, accounts.accounts]);
 
-  function confirmDeletePayment(txn: AccountTransaction) {
-    Alert.alert("Delete this payment?", "The balance will go back up.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await loans.deletePayment(txn.id);
-          } catch (e) {
-            console.error("Delete payment failed", e);
-            alertFailure("Delete failed", e);
-          }
-        },
-      },
-    ]);
-  }
-
   function renderItem({ item }: { item: TLoanHistoryItem }) {
     if (item.kind !== "payment" || !loan) {
       return <LoanHistoryRow item={item} />;
@@ -109,7 +91,7 @@ export default function LoanDetailScreen() {
       <LoanHistoryRow
         item={item}
         onPress={() => router.push({ pathname: "/loan/pay", params: { id: loan.id, paymentId: txn.id } })}
-        onDelete={() => confirmDeletePayment(txn)}
+        onRevert={() => revertLoan(txn)}
       />
     );
   }

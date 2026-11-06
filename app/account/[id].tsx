@@ -7,7 +7,6 @@ import dayjs from "dayjs";
 import { groupBy, orderBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
-import { useLoans } from "@/context/LoanContext";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
@@ -26,6 +25,7 @@ import { formatAmount } from "@/utils/formatAmount";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useRevertTransfer } from "@/utils/accounts/useRevertTransfer";
+import { useRevertLoan } from "@/utils/loans/useRevertLoan";
 import type { SwipeAction } from "@/components/ui/SwipeableRow";
 import {
   ACCOUNT_TYPE_LABEL,
@@ -106,7 +106,6 @@ export default function AccountDetailScreen() {
   const { id, action } = useLocalSearchParams<{ id: string; action?: "adjust" | "transfer" }>();
   const accounts = useAccounts();
   const { expenses } = useExpenses();
-  const loans = useLoans();
   const refreshControl = useRefreshControl();
   const account = accounts.accounts.find((a) => a.id === id);
   const isArchived = account?.archivedAt != null;
@@ -115,6 +114,7 @@ export default function AccountDetailScreen() {
   const billSheetRef = useRef<CardBillSheetRef>(null);
   const transferSheetRef = useRef<TransferSheetRef>(null);
   const revertTransfer = useRevertTransfer();
+  const revertLoan = useRevertLoan();
   const hasPresentedAction = useRef(false);
   const canTransfer =
     !isArchived && accounts.activeAccounts.length > 1 && accounts.activeAccounts.some((a) => a.type !== "credit");
@@ -280,9 +280,7 @@ export default function AccountDetailScreen() {
       );
     }
     if (transaction.kind === "loan_in") {
-      return deleteAction("Delete this payment?", "The balance will go back up.", () =>
-        loans.deletePayment(transaction.id)
-      );
+      return { label: "Revert", icon: "rotate-ccw", tone: "negative", onPress: () => revertLoan(transaction) };
     }
     return undefined;
   }

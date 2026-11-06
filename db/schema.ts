@@ -441,9 +441,6 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
        AND NOT EXISTS (SELECT 1 FROM expenses WHERE account_id = 'account-cash-default')`
   );
   await db.runAsync("DELETE FROM account_transactions WHERE account_id NOT IN (SELECT id FROM accounts)");
-  await db.runAsync(
-    "DELETE FROM account_transactions WHERE reverses_id IS NOT NULL AND reverses_id NOT IN (SELECT id FROM account_transactions)"
-  );
   await db.runAsync("DELETE FROM card_bills WHERE account_id NOT IN (SELECT id FROM accounts)");
   await backfillHistory(db);
 

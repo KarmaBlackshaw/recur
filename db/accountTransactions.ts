@@ -154,7 +154,7 @@ export async function updateLoanPayment(
 
 export async function remove(id: string): Promise<void> {
   const db = await getDB();
-  await db.runAsync("DELETE FROM account_transactions WHERE id = ? OR reverses_id = ?", [id, id]);
+  await db.runAsync("DELETE FROM account_transactions WHERE id = ?", [id]);
 }
 
 export async function creditInterest(accountId: string, gross: number, tax: number, through: string): Promise<void> {
@@ -227,7 +227,7 @@ export async function removePayments(expenseId: string, cycleYear: number | null
   const db = await getDB();
   await db.runAsync(
     `DELETE FROM account_transactions
-     WHERE kind IN ('payment', 'reversal') AND expense_id = ?
+     WHERE kind = 'payment' AND expense_id = ?
        AND IFNULL(cycle_year, -1) = IFNULL(?, -1) AND IFNULL(cycle_month, -1) = IFNULL(?, -1)`,
     [expenseId, cycleYear, cycleMonth]
   );

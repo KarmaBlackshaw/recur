@@ -34,7 +34,7 @@ function toLoan(r: LoanRow): Loan {
 
 type TWriteDb = Awaited<ReturnType<typeof getDB>>;
 
-// FKs are off inside write transactions, so probe the account explicitly
+// A loan can keep the id of a deleted account, so probe the account before writing a row against it
 async function hasAccount(txn: TWriteDb, accountId: string) {
   const account = await txn.getFirstAsync<{ id: string }>("SELECT id FROM accounts WHERE id = ?", [accountId]);
   return account !== null;

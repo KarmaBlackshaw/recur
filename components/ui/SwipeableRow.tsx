@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
+import Animated, { useAnimatedStyle, type SharedValue } from "react-native-reanimated";
 import ReanimatedSwipeable, {
   SwipeDirection,
   type SwipeableMethods,
@@ -41,6 +42,26 @@ interface Props {
 
 // Only one row stays swiped open at a time across every list.
 let openRow: SwipeableMethods | null = null;
+
+interface ActionRevealProps {
+  side: "left" | "right";
+  translation: SharedValue<number>;
+  children: React.ReactNode;
+}
+
+// The swipeable always draws its actions behind the row, so a row that isn't fully opaque (fading in
+// on mount) would show them. Draw a side's action only while the row is pulled away from it.
+function ActionReveal({ side, translation, children }: ActionRevealProps) {
+  const style = useAnimatedStyle(() => {
+    const isRevealed = side === "left" ? translation.value > 0 : translation.value < 0;
+    return { opacity: isRevealed ? 1 : 0 };
+  });
+  return (
+    <Animated.View className="flex-row" style={style}>
+      {children}
+    </Animated.View>
+  );
+}
 
 export function SwipeableRow({ children, leftAction, rightAction, isHintShown = false }: Props) {
   const ref = useRef<SwipeableMethods>(null);
@@ -102,39 +123,43 @@ export function SwipeableRow({ children, leftAction, rightAction, isHintShown = 
 
   // RNGH Pressable, not TouchableOpacity: the swipeable's full-width right-actions layer sits on top
   // and swallows RN touches on the left side; RNGH's own hit-testing passes through it.
-  function renderLeftActions() {
+  function renderLeftActions(_progress: SharedValue<number>, translation: SharedValue<number>) {
     if (!leftAction) {
       return null;
     }
     const tone = TONE[leftAction.tone];
     return (
-      <Pressable
-        onPress={() => handleOpen(SwipeDirection.RIGHT)}
-        accessibilityRole="button"
-        accessibilityLabel={leftAction.label}
-      >
-        <View className={`flex-1 justify-center items-center gap-1 w-20 my-1.5 ml-5 rounded-2xl ${tone.box}`}>
-          <Feather name={leftAction.icon} size={20} color={tone.glyph} />
-          <AppText variant="meta" className={tone.text}>{leftAction.label}</AppText>
-        </View>
-      </Pressable>
+      <ActionReveal side="left" translation={translation}>
+        <Pressable
+          onPress={() => handleOpen(SwipeDirection.RIGHT)}
+          accessibilityRole="button"
+          accessibilityLabel={leftAction.label}
+        >
+          <View className={`flex-1 justify-center items-center gap-1 w-20 my-1.5 ml-5 rounded-2xl ${tone.box}`}>
+            <Feather name={leftAction.icon} size={20} color={tone.glyph} />
+            <AppText variant="meta" className={tone.text}>{leftAction.label}</AppText>
+          </View>
+        </Pressable>
+      </ActionReveal>
     );
   }
 
-  function renderRightActions() {
+  function renderRightActions(_progress: SharedValue<number>, translation: SharedValue<number>) {
     if (!rightAction) {
       return null;
     }
     const tone = TONE[rightAction.tone];
     return (
-      <TouchableOpacity
-        className={`justify-center items-center w-20 my-1.5 mr-5 rounded-2xl ${tone.box}`}
-        onPress={runRightAction}
-        accessibilityRole="button"
-        accessibilityLabel={rightAction.label}
-      >
-        <Feather name={rightAction.icon} size={20} color={tone.glyph} />
-      </TouchableOpacity>
+      <ActionReveal side="right" translation={translation}>
+        <TouchableOpacity
+          className={`justify-center items-center w-20 my-1.5 mr-5 rounded-2xl ${tone.box}`}
+          onPress={runRightAction}
+          accessibilityRole="button"
+          accessibilityLabel={rightAction.label}
+        >
+          <Feather name={rightAction.icon} size={20} color={tone.glyph} />
+        </TouchableOpacity>
+      </ActionReveal>
     );
   }
 

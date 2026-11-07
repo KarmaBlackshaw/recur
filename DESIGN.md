@@ -87,7 +87,7 @@ account transactions. Never hand-build another row.
 | muted | white 4% | Secondary Graphite | Muted Graphite | ended or not-due rows, reverted originals, transfer amounts |
 
 - **Swipe (`SwipeableRow`):** a full drag right pays or unpays (mint, 80dp; Undo in the snackbar). Both ask first: Pay
-  with an Alert naming the amount, account and month (a TBD bill opens the Pay sheet instead), Unpay with its own Alert. Dragging
+  with the confirm sheet (amount, account and month; a TBD bill opens the Pay sheet instead), Unpay with an Alert. Dragging
   left reveals Delete (`trash-2`) or, for a bill payment, a transfer or a loan repayment, Revert (`rotate-ccw`), both
   coral, 80dp; both confirm with an Alert, and Revert keeps the original in history (history rows: transfers and
   loan payments revert; income deletes). Only one row stays open at a time, and opening one gives a selection haptic. Home peeks the
@@ -258,6 +258,13 @@ from (non-credit accounts only), Payment fee and Note (both optional). A TBD bil
 statement amount is saved. Pay bill closes the sheet and records the card payment once it's gone. It's the one card
 payment form: the card's page opens it from both its "Payment due" row and its Pay bill button; with nothing owed,
 Pay bill opens the Transfer screen to the card instead, to pay it ahead.
+
+### Confirm sheet (`AppConfirmSheet`)
+Content-sized sheet. The title is the question ("Mark Netflix paid?"), then a meta line (the cycle and its due date or
+days late), a neutral Hero Card with the amount (overline Amount, or Left to pay with "₱X paid so far" under it) and a
+hairline footer naming the Pay from account with its logo. A primary confirm and a ghost Cancel stack full width below.
+Closing it any way writes nothing; confirming closes it and writes once it's gone. Pay is its only user so far; unpay
+and revert still confirm with an Alert.
 
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes

@@ -1,21 +1,19 @@
 import React from "react";
-import { Image, View, Text, TouchableOpacity, type AccessibilityActionEvent } from "react-native";
+import { View, Text, TouchableOpacity, type AccessibilityActionEvent } from "react-native";
 import { router } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
 import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 import dayjs from "dayjs";
 import { AppText } from "@/components/ui/AppText";
-import { Ionicon } from "@/components/ui/Ionicon";
+import { AccountLogo } from "@/components/accounts/AccountLogo";
 import { useAccounts } from "@/context/AccountContext";
-import { resolveAccountLogo } from "@/utils/accountLogo/resolveAccountLogo";
 import { nextOccurrence } from "@/utils/dateHelpers";
 import { formatAmount } from "@/utils/formatAmount";
 import { signedAmount } from "@/utils/signedAmount";
 import { colors } from "@/constants/theme";
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
 import { HIDDEN_AMOUNT } from "@/constants/accounts";
-import { findBank } from "@/constants/banks";
-import { ACCOUNT_TYPE_LABEL, INTEREST_PERIOD_UNIT, type Account, type AccountType, type IoniconName } from "@/types";
+import { ACCOUNT_TYPE_LABEL, INTEREST_PERIOD_UNIT, type Account, type AccountType } from "@/types";
 
 interface Props {
   account: Account;
@@ -30,10 +28,10 @@ interface Props {
   isAmountHidden?: boolean;
 }
 
-const TYPE_META: Record<AccountType, { icon: IoniconName; chip: string }> = {
-  debit: { icon: "wallet-outline", chip: "Debit" },
-  cash: { icon: "cash-outline", chip: "Cash" },
-  credit: { icon: "card-outline", chip: "Credit" },
+const TYPE_META: Record<AccountType, { chip: string }> = {
+  debit: { chip: "Debit" },
+  cash: { chip: "Cash" },
+  credit: { chip: "Credit" },
 };
 
 const ACCESSIBILITY_ACTIONS = [
@@ -63,7 +61,6 @@ export function AccountCard({
   const { getBalance, interestEstimate } = useAccounts();
   const isReducedMotion = useReducedMotion();
   const meta = TYPE_META[account.type];
-  const bank = findBank(account.bank);
   const isPreview = previewBalance != null;
   const isPressable = !isPreview && !isStatic;
   const balance = previewBalance ?? getBalance(account.id);
@@ -155,17 +152,7 @@ export function AccountCard({
 
         <View>
           <View className="flex-row items-center gap-2.5">
-            {account.logoUri ? (
-              <Image source={{ uri: resolveAccountLogo(account.logoUri) }} className="size-9 rounded-xl bg-white" />
-            ) : bank ? (
-              <View className="size-9 rounded-xl items-center justify-center bg-white">
-                <Image source={bank.logo} className="size-[24px]" />
-              </View>
-            ) : (
-              <View className="size-9 rounded-xl items-center justify-center bg-white/20">
-                <Ionicon name={account.icon ?? meta.icon} size={18} color={colors.text} />
-              </View>
-            )}
+            <AccountLogo account={account} />
             <AppText variant="body-bold" className="flex-1" numberOfLines={1}>{account.name}</AppText>
             {isSelected && <Feather name="check-circle" size={18} color={colors.text} />}
           </View>

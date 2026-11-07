@@ -1,0 +1,397 @@
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheet.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheet.tsx
+index fc52033..75ab46f 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheet.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheet.tsx
+@@ -211,7 +211,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+       }
+ 
+       return containerHeight - highestDetentPosition;
+-    }, [animatedLayoutState, animatedDetentsState]);
++    });
+     const animatedCurrentIndex = useReactiveSharedValue(
+       animateOnMount ? -1 : _providedIndex
+     );
+@@ -255,7 +255,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+         isHandleHeightCalculated &&
+         isSnapPointsNormalized
+       );
+-    }, [animatedLayoutState, animatedDetentsState, handleComponent]);
++    });
+     const isInTemporaryPosition = useSharedValue(false);
+     const animatedContainerHeightDidChange = useSharedValue(false);
+ 
+@@ -340,15 +340,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+       }
+ 
+       return SHEET_STATE.OPENED;
+-    }, [
+-      animatedLayoutState,
+-      animatedDetentsState,
+-      animatedKeyboardState,
+-      animatedPosition,
+-      animatedSheetHeight,
+-      isInTemporaryPosition,
+-      keyboardBehavior,
+-    ]);
++    });
+     const {
+       state: animatedScrollableState,
+       status: animatedScrollableStatus,
+@@ -422,16 +414,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+       }
+ 
+       return currentIndex;
+-    }, [
+-      android_keyboardInputMode,
+-      animatedAnimationState,
+-      animatedLayoutState,
+-      animatedCurrentIndex,
+-      animatedPosition,
+-      animatedDetentsState,
+-      isInTemporaryPosition,
+-      isLayoutCalculated,
+-    ]);
++    });
+     //#endregion
+ 
+     //#region private methods
+@@ -1569,12 +1552,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+         ) {
+           animateToPosition(closedDetentPosition, ANIMATION_SOURCE.GESTURE);
+         }
+-      },
+-      [
+-        animatedContainerHeightDidChange,
+-        animatedAnimationState,
+-        animatedDetentsState,
+-      ]
++      }
+     );
+ 
+     /**
+@@ -1616,8 +1594,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+         }
+ 
+         evaluatePosition(ANIMATION_SOURCE.SNAP_POINT_CHANGE);
+-      },
+-      [isLayoutCalculated, didAnimateOnMount, animatedDetentsState]
++      }
+     );
+ 
+     /**
+@@ -1736,17 +1713,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+ 
+         const animationConfigs = getKeyboardAnimationConfigs(easing, duration);
+         evaluatePosition(ANIMATION_SOURCE.KEYBOARD, animationConfigs);
+-      },
+-      [
+-        $modal,
+-        bottomInset,
+-        keyboardBehavior,
+-        keyboardBlurBehavior,
+-        android_keyboardInputMode,
+-        animatedKeyboardState,
+-        animatedLayoutState,
+-        getEvaluatedPosition,
+-      ]
++      }
+     );
+ 
+     /**
+@@ -1758,8 +1725,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+         if (_providedAnimatedPosition) {
+           _providedAnimatedPosition.value = _animatedPosition + topInset;
+         }
+-      },
+-      [_providedAnimatedPosition, topInset]
++      }
+     );
+ 
+     /**
+@@ -1771,8 +1737,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+         if (_providedAnimatedIndex) {
+           _providedAnimatedIndex.value = _animatedIndex;
+         }
+-      },
+-      [_providedAnimatedIndex]
++      }
+     );
+ 
+     /**
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetBody.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetBody.tsx
+index 91b6a6a..9e4d272 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetBody.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetBody.tsx
+@@ -24,8 +24,7 @@ function BottomSheetBodyComponent({ style, children }: BottomSheetBodyProps) {
+           translateY: animatedPosition.get(),
+         },
+       ],
+-    }),
+-    [animatedPosition, animatedIndex]
++    })
+   );
+   const containerStyle = useMemo(
+     () => [style, styles.container, containerAnimatedStyle],
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetContent.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetContent.tsx
+index 4a69a68..50d419c 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetContent.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetContent.tsx
+@@ -123,13 +123,7 @@ function BottomSheetContentComponent({
+      * @link (https://github.com/gorhom/react-native-bottom-sheet/issues/470)
+      */
+     return Math.max(contentHeight, 0);
+-  }, [
+-    animatedLayoutState,
+-    animatedKeyboardState,
+-    animatedSheetHeight,
+-    isInTemporaryPosition,
+-    keyboardBehavior,
+-  ]);
++  });
+   const animatedPaddingBottom = useDerivedValue(() => {
+     const containerHeight = animatedLayoutState.get().containerHeight;
+     /**
+@@ -169,13 +163,7 @@ function BottomSheetContentComponent({
+     }
+ 
+     return paddingBottom;
+-  }, [
+-    overDragResistanceFactor,
+-    animatedPosition,
+-    animatedLayoutState,
+-    animatedDetentsState,
+-    animatedKeyboardState,
+-  ]);
++  });
+   //#endregion
+ 
+   //#region styles
+@@ -211,16 +199,7 @@ function BottomSheetContentComponent({
+         overrideReduceMotion,
+       }),
+     };
+-  }, [
+-    overDragResistanceFactor,
+-    enableDynamicSizing,
+-    detached,
+-    animationConfigs,
+-    overrideReduceMotion,
+-    animatedLayoutState,
+-    animatedContentHeightMax,
+-    animatedLayoutState,
+-  ]);
++  });
+   const contentContainerStyle = useMemo(
+     () => [
+       detached
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
+index a0345b0..09ba120 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
+@@ -104,8 +104,7 @@ const BottomSheetBackdropComponent = ({
+         [0, 0, opacity],
+         Extrapolation.CLAMP
+       ),
+-    }),
+-    [animatedIndex, appearsOnIndex, disappearsOnIndex, opacity]
++    })
+   );
+   const containerStyle = useMemo(
+     () => [
+@@ -126,8 +125,7 @@ const BottomSheetBackdropComponent = ({
+         return;
+       }
+       runOnJS(handleContainerTouchability)(shouldDisableTouchability);
+-    },
+-    [disappearsOnIndex]
++    }
+   );
+ 
+   // addressing updating the state after unmounting.
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetDebugView/ReText.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetDebugView/ReText.tsx
+index 3091565..8191533 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetDebugView/ReText.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetDebugView/ReText.tsx
+@@ -50,12 +50,12 @@ const ReText = ({ text, value: _providedValue, style }: TextProps) => {
+     }
+ 
+     return `${text}: ${rawValue}`;
+-  }, [text, _providedValue]);
++  });
+   const animatedProps = useAnimatedProps(() => {
+     return {
+       text: providedValue.get(),
+     };
+-  }, [providedValue]);
++  });
+   return (
+     <AnimatedTextInput
+       underlineColorAndroid="transparent"
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetFooter/BottomSheetFooter.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetFooter/BottomSheetFooter.tsx
+index 639f2af..7da1ce2 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetFooter/BottomSheetFooter.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetFooter/BottomSheetFooter.tsx
+@@ -44,7 +44,7 @@ function BottomSheetFooterComponent({
+         },
+       ],
+     };
+-  }, [bottomInset, animatedKeyboardState, animatedFooterPosition]);
++  });
+   const containerStyle = useMemo(
+     () => [styles.container, style, containerAnimatedStyle],
+     [style, containerAnimatedStyle]
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx
+index 183903f..1ecf9f9 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx
+@@ -31,7 +31,7 @@ const BottomSheetFooterContainerComponent = ({
+ 
+     footerTranslateY = footerTranslateY - footerHeight - handleHeight;
+     return footerTranslateY;
+-  }, [animatedKeyboardState, animatedPosition, animatedLayoutState]);
++  });
+   //#endregion
+ 
+   return <FooterComponent animatedFooterPosition={animatedFooterPosition} />;
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetRefreshControl/BottomSheetRefreshControl.android.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetRefreshControl/BottomSheetRefreshControl.android.tsx
+index 36a1a60..bf824fb 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetRefreshControl/BottomSheetRefreshControl.android.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetRefreshControl/BottomSheetRefreshControl.android.tsx
+@@ -37,8 +37,7 @@ function BottomSheetRefreshControlComponent({
+   const animatedProps = useAnimatedProps(
+     () => ({
+       enabled: animatedScrollableState.value === SCROLLABLE_STATUS.UNLOCKED,
+-    }),
+-    [animatedScrollableState.value]
++    })
+   );
+ 
+   const gesture = useMemo(
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetScrollable/createBottomSheetScrollableComponent.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetScrollable/createBottomSheetScrollableComponent.tsx
+index 6a57f51..fca96d8 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetScrollable/createBottomSheetScrollableComponent.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheetScrollable/createBottomSheetScrollableComponent.tsx
+@@ -81,8 +81,7 @@ export function createBottomSheetScrollableComponent<T, P>(
+         showsVerticalScrollIndicator: showsVerticalScrollIndicator
+           ? animatedScrollableState.value === SCROLLABLE_STATUS.UNLOCKED
+           : showsVerticalScrollIndicator,
+-      }),
+-      [animatedScrollableState, showsVerticalScrollIndicator]
++      })
+     );
+ 
+     const scrollableGesture = useMemo(
+diff --git a/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedDetents.ts b/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedDetents.ts
+index cc34d3b..55aa2ad 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedDetents.ts
++++ b/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedDetents.ts
+@@ -106,14 +106,6 @@ export const useAnimatedDetents = (
+       highestDetentPosition,
+       closedDetentPosition,
+     };
+-  }, [
+-    detents,
+-    layoutState,
+-    enableDynamicSizing,
+-    maxDynamicContentSize,
+-    detached,
+-    $modal,
+-    bottomInset,
+-  ]);
++  });
+   return state;
+ };
+diff --git a/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedKeyboard.ts b/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedKeyboard.ts
+index d7051bf..8169596 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedKeyboard.ts
++++ b/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedKeyboard.ts
+@@ -167,8 +167,7 @@ export const useAnimatedKeyboard = () => {
+         cachedState.duration,
+         cachedState.easing
+       );
+-    },
+-    [temporaryCachedState, handleKeyboardEvent]
++    }
+   );
+   //#endregion
+ 
+diff --git a/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedLayout.ts b/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedLayout.ts
+index 68c674d..da4b977 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedLayout.ts
++++ b/node_modules/@gorhom/bottom-sheet/src/hooks/useAnimatedLayout.ts
+@@ -84,8 +84,7 @@ export function useAnimatedLayout(
+         _state.containerHeight = modal ? result - verticalInset : result;
+         return _state;
+       });
+-    },
+-    [state, verticalInset, modal]
++    }
+   );
+   useAnimatedReaction(
+     () => containerLayoutState?.get().height,
+@@ -102,8 +101,7 @@ export function useAnimatedLayout(
+         _state.containerHeight = modal ? result - verticalInset : result;
+         return _state;
+       });
+-    },
+-    [state, verticalInset, modal]
++    }
+   );
+   useEffect(() => {
+     Dimensions.addEventListener('change', ({ window }) => {
+diff --git a/node_modules/@gorhom/bottom-sheet/src/hooks/useBottomSheetContentContainerStyle.ts b/node_modules/@gorhom/bottom-sheet/src/hooks/useBottomSheetContentContainerStyle.ts
+index 6c0bffe..e21f974 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/hooks/useBottomSheetContentContainerStyle.ts
++++ b/node_modules/@gorhom/bottom-sheet/src/hooks/useBottomSheetContentContainerStyle.ts
+@@ -80,8 +80,7 @@ export function useBottomSheetContentContainerStyle(
+           });
+         }
+       }
+-    },
+-    [animatedLayoutState, enableFooterMarginAdjustment]
++    }
+   );
+   //#endregion
+   return style;
+diff --git a/node_modules/@gorhom/bottom-sheet/src/hooks/useScrollHandler.ts b/node_modules/@gorhom/bottom-sheet/src/hooks/useScrollHandler.ts
+index a791083..dca762f 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/hooks/useScrollHandler.ts
++++ b/node_modules/@gorhom/bottom-sheet/src/hooks/useScrollHandler.ts
+@@ -55,17 +55,7 @@ export const useScrollHandler = (
+       },
+       onMomentumBegin: handleOnMomentumBegin,
+       onMomentumEnd: handleOnMomentumEnd,
+-    },
+-    [
+-      handleOnScroll,
+-      handleOnBeginDrag,
+-      handleOnEndDrag,
+-      handleOnMomentumBegin,
+-      handleOnMomentumEnd,
+-      onScroll,
+-      onScrollBeginDrag,
+-      onScrollEndDrag,
+-    ]
++    }
+   );
+ 
+   return { scrollHandler, scrollableRef, scrollableContentOffsetY };
+diff --git a/node_modules/@gorhom/bottom-sheet/src/hooks/useScrollable.ts b/node_modules/@gorhom/bottom-sheet/src/hooks/useScrollable.ts
+index 9c19051..9c0790d 100644
+--- a/node_modules/@gorhom/bottom-sheet/src/hooks/useScrollable.ts
++++ b/node_modules/@gorhom/bottom-sheet/src/hooks/useScrollable.ts
+@@ -74,13 +74,7 @@ export const useScrollable = (
+     }
+ 
+     return SCROLLABLE_STATUS.LOCKED;
+-  }, [
+-    enableContentPanningGesture,
+-    animatedSheetState,
+-    animatedKeyboardState,
+-    animatedAnimationState,
+-    state,
+-  ]);
++  });
+   //#endregion
+ 
+   //#region callbacks

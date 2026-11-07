@@ -38,11 +38,13 @@
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "patch-package": "^8.0.1",
     "sharp": "^0.35.5",
     "subset-font": "^2.9.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "postinstall": "patch-package",
     "start": "expo start",
     "start:wt": "bash scripts/expo-wt.sh",
     "android": "rm -rf \"${TMPDIR:-/tmp}/metro-cache\" && CI=0 expo run:android",

@@ -13,6 +13,7 @@ import { formatAmount } from "@/utils/formatAmount";
 import { signedAmount } from "@/utils/signedAmount";
 import { colors } from "@/constants/theme";
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
+import { HIDDEN_AMOUNT } from "@/constants/accounts";
 import { findBank } from "@/constants/banks";
 import { ACCOUNT_TYPE_LABEL, INTEREST_PERIOD_UNIT, type Account, type AccountType, type IoniconName } from "@/types";
 
@@ -25,6 +26,8 @@ interface Props {
   isStatic?: boolean;
   // Picker state: a white ring and a check mark on the chosen account.
   isSelected?: boolean;
+  // Privacy mode on the Accounts tab: every amount on the card reads as HIDDEN_AMOUNT.
+  isAmountHidden?: boolean;
 }
 
 const TYPE_META: Record<AccountType, { icon: IoniconName; chip: string }> = {
@@ -55,6 +58,7 @@ export function AccountCard({
   isCompact = false,
   isStatic = false,
   isSelected = false,
+  isAmountHidden = false,
 }: Props) {
   const { getBalance, interestEstimate } = useAccounts();
   const isReducedMotion = useReducedMotion();
@@ -66,7 +70,10 @@ export function AccountCard({
   const isCredit = account.type === "credit";
   const isNegative = !isCredit && balance < 0;
   const hasCreditBalance = isCredit && balance < 0;
-  const amountText = hasCreditBalance ? `${formatAmount(-balance)} credit` : signedAmount(balance);
+  const creditSuffix = hasCreditBalance ? " credit" : "";
+  const balanceText = hasCreditBalance ? formatAmount(-balance) : signedAmount(balance);
+  const amountText = `${balanceText}${creditSuffix}`;
+  const shown = (text: string) => (isAmountHidden ? HIDDEN_AMOUNT : text);
 
   const interest = account.type === "debit" && !isPreview ? interestEstimate(account) : null;
   const limit = isCredit ? account.creditLimit : null;
@@ -178,10 +185,10 @@ export function AccountCard({
               )}
               <View className="flex-row items-center justify-between gap-2">
                 <AppText variant="meta" className="text-white/75" numberOfLines={1}>
-                  {isOverLimit ? "Over limit" : `${Math.round(utilization * 100)}% used`}
+                  {isOverLimit ? "Over limit" : isAmountHidden ? "••% used" : `${Math.round(utilization * 100)}% used`}
                 </AppText>
                 <AppText variant="meta" className="text-white/75" numberOfLines={1}>
-                  {isOverLimit ? `${wholeAmount(-available)} over` : `${wholeAmount(available)} left`}
+                  {isOverLimit ? `${shown(wholeAmount(-available))} over` : `${shown(wholeAmount(available))} left`}
                 </AppText>
               </View>
             </>
@@ -201,13 +208,13 @@ export function AccountCard({
               minimumFontScale={0.6}
               maxFontSizeMultiplier={1.4}
             >
-              {amountText}
+              {`${shown(balanceText)}${creditSuffix}`}
             </Text>
           </View>
           {interest && !isCompact && (
             <View className="flex-row items-center gap-1">
               <Feather name="trending-up" size={12} color={colors.text} />
-              <AppText variant="meta" className="text-white/85" numberOfLines={1}>{`+${formatAmount(interest.amount)}/${INTEREST_PERIOD_UNIT[interest.period].short}`}</AppText>
+              <AppText variant="meta" className="text-white/85" numberOfLines={1}>{`+${shown(formatAmount(interest.amount))}/${INTEREST_PERIOD_UNIT[interest.period].short}`}</AppText>
             </View>
           )}
         </View>

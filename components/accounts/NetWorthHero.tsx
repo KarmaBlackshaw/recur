@@ -6,11 +6,13 @@ import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
 import { useNetWorth } from "@/utils/useNetWorth";
 import { signedAmount } from "@/utils/signedAmount";
 import { colors } from "@/constants/theme";
+import { HIDDEN_AMOUNT } from "@/constants/accounts";
 
-export function NetWorthHero() {
+export function NetWorthHero({ isAmountHidden = false }: { isAmountHidden?: boolean }) {
   const { assets, lent, owed, net } = useNetWorth();
   const isNegative = net < 0;
   const netText = signedAmount(net);
+  const displayAmount = (value: number) => (isAmountHidden ? HIDDEN_AMOUNT : signedAmount(value));
   // "Lent" only appears while someone owes you money.
   const parts = [
     { label: "Assets", value: assets },
@@ -29,14 +31,14 @@ export function NetWorthHero() {
       <AppText variant="overline">Net worth</AppText>
       <View className="flex-row items-center gap-2 mt-1">
         {isNegative && <Feather name="alert-triangle" size={20} color={colors.overdue} />}
-        <AppHeroAmount value={netText} tone={isNegative ? "negative" : "neutral"} className="flex-1" />
+        <AppHeroAmount value={displayAmount(net)} tone={isNegative ? "negative" : "neutral"} className="flex-1" />
       </View>
       <View className="flex-row gap-3 mt-3 pt-3 border-t border-white/[0.07]">
         {parts.map(({ label, value }) => (
           <View key={label} className="flex-1">
             <AppText variant="meta">{label}</AppText>
             <AppText variant="amount-sm" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-              {signedAmount(value)}
+              {displayAmount(value)}
             </AppText>
           </View>
         ))}

@@ -43,7 +43,7 @@ Amounts are in Philippine pesos (₱).
 
 ### Paying
 
-- A bill with a set amount is paid at once, from the account you picked for it.
+- A bill with a set amount asks you to confirm the amount and account, then pays from the account you picked for it.
 - For a TBD bill, the Pay sheet asks for the amount, the date you paid and the account it came from.
 - Every payment shows an **Undo** right after, in case you tapped the wrong one.
 

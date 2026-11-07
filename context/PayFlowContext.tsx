@@ -10,14 +10,16 @@ import { expenseTitle } from "@/utils/expenseHelpers";
 import { BillPaymentError } from "@/utils/expenses/BillPaymentError";
 import { openExpense } from "@/utils/expenses/openExpense";
 import { successHaptic } from "@/utils/haptics";
+import { DELETED_ACCOUNT } from "@/constants/accounts";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { OverdraftError } from "@/utils/accounts/OverdraftError";
+import { payFromAccountId } from "@/utils/accounts/payFromAccountId";
 import { formatAmount } from "@/utils/formatAmount";
 import { round } from "@/utils/round";
 import type { AccountTransaction, Expense } from "@/types";
 
 interface PayFlowValue {
-  // Pays at once when the amount is known (with an Undo snackbar); otherwise opens the Pay sheet to ask.
+  // Asks to confirm, then pays when the amount is known (with an Undo snackbar); otherwise opens the Pay sheet to ask.
   pay: (expense: Expense, year: number, month: number) => Promise<void>;
   // Asks first, then reverses every payment of the month (with an Undo snackbar).
   unpay: (expense: Expense, year: number, month: number) => Promise<void>;
@@ -42,7 +44,6 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
   const paySheetRef = useRef<PaySheetRef>(null);
   const {
     getBillProgress,
-    getDisplayAmount,
     getMonthStatus,
     payMonth,
     payPart,
@@ -50,7 +51,7 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     revertPayment: revertPaymentRow,
     unpayMonth,
   } = useExpenses();
-  const { getPayments } = useAccounts();
+  const { accounts, activeAccounts, getPayments } = useAccounts();
   const snackbar = useSnackbar();
 
   async function run(action: string, message: string, write: () => Promise<UndoMonth>) {
@@ -70,13 +71,37 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     return run(`mark ${title} ${verb}`, `${title}${cycleSuffix(year, month)} marked ${verb}`, write);
   }
 
-  async function payOrAsk(target: PayTarget) {
+  function payOrAsk(target: PayTarget): Promise<void> {
     const { expense, year, month } = target;
-    if (getDisplayAmount(expense, year, month) == null) {
+    const { bill, paid, left } = getBillProgress(expense, year, month);
+    if (bill == null) {
       paySheetRef.current?.present(target);
-      return;
+      return Promise.resolve();
     }
-    await mark(expense, year, month, "paid", () => payMonth(expense.id, year, month));
+    const title = expenseTitle(expense);
+    const monthName = dayjs(new Date(year, month, 1)).format("MMMM");
+    const accountId = payFromAccountId(expense, activeAccounts);
+    const accountName = accounts.find(({ id }) => id === accountId)?.name ?? DELETED_ACCOUNT;
+    const amount = paid > 0 && left != null ? left : bill;
+    const amountText = paid > 0 ? `the ${formatAmount(amount)} left` : formatAmount(amount);
+    const message =
+      amount > 0
+        ? `Pays ${amountText} from ${accountName} for ${monthName}.`
+        : paid > 0
+          ? `Nothing is left to pay for ${monthName}.`
+          : `${monthName} has no bill, so no money leaves an account.`;
+    return new Promise((resolve) => {
+      Alert.alert(`Mark "${title}" paid?`, message, [
+        { text: "Cancel", style: "cancel", onPress: () => resolve() },
+        {
+          text: "Mark paid",
+          onPress: async () => {
+            await mark(expense, year, month, "paid", () => payMonth(expense.id, year, month));
+            resolve();
+          },
+        },
+      ]);
+    });
   }
 
   function unpay(expense: Expense, year: number, month: number): Promise<void> {
@@ -162,7 +187,7 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
       },
       revertPayment,
     }),
-    [getBillProgress, getDisplayAmount, getMonthStatus, getPayments, payMonth, unpayMonth, revertPaymentRow, snackbar]
+    [accounts, activeAccounts, getBillProgress, getMonthStatus, getPayments, payMonth, unpayMonth, revertPaymentRow, snackbar]
   );
 
   async function confirm({ expense, year, month, paymentId }: PayTarget, { mode, ...payment }: PayConfirmation) {

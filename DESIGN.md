@@ -86,7 +86,8 @@ account transactions. Never hand-build another row.
 | accent | Periwinkle 15% | Periwinkle | Periwinkle | card bills and charges, loans, people |
 | muted | white 4% | Secondary Graphite | Muted Graphite | ended or not-due rows, reverted originals, transfer amounts |
 
-- **Swipe (`SwipeableRow`):** a full drag right pays or unpays at once (mint, 80dp; Undo in the snackbar). Dragging
+- **Swipe (`SwipeableRow`):** a full drag right pays or unpays (mint, 80dp; Undo in the snackbar). Both ask first: Pay
+  with an Alert naming the amount, account and month (a TBD bill opens the Pay sheet instead), Unpay with its own Alert. Dragging
   left reveals Delete (`trash-2`) or, for a bill payment, a transfer or a loan repayment, Revert (`rotate-ccw`), both
   coral, 80dp; both confirm with an Alert, and Revert keeps the original in history (history rows: transfers and
   loan payments revert; income deletes). Only one row stays open at a time, and opening one gives a selection haptic. Home peeks the

@@ -17,6 +17,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
 import { colors } from "@/constants/theme";
 import { useRefreshControl } from "@/utils/useRefreshControl";
+import { useHiddenAmounts } from "@/utils/useHiddenAmounts";
 import type { Account, AccountBankGroup } from "@/types";
 
 const GROUP_BY_BANK_PREFERENCE = "accountsGroupByBank";
@@ -25,20 +26,28 @@ function openAddAccount() {
   router.push("/account/edit");
 }
 
+function headerButtonClass(isOn: boolean) {
+  return isOn
+    ? "size-11 items-center justify-center rounded-full bg-primary/20"
+    : "size-11 items-center justify-center rounded-full";
+}
+
 function AccountRows({
   accounts,
   numColumns,
   isDimmed = false,
+  isAmountHidden,
 }: {
   accounts: Account[];
   numColumns: number;
   isDimmed?: boolean;
+  isAmountHidden: boolean;
 }) {
   return chunk(accounts, numColumns).map((row) => (
     <View key={row[0].id} className="flex-row gap-3 px-5 mb-3">
       {row.map((account) => (
         <View key={account.id} className={isDimmed ? "flex-1 opacity-60" : "flex-1"}>
-          <AccountCard account={account} isCompact={isDimmed} />
+          <AccountCard account={account} isCompact={isDimmed} isAmountHidden={isAmountHidden} />
         </View>
       ))}
       {row.length < numColumns && <View className="flex-1" />}
@@ -47,7 +56,15 @@ function AccountRows({
 }
 
 // Retired accounts, kept with their history. Collapsed by default so the grid stays about accounts in use.
-function ArchivedAccounts({ accounts, numColumns }: { accounts: Account[]; numColumns: number }) {
+function ArchivedAccounts({
+  accounts,
+  numColumns,
+  isAmountHidden,
+}: {
+  accounts: Account[];
+  numColumns: number;
+  isAmountHidden: boolean;
+}) {
   const [isOpen, { toggle }] = useBoolean(false);
   return (
     <View className="-mx-5">
@@ -59,16 +76,26 @@ function ArchivedAccounts({ accounts, numColumns }: { accounts: Account[]; numCo
         isCollapsed={!isOpen}
         onToggle={toggle}
       />
-      {isOpen && <AccountRows accounts={accounts} numColumns={numColumns} isDimmed />}
+      {isOpen && (
+        <AccountRows accounts={accounts} numColumns={numColumns} isDimmed isAmountHidden={isAmountHidden} />
+      )}
     </View>
   );
 }
 
-function BankGroup({ group, numColumns }: { group: AccountBankGroup; numColumns: number }) {
+function BankGroup({
+  group,
+  numColumns,
+  isAmountHidden,
+}: {
+  group: AccountBankGroup;
+  numColumns: number;
+  isAmountHidden: boolean;
+}) {
   return (
     <View className="-mx-5">
       <BandHeader label={group.label} icon="credit-card" accent={colors.secondary} count={group.accounts.length} />
-      <AccountRows accounts={group.accounts} numColumns={numColumns} />
+      <AccountRows accounts={group.accounts} numColumns={numColumns} isAmountHidden={isAmountHidden} />
     </View>
   );
 }
@@ -82,6 +109,7 @@ export default function AccountsScreen() {
   const hasSpacer = numColumns === 2 && activeAccounts.length % 2 === 1;
   const data: (Account | null)[] = hasSpacer ? [...activeAccounts, null] : activeAccounts;
   const [isGroupedByBank, setGroupedByBank] = useState(false);
+  const [isAmountHidden, { toggle: toggleAmountHidden }] = useHiddenAmounts("accounts");
 
   useAsyncEffect(async function* () {
     const saved = await getPreference(GROUP_BY_BANK_PREFERENCE);
@@ -100,7 +128,10 @@ export default function AccountsScreen() {
   }
 
   const archivedFooter =
-    archivedAccounts.length > 0 ? <ArchivedAccounts accounts={archivedAccounts} numColumns={numColumns} /> : undefined;
+    archivedAccounts.length > 0 ? (
+      <ArchivedAccounts accounts={archivedAccounts} numColumns={numColumns} isAmountHidden={isAmountHidden} />
+    ) : undefined;
+  const netWorthHero = <NetWorthHero isAmountHidden={isAmountHidden} />;
 
   if (isLoading) {
     return (
@@ -115,20 +146,25 @@ export default function AccountsScreen() {
       <View className="flex-row items-center justify-between pl-5 pr-2 pt-2 pb-1">
         <AppText variant="display">Accounts</AppText>
         {accounts.length > 0 && (
-          <TouchableOpacity
-            onPress={toggleGroupByBank}
-            activeOpacity={0.7}
-            className={
-              isGroupedByBank
-                ? "size-11 items-center justify-center rounded-full bg-primary/20"
-                : "size-11 items-center justify-center rounded-full"
-            }
-            accessibilityRole="switch"
-            accessibilityState={{ checked: isGroupedByBank }}
-            accessibilityLabel="Group by bank"
-          >
-            <Feather name="layers" size={22} color={isGroupedByBank ? colors.secondary : colors.text} />
-          </TouchableOpacity>
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={toggleAmountHidden} activeOpacity={0.7} className={headerButtonClass(!isAmountHidden)}>
+              <Feather
+                name={isAmountHidden ? "eye-off" : "eye"}
+                size={22}
+                color={isAmountHidden ? colors.text : colors.secondary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={toggleGroupByBank}
+              activeOpacity={0.7}
+              className={headerButtonClass(isGroupedByBank)}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: isGroupedByBank }}
+              accessibilityLabel="Group by bank"
+            >
+              <Feather name="layers" size={22} color={isGroupedByBank ? colors.secondary : colors.text} />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -144,9 +180,10 @@ export default function AccountsScreen() {
           key="bank"
           data={groupAccountsByBank(activeAccounts)}
           keyExtractor={(group) => group.key}
-          ListHeaderComponent={<NetWorthHero />}
+          ListHeaderComponent={netWorthHero}
           ListFooterComponent={archivedFooter}
-          renderItem={({ item }) => <BankGroup group={item} numColumns={numColumns} />}
+          extraData={isAmountHidden}
+          renderItem={({ item }) => <BankGroup group={item} numColumns={numColumns} isAmountHidden={isAmountHidden} />}
           contentContainerClassName="px-5 pt-2 pb-[140px]"
           showsVerticalScrollIndicator={false}
           refreshControl={refreshControl}
@@ -157,10 +194,15 @@ export default function AccountsScreen() {
           data={data}
           numColumns={numColumns}
           keyExtractor={(item) => item?.id ?? "spacer"}
-          ListHeaderComponent={<NetWorthHero />}
+          ListHeaderComponent={netWorthHero}
           ListFooterComponent={archivedFooter}
+          extraData={isAmountHidden}
           renderItem={({ item, index }) =>
-            item ? <AccountCard account={item} index={index} /> : <View className="flex-1" />
+            item ? (
+              <AccountCard account={item} index={index} isAmountHidden={isAmountHidden} />
+            ) : (
+              <View className="flex-1" />
+            )
           }
           columnWrapperClassName={numColumns === 2 ? "gap-3" : undefined}
           contentContainerClassName="gap-3 px-5 pt-2 pb-[140px]"

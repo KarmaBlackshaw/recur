@@ -307,7 +307,10 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)
   and Owed under a hairline. The header's layers toggle (saved, carried in backups) groups active accounts into a
-  band per bank, in account order, with accounts that have no bank last under "Other".
+  band per bank, in account order, with accounts that have no bank last under "Other". Before it, an eye toggle
+  shows the tab's amounts: the hero and every card read "₱••••••" (and "••% used") until it's tapped, and hide
+  again whenever another tab is picked or the app leaves the foreground. Opening an account and coming back keeps
+  them shown.
 - Activity's hero shows only its overline and the period's total, above the Stats row: no breakdown under the
   total for any type. Stats carries the detail.
 - Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header, and a filter toggle at the header's end

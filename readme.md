@@ -69,6 +69,8 @@ Amounts are in Philippine pesos (₱).
 - Bank accounts, e-wallets, credit cards and cash, with logos for 14 Philippine banks and e-wallets, including BDO,
   BPI, GCash and Maya.
 - **Net worth** across everything you have, lend and owe.
+- Balances on the Accounts tab stay hidden until you tap the eye, and hide again when you switch tabs or leave the
+  app.
 - Credit cards keep their limit, statement day and due date, and each month's card bill joins your other dues.
 - Savings interest is credited automatically at your account's rate, minus withholding tax.
 - Move money between accounts, with transfer fees, and edit or backdate a transfer later.

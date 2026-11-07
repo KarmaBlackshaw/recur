@@ -4,7 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
 import { Controller, useForm } from "react-hook-form";
-import dayjs from "dayjs";
 import { maxBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
 import { useTransferTemplates } from "@/context/TransferTemplateContext";
@@ -22,6 +21,7 @@ import { TRANSFER_CATEGORY } from "@/constants/categories";
 import { colors } from "@/constants/theme";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { alertFailure } from "@/utils/accounts/alertFailure";
+import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import { formatIncomeHint } from "@/utils/accounts/formatIncomeHint";
 import { formatIncomeSummary } from "@/utils/accounts/formatIncomeSummary";
 import { parseOptionalAmount } from "@/utils/accounts/parseOptionalAmount";
@@ -66,17 +66,6 @@ function findTransfer(transactions: AccountTransaction[], accounts: Account[], t
     fee: rows.find((t) => t.kind === "fee"),
     income: rows.find((t) => t.kind === "income"),
   };
-}
-
-// Today keeps the current time; an earlier day lands at noon. An edit that keeps the day keeps its original time.
-function toCreatedAt(date: string, original: string | undefined) {
-  if (original != null && dayjs(date).isSame(original, "day")) {
-    return original;
-  }
-  if (dayjs(date).isSame(dayjs(), "day")) {
-    return new Date().toISOString();
-  }
-  return dayjs(date).hour(12).startOf("hour").toISOString();
 }
 
 export default function TransferScreen() {
@@ -205,7 +194,7 @@ export default function TransferScreen() {
       income: parseOptionalAmount(data.income),
       incomeAccountId: data.incomeAccountId || data.toId,
       note: data.note.trim() || null,
-      createdAt: toCreatedAt(data.date, parts?.main.createdAt),
+      createdAt: stampPickedDay(data.date, parts?.main.createdAt),
     };
     try {
       if (id != null) {

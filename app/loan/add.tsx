@@ -23,6 +23,7 @@ import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { sanitizeAmount } from "@/utils/amountInput";
 import { formatAmount } from "@/utils/formatAmount";
 import { alertFailure } from "@/utils/accounts/alertFailure";
+import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
 import { canChangeLoan } from "@/utils/loans/canChangeLoan";
 import { toLoanInterest } from "@/utils/loans/toLoanInterest";
@@ -246,10 +247,11 @@ export default function AddLoanScreen() {
     });
 
   const onSubmit = handleSubmit(async (data) => {
-    const input = toLoanInput(data);
-    if (!input) {
+    const fields = toLoanInput(data);
+    if (!fields) {
       return;
     }
+    const input = { ...fields, lentAt: stampPickedDay(fields.lentAt, editing?.lentAt) };
     try {
       if (isEditing && id) {
         await loans.updateLoan(id, input);

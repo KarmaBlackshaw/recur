@@ -14,7 +14,7 @@ import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { formatDaysLate, getDueDateForMonth, isOverdueOn } from "@/utils/dateHelpers";
-import { paidAtFor } from "@/utils/dates/paidAtFor";
+import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { billProgress, canPayPart } from "@/utils/expenses/billProgress";
 import { formatAmount } from "@/utils/formatAmount";
@@ -184,7 +184,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
                 <AppDateField
                   label="Paid on"
                   value={value}
-                  onChange={(iso) => onChange(paidAtFor(iso))}
+                  onChange={(iso) => onChange(stampPickedDay(iso))}
                   minimumDate={latestPaidAt ? dayjs(latestPaidAt).toDate() : undefined}
                   maximumDate={new Date()}
                 />

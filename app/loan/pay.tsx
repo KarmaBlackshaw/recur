@@ -19,6 +19,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { TransferInButton } from "@/components/accounts/TransferInButton";
 import { LoanSplitPreview } from "@/components/loans/LoanSplitPreview";
 import { alertFailure } from "@/utils/accounts/alertFailure";
+import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { maxPaymentOn } from "@/utils/loans/maxPaymentOn";
@@ -177,13 +178,14 @@ function PaymentForm({ choices, payment }: FormProps) {
   const onSubmit = handleSubmit(async (values) => {
     try {
       const saved = splitFor(values.amount, values.paidAt);
+      const paidAt = stampPickedDay(values.paidAt, payment?.createdAt);
       setSavedSplit(saved);
       if (payment) {
         await loans.updatePayment(payment.id, {
           loanId: choices[0].id,
           accountId: values.accountId,
           amount: parseFloat(values.amount),
-          paidAt: values.paidAt,
+          paidAt,
         });
       } else {
         const payments = saved.parts
@@ -192,7 +194,7 @@ function PaymentForm({ choices, payment }: FormProps) {
             loanId: loan.id,
             accountId: values.accountId,
             amount: share,
-            paidAt: values.paidAt,
+            paidAt,
           }));
         const savedExcess = excessOf(saved);
         await loans.recordPayments(

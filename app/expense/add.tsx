@@ -29,6 +29,7 @@ import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { formatOrdinal, getDueDateForMonth } from "@/utils/dateHelpers";
 import { maybeAskForReminders } from "@/utils/reminderPermission";
 import { alertFailure } from "@/utils/accounts/alertFailure";
+import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import type { Expense, Recurrence, ExpenseFormValues, TOption } from "@/types";
@@ -309,7 +310,7 @@ export default function AddExpenseScreen() {
       notes: data.notes.trim() || undefined,
       // "0" is off, empty is the default (a day before).
       reminderDaysBefore: isRegular || payCard ? null : reminder === "" ? null : parseInt(reminder, 10),
-      paidDate: isRegular ? data.paidDate : null,
+      paidDate: isRegular ? stampPickedDay(data.paidDate, editingExpense?.paidDate) : null,
       startYear: startParsed ? startParsed.year() : null,
       startMonth: startParsed ? startParsed.month() : null,
       endYear: endParsed ? endParsed.getFullYear() : null,

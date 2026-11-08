@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useRef } from "react";
 import { Alert } from "react-native";
 import dayjs from "dayjs";
+import { PayConfirmSheet, type PayConfirmSheetRef } from "@/components/PayConfirmSheet";
 import { PaySheet, type PayConfirmation, type PaySheetRef, type PayTarget } from "@/components/PaySheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { useAccounts } from "@/context/AccountContext";
@@ -17,7 +18,7 @@ import { round } from "@/utils/round";
 import type { AccountTransaction, Expense } from "@/types";
 
 interface PayFlowValue {
-  // Pays at once when the amount is known (with an Undo snackbar); otherwise opens the Pay sheet to ask.
+  // Asks to confirm in a sheet, then pays when the amount is known (with an Undo snackbar); otherwise opens the Pay sheet to ask.
   pay: (expense: Expense, year: number, month: number) => Promise<void>;
   // Asks first, then reverses every payment of the month (with an Undo snackbar).
   unpay: (expense: Expense, year: number, month: number) => Promise<void>;
@@ -40,9 +41,9 @@ function cycleSuffix(year: number, month: number): string {
 
 export function PayFlowProvider({ children }: { children: React.ReactNode }) {
   const paySheetRef = useRef<PaySheetRef>(null);
+  const payConfirmRef = useRef<PayConfirmSheetRef>(null);
   const {
     getBillProgress,
-    getDisplayAmount,
     getMonthStatus,
     payMonth,
     payPart,
@@ -70,13 +71,15 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     return run(`mark ${title} ${verb}`, `${title}${cycleSuffix(year, month)} marked ${verb}`, write);
   }
 
-  async function payOrAsk(target: PayTarget) {
+  async function payOrAsk(target: PayTarget): Promise<void> {
     const { expense, year, month } = target;
-    if (getDisplayAmount(expense, year, month) == null) {
+    if (getBillProgress(expense, year, month).bill == null) {
       paySheetRef.current?.present(target);
       return;
     }
-    await mark(expense, year, month, "paid", () => payMonth(expense.id, year, month));
+    if (await payConfirmRef.current?.ask(target)) {
+      await mark(expense, year, month, "paid", () => payMonth(expense.id, year, month));
+    }
   }
 
   function unpay(expense: Expense, year: number, month: number): Promise<void> {
@@ -162,7 +165,7 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
       },
       revertPayment,
     }),
-    [getBillProgress, getDisplayAmount, getMonthStatus, getPayments, payMonth, unpayMonth, revertPaymentRow, snackbar]
+    [getBillProgress, getMonthStatus, getPayments, payMonth, unpayMonth, revertPaymentRow, snackbar]
   );
 
   async function confirm({ expense, year, month, paymentId }: PayTarget, { mode, ...payment }: PayConfirmation) {
@@ -190,6 +193,7 @@ export function PayFlowProvider({ children }: { children: React.ReactNode }) {
     <PayFlowContext.Provider value={value}>
       {children}
       <PaySheet ref={paySheetRef} onConfirm={confirm} />
+      <PayConfirmSheet ref={payConfirmRef} />
     </PayFlowContext.Provider>
   );
 }

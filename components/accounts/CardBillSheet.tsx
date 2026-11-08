@@ -14,7 +14,7 @@ import { AppTextInput } from "@/components/ui/AppTextInput";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { isBillTbd } from "@/utils/cardBills";
-import { paidAtFor } from "@/utils/dates/paidAtFor";
+import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import { formatAmount } from "@/utils/formatAmount";
 import type { CardBill } from "@/types";
 
@@ -187,7 +187,7 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
                     <AppDateField
                       label="Paid on"
                       value={value}
-                      onChange={(iso) => onChange(paidAtFor(iso))}
+                      onChange={(iso) => onChange(stampPickedDay(iso))}
                       minimumDate={firstPayDay}
                       maximumDate={new Date()}
                     />

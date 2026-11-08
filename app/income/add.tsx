@@ -18,6 +18,7 @@ import { AppTextInput } from "@/components/ui/AppTextInput";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { alertFailure } from "@/utils/accounts/alertFailure";
+import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import type { AccountTransaction } from "@/types";
 import dayjs from "dayjs";
 
@@ -109,7 +110,7 @@ export default function AddIncomeScreen() {
       amount: parseFloat(data.amount),
       category: data.category,
       note: data.notes.trim() || null,
-      receivedAt: data.receivedAt,
+      receivedAt: stampPickedDay(data.receivedAt, editingIncome?.createdAt),
     };
 
     try {

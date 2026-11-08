@@ -178,10 +178,6 @@ interface ExpenseContextValue {
 
 const ExpenseContext = createContext<ExpenseContextValue | null>(null);
 
-function paidDateTimestamp(expense: Pick<Expense, "paidDate">): string | undefined {
-  return expense.paidDate ? dayjs(expense.paidDate).endOf("day").toISOString() : undefined;
-}
-
 function paymentNote(expense: Pick<Expense, "name" | "category">): string {
   return expense.name || expense.category;
 }
@@ -291,7 +287,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
             cycleMonth: null,
             amount: saved.amount,
             note: paymentNote(saved),
-            createdAt: paidDateTimestamp(saved),
+            createdAt: saved.paidDate ?? undefined,
           });
         } catch (err) {
           console.error("Failed to sync one-off payment, removing expense", err);
@@ -345,7 +341,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
             cycleMonth: null,
             amount: fields.amount,
             note: paymentNote(fields),
-            createdAt: paidDateTimestamp(fields),
+            createdAt: fields.paidDate ?? undefined,
           });
         } else if (existing.recurrence === "one-off") {
           await reverseOneOffPayment(id);
@@ -781,7 +777,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
               cycleMonth: null,
               amount: expense.amount,
               note: paymentNote(expense),
-              createdAt: paidDateTimestamp(expense),
+              createdAt: expense.paidDate ?? undefined,
             });
           } else {
             await reverseOneOffPayment(id);

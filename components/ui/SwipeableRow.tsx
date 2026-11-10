@@ -38,6 +38,7 @@ interface Props {
   rightAction?: SwipeAction;
   // Briefly reveals the left action once, to teach the gesture.
   isHintShown?: boolean;
+  enabled?: SharedValue<boolean>;
 }
 
 // Only one row stays swiped open at a time across every list.
@@ -63,7 +64,7 @@ function ActionReveal({ side, translation, children }: ActionRevealProps) {
   );
 }
 
-export function SwipeableRow({ children, leftAction, rightAction, isHintShown = false }: Props) {
+export function SwipeableRow({ children, leftAction, rightAction, isHintShown = false, enabled }: Props) {
   const ref = useRef<SwipeableMethods>(null);
   const isPeeking = useRef(false);
 
@@ -166,6 +167,7 @@ export function SwipeableRow({ children, leftAction, rightAction, isHintShown = 
   return (
     <ReanimatedSwipeable
       ref={ref}
+      enabled={enabled}
       renderLeftActions={leftAction ? renderLeftActions : undefined}
       renderRightActions={rightAction ? renderRightActions : undefined}
       leftThreshold={FULL_SWIPE_THRESHOLD}

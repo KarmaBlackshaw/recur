@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { useAsyncEffect } from "@/utils/useAsyncEffect";
 import { useMemoizedFn } from "@/utils/useMemoizedFn";
-import { sortBy, sumBy } from "@/utils/collections";
+import { keyBy, sortBy, sumBy } from "@/utils/collections";
 import { round } from "@/utils/round";
 import { formatAmount } from "@/utils/formatAmount";
 import dayjs from "dayjs";
@@ -222,6 +222,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     monthAmounts: {},
     monthPaidAts: {},
   });
+  const expensesById = useMemo(() => keyBy(state.expenses, "id"), [state.expenses]);
 
   useAsyncEffect(async function* () {
     try {
@@ -357,7 +358,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
   const getMonthStatus = useCallback(
     (id: string, year: number, month: number): Status => {
-      const expense = state.expenses.find((e) => e.id === id);
+      const expense = expensesById[id];
       if (!expense) {
         return "unpaid";
       }
@@ -366,7 +367,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       }
       return state.monthStatuses[monthKey(id, year, month)] ?? "unpaid";
     },
-    [state.expenses, state.monthStatuses]
+    [expensesById, state.monthStatuses]
   );
 
   const getMonthAmount = useCallback(

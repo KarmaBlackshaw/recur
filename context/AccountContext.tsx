@@ -174,11 +174,34 @@ export function isPaymentFor(expenseId: string, cycleYear: number | null, cycleM
     t.kind === "payment" && t.expenseId === expenseId && t.cycleYear === cycleYear && t.cycleMonth === cycleMonth;
 }
 
+function paymentKey(expenseId: string, cycleYear: number | null, cycleMonth: number | null) {
+  return JSON.stringify([expenseId, cycleYear, cycleMonth]);
+}
+
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { accounts: [], ledger: [], billOverrides: [], isLoading: true });
   const isRunningInterest = useRef(false);
 
   const transactions = useMemo(() => inEffectTransactions(state.ledger), [state.ledger]);
+  const paymentsByCycle = useMemo(() => {
+    const payments = new Map<string, AccountTransaction[]>();
+    for (const transaction of transactions) {
+      if (transaction.kind !== "payment" || transaction.expenseId == null) {
+        continue;
+      }
+      const key = paymentKey(transaction.expenseId, transaction.cycleYear, transaction.cycleMonth);
+      const cyclePayments = payments.get(key);
+      if (cyclePayments) {
+        cyclePayments.push(transaction);
+      } else {
+        payments.set(key, [transaction]);
+      }
+    }
+    for (const [key, cyclePayments] of payments) {
+      payments.set(key, sortBy(cyclePayments, "createdAt"));
+    }
+    return payments;
+  }, [transactions]);
 
   const reload = useMemoizedFn(async () => {
     const [accounts, ledger, billOverrides] = await Promise.all([
@@ -696,8 +719,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   const getPayments = useCallback(
     (expenseId: string, cycleYear: number | null, cycleMonth: number | null) =>
-      sortBy(transactions.filter(isPaymentFor(expenseId, cycleYear, cycleMonth)), "createdAt"),
-    [transactions]
+      [...(paymentsByCycle.get(paymentKey(expenseId, cycleYear, cycleMonth)) ?? [])],
+    [paymentsByCycle]
   );
 
   const isTxnCharged = useCallback(

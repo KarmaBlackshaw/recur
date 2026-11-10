@@ -1,6 +1,6 @@
 import React from "react";
 import { type AccessibilityActionEvent } from "react-native";
-import Animated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
+import Animated, { FadeInDown, useReducedMotion, type SharedValue } from "react-native-reanimated";
 import dayjs from "dayjs";
 import { AppListRow, type RowTone } from "@/components/ui/AppListRow";
 import { SwipeableRow, type SwipeAction } from "@/components/ui/SwipeableRow";
@@ -26,6 +26,7 @@ interface Props {
   canOpenBillSheet?: boolean; // unpaid rows open the bill sheet on tap (Home and Recurring due lists)
   isSwipeHintShown?: boolean; // peek the Pay swipe once to teach it
   paidTxn?: AccountTransaction;
+  swipeEnabled?: SharedValue<boolean>;
 }
 
 export function ExpenseCard({
@@ -38,6 +39,7 @@ export function ExpenseCard({
   canOpenBillSheet = false,
   isSwipeHintShown = false,
   paidTxn,
+  swipeEnabled,
 }: Props) {
   const { getMonthStatus, getBillProgress, getMonthPaidAt } = useExpenses();
   const { accounts, isCharged, isCardAccount, isTxnCharged } = useAccounts();
@@ -150,7 +152,7 @@ export function ExpenseCard({
   const rightAction: SwipeAction = { label: "Delete", icon: "trash-2", tone: "negative", onPress: handleDelete };
 
   return (
-    <SwipeableRow leftAction={leftAction} rightAction={rightAction} isHintShown={isSwipeHintShown}>
+    <SwipeableRow leftAction={leftAction} rightAction={rightAction} isHintShown={isSwipeHintShown} enabled={swipeEnabled}>
       <Animated.View entering={isReducedMotion ? undefined : FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}>
         <AppListRow
           icon={categoryIcon(expense.category)}

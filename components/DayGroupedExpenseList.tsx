@@ -1,5 +1,6 @@
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { SectionList } from "react-native";
+import { useSharedValue } from "react-native-reanimated";
 import { DayHeaderRow } from "@/components/DayHeaderRow";
 import { ActivityEntryRow } from "@/components/ActivityEntryRow";
 import { TransferSheet, type TransferSheetRef } from "@/components/accounts/TransferSheet";
@@ -35,6 +36,8 @@ export type ActivityEntry = LedgerEntry | IncomeEntry | InterestEntry | Transfer
 // out −, 0 when it doesn't count) and the header shows the day's net, or nothing when no row counts.
 export type DayTotal = "sum" | "none" | ((entry: ActivityEntry) => number);
 
+const SWIPE_GESTURE_REENABLE_DELAY_MS = 300;
+
 interface DaySection {
   key: string;
   date: Date;
@@ -58,6 +61,17 @@ interface Props {
 export function DayGroupedExpenseList({ entries, grouped = true, dayTotal = "sum", ListHeaderComponent, ListEmptyComponent, refreshControl }: Props) {
   const transferSheetRef = useRef<TransferSheetRef>(null);
   const loanSheetRef = useRef<LoanSheetRef>(null);
+  const swipeGesturesEnabled = useSharedValue(true);
+  const swipeReenableTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (swipeReenableTimeout.current != null) {
+        clearTimeout(swipeReenableTimeout.current);
+      }
+    };
+  }, []);
+
   const sections = useMemo<DaySection[]>(() => {
     if (!grouped) {
       return [{ key: "all", date: entries[0]?.effDate ?? new Date(), total: undefined, data: entries }];
@@ -65,18 +79,49 @@ export function DayGroupedExpenseList({ entries, grouped = true, dayTotal = "sum
     return groupEntriesByDay(entries).map((day) => ({ ...day, total: dayTotalOf(day.data, dayTotal) }));
   }, [entries, grouped, dayTotal]);
 
+  function clearSwipeReenableTimeout() {
+    if (swipeReenableTimeout.current != null) {
+      clearTimeout(swipeReenableTimeout.current);
+      swipeReenableTimeout.current = null;
+    }
+  }
+
+  function disableSwipeGestures() {
+    clearSwipeReenableTimeout();
+    swipeGesturesEnabled.value = false;
+  }
+
+  function enableSwipeGestures() {
+    clearSwipeReenableTimeout();
+    swipeGesturesEnabled.value = true;
+  }
+
+  function scheduleSwipeReenable() {
+    clearSwipeReenableTimeout();
+    swipeReenableTimeout.current = setTimeout(() => {
+      swipeGesturesEnabled.value = true;
+      swipeReenableTimeout.current = null;
+    }, SWIPE_GESTURE_REENABLE_DELAY_MS);
+  }
+
   return (
     <>
       <SectionList
         sections={sections}
+        windowSize={7}
         keyExtractor={(item) => item.key}
         ListHeaderComponent={ListHeaderComponent}
         ListEmptyComponent={ListEmptyComponent}
         refreshControl={refreshControl}
+        onScrollBeginDrag={disableSwipeGestures}
+        onScrollEndDrag={scheduleSwipeReenable}
+        onMomentumScrollBegin={disableSwipeGestures}
+        onMomentumScrollEnd={enableSwipeGestures}
         renderItem={({ item, index }) => (
           <ActivityEntryRow
             item={item}
             index={index}
+            swipeEnabled={swipeGesturesEnabled}
             onOpenTransfer={(transfer) => transferSheetRef.current?.present(transfer)}
             onOpenLoan={(txn) => loanSheetRef.current?.present(txn)}
           />

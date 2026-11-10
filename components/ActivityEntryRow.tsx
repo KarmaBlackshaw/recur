@@ -7,15 +7,17 @@ import { TransferRow } from "@/components/accounts/TransferRow";
 import { LoanActivityRow } from "@/components/loans/LoanActivityRow";
 import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
 import type { AccountTransaction } from "@/types";
+import type { SharedValue } from "react-native-reanimated";
 
 interface Props {
   item: ActivityEntry;
   index: number;
+  swipeEnabled?: SharedValue<boolean>;
   onOpenTransfer: (transfer: AccountTransaction) => void;
   onOpenLoan: (txn: AccountTransaction) => void;
 }
 
-export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenLoan }: Props): React.JSX.Element {
+export function ActivityEntryRow({ item, index, swipeEnabled, onOpenTransfer, onOpenLoan }: Props): React.JSX.Element {
   switch (item.kind) {
     case "income":
       return <IncomeRow entry={item} />;
@@ -38,6 +40,7 @@ export function ActivityEntryRow({ item, index, onOpenTransfer, onOpenLoan }: Pr
           canOpenBillSheet={item.canOpenBillSheet}
           isSwipeHintShown={item.isSwipeHintShown}
           paidTxn={item.paidTxn}
+          swipeEnabled={swipeEnabled}
         />
       );
   }

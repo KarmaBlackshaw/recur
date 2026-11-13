@@ -20,6 +20,7 @@ import { PayFlowProvider } from "@/context/PayFlowContext";
 import { NotificationRouter } from "@/components/NotificationRouter";
 import { colors } from "@/constants/theme";
 import { registerNotificationCategories } from "@/utils/notifications";
+import { skipRepeatPush } from "@/utils/navigation/skipRepeatPush";
 import "@/global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -77,6 +78,7 @@ export default function RootLayout() {
                   <BottomSheetModalProvider>
                     <PayFlowProvider>
                       <Stack
+                        UNSTABLE_router={skipRepeatPush}
                         screenOptions={{
                           headerShown: false,
                           contentStyle: { backgroundColor: colors.background },

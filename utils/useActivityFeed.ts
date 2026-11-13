@@ -12,7 +12,7 @@ import {
   type InterestEntry,
   type TransferEntry,
 } from "@/utils/usePaidLedger";
-import { useLoanActivity, type LoanActivityEntry } from "@/utils/useLoanActivity";
+import { useLoanActivity, type LoanFeedEntry } from "@/utils/useLoanActivity";
 
 export interface ActivityFeed {
   all: ActivityEntry[];
@@ -21,7 +21,7 @@ export interface ActivityFeed {
   income: (IncomeEntry | InterestEntry)[];
   transfers: TransferEntry[];
   // Money lent and repaid. Kept out of paid and income: lending moves money you still own (net worth counts it).
-  loans: LoanActivityEntry[];
+  loans: LoanFeedEntry[];
 }
 
 // Every activity row across all time, newest first. Home shows the latest
@@ -31,8 +31,8 @@ export function useActivityFeed(): ActivityFeed {
   const ledger = usePaidLedger();
   const billPayments = useBillPayments();
   const transfers = useTransfers();
-  const loanActivity = useLoanActivity();
   const incomeEntries = useIncomeEntries();
+  const loanActivity = useLoanActivity(incomeEntries);
   const interestCredits = useInterestCredits();
 
   return useMemo(() => {
@@ -56,7 +56,14 @@ export function useActivityFeed(): ActivityFeed {
       "effDate",
       "desc"
     );
-    const all = orderBy([...paid, ...charged, ...income, ...transfers, ...loanActivity], "effDate", "desc");
+    const foldedKeys = new Set(
+      loanActivity.flatMap((entry) => (entry.kind === "repayment" && entry.excess ? [entry.excess.key] : []))
+    );
+    const all = orderBy(
+      [...paid, ...charged, ...income.filter(({ key }) => !foldedKeys.has(key)), ...transfers, ...loanActivity],
+      "effDate",
+      "desc"
+    );
     return { all, paid, charged, income, transfers, loans: loanActivity };
   }, [ledger, billPayments, transfers, loanActivity, incomeEntries, interestCredits, transactions]);
 }

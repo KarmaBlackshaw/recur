@@ -14,15 +14,22 @@ import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppFab } from "@/components/ui/AppFab";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LoanRow } from "@/components/loans/LoanRow";
+import { RepaymentRow } from "@/components/loans/RepaymentRow";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/formatAmount";
 import { loanTitle } from "@/utils/loans/loanTitle";
+import { useRevertRepayment } from "@/utils/loans/useRevertRepayment";
 import { useRefreshControl } from "@/utils/useRefreshControl";
-import type { Loan } from "@/types";
+import type { Loan, TRepayment } from "@/types";
+
+type TBorrowerRow =
+  | { kind: "loan"; key: string; loan: Loan }
+  | { kind: "repayment"; key: string; repayment: TRepayment };
 
 export default function BorrowerLoansScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const loans = useLoans();
+  const revertRepayment = useRevertRepayment();
   const accounts = useAccounts();
   const refreshControl = useRefreshControl();
   const insets = useSafeAreaInsets();
@@ -36,6 +43,11 @@ export default function BorrowerLoansScreen() {
       settled: orderBy(settledLoans, ({ id }) => loans.summaries[id]?.settledAt ?? "", "desc"),
     };
   }, [loans.loans, loans.summaries, name]);
+
+  const payments = useMemo(
+    () => loans.repayments.filter(({ borrower }) => borrower === name),
+    [loans.repayments, name]
+  );
 
   if (accounts.isLoading || loans.isLoading) {
     return (
@@ -63,9 +75,17 @@ export default function BorrowerLoansScreen() {
     ? { overline: "Collected", tone: "paid" }
     : { overline: "Owes you", tone: "secondary" };
   const meta = `${active.length} active · ${settled.length} settled`;
-  const sections = [
-    { title: "Active", data: active },
-    { title: "Settled", data: settled },
+  const sections: { title: string; data: TBorrowerRow[] }[] = [
+    { title: "Active", data: active.map((loan): TBorrowerRow => ({ kind: "loan", key: loan.id, loan })) },
+    { title: "Settled", data: settled.map((loan): TBorrowerRow => ({ kind: "loan", key: loan.id, loan })) },
+    {
+      title: "Payments",
+      data: payments.map((repayment): TBorrowerRow => ({
+        kind: "repayment",
+        key: `repayment:${repayment.id}`,
+        repayment,
+      })),
+    },
   ].filter(({ data }) => data.length > 0);
 
   function recordPayment() {
@@ -76,19 +96,22 @@ export default function BorrowerLoansScreen() {
     router.push({ pathname: "/loan/pay", params: { borrower: name } });
   }
 
-  function renderItem({ item }: { item: Loan }) {
-    const summary = loans.summaries[item.id];
+  function renderItem({ item }: { item: TBorrowerRow }) {
+    if (item.kind === "repayment") {
+      return <RepaymentRow repayment={item.repayment} onRevert={() => revertRepayment(item.repayment)} />;
+    }
+    const { loan } = item;
+    const summary = loans.summaries[loan.id];
     if (!summary) {
       return null;
     }
     return (
       <LoanRow
-        loan={item}
+        loan={loan}
         summary={summary}
-        accountName={accounts.accounts.find(({ id }) => id === item.accountId)?.name}
         today={today}
-        title={loanTitle(item)}
-        onPress={() => router.push({ pathname: "/loan/[id]", params: { id: item.id } })}
+        title={loanTitle(loan)}
+        onPress={() => router.push({ pathname: "/loan/[id]", params: { id: loan.id } })}
       />
     );
   }
@@ -99,7 +122,7 @@ export default function BorrowerLoansScreen() {
 
       <SectionList
         sections={sections}
-        keyExtractor={({ id }) => id}
+        keyExtractor={({ key }) => key}
         stickySectionHeadersEnabled={false}
         contentContainerClassName="pb-[96px]"
         refreshControl={refreshControl}

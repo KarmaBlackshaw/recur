@@ -19,6 +19,7 @@ export function buildReversal(original: AccountTransaction, now: string): Omit<A
     category: null,
     loanId: original.loanId,
     reversesId: original.id,
+    repaymentId: original.repaymentId,
     createdAt: isNowBeforeOriginal ? original.createdAt : now,
   };
 }

@@ -12,7 +12,7 @@ import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
-import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
+import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { formatDaysLate, getDueDateForMonth, isOverdueOn } from "@/utils/dateHelpers";
 import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import { expenseTitle } from "@/utils/expenseHelpers";
@@ -60,7 +60,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   const [target, setTarget] = useState<PayTarget | null>(null);
   const [footer, setFooter] = useState<SheetFooter>();
   const { getBillProgress, getDisplayAmount, getMonthAmount, getMonthPaidAt, getMonthStatus } = useExpenses();
-  const { accounts, activeAccounts, getPayments } = useAccounts();
+  const { nameOf, activeAccounts, getPayments } = useAccounts();
   const {
     control,
     handleSubmit,
@@ -144,7 +144,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
   const latestPaidAt =
     target && progress ? getPayments(target.expense.id, target.year, target.month).at(-1)?.createdAt : undefined;
   const isCoveringBill = progress?.left != null && parsedAmount > 0 && !canPayPart(progress, parsedAmount);
-  const accountName = accounts.find((a) => a.id === accountId)?.name ?? DELETED_ACCOUNT;
+  const accountName = nameOf(accountId);
   const cycleLabel = target ? dayjs(new Date(target.year, target.month, 1)).format("MMMM") : "";
   const lateText =
     target && dueDate && !isPaidAlready && isOverdueOn(target.expense.dueDay, target.year, target.month)

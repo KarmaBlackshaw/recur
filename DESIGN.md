@@ -95,6 +95,12 @@ account transactions. Never hand-build another row.
 - **Reverted and reversal rows:** a reverted original keeps its glyph and signed amount, is muted, captions
   "Reverted Nov 5" (the date of its reversal) and has no tap or swipe. Its reversal row (`rotate-ccw` tile, "Reversal: <original title>") is an
   ordinary row in its direction's tone, also with no tap or swipe.
+- **Loan repayment rows:** one row per repayment, not one per loan it touched. Activity shows `arrow-down-left` mint,
+  "<Name> repaid", meta "account · loan(s)" and caption "Settled" or "n settled", plus "+₱X extra" when it overpaid.
+  The borrower page lists them under a "Payments" header after Active and Settled, newest first: title "Paid into
+  <account>", meta "n loans · k settled", caption date · extra. They have no tap; dragging left reveals Revert
+  (`rotate-ccw`, coral), which asks with an Alert. A reverted repayment leaves both lists, and its rows stay in the
+  account's history, marked reverted.
 
 ### Detail Row (`components/ui/AppDetailRow.tsx`)
 One label and value on a line: the facts on a detail screen or sheet (a bill's plan, a loan's totals, a transfer, a

@@ -32,7 +32,7 @@ const HERO: Record<"active" | "settled", { overline: string; tone: HeroTone }> =
 export default function LoanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const loans = useLoans();
-  const accounts = useAccounts();
+  const { nameOf } = useAccounts();
   const revertLoan = useRevertLoan();
   const refreshControl = useRefreshControl();
   const loan = loans.loans.find((l) => l.id === id);
@@ -42,7 +42,6 @@ export default function LoanDetailScreen() {
     if (!loan || !summary) {
       return [];
     }
-    const nameOf = (accountId: string) => accounts.accounts.find((a) => a.id === accountId)?.name;
     const overpaidBy = new Map(summary.overpayments.map(({ payment, amount }) => [payment.id, amount]));
     const items: TLoanHistoryItem[] = [
       {
@@ -80,7 +79,7 @@ export default function LoanDetailScreen() {
       date: dayjs(key).toDate(),
       data,
     }));
-  }, [loan, summary, loans.paymentsOf, accounts.accounts]);
+  }, [loan, summary, loans.paymentsOf, nameOf]);
 
   function renderItem({ item }: { item: TLoanHistoryItem }) {
     if (item.kind !== "payment" || !loan) {

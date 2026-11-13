@@ -1,5 +1,6 @@
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { incomeTitle } from "@/utils/accounts/incomeTitle";
+import { repaidTitle } from "@/utils/loans/repaidTitle";
 import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
 
 export interface ActivitySearchContext {
@@ -24,8 +25,19 @@ function searchableText(entry: ActivityEntry, { accountName }: ActivitySearchCon
     case "loan": {
       const { loanTxn, loan } = entry;
       const borrower = loan?.borrower;
-      const title = borrower == null ? null : loanTxn.kind === "loan_in" ? `${borrower} repaid` : `Lent to ${borrower}`;
+      const title = borrower == null ? null : `Lent to ${borrower}`;
       return [title, "loan", accountName(loanTxn.accountId)];
+    }
+    case "repayment": {
+      const { repayment, excess } = entry;
+      const { borrower } = repayment;
+      return [
+        borrower == null ? null : repaidTitle(borrower),
+        "loan",
+        ...repayment.accountIds.map(accountName),
+        excess?.income.category,
+        ...repayment.payments.map(({ txn }) => txn.amount.toFixed(2)),
+      ];
     }
     case "billPayment":
       return [`${entry.account.name} bill`, entry.sourceName];

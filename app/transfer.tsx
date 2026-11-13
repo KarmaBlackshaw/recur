@@ -88,7 +88,7 @@ export default function TransferScreen() {
     if (parts) {
       const { from, to, main, fee, income } = parts;
       const toId = to?.accountId ?? "";
-      const toName = accounts.accounts.find((a) => a.id === toId)?.name;
+      const toName = accounts.nameOf(toId);
       const note = main.note ?? "";
       return {
         fromId: from?.accountId ?? "",

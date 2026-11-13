@@ -3,8 +3,11 @@ import dayjs from "dayjs";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { TRANSFER_CATEGORY } from "@/constants/categories";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
+import { chunk, groupBy } from "@/utils/collections";
 import { inferStartMonth } from "@/utils/dateHelpers";
 import type { Expense, Status } from "@/types";
+
+const REPAYMENT_OWNER_SQL = "IFNULL(l.borrower, 'loan:' || IFNULL(t.loan_id, t.id))";
 
 let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -333,6 +336,9 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
       "ALTER TABLE account_transactions ADD COLUMN reverses_id TEXT REFERENCES account_transactions(id) ON DELETE CASCADE"
     );
   }
+  if (!txnCols.some((c) => c.name === "repayment_id")) {
+    await db.execAsync("ALTER TABLE account_transactions ADD COLUMN repayment_id TEXT");
+  }
   await db.execAsync(
     "CREATE INDEX IF NOT EXISTS idx_txn_account ON account_transactions(account_id)"
   );
@@ -492,4 +498,67 @@ export async function backfillHistory(database: SQLite.SQLiteDatabase): Promise<
     "UPDATE account_transactions SET category = ? WHERE kind = 'income' AND transfer_id IS NOT NULL AND category IS NOT ?",
     [TRANSFER_CATEGORY, TRANSFER_CATEGORY]
   );
+
+  await groupLegacyRepayments(database);
+  await database.runAsync(
+    `UPDATE account_transactions SET repayment_id = (
+       SELECT p.repayment_id FROM account_transactions p
+       WHERE p.kind = 'loan_in' AND p.repayment_id IS NOT NULL AND p.loan_id = account_transactions.loan_id
+         AND p.account_id = account_transactions.account_id AND p.created_at = account_transactions.created_at
+         AND p.rowid < account_transactions.rowid
+       ORDER BY p.rowid DESC LIMIT 1
+     )
+     WHERE kind = 'income' AND repayment_id IS NULL AND loan_id IS NOT NULL AND transfer_id IS NULL
+       AND EXISTS (
+         SELECT 1 FROM account_transactions p
+         WHERE p.kind = 'loan_in' AND p.repayment_id IS NOT NULL AND p.loan_id = account_transactions.loan_id
+           AND p.account_id = account_transactions.account_id AND p.created_at = account_transactions.created_at
+           AND p.rowid < account_transactions.rowid
+       )`
+  );
+  await database.runAsync(
+    `UPDATE account_transactions SET repayment_id = (
+       SELECT o.repayment_id FROM account_transactions o WHERE o.id = account_transactions.reverses_id
+     )
+     WHERE kind = 'reversal' AND repayment_id IS NULL AND reverses_id IS NOT NULL
+       AND EXISTS (
+         SELECT 1 FROM account_transactions o
+         WHERE o.id = account_transactions.reverses_id AND o.repayment_id IS NOT NULL
+       )`
+  );
+}
+
+// One borrower payment writes its loan_in rows back to back with the same account and timestamp, at most one per
+// loan. Older rows have no repayment id, so group them by that key in insert order; a loan already in the group
+// starts a new one, since two payments on the same day were saved with the same timestamp.
+async function groupLegacyRepayments(database: SQLite.SQLiteDatabase): Promise<void> {
+  const rows = await database.getAllAsync<{ id: string; loanId: string | null; key: string }>(
+    `SELECT t.id, t.loan_id AS loanId, ${REPAYMENT_OWNER_SQL} || '|' || t.account_id || '|' || t.created_at AS key
+     FROM account_transactions t LEFT JOIN loans l ON l.id = t.loan_id
+     WHERE t.kind = 'loan_in' AND t.repayment_id IS NULL ORDER BY t.rowid`
+  );
+  for (const bucket of Object.values(groupBy(rows, (row) => row.key))) {
+    for (const group of splitByLoan(bucket)) {
+      for (const ids of chunk(group.map((row) => row.id), 500)) {
+        await database.runAsync(
+          `UPDATE account_transactions SET repayment_id = ?
+           WHERE id IN (${ids.map(() => "?").join(", ")}) AND repayment_id IS NULL`,
+          [`repayment-${group[0].id}`, ...ids]
+        );
+      }
+    }
+  }
+}
+
+function splitByLoan<T extends { loanId: string | null }>(rows: T[]): T[][] {
+  const groups: T[][] = [];
+  for (const row of rows) {
+    const current = groups.at(-1);
+    if (current && !current.some((r) => r.loanId === row.loanId)) {
+      current.push(row);
+    } else {
+      groups.push([row]);
+    }
+  }
+  return groups;
 }

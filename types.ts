@@ -191,7 +191,26 @@ export interface AccountTransaction {
   category: string | null;
   loanId: string | null;
   reversesId: string | null;
+  repaymentId: string | null;
   createdAt: string;
+}
+
+export interface TRepaymentPayment {
+  txn: AccountTransaction;
+  loan: Loan | undefined;
+  isSettling: boolean;
+}
+
+export interface TRepayment {
+  id: string;
+  borrower: string | undefined;
+  payments: TRepaymentPayment[];
+  excess: AccountTransaction | undefined;
+  principal: number;
+  total: number;
+  settledCount: number;
+  paidAt: string;
+  accountIds: string[];
 }
 
 export type CategoryKind = 'expense' | 'income';

@@ -39,7 +39,7 @@ import {
 import { touchCategory } from "@/db/categories";
 import { accrueInterest, PERIODS_PER_YEAR } from "@/utils/interest";
 import { computeBill, unsettledDebitIds } from "@/utils/cardBills";
-import { CASH_ACCOUNT_ID } from "@/constants/accounts";
+import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { TRANSFER_CATEGORY } from "@/constants/categories";
 import { findOverdraft, type TBalanceChange } from "@/utils/accounts/findOverdraft";
 import { OverdraftError } from "@/utils/accounts/OverdraftError";
@@ -113,6 +113,8 @@ interface AccountContextValue {
   accounts: Account[];
   // Accounts that can take new money: everything except archived ones. Pickers list these.
   activeAccounts: Account[];
+  // Names any account, archived included. An id that's no longer there reads "Deleted account".
+  nameOf: (id: string) => string;
   transactions: AccountTransaction[];
   ledger: AccountTransaction[];
   billOverrides: CardBillOverride[];
@@ -376,6 +378,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   });
 
   const activeAccounts = useMemo(() => state.accounts.filter((a) => !a.archivedAt), [state.accounts]);
+
+  const nameById = useMemo(() => new Map(state.accounts.map((account) => [account.id, account.name])), [state.accounts]);
+  const nameOf = useCallback((id: string) => nameById.get(id) ?? DELETED_ACCOUNT, [nameById]);
 
   const deleteAccount = useMemoizedFn(async (id: string) => {
     const logoUri = state.accounts.find((a) => a.id === id)?.logoUri;
@@ -757,6 +762,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     () => ({
       accounts: state.accounts,
       activeAccounts,
+      nameOf,
       transactions,
       ledger: state.ledger,
       billOverrides: state.billOverrides,
@@ -792,7 +798,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       reload,
       refresh,
     }),
-    [state, transactions, activeAccounts, netWorth, getCardBills, getPayments, isTxnCharged, isCharged, isCardAccount, isCardCharge]
+    [state, transactions, activeAccounts, nameOf, netWorth, getCardBills, getPayments, isTxnCharged, isCharged, isCardAccount, isCardCharge]
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

@@ -35,7 +35,7 @@ import {
   type TransferTemplate,
 } from '@/types';
 
-const BACKUP_VERSION = 9;
+const BACKUP_VERSION = 10;
 
 // The settings a backup carries. Migration flags and the permission prompt flag belong to the device.
 const BACKUP_PREFERENCE_KEYS = ['user_name', 'reminderTime', 'notificationsEnabled', 'homeCollapsedBands', 'accountsGroupByBank'];
@@ -51,7 +51,7 @@ interface BackupLogo {
 }
 
 interface BackupFile {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
   exportedAt: string;
   expenses: Expense[];
   categories: string[];
@@ -68,7 +68,10 @@ interface BackupFile {
 
 type BackupContents = Required<Omit<BackupFile, 'version' | 'exportedAt'>>;
 
-type TBackupTransaction = Omit<AccountTransaction, 'reversesId'> & { reversesId?: string | null };
+type TBackupTransaction = Omit<AccountTransaction, 'reversesId' | 'repaymentId'> & {
+  reversesId?: string | null;
+  repaymentId?: string | null;
+};
 
 type TBackupLoan = Omit<Loan, 'revertedAt'> & { revertedAt?: string | null };
 
@@ -153,6 +156,7 @@ function isValidTransaction(value: unknown): value is TBackupTransaction {
     typeof value.amount === 'number' &&
     typeof value.createdAt === 'string' &&
     isOptionalString(value.reversesId) &&
+    isOptionalString(value.repaymentId) &&
     (value.kind === 'reversal') === (typeof value.reversesId === 'string')
   );
 }
@@ -281,7 +285,11 @@ function parseBackup(content: string): BackupContents {
     categories: categories.filter(isString),
     incomeCategories: incomeCategories.filter(isString),
     accounts,
-    transactions: transactions.map((transaction) => ({ ...transaction, reversesId: transaction.reversesId ?? null })),
+    transactions: transactions.map((transaction) => ({
+      ...transaction,
+      reversesId: transaction.reversesId ?? null,
+      repaymentId: transaction.repaymentId ?? null,
+    })),
     loans: loans.map((loan) => ({ ...loan, revertedAt: loan.revertedAt ?? null })),
     months,
     cardBills,

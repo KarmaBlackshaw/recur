@@ -19,7 +19,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppCombobox } from "@/components/ui/AppCombobox";
-import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
+import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { sanitizeAmount } from "@/utils/amountInput";
 import { formatAmount } from "@/utils/formatAmount";
 import { alertFailure } from "@/utils/accounts/alertFailure";
@@ -274,7 +274,7 @@ export default function AddLoanScreen() {
       loan: editing,
       paymentCount: loans.paymentsOf(editing.id).length,
       incomeCount: loans.incomeOf(editing.id).length,
-      accountName: savedAccountName,
+      accountNameOf: accounts.nameOf,
     });
     Alert.alert("Delete this loan?", message, [
       { text: "Cancel", style: "cancel" },
@@ -417,7 +417,7 @@ export default function AddLoanScreen() {
             render={({ field: { value } }) => (
               <AppSelectField
                 label="From account"
-                value={accounts.accounts.find((a) => a.id === value)?.name ?? DELETED_ACCOUNT}
+                value={accounts.nameOf(value)}
                 onPress={() => accountSheetRef.current?.present()}
               />
             )}

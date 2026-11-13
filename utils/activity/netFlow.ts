@@ -13,6 +13,8 @@ export function netFlow(entry: ActivityEntry): number {
       return -(entry.amount + entry.fee);
     case "loan":
       return 0;
+    case "repayment":
+      return entry.excess?.amount ?? 0;
     case "expense":
       return entry.isCard ? 0 : -entry.amount;
   }

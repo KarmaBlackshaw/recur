@@ -109,7 +109,6 @@ export default function BorrowerLoansScreen() {
       <LoanRow
         loan={loan}
         summary={summary}
-        accountName={accounts.accounts.find(({ id }) => id === loan.accountId)?.name}
         today={today}
         title={loanTitle(loan)}
         onPress={() => router.push({ pathname: "/loan/[id]", params: { id: loan.id } })}

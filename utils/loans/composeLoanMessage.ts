@@ -5,7 +5,7 @@ interface Props {
   loan: Loan;
   paymentCount: number;
   incomeCount: number;
-  accountName?: string;
+  accountNameOf: (id: string) => string;
   withEntries: (entries: string) => string;
   withoutAccount: string;
   withAccount: (accountName: string) => string;
@@ -15,7 +15,7 @@ export function composeLoanMessage({
   loan,
   paymentCount,
   incomeCount,
-  accountName = "its account",
+  accountNameOf,
   withEntries,
   withoutAccount,
   withAccount,
@@ -29,5 +29,5 @@ export function composeLoanMessage({
     return withoutAccount;
   }
 
-  return withAccount(accountName);
+  return withAccount(accountNameOf(loan.accountId));
 }

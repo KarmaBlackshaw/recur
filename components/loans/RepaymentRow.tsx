@@ -1,9 +1,9 @@
 import React from "react";
 import { AppListRow } from "@/components/ui/AppListRow";
+import { useAccounts } from "@/context/AccountContext";
 import { SwipeableRow } from "@/components/ui/SwipeableRow";
 import { formatAmount } from "@/utils/formatAmount";
 import { formatShortDate } from "@/utils/dates/formatShortDate";
-import { useAccountNameOf } from "@/utils/accounts/useAccountNameOf";
 import { repaymentLabels } from "@/utils/loans/repaymentLabels";
 import type { TRepayment } from "@/types";
 
@@ -13,7 +13,8 @@ interface Props {
 }
 
 export function RepaymentRow({ repayment, onRevert }: Props) {
-  const labels = repaymentLabels(repayment, useAccountNameOf());
+  const { nameOf } = useAccounts();
+  const labels = repaymentLabels(repayment, nameOf);
   const title = `Paid into ${labels.account}`;
   const meta = [labels.loans, labels.settled].filter(Boolean).join(" · ");
   const amount = `+${formatAmount(repayment.total)}`;

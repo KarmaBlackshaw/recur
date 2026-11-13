@@ -17,7 +17,6 @@ import { AppText } from "@/components/ui/AppText";
 import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { colors } from "@/constants/theme";
-import { DELETED_ACCOUNT } from "@/constants/accounts";
 import {
   cycleStateOn,
   formatDaysLate,
@@ -108,7 +107,7 @@ function reminderLabel(daysBefore: number | null | undefined): string {
 export default function BillScreen() {
   const params = useLocalSearchParams<{ id: string; year?: string; month?: string; action?: string }>();
   const { expenses, loading, getMonthStatus, getMonthPaidAt, getDisplayAmount, getBillProgress } = useExpenses();
-  const { accounts, getPayments, isCardAccount } = useAccounts();
+  const { accounts, nameOf, getPayments, isCardAccount } = useAccounts();
   const payFlow = usePayFlow();
   const confirmDelete = useDeleteExpense();
   const scrollRef = useRef<ScrollViewInstance>(null);
@@ -317,7 +316,7 @@ export default function BillScreen() {
             <AppLabel className="px-5 mt-4">Payments</AppLabel>
             {payments.map((row) => {
               const rowDate = dayjs(row.createdAt).format("MMM D, YYYY");
-              const rowAccount = accounts.find((a) => a.id === row.accountId)?.name ?? DELETED_ACCOUNT;
+              const rowAccount = nameOf(row.accountId);
               const rowAmountText = formatAmount(Math.abs(row.amount));
               return (
                 <SwipeableRow

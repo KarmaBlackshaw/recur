@@ -1,9 +1,9 @@
 import React from "react";
 import { AppListRow } from "@/components/ui/AppListRow";
+import { useAccounts } from "@/context/AccountContext";
 import { formatAmount } from "@/utils/formatAmount";
 import { loanTitle } from "@/utils/loans/loanTitle";
 import { repaidTitle } from "@/utils/loans/repaidTitle";
-import { useAccountNameOf } from "@/utils/accounts/useAccountNameOf";
 import { repaymentLabels } from "@/utils/loans/repaymentLabels";
 import type { RepaymentActivityEntry } from "@/utils/useLoanActivity";
 
@@ -15,7 +15,8 @@ interface Props {
 export function RepaymentActivityRow({ entry, onPress }: Props): React.JSX.Element {
   const { repayment, excess, amount } = entry;
   const { borrower, payments } = repayment;
-  const labels = repaymentLabels(repayment, useAccountNameOf());
+  const { nameOf } = useAccounts();
+  const labels = repaymentLabels(repayment, nameOf);
   const singleLoan = payments.length === 1 ? payments[0].loan : undefined;
   const secondary = singleLoan ? loanTitle(singleLoan) : labels.loans;
   const title = borrower ? repaidTitle(borrower) : "Loan";

@@ -1,7 +1,6 @@
 import React from "react";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { useAccounts } from "@/context/AccountContext";
-import { DELETED_ACCOUNT } from "@/constants/accounts";
 import { formatAmount } from "@/utils/formatAmount";
 import type { LoanActivityEntry } from "@/utils/useLoanActivity";
 
@@ -11,7 +10,7 @@ export function LoanActivityRow({ entry, onPress }: { entry: LoanActivityEntry; 
   const borrower = loan?.borrower;
   const title = borrower == null ? "Loan" : `Lent to ${borrower}`;
   const signed = `−${formatAmount(amount)}`;
-  const accountName = accounts.accounts.find(({ id }) => id === loanTxn.accountId)?.name ?? DELETED_ACCOUNT;
+  const accountName = accounts.nameOf(loanTxn.accountId);
   const meta = [accountName, loan?.note].filter(Boolean).join(" · ");
 
   return (

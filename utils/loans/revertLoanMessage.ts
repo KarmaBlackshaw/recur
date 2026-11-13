@@ -6,7 +6,7 @@ export function revertLoanMessage(args: {
   loan: Loan;
   paymentCount: number;
   incomeCount: number;
-  accountName?: string;
+  accountNameOf: (id: string) => string;
 }) {
   return composeLoanMessage({
     ...args,

@@ -1,20 +1,19 @@
 import { Alert } from "react-native";
 import dayjs from "dayjs";
-import { ITS_ACCOUNT } from "@/constants/accounts";
+import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { sumBy } from "@/utils/collections";
 import { repaymentLabels } from "@/utils/loans/repaymentLabels";
 import { revertRepaymentMessage } from "@/utils/loans/revertRepaymentMessage";
 import { summarizeLoan } from "@/utils/loans/summarizeLoan";
-import { useAccountNameOf } from "@/utils/accounts/useAccountNameOf";
 import { round } from "@/utils/round";
 import { useToday } from "@/utils/useToday";
 import type { TRepayment } from "@/types";
 
 export function useRevertRepayment(): (repayment: TRepayment) => void {
   const loans = useLoans();
-  const accountNameOf = useAccountNameOf();
+  const { nameOf } = useAccounts();
   const todayDate = useToday();
   const today = dayjs(todayDate).format("YYYY-MM-DD");
 
@@ -36,7 +35,7 @@ export function useRevertRepayment(): (repayment: TRepayment) => void {
       ),
       2
     );
-    const { account } = repaymentLabels(repayment, (id) => accountNameOf(id) ?? ITS_ACCOUNT);
+    const { account } = repaymentLabels(repayment, nameOf);
     const { title, message } = revertRepaymentMessage({
       repayment,
       borrower,

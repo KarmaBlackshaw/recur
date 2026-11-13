@@ -408,7 +408,7 @@ const orphanLast = group([
 assert.deepEqual(orphanLast.payments.map(({ txn: t }) => t.id), ["o2", "o1"]);
 
 const names = { a1: "Cash", a2: "Bank" };
-const accountName = (id) => names[id];
+const accountName = (id) => names[id] ?? "Deleted account";
 const labelsFor = (transactions, summaries = {}) => repaymentLabels(group(transactions, [L1, L2], summaries)[0], accountName);
 const three = [
   txn("l1", { repaymentId: "R8", loanId: "L1" }),
@@ -442,7 +442,14 @@ const { revertRepaymentMessage } = await import("../utils/loans/revertRepaymentM
 
 const withAcc = loanRow("M1");
 const noAcc = loanRow("M2", { accountId: null });
-const msgArgs = (loan, paymentCount, incomeCount, accountName) => ({ loan, paymentCount, incomeCount, accountName });
+const deletedAccount = () => "Deleted account";
+const msgArgs = (loan, paymentCount, incomeCount, accountNameOf = deletedAccount) => ({
+  loan,
+  paymentCount,
+  incomeCount,
+  accountNameOf,
+});
+const bpi = () => "BPI";
 assert.equal(
   deleteLoanMessage(msgArgs(withAcc, 3, 1)),
   "This loan and its 3 payments and 1 income entry are removed, and account balances go back."
@@ -463,15 +470,15 @@ assert.equal(
 );
 assert.equal(deleteLoanMessage(msgArgs(noAcc, 0, 0)), "This loan is removed and no account balance changes.");
 assert.equal(revertLoanMessage(msgArgs(noAcc, 0, 0)), "This loan is reverted and no account balance changes.");
-assert.equal(deleteLoanMessage(msgArgs(withAcc, 0, 0, "BPI")), "This loan is removed and the money goes back to BPI.");
+assert.equal(deleteLoanMessage(msgArgs(withAcc, 0, 0, bpi)), "This loan is removed and the money goes back to BPI.");
 assert.equal(
-  revertLoanMessage(msgArgs(withAcc, 0, 0, "BPI")),
+  revertLoanMessage(msgArgs(withAcc, 0, 0, bpi)),
   "The money goes back to BPI. The loan stays in the account history, marked as reverted."
 );
-assert.equal(deleteLoanMessage(msgArgs(withAcc, 0, 0)), "This loan is removed and the money goes back to its account.");
+assert.equal(deleteLoanMessage(msgArgs(withAcc, 0, 0)), "This loan is removed and the money goes back to Deleted account.");
 assert.equal(
   revertLoanMessage(msgArgs(withAcc, 0, 0)),
-  "The money goes back to its account. The loan stays in the account history, marked as reverted."
+  "The money goes back to Deleted account. The loan stays in the account history, marked as reverted."
 );
 
 assert.equal(loanEntriesLabel({ paymentCount: 3, incomeCount: 1 }), "3 payments and 1 income entry");
@@ -501,13 +508,13 @@ const singleRepayment = repaymentOf([txn("r5", { repaymentId: "RV2", amount: 250
 const singleMessage = revertRepaymentMessage({
   repayment: singleRepayment,
   borrower: "Ana",
-  accountLabel: "its account",
+  accountLabel: "Deleted account",
   owesAgain: undefined,
 });
 assert.equal(singleMessage.title, "Revert Ana's ₱250.00 repayment?");
 assert.equal(
   singleMessage.message,
-  "₱250.00 leaves its account and Ana owes it again. The payment stays in the account history, marked as reverted."
+  "₱250.00 leaves Deleted account and Ana owes it again. The payment stays in the account history, marked as reverted."
 );
 const excessRepayment = repaymentOf([
   txn("r6", { repaymentId: "RV3", amount: 100 }),

@@ -9,6 +9,7 @@ import { CARD_COLORS } from "@/constants/cardColors";
 import { BANKS, type BankId } from "@/constants/banks";
 import { colors } from "@/constants/theme";
 import { resolveAccountLogo } from "@/utils/accountLogo/resolveAccountLogo";
+import { openSystemScreen } from "@/utils/appLock/systemScreen";
 import type { IoniconName } from "@/types";
 
 const CARD_ICONS: IoniconName[] = [
@@ -107,12 +108,14 @@ export function CardTemplatePicker({ value, onChange }: PickerProps<BankId | nul
 
 export function CardLogoPicker({ value, onChange }: PickerProps<string | null>) {
   async function pickLogo() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    const result = await openSystemScreen(() =>
+      ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+    );
     if (result.canceled) {
       return;
     }

@@ -16,6 +16,7 @@ import Constants from "expo-constants";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
+import { AppLockSettings } from "@/components/AppLockSettings";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
@@ -350,6 +351,8 @@ export default function SettingsScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        <AppLockSettings />
 
         {/* NOTIFICATIONS section */}
         <AppLabel className="pl-1">

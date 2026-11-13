@@ -35,6 +35,28 @@ Notifications.setNotificationHandler({
 
 export const unstable_settings = { anchor: "(tabs)" };
 
+// Singular per href, so a double tap can't push the same screen twice. The id keeps the params:
+// /transfer opens another /transfer (Transfer in) and /expense/add another /expense/add (Set end month).
+const ROOT_SCREENS = [
+  "account/[id]",
+  "account/edit",
+  "expense/[id]",
+  "expense/add",
+  "income/add",
+  "loan/[id]",
+  "loan/add",
+  "loan/borrower",
+  "loan/pay",
+  "settings",
+  "settings/category/add",
+  "settings/category/index",
+  "settings/profile",
+  "stats",
+  "transfer",
+  "transfer-templates/edit",
+  "transfer-templates/index",
+];
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Oswald_Regular: require("@/assets/fonts/oswald/Oswald-Regular.ttf"),
@@ -81,7 +103,15 @@ export default function RootLayout() {
                           headerShown: false,
                           contentStyle: { backgroundColor: colors.background },
                         }}
-                      />
+                      >
+                        {ROOT_SCREENS.map((name) => (
+                          <Stack.Screen
+                            key={name}
+                            name={name}
+                            dangerouslySingular={(route, params) => `${route}?${JSON.stringify(params)}`}
+                          />
+                        ))}
+                      </Stack>
                       <NotificationRouter />
                     </PayFlowProvider>
                   </BottomSheetModalProvider>

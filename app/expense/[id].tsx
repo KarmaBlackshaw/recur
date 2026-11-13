@@ -33,6 +33,7 @@ import { formatAmount } from "@/utils/formatAmount";
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
 import { formatBillAmount } from "@/utils/expenses/formatBillAmount";
+import { reminderLabel } from "@/utils/reminders";
 import type { Expense, FeatherIconName } from "@/types";
 
 interface Cycle {
@@ -94,14 +95,6 @@ function historyOf(expense: Expense): Cycle[] {
 function dueLabel(due: Date): string {
   const when = formatDueDate(due);
   return `Due ${when === "Today" || when === "Tomorrow" ? when.toLowerCase() : when}`;
-}
-
-function reminderLabel(daysBefore: number | null | undefined): string {
-  if (daysBefore === 0) {
-    return "Off";
-  }
-  const days = daysBefore ?? 1;
-  return `${days} ${days === 1 ? "day" : "days"} before`;
 }
 
 export default function BillScreen() {

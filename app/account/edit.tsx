@@ -15,6 +15,7 @@ import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { AppDisclosureCard } from "@/components/ui/AppDisclosureCard";
 import { AccountCard } from "@/components/accounts/AccountCard";
+import { ReminderField } from "@/components/ReminderField";
 import { CardColorPicker, CardIconPicker, CardLogoPicker, CardTemplatePicker } from "@/components/accounts/CardStylePickers";
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
 import { findBank, type BankId } from "@/constants/banks";
@@ -24,6 +25,7 @@ import { formatAmount } from "@/utils/formatAmount";
 import { signedAmount } from "@/utils/signedAmount";
 import { netInterestPerPeriod } from "@/utils/interest";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
+import { parseReminder, toReminderFormValue } from "@/utils/reminders";
 import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod, type IoniconName, type TOption } from "@/types";
 
 interface AccountFormValues {
@@ -36,6 +38,7 @@ interface AccountFormValues {
   creditLimit: string;
   statementDay: string;
   dueDay: string;
+  reminderDaysBefore: string;
   color: string;
   icon: IoniconName;
   logoUri: string | null;
@@ -149,6 +152,7 @@ function toFormValues(account: Account | undefined): AccountFormValues {
     creditLimit: toText(account?.creditLimit),
     statementDay: toText(account?.statementDay),
     dueDay: toText(account?.dueDay),
+    reminderDaysBefore: toReminderFormValue(account?.reminderDaysBefore),
     color: account?.color ?? DEFAULT_CARD_COLOR,
     icon: account?.icon ?? DEFAULT_ICON[account?.type ?? "debit"],
     logoUri: account?.logoUri ?? null,
@@ -191,6 +195,7 @@ export default function EditAccountScreen() {
     creditLimit: type === "credit" ? toNumber(values.creditLimit) : null,
     statementDay: null,
     dueDay: type === "credit" ? toNumber(values.dueDay) : null,
+    reminderDaysBefore: null,
     color: values.color,
     icon: values.icon,
     ...cardStyle(values.logoUri, values.bank),
@@ -246,6 +251,7 @@ export default function EditAccountScreen() {
       creditLimit: isCredit ? toNumber(data.creditLimit) : null,
       statementDay: isCredit ? toNumber(data.statementDay) : null,
       dueDay: isCredit ? toNumber(data.dueDay) : null,
+      reminderDaysBefore: isCredit ? parseReminder(data.reminderDaysBefore) : null,
       color: data.color,
       icon: data.icon,
       ...cardStyle(data.logoUri, data.bank),
@@ -536,6 +542,13 @@ export default function EditAccountScreen() {
                   format={formatDay}
                   error={fieldState.isTouched ? fieldState.error?.message : undefined}
                 />
+              )}
+            />
+            <Controller
+              control={control}
+              name="reminderDaysBefore"
+              render={({ field: { value, onChange } }) => (
+                <ReminderField value={value} onChange={onChange} stored={editingAccount?.reminderDaysBefore} />
               )}
             />
           </>

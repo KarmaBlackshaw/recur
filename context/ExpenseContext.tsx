@@ -454,7 +454,13 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         const now = new Date();
         await scheduleAllNotifications(
           [
-            ...getExpenseReminders(state.expenses, getMonthStatus, (e, y, m) => getBillProgress(e, y, m).left, now),
+            ...getExpenseReminders(
+              state.expenses,
+              getMonthStatus,
+              (e, y, m) => getBillProgress(e, y, m).left,
+              (id) => (accounts.isCardAccount(id) ? accounts.accounts.find((a) => a.id === id) : undefined),
+              now
+            ),
             ...getUnpaidBillReminders(accounts.getCardBills, now),
           ],
           time

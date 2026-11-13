@@ -8,7 +8,7 @@ import type { Expense, Status } from "@/types";
 const COLUMNS =
   "id, name, category, amount, dueDay, recurrence, status, is_variable, reminder_days_before, notes, createdAt, paid_date, start_year, start_month, end_year, end_month, account_id";
 
-type ExpenseFields = Omit<Expense, "id" | "createdAt">;
+export type ExpenseFields = Omit<Expense, "id" | "createdAt">;
 
 // One-offs have no schedule. A new recurring plan without a start month starts in the month it's created.
 function scheduleOf(e: ExpenseFields, createdAt?: string) {
@@ -55,22 +55,23 @@ export async function getAll(): Promise<Expense[]> {
   }));
 }
 
-export async function insert(e: ExpenseFields): Promise<Expense> {
-  const db = await getDB();
-  const id = newId();
+// Builds a new expense without saving it, so its id can link the rows written with it.
+export function newExpense(e: ExpenseFields): Expense {
   const createdAt = new Date().toISOString();
   // Regular (one-off) expenses represent money already spent → auto-paid.
   const status: Status = e.recurrence === "one-off" ? "paid" : (e.status ?? "unpaid");
   // One-offs carry a paid date (defaults to today); recurring never do.
   const paidDate: string | null =
     e.recurrence === "one-off" ? (e.paidDate ?? createdAt) : null;
-  const schedule = scheduleOf(e, createdAt);
-  await db.runAsync(
+  return { ...e, id: newId(), createdAt, status, paidDate, ...scheduleOf(e, createdAt), accountId: e.accountId ?? null };
+}
+
+export async function insert(txn: SQLiteDatabase, e: Expense): Promise<void> {
+  await txn.runAsync(
     `INSERT INTO expenses (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, e.name, e.category, e.amount, e.dueDay, e.recurrence, status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, createdAt, paidDate, schedule.startYear, schedule.startMonth, schedule.endYear, schedule.endMonth, e.accountId ?? null]
+    [e.id, e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.createdAt, e.paidDate ?? null, e.startYear ?? null, e.startMonth ?? null, e.endYear ?? null, e.endMonth ?? null, e.accountId ?? null]
   );
-  await touchCategory({ name: e.category, at: createdAt });
-  return { ...e, id, createdAt, status, paidDate, ...schedule, accountId: e.accountId ?? null };
+  await touchCategory({ name: e.category, at: e.createdAt, db: txn });
 }
 
 // Restores an expense from a backup. Pass the import's transaction as `db`; returns 1 when added, 0 when it
@@ -85,25 +86,20 @@ export async function insertWithId(e: Expense, db?: SQLiteDatabase): Promise<num
   return result.changes;
 }
 
-export async function updateStatus(
-  id: string,
-  status: Status
-): Promise<void> {
-  const db = await getDB();
-  await db.runAsync("UPDATE expenses SET status = ? WHERE id = ?", [status, id]);
+export async function updateStatus(txn: SQLiteDatabase, id: string, status: Status): Promise<void> {
+  await txn.runAsync("UPDATE expenses SET status = ? WHERE id = ?", [status, id]);
 }
 
-export async function update(id: string, e: ExpenseFields): Promise<void> {
-  const db = await getDB();
+export async function update(txn: SQLiteDatabase, id: string, e: ExpenseFields): Promise<void> {
   const schedule = scheduleOf(e);
-  await db.runAsync(
+  await txn.runAsync(
     `UPDATE expenses SET name=?, category=?, amount=?, dueDay=?, recurrence=?, status=?, is_variable=?, reminder_days_before=?, notes=?, paid_date=?, start_year=?, start_month=?, end_year=?, end_month=?, account_id=? WHERE id=?`,
     [e.name, e.category, e.amount, e.dueDay, e.recurrence, e.status, e.isVariable ? 1 : 0, e.reminderDaysBefore ?? null, e.notes ?? null, e.recurrence === "one-off" ? (e.paidDate ?? null) : null, schedule.startYear, schedule.startMonth, schedule.endYear, schedule.endMonth, e.accountId ?? null, id]
   );
-  await touchCategory({ name: e.category });
+  await touchCategory({ name: e.category, db: txn });
 }
 
-export async function remove(id: string): Promise<void> {
-  const db = await getDB();
-  await db.runAsync("DELETE FROM expenses WHERE id = ?", [id]);
+// Deletes the expense; its months go with it (ON DELETE CASCADE).
+export async function remove(txn: SQLiteDatabase, id: string): Promise<void> {
+  await txn.runAsync("DELETE FROM expenses WHERE id = ?", [id]);
 }

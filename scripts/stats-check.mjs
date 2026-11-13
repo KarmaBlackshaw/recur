@@ -13,6 +13,9 @@ registerHooks({
   },
 });
 const { categoryLine, categorySlice } = await import("../utils/activity/categoryLine.ts");
+const { netFlow } = await import("../utils/activity/netFlow.ts");
+const { loanFlow } = await import("../utils/activity/loanFlow.ts");
+const { matchesActivity } = await import("../utils/activitySearch.ts");
 
 const line = (category, amount, icon = "tag") => ({ category, icon, amount });
 const names = (rows) => rows.map((r) => r.category).join(",");
@@ -109,5 +112,51 @@ for (const { category, count, amount } of slices) {
 assert.deepEqual(categorySlice(feed, "expenses", "Fees").entries, [feed[2], feed[3]], "a fee slice lists the transfer and bill payment");
 assert.equal(categorySlice(feed, "expenses", "Fees").total, 15, "and adds only their fees");
 assert.equal(names(slices), "Housing,Food,Fees");
+
+const repayment = (excess, principal = 1000) => ({
+  kind: "repayment",
+  key: "repayment:r1",
+  repayment: {
+    id: "r1",
+    borrower: "Ana",
+    principal,
+    accountIds: ["a1"],
+    payments: [
+      { txn: { amount: 600 }, loan: undefined, isSettling: true },
+      { txn: { amount: 400 }, loan: undefined, isSettling: false },
+    ],
+  },
+  excess,
+  amount: principal + (excess?.amount ?? 0),
+});
+const excessRow = income("Overpayment", 200, { id: "l1" });
+const withExcess = repayment(excessRow);
+const withoutExcess = repayment(undefined);
+
+assert.equal(netFlow(withExcess), 200, "a repayment adds the excess its folded income row used to");
+assert.equal(netFlow(withoutExcess), 0, "a repayment with no excess adds nothing");
+assert.equal(netFlow(income("Salary", 900)), 900, "an income row still adds its amount");
+
+assert.equal(loanFlow(withExcess), 1000, "a repayment's day total is its principal, excess left out");
+assert.equal(loanFlow(withoutExcess), 1000);
+assert.equal(loanFlow(loanTxn), -900, "lent money is negative");
+assert.equal(loanFlow(paid("Food", 50)), 0, "other rows add nothing");
+
+assert.equal(slice(withExcess, "income"), "Overpayment from loans 200", "a repayment carries its excess's income line");
+assert.deepEqual(categoryLine(withExcess, "income"), categoryLine(excessRow, "income"));
+assert.equal(slice(withoutExcess, "income"), null);
+assert.equal(slice(withExcess, "expenses"), null);
+const overpaid = [withExcess, income("Overpayment", 50, { id: "l2" })];
+assert.equal(categorySlice(overpaid, "income", "Overpayment from loans").total, 250, "the slice sums the repayment's excess and a plain income row");
+assert.equal(categorySlice(overpaid, "income", "Overpayment from loans").entries.length, 2);
+
+const ctx = { accountName: (id) => (id === "a1" ? "GCash" : undefined) };
+for (const query of ["Ana repaid", "loan", "repaid", "gcash", "600.00", "400", "1200", "1,200.00", "overpayment"]) {
+  assert.ok(matchesActivity(withExcess, query, ctx), `a repayment matches "${query}"`);
+}
+assert.ok(!matchesActivity(withExcess, "Bob", ctx), "an unrelated name doesn't match");
+const noBorrower = { ...withoutExcess, repayment: { ...withoutExcess.repayment, borrower: undefined } };
+assert.ok(matchesActivity(noBorrower, "loan", ctx), "a borrower-less repayment still matches loan");
+assert.ok(!matchesActivity(noBorrower, "repaid", ctx), "and has no borrower to be called repaid");
 
 console.log("stats-check ok");

@@ -29,6 +29,7 @@ const txn = (id, accountId, amount, extra = {}) => ({
   category: null,
   loanId: null,
   reversesId: null,
+  repaymentId: null,
   createdAt: "2026-10-05T08:00:00.000Z",
   ...extra,
 });
@@ -79,6 +80,13 @@ assert.equal(reversal.loanId, "L1");
 assert.equal(reversal.category, null, "category is not copied");
 assert.equal(reversal.note, null, "note is not copied");
 assert.equal("id" in reversal, false, "the caller assigns the id");
+assert.equal(reversal.repaymentId, null, "a null repayment id stays null");
+const grouped = txn("g1", "bpi", 500, { kind: "loan_in", loanId: "l1", repaymentId: "rp1" });
+assert.equal(buildReversal(grouped, "2026-10-06T08:00:00.000Z").repaymentId, "rp1", "a grouped row's reversal carries the group id");
+const excessIncome = txn("g2", "bpi", 40, { kind: "income", loanId: "l1", repaymentId: "rp1" });
+const excessReversal = buildReversal(excessIncome, "2026-10-06T08:00:00.000Z");
+assert.equal(excessReversal.repaymentId, "rp1", "an excess income row's reversal carries the group id");
+assert.equal(excessReversal.amount, -40, "an excess income row's reversal negates the amount");
 assert.equal(buildReversal(full, "2026-10-06T08:00:00.000Z").createdAt, "2026-10-06T08:00:00.000Z", "now after the original is used");
 assert.equal(
   buildReversal(full, "2026-10-01T08:00:00.000Z").createdAt,

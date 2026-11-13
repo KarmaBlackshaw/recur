@@ -1,4 +1,4 @@
-import { countLabel } from "@/utils/countLabel";
+import { loanEntriesLabel } from "@/utils/loans/loanEntriesLabel";
 import type { Loan } from "@/types";
 
 interface Props {
@@ -20,13 +20,9 @@ export function composeLoanMessage({
   withoutAccount,
   withAccount,
 }: Props) {
-  const entries = [
-    { count: paymentCount, label: countLabel(paymentCount, "payment", "payments") },
-    { count: incomeCount, label: countLabel(incomeCount, "income entry", "income entries") },
-  ].filter(({ count }) => count > 0);
-
-  if (entries.length > 0) {
-    return withEntries(entries.map(({ label }) => label).join(" and "));
+  const entriesLabel = loanEntriesLabel({ paymentCount, incomeCount });
+  if (entriesLabel != null) {
+    return withEntries(entriesLabel);
   }
 
   if (loan.accountId == null) {

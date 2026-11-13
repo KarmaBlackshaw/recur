@@ -1,4 +1,5 @@
 import { composeLoanMessage } from "@/utils/loans/composeLoanMessage";
+import { staysInHistory } from "@/utils/loans/staysInHistory";
 import type { Loan } from "@/types";
 
 export function revertLoanMessage(args: {
@@ -9,10 +10,8 @@ export function revertLoanMessage(args: {
 }) {
   return composeLoanMessage({
     ...args,
-    withEntries: (entries) =>
-      `Account balances go back. This loan and its ${entries} stay in the account history, marked as reverted.`,
+    withEntries: (entries) => `Account balances go back. ${staysInHistory(`This loan and its ${entries}`, true)}`,
     withoutAccount: "This loan is reverted and no account balance changes.",
-    withAccount: (accountName) =>
-      `The money goes back to ${accountName}. The loan stays in the account history, marked as reverted.`,
+    withAccount: (accountName) => `The money goes back to ${accountName}. ${staysInHistory("The loan")}`,
   });
 }

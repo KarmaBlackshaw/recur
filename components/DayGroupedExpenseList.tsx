@@ -8,7 +8,7 @@ import { LoanSheet, type LoanSheetRef } from "@/components/loans/LoanSheet";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
 import { dayTotalOf } from "@/utils/activity/dayTotalOf";
 import type { BillPaymentEntry, IncomeEntry, InterestEntry, TransferEntry } from "@/utils/usePaidLedger";
-import type { LoanActivityEntry } from "@/utils/useLoanActivity";
+import type { LoanActivityEntry, RepaymentActivityEntry } from "@/utils/useLoanActivity";
 import type { AccountTransaction, Expense } from "@/types";
 
 // A single row in a day-grouped list. `effDate` decides which day bucket it lands
@@ -30,7 +30,13 @@ export interface DayEntry {
 }
 
 export type LedgerEntry = DayEntry | BillPaymentEntry;
-export type ActivityEntry = LedgerEntry | IncomeEntry | InterestEntry | TransferEntry | LoanActivityEntry;
+export type ActivityEntry =
+  | LedgerEntry
+  | IncomeEntry
+  | InterestEntry
+  | TransferEntry
+  | LoanActivityEntry
+  | RepaymentActivityEntry;
 
 // "sum" adds the day's amounts (lists that only go one way). A flow function signs each row instead (money in +,
 // out −, 0 when it doesn't count) and the header shows the day's net, or nothing when no row counts.

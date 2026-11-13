@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
-import { summarizeLoan } from "../utils/loans/summarizeLoan.ts";
 
 const root = new URL("../", import.meta.url);
 registerHooks({
@@ -11,10 +10,13 @@ registerHooks({
     return nextResolve(specifier, context);
   },
 });
+const { summarizeLoan } = await import("../utils/loans/summarizeLoan.ts");
 const { maxPaymentOn } = await import("../utils/loans/maxPaymentOn.ts");
 const { splitLoanPayment } = await import("../utils/loans/splitLoanPayment.ts");
 const { canChangeLoan } = await import("../utils/loans/canChangeLoan.ts");
 const { canEditPayment } = await import("../utils/loans/canEditPayment.ts");
+const { groupRepayments } = await import("../utils/loans/groupRepayments.ts");
+const { repaymentLabels } = await import("../utils/loans/repaymentLabels.ts");
 
 const lentAt = "2026-10-05";
 const loan = (interest, principal = 500, lentOn = lentAt) => ({ principal, lentAt: lentOn, interest });
@@ -267,5 +269,261 @@ assert.deepEqual(carriedPartial.parts.map(({ balanceAfter }) => balanceAfter), [
 assert.deepEqual(carriedPartial.parts.map(({ isSettled }) => isSettled), [false, false]);
 assert.equal(carriedPartial.unplaced, 0);
 assert.equal(carriedPartial.parts[0].balanceAfter, summarizeLoan({ loan: monthly, payments: [existing, pay(200, T)], today: T }).balance);
+
+const unsettled = summarizeLoan({ loan: loan({ type: "none" }), payments: [pay(200, "2026-10-06")], today: T });
+assert.equal(unsettled.settledBy, null);
+const first = pay(200, "2026-10-06");
+const settler = pay(300, "2026-10-07");
+const twoStep = summarizeLoan({ loan: loan({ type: "none" }), payments: [first, settler], today: T });
+assert.equal(twoStep.settledBy, settler);
+const overFirst = pay(400, "2026-10-06");
+const overSecond = pay(200, "2026-10-07");
+const overpaidTwo = summarizeLoan({ loan: loan({ type: "none" }), payments: [overFirst, overSecond], today: T });
+assert.equal(overpaidTwo.settledBy, overSecond);
+assert.equal(overpaidTwo.overpaid, 100);
+const tieA = pay(300, "2026-11-20T09:00:00.000Z");
+const tieB = pay(300, "2026-11-20T10:00:00.000Z");
+const tied = summarizeLoan({ loan: monthly, payments: [tieA, tieB], today: "2026-12-04" });
+assert.equal(tied.isSettled, true);
+assert.equal(tied.settledBy, tieB);
+const tiedReversed = summarizeLoan({ loan: monthly, payments: [tieB, tieA], today: "2026-12-04" });
+assert.equal(tiedReversed.settledBy, tieB);
+assert.equal(tiedReversed.balance, tied.balance);
+assert.equal(tiedReversed.interestTotal, tied.interestTotal);
+const lateFirst = pay(200, "2026-11-20T10:00:00.000Z");
+const earlyAfter = pay(300, "2026-11-20T09:00:00.000Z");
+const sameDayOrder = summarizeLoan({ loan: loan({ type: "none" }), payments: [lateFirst, earlyAfter], today: T });
+assert.equal(sameDayOrder.isSettled, true);
+assert.equal(sameDayOrder.settledBy, lateFirst);
+assert.equal(sameDayOrder.settledAt, "2026-11-20");
+assert.equal(
+  summarizeLoan({ loan: monthly, payments: [pay(100, "2026-10-20")], today: "2026-10-25" }).settledBy,
+  null
+);
+
+const txn = (id, over = {}) => ({
+  id,
+  accountId: "a1",
+  kind: "loan_in",
+  amount: 100,
+  expenseId: null,
+  cycleYear: null,
+  cycleMonth: null,
+  transferId: null,
+  note: null,
+  category: null,
+  loanId: "L1",
+  reversesId: null,
+  repaymentId: null,
+  createdAt: "2026-11-01T10:00:00.000Z",
+  ...over,
+});
+const loanRow = (id, over = {}) => ({
+  id,
+  borrower: "Ana",
+  principal: 500,
+  accountId: "a1",
+  lentAt: "2026-10-01",
+  interest: { type: "none" },
+  note: null,
+  createdAt: "2026-10-01T00:00:00.000Z",
+  revertedAt: null,
+  ...over,
+});
+const L1 = loanRow("L1");
+const L2 = loanRow("L2", { lentAt: "2026-09-01" });
+const group = (transactions, loans = [L1, L2], summaries = {}) => groupRepayments({ transactions, loans, summaries });
+
+const pA = txn("p1", { repaymentId: "R1", loanId: "L1", amount: 100, createdAt: "2026-11-01T10:00:00.000Z" });
+const pB = txn("p2", { repaymentId: "R1", loanId: "L2", amount: 200, accountId: "a2", createdAt: "2026-11-01T10:00:01.000Z" });
+const extra = txn("e1", { kind: "income", repaymentId: "R1", loanId: "L1", amount: 50, accountId: "a3", createdAt: "2026-11-01T10:00:02.000Z" });
+const [shared] = group([pA, pB, extra]);
+assert.equal(group([pA, pB, extra]).length, 1);
+assert.equal(shared.id, "R1");
+assert.equal(shared.principal, 300);
+assert.equal(shared.total, 350);
+assert.equal(shared.excess, extra);
+assert.equal(shared.borrower, "Ana");
+assert.deepEqual(shared.payments.map(({ txn: t }) => t.id), ["p2", "p1"]);
+assert.deepEqual(shared.accountIds, ["a2", "a1", "a3"]);
+assert.equal(shared.paidAt, pB.createdAt);
+
+const legacy = txn("old", { repaymentId: null, amount: 75 });
+const [legacyRepayment] = group([legacy]);
+assert.equal(legacyRepayment.id, "old");
+assert.equal(legacyRepayment.excess, undefined);
+assert.equal(legacyRepayment.total, 75);
+
+const [pennies] = group([
+  txn("t1", { repaymentId: "R2", amount: 0.1 }),
+  txn("t2", { repaymentId: "R2", amount: 0.2 }),
+  txn("t3", { kind: "income", repaymentId: "R2", loanId: "L1", amount: 0.01 }),
+]);
+assert.equal(pennies.principal, 0.3);
+assert.equal(pennies.total, 0.31);
+
+assert.deepEqual(group([]), []);
+assert.deepEqual(group([txn("x1", { kind: "income", repaymentId: "R3", loanId: "L1", amount: 50 })]), []);
+const orphaned = group([
+  txn("x2", { kind: "income", repaymentId: "R4", loanId: "L1", amount: 20 }),
+  txn("x3", { repaymentId: "R5", amount: 10 }),
+]);
+assert.deepEqual(orphaned.map(({ id }) => id), ["R5"], "a group whose only live row is its excess income is omitted");
+assert.equal(orphaned[0].excess, undefined);
+assert.deepEqual(
+  group([txn("x2", { kind: "income", repaymentId: null, loanId: "L1" }), txn("x3", { kind: "payment", loanId: "L1" })]),
+  []
+);
+assert.equal(group([txn("x4", { kind: "income", repaymentId: "R4", loanId: "L1", transferId: "tr" }), txn("x5", { repaymentId: "R4" })])[0].excess, undefined);
+
+const partialGroup = group([txn("q1", { repaymentId: "R5", amount: 40 }), txn("q2", { repaymentId: "R5", amount: 60 })]);
+assert.equal(partialGroup[0].principal, 100);
+assert.equal(partialGroup[0].payments.length, 2);
+
+const settling = (payment) => ({ settledBy: payment });
+const s1 = txn("s1", { repaymentId: "R6", loanId: "L1" });
+const s2 = txn("s2", { repaymentId: "R6", loanId: "L2" });
+assert.equal(group([s1, s2], [L1, L2], { L1: settling(null), L2: settling(null) })[0].settledCount, 0);
+assert.equal(group([s1, s2], [L1, L2], { L1: settling(s1), L2: settling(null) })[0].settledCount, 1);
+const nSettled = group([s1, s2], [L1, L2], { L1: settling(s1), L2: settling(s2) })[0];
+assert.equal(nSettled.settledCount, 2);
+assert.deepEqual(nSettled.payments.map(({ isSettling }) => isSettling), [true, true]);
+assert.equal(group([s1], [L1], {})[0].settledCount, 0);
+
+const older = txn("n1", { createdAt: "2026-11-01T08:00:00.000Z" });
+const newer = txn("n2", { createdAt: "2026-11-02T08:00:00.000Z" });
+assert.deepEqual(group([older, newer]).map(({ id }) => id), ["n2", "n1"]);
+const tieOne = txn("m1");
+const tieTwo = txn("m2");
+assert.deepEqual(group([tieOne, tieTwo]).map(({ id }) => id), ["m2", "m1"]);
+
+const noLoan = group([txn("z1", { loanId: "gone" })])[0];
+assert.equal(noLoan.borrower, undefined);
+assert.equal(noLoan.payments[0].loan, undefined);
+assert.equal(noLoan.payments[0].isSettling, false);
+const orphanLast = group([
+  txn("o1", { repaymentId: "R7", loanId: "gone", createdAt: "2026-11-01T09:00:00.000Z" }),
+  txn("o2", { repaymentId: "R7", loanId: "L1", createdAt: "2026-11-01T10:00:00.000Z" }),
+])[0];
+assert.deepEqual(orphanLast.payments.map(({ txn: t }) => t.id), ["o2", "o1"]);
+
+const names = { a1: "Cash", a2: "Bank" };
+const accountName = (id) => names[id];
+const labelsFor = (transactions, summaries = {}) => repaymentLabels(group(transactions, [L1, L2], summaries)[0], accountName);
+const three = [
+  txn("l1", { repaymentId: "R8", loanId: "L1" }),
+  txn("l2", { repaymentId: "R8", loanId: "L2" }),
+  txn("l3", { repaymentId: "R8", loanId: "L1" }),
+];
+const threeLabels = labelsFor(three, { L1: settling(three[0]), L2: settling(three[1]) });
+assert.equal(threeLabels.loans, "3 loans");
+assert.equal(threeLabels.settled, "2 settled");
+assert.equal(threeLabels.settledLead, "2 settled");
+assert.equal(threeLabels.account, "Cash");
+const singleSettled = labelsFor([txn("l4")], { L1: settling(txn("l4")) });
+assert.equal(singleSettled.loans, "1 loan");
+assert.equal(singleSettled.settled, "settled");
+assert.equal(singleSettled.settledLead, "Settled");
+const noneSettledLabels = labelsFor(three);
+assert.equal(noneSettledLabels.settled, null);
+assert.equal(noneSettledLabels.settledLead, null);
+assert.equal(labelsFor([txn("l5", { repaymentId: "R9" }), txn("l6", { repaymentId: "R9", accountId: "a2" })]).account, "2 accounts");
+assert.equal(labelsFor([txn("l7", { accountId: "gone" })]).account, "Deleted account");
+assert.equal(labelsFor([txn("l8")]).extra, null);
+assert.equal(
+  labelsFor([txn("l9", { repaymentId: "R10" }), txn("l10", { kind: "income", repaymentId: "R10", loanId: "L1", amount: 50 })]).extra,
+  "+₱50.00 extra"
+);
+
+const { deleteLoanMessage } = await import("../utils/loans/deleteLoanMessage.ts");
+const { revertLoanMessage } = await import("../utils/loans/revertLoanMessage.ts");
+const { loanEntriesLabel } = await import("../utils/loans/loanEntriesLabel.ts");
+const { revertRepaymentMessage } = await import("../utils/loans/revertRepaymentMessage.ts");
+
+const withAcc = loanRow("M1");
+const noAcc = loanRow("M2", { accountId: null });
+const msgArgs = (loan, paymentCount, incomeCount, accountName) => ({ loan, paymentCount, incomeCount, accountName });
+assert.equal(
+  deleteLoanMessage(msgArgs(withAcc, 3, 1)),
+  "This loan and its 3 payments and 1 income entry are removed, and account balances go back."
+);
+assert.equal(
+  revertLoanMessage(msgArgs(withAcc, 3, 1)),
+  "Account balances go back. This loan and its 3 payments and 1 income entry stay in the account history, marked as reverted."
+);
+assert.equal(deleteLoanMessage(msgArgs(withAcc, 1, 0)), "This loan and its 1 payment are removed, and account balances go back.");
+assert.equal(
+  revertLoanMessage(msgArgs(withAcc, 1, 0)),
+  "Account balances go back. This loan and its 1 payment stay in the account history, marked as reverted."
+);
+assert.equal(deleteLoanMessage(msgArgs(withAcc, 0, 2)), "This loan and its 2 income entries are removed, and account balances go back.");
+assert.equal(
+  revertLoanMessage(msgArgs(withAcc, 0, 2)),
+  "Account balances go back. This loan and its 2 income entries stay in the account history, marked as reverted."
+);
+assert.equal(deleteLoanMessage(msgArgs(noAcc, 0, 0)), "This loan is removed and no account balance changes.");
+assert.equal(revertLoanMessage(msgArgs(noAcc, 0, 0)), "This loan is reverted and no account balance changes.");
+assert.equal(deleteLoanMessage(msgArgs(withAcc, 0, 0, "BPI")), "This loan is removed and the money goes back to BPI.");
+assert.equal(
+  revertLoanMessage(msgArgs(withAcc, 0, 0, "BPI")),
+  "The money goes back to BPI. The loan stays in the account history, marked as reverted."
+);
+assert.equal(deleteLoanMessage(msgArgs(withAcc, 0, 0)), "This loan is removed and the money goes back to its account.");
+assert.equal(
+  revertLoanMessage(msgArgs(withAcc, 0, 0)),
+  "The money goes back to its account. The loan stays in the account history, marked as reverted."
+);
+
+assert.equal(loanEntriesLabel({ paymentCount: 3, incomeCount: 1 }), "3 payments and 1 income entry");
+assert.equal(loanEntriesLabel({ paymentCount: 1, incomeCount: 0 }), "1 payment");
+assert.equal(loanEntriesLabel({ paymentCount: 0, incomeCount: 2 }), "2 income entries");
+assert.equal(loanEntriesLabel({ paymentCount: 0, incomeCount: 0 }), null);
+
+const repaymentOf = (transactions) => group(transactions)[0];
+const manyRepayment = repaymentOf([
+  txn("r1", { repaymentId: "RV1", amount: 1000 }),
+  txn("r2", { repaymentId: "RV1", amount: 500 }),
+  txn("r3", { repaymentId: "RV1", amount: 300 }),
+  txn("r4", { kind: "income", repaymentId: "RV1", loanId: "L1", amount: 200 }),
+]);
+const manyMessage = revertRepaymentMessage({
+  repayment: manyRepayment,
+  borrower: "Ate Isay",
+  accountLabel: "BPI",
+  owesAgain: 1800,
+});
+assert.equal(manyMessage.title, "Revert Ate Isay's ₱2,000.00 repayment?");
+assert.equal(
+  manyMessage.message,
+  "₱2,000.00 leaves BPI and Ate Isay owes ₱1,800.00 again. The 3 payments and 1 income entry stay in the account history, marked as reverted."
+);
+const singleRepayment = repaymentOf([txn("r5", { repaymentId: "RV2", amount: 250 })]);
+const singleMessage = revertRepaymentMessage({
+  repayment: singleRepayment,
+  borrower: "Ana",
+  accountLabel: "its account",
+  owesAgain: undefined,
+});
+assert.equal(singleMessage.title, "Revert Ana's ₱250.00 repayment?");
+assert.equal(
+  singleMessage.message,
+  "₱250.00 leaves its account and Ana owes it again. The payment stays in the account history, marked as reverted."
+);
+const excessRepayment = repaymentOf([
+  txn("r6", { repaymentId: "RV3", amount: 100 }),
+  txn("r7", { kind: "income", repaymentId: "RV3", loanId: "L1", amount: 50 }),
+]);
+assert.equal(
+  revertRepaymentMessage({ repayment: excessRepayment, borrower: "Ana", accountLabel: "2 accounts", owesAgain: 100 }).message,
+  "₱150.00 leaves 2 accounts and Ana owes ₱100.00 again. The 1 payment and 1 income entry stay in the account history, marked as reverted."
+);
+const twoRepayment = repaymentOf([
+  txn("r8", { repaymentId: "RV4", amount: 100 }),
+  txn("r9", { repaymentId: "RV4", amount: 100, loanId: "L2" }),
+]);
+assert.equal(
+  revertRepaymentMessage({ repayment: twoRepayment, borrower: "Ana", accountLabel: "BPI", owesAgain: undefined }).message,
+  "₱200.00 leaves BPI and Ana owes it again. The 2 payments stay in the account history, marked as reverted."
+);
 
 console.log("loan-check: all passed");

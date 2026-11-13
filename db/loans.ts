@@ -102,10 +102,11 @@ export async function insertPayments(payments: LoanPaymentInput[], excess?: Loan
         throw new Error("Account not found");
       }
     }
+    const repaymentId = newId();
     for (const p of payments) {
       await insertRow(txn, {
         ...emptyTxnFields(), accountId: p.accountId, kind: "loan_in", amount: p.amount, loanId: p.loanId,
-        createdAt: p.paidAt,
+        repaymentId, createdAt: p.paidAt,
       });
     }
     if (!excess) {
@@ -117,7 +118,7 @@ export async function insertPayments(payments: LoanPaymentInput[], excess?: Loan
     }
     await insertRow(txn, {
       ...emptyTxnFields(), accountId: last.accountId, kind: "income", amount: excess.amount,
-      category: excess.category, loanId: last.loanId, createdAt: last.paidAt,
+      category: excess.category, loanId: last.loanId, repaymentId, createdAt: last.paidAt,
     });
     await touchCategory({ name: excess.category, kind: "income", db: txn });
   });

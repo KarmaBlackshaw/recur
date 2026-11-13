@@ -159,4 +159,11 @@ const noBorrower = { ...withoutExcess, repayment: { ...withoutExcess.repayment, 
 assert.ok(matchesActivity(noBorrower, "loan", ctx), "a borrower-less repayment still matches loan");
 assert.ok(!matchesActivity(noBorrower, "repaid", ctx), "and has no borrower to be called repaid");
 
+const lent = { kind: "loan", loanTxn: { accountId: "a1", note: null }, loan: { borrower: "Ana", note: "Tuition" }, amount: 900 };
+assert.ok(matchesActivity(lent, "tuition", ctx), "a loan matches its note");
+const billPaid = { kind: "billPayment", payment: { note: "October statement" }, account: { name: "BPI Card" }, sourceName: "GCash", amount: 5000 };
+assert.ok(matchesActivity(billPaid, "october", ctx), "a bill payment matches its note");
+const named = { kind: "expense", expense: { name: "", notes: "Meralco", category: "Utilities", accountId: "a1" }, amount: 1200 };
+assert.ok(matchesActivity(named, "meralco", ctx), "an expense matches its notes, which are its title");
+
 console.log("stats-check ok");

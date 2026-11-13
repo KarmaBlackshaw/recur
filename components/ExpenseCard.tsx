@@ -14,6 +14,7 @@ import { useDeleteExpense } from "@/utils/useDeleteExpense";
 import { openExpense } from "@/utils/expenses/openExpense";
 import { formatBillAmount } from "@/utils/expenses/formatBillAmount";
 import { formatAmount } from "@/utils/formatAmount";
+import { billReminderLead } from "@/utils/reminders";
 import type { AccountTransaction, Expense } from "@/types";
 
 interface Props {
@@ -51,6 +52,8 @@ export function ExpenseCard({
   const year = refDate.getFullYear();
   const month = refDate.getMonth();
   const isRegular = expense.recurrence === "one-off";
+  const card = isCardAccount(expense.accountId) ? accounts.find((a) => a.id === expense.accountId) : undefined;
+  const isReminderOff = !isRegular && billReminderLead(expense, card) == null;
   const dueDate = getDueDateForMonth(expense.dueDay, year, month);
   const resolvedStatus = paidTxn ? "paid" : getMonthStatus(expense.id, year, month);
   const isPaid = resolvedStatus === "paid";
@@ -159,7 +162,7 @@ export function ExpenseCard({
           iconTone={overdueFlag ? "negative" : "neutral"}
           title={title}
           meta={[isCategoryTitle ? null : expense.category, accountName].filter(Boolean).join(" · ") || undefined}
-          metaIcon={expense.reminderDaysBefore === 0 && !isRegular ? "bell-off" : undefined}
+          metaIcon={isReminderOff ? "bell-off" : undefined}
           amount={amountText}
           caption={caption}
           captionTone={statusTone}

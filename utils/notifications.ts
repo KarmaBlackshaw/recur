@@ -4,7 +4,8 @@ import dayjs from 'dayjs';
 import { groupBy, range, sortBy, sumBy, uniq } from '@/utils/collections';
 import { getDueDateForMonth, hasCycleIn } from '@/utils/dateHelpers';
 import { expenseTitle } from '@/utils/expenseHelpers';
-import type { CardBill, Expense, Status } from '@/types';
+import { billReminderLead, reminderLead } from '@/utils/reminders';
+import type { Account, CardBill, Expense, Status } from '@/types';
 
 // The bill a reminder is about, so tapping it (or its Mark paid action) can open that bill.
 export interface ReminderTarget {
@@ -93,16 +94,16 @@ export function getExpenseReminders(
   expenses: Expense[],
   getMonthStatus: (id: string, year: number, month: number) => Status,
   getDisplayAmount: (expense: Expense, year: number, month: number) => number | null,
+  cardOf: (accountId: string | null | undefined) => Account | undefined,
   now: Date
 ): Reminder[] {
   const months = upcomingMonths(now);
   const reminders: Reminder[] = [];
   for (const expense of expenses) {
-    // 0 days before means the reminder is off for this bill.
-    if (expense.reminderDaysBefore === 0) {
+    const daysBefore = billReminderLead(expense, cardOf(expense.accountId));
+    if (daysBefore == null) {
       continue;
     }
-    const daysBefore = expense.reminderDaysBefore ?? 1;
     const isOneOff = expense.recurrence === 'one-off';
     const cycles = isOneOff ? [months[0]] : months;
     for (const cycle of cycles) {
@@ -131,10 +132,15 @@ export function getUnpaidBillReminders(
   now: Date
 ): Reminder[] {
   // Statements not cut yet are estimated from the card's balance as of now.
-  return upcomingMonths(now)
-    .flatMap((month) => getCardBills(month.year(), month.month()))
-    .filter((bill) => !bill.isPaid && bill.remaining > 0)
-    .map((bill) => ({ title: `${bill.account.name} bill`, amount: bill.remaining, dueDate: bill.dueDate, daysBefore: 1 }));
+  const reminders: Reminder[] = [];
+  for (const bill of upcomingMonths(now).flatMap((month) => getCardBills(month.year(), month.month()))) {
+    const daysBefore = reminderLead(bill.account.reminderDaysBefore);
+    if (bill.isPaid || bill.remaining <= 0 || daysBefore == null) {
+      continue;
+    }
+    reminders.push({ title: `${bill.account.name} bill`, amount: bill.remaining, dueDate: bill.dueDate, daysBefore });
+  }
+  return reminders;
 }
 
 export async function scheduleAllNotifications(reminders: Reminder[], reminderTime: string): Promise<void> {

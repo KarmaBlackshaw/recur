@@ -5,7 +5,7 @@ import * as ScreenCapture from "expo-screen-capture";
 import { getPreference, setPreference } from "@/db/preferences";
 import { PREF_APP_LOCK_AFTER_MINUTES, PREF_APP_LOCK_ENABLED } from "@/constants/preferences";
 import { DEFAULT_LOCK_AFTER_MINUTES, LOCK_AFTER_MINUTES } from "@/constants/appLock";
-import { isSystemScreenOpen } from "@/utils/appLock/systemScreen";
+import { isSystemScreenOpen } from "@/utils/systemScreens";
 import { useAsyncEffect } from "@/utils/useAsyncEffect";
 import { useMemoizedFn } from "@/utils/useMemoizedFn";
 import { useMount } from "@/utils/useMount";

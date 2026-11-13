@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { groupBy, range, sortBy, sumBy, uniq } from '@/utils/collections';
 import { getDueDateForMonth, hasCycleIn } from '@/utils/dateHelpers';
 import { expenseTitle } from '@/utils/expenseHelpers';
-import { openSystemScreen } from '@/utils/appLock/systemScreen';
+import { requestNotificationPermission } from '@/utils/systemScreens';
 import type { CardBill, Expense, Status } from '@/types';
 
 // The bill a reminder is about, so tapping it (or its Mark paid action) can open that bill.
@@ -38,7 +38,7 @@ function upcomingMonths(now: Date): dayjs.Dayjs[] {
 }
 
 export async function requestPermissions(): Promise<boolean> {
-  const { status } = await openSystemScreen(() => Notifications.requestPermissionsAsync());
+  const { status } = await requestNotificationPermission();
   return status === 'granted';
 }
 

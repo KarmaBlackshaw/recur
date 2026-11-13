@@ -1,7 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import * as DocumentPicker from 'expo-document-picker';
-import { openSystemScreen } from '@/utils/appLock/systemScreen';
+import { pickDocument, shareFile } from '@/utils/systemScreens';
 import { uniqBy } from '@/utils/collections';
 
 import { getAll as getAllExpenses, insertWithId as insertExpenseWithId } from '@/db/expenses';
@@ -410,17 +408,10 @@ export async function exportBackup(): Promise<void> {
 
   await FileSystem.writeAsStringAsync(uri, JSON.stringify(backup, null, 2));
 
-  const sharingAvailable = await Sharing.isAvailableAsync();
-  if (!sharingAvailable) {
-    throw new Error('Sharing not available on this device.');
-  }
-
-  await openSystemScreen(() =>
-    Sharing.shareAsync(uri, {
-      mimeType: 'application/json',
-      dialogTitle: 'Export Recur Backup',
-    })
-  );
+  await shareFile(uri, {
+    mimeType: 'application/json',
+    dialogTitle: 'Export Recur Backup',
+  });
   // The share sheet can't tell whether the file was saved anywhere, so closing it counts as a backup.
   await setPreference(PREF_LAST_BACKUP_AT, new Date().toISOString());
 }
@@ -428,12 +419,10 @@ export async function exportBackup(): Promise<void> {
 // Merges a backup into this device, all or nothing: every row goes in through one transaction, and anything
 // that throws rolls it back and deletes the logos it wrote. Rows already here are kept as they are.
 export async function importBackup(): Promise<ImportSummary | null> {
-  const result = await openSystemScreen(() =>
-    DocumentPicker.getDocumentAsync({
-      type: 'application/json',
-      copyToCacheDirectory: true,
-    })
-  );
+  const result = await pickDocument({
+    type: 'application/json',
+    copyToCacheDirectory: true,
+  });
 
   if (result.canceled || !result.assets || result.assets.length === 0) {
     return null;

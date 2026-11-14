@@ -7,7 +7,7 @@ export interface ActivitySearchContext {
   accountName: (id: string | null | undefined) => string | undefined;
 }
 
-// What a row shows (plus its kind), so a search finds it by name, category, account, person or keyword.
+// What a row shows (plus its kind and note), so a search finds it by name, category, account, person, note or keyword.
 function searchableText(entry: ActivityEntry, { accountName }: ActivitySearchContext): (string | null | undefined)[] {
   switch (entry.kind) {
     case "expense": {
@@ -26,7 +26,7 @@ function searchableText(entry: ActivityEntry, { accountName }: ActivitySearchCon
       const { loanTxn, loan } = entry;
       const borrower = loan?.borrower;
       const title = borrower == null ? null : `Lent to ${borrower}`;
-      return [title, "loan", accountName(loanTxn.accountId)];
+      return [title, "loan", loan?.note, accountName(loanTxn.accountId)];
     }
     case "repayment": {
       const { repayment, excess } = entry;
@@ -40,7 +40,7 @@ function searchableText(entry: ActivityEntry, { accountName }: ActivitySearchCon
       ];
     }
     case "billPayment":
-      return [`${entry.account.name} bill`, entry.sourceName];
+      return [`${entry.account.name} bill`, entry.sourceName, entry.payment.note];
   }
 }
 

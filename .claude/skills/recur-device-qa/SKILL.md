@@ -1,9 +1,11 @@
 ---
 name: recur-device-qa
-description: Use when a recur change needs checking in the running Android app (a test-plan step, "test it on the emulator", "QA this", app screenshots, or SQLite state the UI is slow to reach), and when the shared emulator is busy, re-pinned by another session, or crashes on this tree's native modules. Also when a JS-only check (form logic, a double tap, what a save writes) doesn't need an emulator, or several sessions need the app at once: run it on Expo web.
+description: Use when a recur change needs checking in the running app (a test-plan step, "test it on the emulator", "QA this", app screenshots, or SQLite state the UI is slow to reach), and when the shared emulator is busy, re-pinned by another session, or crashes on this tree's native modules. Runs every check it can on Expo web first (forms, double taps, saves, navigation, rendered values); the Android emulator only for what web can't show.
 ---
 
 # Recur device QA
+
+Run every check that web can show on Expo web first: emulators are too heavy to run one per session. Use the Android emulator only for what web can't show (below). Steps behind an `Alert.alert` are skipped on web, never a reason to move to the emulator.
 
 Drive the debug app by hand over adb + uiautomator, and judge every step by what the screen shows and what the DB holds. The helpers live in `scripts/` beside this file. From the repo root, set `S=.claude/skills/recur-device-qa/scripts` and call them through `bash` / `python3`.
 
@@ -11,9 +13,9 @@ Drive the debug app by hand over adb + uiautomator, and judge every step by what
 
 | Situation | Use |
 |---|---|
+| Anything web can show (a form, a double tap, which rows a save writes, navigation, what a page renders) | Expo web (below): no emulator, one Metro and a headless browser per session. |
 | An emulator already runs this worktree's code | Reuse it: `npm run start:wt` (`bash scripts/expo-wt.sh --attach` when Metro already runs). Prefix every helper call with `ANDROID_ADB_SERVER_PORT=5037 ANDROID_SERIAL=<serial from adb devices>`. |
 | You need a clean install, another session drives the shared emulator, or its APK crashes (`Fatal signal 11`, `Can't find ViewManager`) | A private emulator (below). The helpers target it by default: `emulator-5602` on its own adb server, port 5099. The shared server never lists it, so nothing installs over it and no tap lands in someone else's app. |
-| The check is JS only (a form, a double tap, which rows a save writes), or emulators are too heavy to run one per session | Expo web (below): no emulator, one Metro and a headless browser per session. |
 
 ## Private run
 
@@ -38,7 +40,7 @@ Drive the debug app by hand over adb + uiautomator, and judge every step by what
 5. **Check** what the page shows (`page.innerText('body')`) and the console errors (`page.on('console')`, `page.on('pageerror')`).
 
 Web can't show:
-- `Alert.alert` (a no-op in react-native-web): a confirm or error behind one never appears, so delete and revert flows need the emulator.
+- `Alert.alert` (a no-op in react-native-web): a confirm or error behind one never appears. Skip those steps; don't move to the emulator for them.
 - Notifications: reminders and the permission prompt are a no-op, and Settings shows the "Notifications are off" banner (web reports the permission as denied).
 - Android layout, the keyboard, bottom-sheet drags, swipe rows and the hardware Back button.
 

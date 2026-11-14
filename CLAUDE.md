@@ -112,6 +112,7 @@ types.ts                 # Shared TS types
 
 - **Always** invoke the `superpowers:using-superpowers` skill at the start of every session before taking any action.
 - ⚠️ **Always** invoke the `superpowers:dispatching-parallel-agents` skill (via the Skill tool) before executing ANY plan with 2+ tasks. Never run independent work sequentially. This applies even if tasks look small.
+- **QA on Expo web first** — run every check web can show (forms, double taps, saves, navigation, rendered values) on Expo web (`recur-device-qa` § Expo web); emulators are too heavy to run one per session. The emulator is only for Android layout, the keyboard, bottom-sheet drags, swipe rows, hardware Back and notifications. `Alert.alert` is a no-op on web: skip alert steps rather than moving to the emulator.
 - **Any UI/component work** — invoke `web-component-design` skill before implementation.
 - **Any visual/design work** (new screens, redesigns, styling) — invoke `frontend-design` skill before implementation.
 

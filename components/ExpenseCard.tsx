@@ -159,7 +159,6 @@ export function ExpenseCard({
           iconTone={overdueFlag ? "negative" : "neutral"}
           title={title}
           meta={[isCategoryTitle ? null : expense.category, accountName].filter(Boolean).join(" · ") || undefined}
-          metaIcon={expense.reminderDaysBefore === 0 && !isRegular ? "bell-off" : undefined}
           amount={amountText}
           caption={caption}
           captionTone={statusTone}

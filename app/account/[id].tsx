@@ -22,6 +22,7 @@ import { colors } from "@/constants/theme";
 import { isBillTbd } from "@/utils/cardBills";
 import { nextOccurrence } from "@/utils/dateHelpers";
 import { formatAmount } from "@/utils/formatAmount";
+import { reminderLabel } from "@/utils/reminders";
 import { useRefreshControl } from "@/utils/useRefreshControl";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { useRevertTransfer } from "@/utils/accounts/useRevertTransfer";
@@ -97,6 +98,9 @@ function CreditDetails({ account, balance, dueBill, onDueBillPress }: {
           value={dueBill ? `${dueDate} · ${billState(dueBill)}` : dueDate}
           onPress={dueBill ? onDueBillPress : undefined}
         />
+      )}
+      {account.statementDay != null && account.dueDay != null && isActive && (
+        <AppDetailRow label="Reminder" value={reminderLabel(account.reminderDaysBefore)} />
       )}
     </View>
   );

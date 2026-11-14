@@ -38,7 +38,6 @@ interface AppListRowProps {
   iconTone?: RowTone;
   title: string;
   meta?: string;
-  metaIcon?: FeatherIconName;
   amount: string;
   amountTone?: RowTone;
   caption?: string;
@@ -59,7 +58,6 @@ export function AppListRow({
   iconTone = "neutral",
   title,
   meta,
-  metaIcon,
   amount,
   amountTone = "neutral",
   caption,
@@ -87,15 +85,10 @@ export function AppListRow({
         >
           {title}
         </AppText>
-        {meta || metaIcon ? (
-          <View className="flex-row items-center gap-1">
-            {metaIcon ? <Feather name={metaIcon} size={10} color={colors.secondary} /> : null}
-            {meta ? (
-              <AppText variant="meta" className={`shrink ${isMuted ? "text-textMuted" : ""}`} numberOfLines={1}>
-                {meta}
-              </AppText>
-            ) : null}
-          </View>
+        {meta ? (
+          <AppText variant="meta" className={isMuted ? "text-textMuted" : ""} numberOfLines={1}>
+            {meta}
+          </AppText>
         ) : null}
       </View>
       <View className="items-end">

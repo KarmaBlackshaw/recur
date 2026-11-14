@@ -153,6 +153,7 @@ export interface Account {
   creditLimit: number | null;
   statementDay: number | null;
   dueDay: number | null;
+  reminderDaysBefore: number | null;   // Credit cards: days before the bill's due date of an earlier reminder (the due day always reminds). 0 = none, null = 1 day.
   color: string | null;
   icon: IoniconName | null;
   logoUri: string | null;

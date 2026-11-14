@@ -25,6 +25,7 @@ import { formatAmount } from "@/utils/formatAmount";
 import { signedAmount } from "@/utils/signedAmount";
 import { netInterestPerPeriod } from "@/utils/interest";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
+import { maybeAskForReminders } from "@/utils/reminderPermission";
 import { parseReminder, toReminderFormValue } from "@/utils/reminders";
 import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod, type IoniconName, type TOption } from "@/types";
 
@@ -269,6 +270,14 @@ export default function EditAccountScreen() {
     } catch (e) {
       console.error("Save account failed", e);
       Alert.alert("Save failed", "Something went wrong. Please try again.");
+      return;
+    }
+    if (input.dueDay != null) {
+      try {
+        await maybeAskForReminders(`${input.name} bill`);
+      } catch (e) {
+        console.error("Asking for reminders failed", e);
+      }
     }
   });
 

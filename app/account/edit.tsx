@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Alert, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import { useAccounts } from "@/context/AccountContext";
 import { useExpenses } from "@/context/ExpenseContext";
 import { AppButton } from "@/components/ui/AppButton";
@@ -170,7 +171,7 @@ export default function EditAccountScreen() {
     setValue,
     getFieldState,
     formState: { isValid, isSubmitting, isDirty, errors },
-  } = useForm<AccountFormValues>({ mode: "onChange", defaultValues: toFormValues(editingAccount) });
+  } = useAppForm<AccountFormValues>({ mode: "onChange", defaultValues: toFormValues(editingAccount) });
   const { allowLeave } = useDiscardGuard(isDirty);
 
   const [isInterestOpen, setIsInterestOpen] = useState(editingAccount?.interestRate != null);

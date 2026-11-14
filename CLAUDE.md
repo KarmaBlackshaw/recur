@@ -95,7 +95,7 @@ app/index.tsx            # Main screen
 components/              # All UI components
 context/ExpenseContext.tsx
 db/schema.ts             # initDB() — run once on mount
-db/expenses.ts           # getAll, insert, updateStatus, remove
+db/expenses.ts           # getAll, insert, remove
 db/categories.ts         # getCustom, insertCustom
 utils/dateHelpers.ts     # getDueDate, isOverdue, formatDue
 utils/categories.ts      # PRESET_CATEGORIES

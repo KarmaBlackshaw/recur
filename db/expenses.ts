@@ -86,10 +86,6 @@ export async function insertWithId(e: Expense, db?: SQLiteDatabase): Promise<num
   return result.changes;
 }
 
-export async function updateStatus(txn: SQLiteDatabase, id: string, status: Status): Promise<void> {
-  await txn.runAsync("UPDATE expenses SET status = ? WHERE id = ?", [status, id]);
-}
-
 export async function update(txn: SQLiteDatabase, id: string, e: ExpenseFields): Promise<void> {
   const schedule = scheduleOf(e);
   await txn.runAsync(

@@ -18,7 +18,7 @@ import type { AccountTransaction, Expense, Status, MonthStatus, HomeBandSlot } f
 import { getAll as getAllExpenses, newExpense } from "@/db/expenses";
 import { getPreference, setPreference } from "@/db/preferences";
 import { getAll as getAllMonths } from "@/db/expenseMonths";
-import { editExpense, insertExpense, removeExpense, setExpenseStatus, setMonthState, type TMonthAmount } from "@/db/expenseWrites";
+import { editExpense, insertExpense, removeExpense, setMonthState, type TMonthAmount } from "@/db/expenseWrites";
 import { monthKey, parseMonthKey } from "@/utils/monthKey";
 import { scheduleAllNotifications, cancelAllNotifications, getExpenseReminders, getUnpaidBillReminders } from '@/utils/notifications';
 import { useAccounts, type PaymentInput, type TLedgerPlan } from "@/context/AccountContext";
@@ -160,7 +160,6 @@ interface ExpenseContextValue {
   getBillProgress: (expense: Expense, year: number, month: number) => BillProgress;
   resolveAmount: (expense: Expense, year: number, month: number) => number;
   getMonthPaidAt: (id: string, year: number, month: number) => string | null;
-  toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
   // Recurring months only. All throw when the write fails (the month is left as it was).
   payMonth: (id: string, year: number, month: number, details?: PayDetails) => Promise<UndoMonth>;
   payPart: (id: string, year: number, month: number, details: PayDetails & { amount: number }) => Promise<UndoMonth>;
@@ -717,38 +716,6 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     });
   });
 
-  const toggleMonthStatus = useMemoizedFn(
-    async (id: string, year: number, month: number): Promise<void> => {
-      const expense = state.expenses.find((e) => e.id === id);
-      if (!expense) {
-        return;
-      }
-
-      if (expense.recurrence === "one-off") {
-        const next: Status = expense.status === "unpaid" ? "paid" : "unpaid";
-        const { change, removedIds } = await accounts.prepareLedger(
-          next === "paid"
-            ? { payments: oneOffPayment(id, expense) }
-            : { reverseIds: accounts.getPayments(id, null, null).map((t) => t.id) }
-        );
-        const inserted = await setExpenseStatus(id, next, change);
-        dispatch({ type: "UPDATE", payload: { ...expense, status: next } });
-        accounts.applyLedger(removedIds, inserted);
-      } else {
-        try {
-          if (monthStateOf(id, year, month).status === "paid") {
-            await unpayMonth(id, year, month);
-          } else {
-            await payMonth(id, year, month);
-          }
-        } catch (err) {
-          console.error("Failed to sync payment, reverting status", err);
-          throw err;
-        }
-      }
-    }
-  );
-
   const deleteExpense = useMemoizedFn(async (id: string) => {
     const expense = state.expenses.find((e) => e.id === id);
     const { change, removedIds } = await accounts.prepareLedger(
@@ -790,7 +757,6 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       getBillProgress,
       resolveAmount,
       getMonthPaidAt,
-      toggleMonthStatus,
       payMonth,
       payPart,
       updatePayment,

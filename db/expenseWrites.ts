@@ -2,9 +2,9 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { getDB } from "@/db/schema";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import { writeLedgerChange, type TLedgerChange } from "@/db/accountTransactions";
-import { insert, remove, update, updateStatus, type ExpenseFields } from "@/db/expenses";
+import { insert, remove, update, type ExpenseFields } from "@/db/expenses";
 import { setMonth, upsertMonthlyAmount } from "@/db/expenseMonths";
-import type { AccountTransaction, Expense, MonthStatus, Status } from "@/types";
+import type { AccountTransaction, Expense, MonthStatus } from "@/types";
 
 export interface TMonthAmount {
   year: number;
@@ -49,10 +49,6 @@ export async function editExpense(
       await upsertMonthlyAmount(txn, id, monthAmount.year, monthAmount.month, monthAmount.amount);
     }
   }, ledger);
-}
-
-export async function setExpenseStatus(id: string, status: Status, ledger?: TLedgerChange): Promise<AccountTransaction[]> {
-  return write((txn) => updateStatus(txn, id, status), ledger);
 }
 
 export async function setMonthState(month: MonthStatus, ledger?: TLedgerChange): Promise<AccountTransaction[]> {

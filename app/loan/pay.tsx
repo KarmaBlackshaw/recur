@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import Animated, { FadeIn, FadeOut, useReducedMotion } from "react-native-reanimated";
 import dayjs from "dayjs";
 import { orderBy } from "@/utils/collections";
@@ -70,7 +71,7 @@ function PaymentForm({ choices, payment }: FormProps) {
     trigger,
     watch,
     formState: { isValid, isSubmitting, isDirty },
-  } = useForm<FormValues>({
+  } = useAppForm<FormValues>({
     mode: "onChange",
     defaultValues: payment
       ? {

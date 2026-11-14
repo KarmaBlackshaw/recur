@@ -4,7 +4,8 @@ import { Alert, Keyboard, TouchableOpacity, View } from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
 import { router, useFocusEffect } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import { AppBottomSheet, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
@@ -51,7 +52,7 @@ const NewCategorySheet = forwardRef<AppBottomSheetRef, NewCategorySheetProps>(fu
     handleSubmit,
     reset,
     formState: { isValid, isSubmitting },
-  } = useForm<NewCategoryFormValues>({ mode: "onChange", defaultValues: { name: "" } });
+  } = useAppForm<NewCategoryFormValues>({ mode: "onChange", defaultValues: { name: "" } });
 
   React.useImperativeHandle(ref, () => ({
     present: () => {

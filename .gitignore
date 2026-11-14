@@ -13,3 +13,7 @@ CLAUDE.local.md
 
 # local planning/run artifacts
 docs/
+
+# Gradle output of local Expo modules
+modules/*/android/build
+modules/*/android/.cxx

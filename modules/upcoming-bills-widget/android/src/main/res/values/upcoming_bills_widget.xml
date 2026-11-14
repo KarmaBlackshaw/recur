@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="upcoming_bills_widget_surface">#1C1C1E</color>
+    <color name="upcoming_bills_widget_border">#12FFFFFF</color>
+    <color name="upcoming_bills_widget_ripple">#1FFFFFFF</color>
+    <color name="upcoming_bills_widget_text">#FFFFFF</color>
+    <color name="upcoming_bills_widget_text_secondary">#A6FFFFFF</color>
+    <color name="upcoming_bills_widget_overdue">#F87171</color>
+    <color name="upcoming_bills_widget_accent">#818CF8</color>
+    <color name="upcoming_bills_widget_tile_neutral">#0FFFFFFF</color>
+    <color name="upcoming_bills_widget_tile_negative">#26F87171</color>
+    <color name="upcoming_bills_widget_tile_accent">#26818CF8</color>
+
+    <dimen name="upcoming_bills_widget_radius">21dp</dimen>
+
+    <string name="upcoming_bills_widget_label">Upcoming bills</string>
+    <string name="upcoming_bills_widget_description">Unpaid bills, overdue first. Tap one to open it.</string>
+    <string name="upcoming_bills_widget_header">UPCOMING BILLS</string>
+    <string name="upcoming_bills_widget_header_description">Open Recur home</string>
+    <string name="upcoming_bills_widget_empty_unloaded_title">No bills loaded yet</string>
+    <string name="upcoming_bills_widget_empty_unloaded_text">Tap to open Recur.</string>
+    <string name="upcoming_bills_widget_empty_none_title">All caught up</string>
+    <string name="upcoming_bills_widget_empty_none_text">Nothing overdue or due through next month.</string>
+    <string name="upcoming_bills_widget_band_overdue">Overdue</string>
+    <string name="upcoming_bills_widget_band_upcoming">Upcoming</string>
+</resources>

@@ -1,5 +1,7 @@
 import React from "react";
+import { View } from "react-native";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
+import { AppText } from "@/components/ui/AppText";
 import { DEFAULT_REMINDER, reminderOptionsFor } from "@/utils/reminders";
 
 interface ReminderFieldProps {
@@ -13,15 +15,18 @@ interface ReminderFieldProps {
 export function ReminderField({ value, onChange, stored }: ReminderFieldProps) {
   const shown = value.trim() === "" ? DEFAULT_REMINDER : value;
   return (
-    <AppRadioGroup
-      label="Reminder"
-      options={reminderOptionsFor(stored)}
-      value={shown}
-      onChange={(next) => {
-        if (next !== shown) {
-          onChange(next);
-        }
-      }}
-    />
+    <View>
+      <AppRadioGroup
+        label="Reminder"
+        options={reminderOptionsFor(stored)}
+        value={shown}
+        onChange={(next) => {
+          if (next !== shown) {
+            onChange(next);
+          }
+        }}
+      />
+      <AppText variant="meta" className="mt-1 mb-2">Days before the due date, plus one on the day</AppText>
+    </View>
   );
 }

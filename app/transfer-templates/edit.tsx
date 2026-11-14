@@ -3,7 +3,8 @@ import { Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import { useAccounts } from "@/context/AccountContext";
 import { useTransferTemplates } from "@/context/TransferTemplateContext";
 import { AccountField } from "@/components/AccountField";
@@ -91,7 +92,7 @@ export default function TransferTemplateEditScreen() {
     getValues,
     trigger,
     formState: { isValid, isSubmitting, isDirty },
-  } = useForm<TemplateFormValues>({
+  } = useAppForm<TemplateFormValues>({
     mode: "onChange",
     defaultValues: toFormValues(),
   });

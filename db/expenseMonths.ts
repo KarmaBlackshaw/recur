@@ -22,6 +22,7 @@ export async function getAll(): Promise<MonthStatus[]> {
 // Writes a month's status, amount and pay time together: paying records what the month cost, so the
 // amount stays put when the expense is edited later.
 export async function setMonth(
+  txn: SQLiteDatabase,
   expenseId: string,
   year: number,
   month: number,
@@ -29,21 +30,20 @@ export async function setMonth(
   amount: number | null,
   paidAt: string | null
 ): Promise<void> {
-  const db = await getDB();
-  await db.runAsync(
+  await txn.runAsync(
     "INSERT OR REPLACE INTO expense_months (expense_id, year, month, status, amount, paid_at) VALUES (?, ?, ?, ?, ?, ?)",
     [expenseId, year, month, status, amount, paidAt]
   );
 }
 
 export async function upsertMonthlyAmount(
+  txn: SQLiteDatabase,
   expenseId: string,
   year: number,
   month: number,
   amount: number | null
 ): Promise<void> {
-  const db = await getDB();
-  await db.runAsync(
+  await txn.runAsync(
     `INSERT OR REPLACE INTO expense_months (expense_id, year, month, status, amount, paid_at)
      VALUES (?, ?, ?,
        COALESCE((SELECT status FROM expense_months WHERE expense_id=? AND year=? AND month=?), 'unpaid'),

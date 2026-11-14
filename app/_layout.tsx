@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { View } from "react-native";
 import { useMount } from "@/utils/useMount";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -17,7 +18,9 @@ import { LoanProvider } from "@/context/LoanContext";
 import { TransferTemplateProvider } from "@/context/TransferTemplateContext";
 import { SnackbarProvider } from "@/context/SnackbarContext";
 import { PayFlowProvider } from "@/context/PayFlowContext";
+import { AppLockProvider, useAppLockState } from "@/context/AppLockContext";
 import { NotificationRouter } from "@/components/NotificationRouter";
+import { AppLockScreen } from "@/components/AppLockScreen";
 import { UpcomingBillsWidgetSync } from "@/components/UpcomingBillsWidgetSync";
 import { colors } from "@/constants/theme";
 import { registerNotificationCategories } from "@/utils/notifications";
@@ -49,11 +52,16 @@ export default function RootLayout() {
     Quicksand_700Bold,
   });
 
+  const appLock = useAppLockState();
+  const isFontReady = fontsLoaded || fontError != null;
+  // The splash stays until App lock is read, so a locked app never shows for a frame.
+  const isReady = isFontReady && appLock.isReady;
+
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if (isReady) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [isReady]);
 
   // Permission is asked after the first recurring bill is saved (utils/reminderPermission.ts), not at launch.
   useMount(async () => {
@@ -64,36 +72,46 @@ export default function RootLayout() {
     }
   });
 
-  if (!fontsLoaded && !fontError) {
+  if (!isReady) {
     return null;
   }
+  const isHidden = appLock.status !== "unlocked";
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AccountProvider>
-          <LoanProvider>
-            <TransferTemplateProvider>
-              <ExpenseProvider>
-                <SnackbarProvider>
-                  <BottomSheetModalProvider>
-                    <PayFlowProvider>
-                      <Stack
-                        UNSTABLE_router={skipRepeatPush}
-                        screenOptions={{
-                          headerShown: false,
-                          contentStyle: { backgroundColor: colors.background },
-                        }}
-                      />
-                      <NotificationRouter />
-                      <UpcomingBillsWidgetSync />
-                    </PayFlowProvider>
-                  </BottomSheetModalProvider>
-                </SnackbarProvider>
-              </ExpenseProvider>
-            </TransferTemplateProvider>
-          </LoanProvider>
-        </AccountProvider>
+        <AppLockProvider value={appLock}>
+          <View
+            className="flex-1"
+            importantForAccessibility={isHidden ? "no-hide-descendants" : "auto"}
+            accessibilityElementsHidden={isHidden}
+          >
+            <AccountProvider>
+              <LoanProvider>
+                <TransferTemplateProvider>
+                  <ExpenseProvider>
+                    <SnackbarProvider>
+                      <BottomSheetModalProvider>
+                        <PayFlowProvider>
+                          <Stack
+                            UNSTABLE_router={skipRepeatPush}
+                            screenOptions={{
+                              headerShown: false,
+                              contentStyle: { backgroundColor: colors.background },
+                            }}
+                          />
+                          <NotificationRouter />
+                          <UpcomingBillsWidgetSync />
+                        </PayFlowProvider>
+                      </BottomSheetModalProvider>
+                    </SnackbarProvider>
+                  </ExpenseProvider>
+                </TransferTemplateProvider>
+              </LoanProvider>
+            </AccountProvider>
+          </View>
+          <AppLockScreen />
+        </AppLockProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

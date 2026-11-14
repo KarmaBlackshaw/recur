@@ -1,6 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { View } from "react-native";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import dayjs from "dayjs";
 import { AppBottomSheet, type AppBottomSheetRef, type SheetFooter } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
@@ -68,7 +69,7 @@ export const PaySheet = forwardRef<PaySheetRef, Props>(function PaySheet({ onCon
     watch,
     setValue,
     formState: { isValid },
-  } = useForm<PayFormValues>({ mode: "onChange", defaultValues: { amount: "", paidAt: "", accountId: CASH_ACCOUNT_ID } });
+  } = useAppForm<PayFormValues>({ mode: "onChange", defaultValues: { amount: "", paidAt: "", accountId: CASH_ACCOUNT_ID } });
 
   function lastKnownAmount(expense: Expense, year: number, month: number): number | null {
     for (let back = 0; back <= AMOUNT_LOOKBACK_MONTHS; back++) {

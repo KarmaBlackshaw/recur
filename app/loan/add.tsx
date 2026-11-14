@@ -3,7 +3,8 @@ import { maxBy, orderBy, uniqBy } from "@/utils/collections";
 import { View, Alert, type TextInputInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import dayjs from "dayjs";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { TransferInButton } from "@/components/accounts/TransferInButton";
@@ -171,7 +172,7 @@ export default function AddLoanScreen() {
     trigger,
     watch,
     formState: { isValid, isSubmitting, isDirty },
-  } = useForm<LoanFormValues>({
+  } = useAppForm<LoanFormValues>({
     mode: "onChange",
     defaultValues: toFormValues(editing),
   });

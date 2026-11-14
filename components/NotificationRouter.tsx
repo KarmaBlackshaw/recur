@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import * as Notifications from "expo-notifications";
 import { router, useRootNavigationState } from "expo-router";
 import { MARK_PAID_ACTION } from "@/utils/notifications";
+import { useAppLock } from "@/context/AppLockContext";
 
 function numberOf(value: unknown): number | null {
   return typeof value === "number" ? value : null;
@@ -13,9 +14,11 @@ export function NotificationRouter() {
   const response = Notifications.useLastNotificationResponse();
   // A tap that cold-starts the app arrives before the navigator is ready; routing waits for it.
   const isNavigationReady = useRootNavigationState()?.key != null;
+  // Waits for App lock too: a Pay sheet presented behind the lock screen is gone by the time it lifts.
+  const isUnlocked = useAppLock().status === "unlocked";
 
   useEffect(() => {
-    if (!response || !isNavigationReady) {
+    if (!response || !isNavigationReady || !isUnlocked) {
       return;
     }
     async function route(handled: Notifications.NotificationResponse) {
@@ -40,7 +43,7 @@ export function NotificationRouter() {
       });
     }
     route(response);
-  }, [response, isNavigationReady]);
+  }, [response, isNavigationReady, isUnlocked]);
 
   return null;
 }

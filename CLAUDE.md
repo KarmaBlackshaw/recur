@@ -106,9 +106,9 @@ utils/widget/upcomingBillsSnapshot.ts # Home's due rows → the widget's JSON sn
 constants/theme.ts       # Color tokens (mirrors tailwind.config.js)
 constants/quickActions.ts # Quick-action → href map shared by the FAB and the widget
 constants/widgetLinks.ts # recur://widget/… links the Upcoming bills widget emits → app routes
+modules/quick-add-widget/ # Local Expo module: Android "Quick add" widget (Kotlin provider + res); its URL contract is pinned by scripts/quick-actions-check.mjs
 modules/upcoming-bills-widget/ # Local Expo module: Android "Upcoming bills" widget (Kotlin provider + list service + res); its URL and snapshot contract are pinned by scripts/upcoming-bills-widget-check.mjs, and its due captions to Home's by the table `android/src/test/resources/due-captions.txt` (read by that script and by the Kotlin `UpcomingBillsDatesTest`)
 plugins/                 # Local Expo config plugins (android/ and ios/ are generated)
-plugins/withQuickAddWidget/ # Android "Quick add" widget: Kotlin provider + res, copied into android/ at prebuild; its URL contract is pinned by scripts/quick-actions-check.mjs
 scripts/                 # *-check.mjs logic checks; asset generators (fonts, icons, bank logos)
 types.ts                 # Shared TS types
 ```

@@ -51,8 +51,7 @@
           }
         }
       ],
-      "./plugins/withoutFrescoDecoders",
-      "./plugins/withQuickAddWidget"
+      "./plugins/withoutFrescoDecoders"
     ],
     "extra": {
       "router": {},

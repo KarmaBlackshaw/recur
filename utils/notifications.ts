@@ -1,10 +1,10 @@
 import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import dayjs from 'dayjs';
-import { groupBy, range, sortBy, sumBy, uniq } from '@/utils/collections';
+import { range, sumBy } from '@/utils/collections';
 import { getDueDateForMonth, hasCycleIn } from '@/utils/dateHelpers';
 import { expenseTitle } from '@/utils/expenseHelpers';
-import { billReminderLead, reminderLead } from '@/utils/reminders';
+import { billReminderLead, planReminders, reminderLead } from '@/utils/reminders';
 import type { Account, CardBill, Expense, Status } from '@/types';
 
 // The bill a reminder is about, so tapping it (or its Mark paid action) can open that bill.
@@ -18,7 +18,8 @@ export interface Reminder {
   title: string;
   amount: number | null;
   dueDate: Date;
-  daysBefore: number;
+  // Days before the due date of the earlier reminder; null for none. The due day always reminds.
+  daysBefore: number | null;
   target?: ReminderTarget;
 }
 
@@ -101,9 +102,6 @@ export function getExpenseReminders(
   const reminders: Reminder[] = [];
   for (const expense of expenses) {
     const daysBefore = billReminderLead(expense, cardOf(expense.accountId));
-    if (daysBefore == null) {
-      continue;
-    }
     const isOneOff = expense.recurrence === 'one-off';
     const cycles = isOneOff ? [months[0]] : months;
     for (const cycle of cycles) {
@@ -134,11 +132,15 @@ export function getUnpaidBillReminders(
   // Statements not cut yet are estimated from the card's balance as of now.
   const reminders: Reminder[] = [];
   for (const bill of upcomingMonths(now).flatMap((month) => getCardBills(month.year(), month.month()))) {
-    const daysBefore = reminderLead(bill.account.reminderDaysBefore);
-    if (bill.isPaid || bill.remaining <= 0 || daysBefore == null) {
+    if (bill.isPaid || bill.remaining <= 0) {
       continue;
     }
-    reminders.push({ title: `${bill.account.name} bill`, amount: bill.remaining, dueDate: bill.dueDate, daysBefore });
+    reminders.push({
+      title: `${bill.account.name} bill`,
+      amount: bill.remaining,
+      dueDate: bill.dueDate,
+      daysBefore: reminderLead(bill.account.reminderDaysBefore),
+    });
   }
   return reminders;
 }
@@ -146,35 +148,15 @@ export function getUnpaidBillReminders(
 export async function scheduleAllNotifications(reminders: Reminder[], reminderTime: string): Promise<void> {
   try {
     await cancelAllNotifications();
-    const [hoursStr, minutesStr] = reminderTime.split(':');
-    const hours = parseInt(hoursStr, 10);
-    const minutes = parseInt(minutesStr, 10);
-    const now = new Date();
-
-    const eligible: { reminder: Reminder; fireTime: number }[] = [];
-    for (const reminder of reminders) {
-      const fireDate = dayjs(reminder.dueDate).subtract(reminder.daysBefore, 'day').hour(hours).minute(minutes).toDate();
-      if (dayjs(fireDate).isBefore(now)) {
-        continue;
-      }
-      eligible.push({ reminder, fireTime: fireDate.getTime() });
-    }
-
-    const soonest = sortBy(Object.entries(groupBy(eligible, 'fireTime')), ([fireTime]) => Number(fireTime)).slice(
-      0,
-      MAX_SCHEDULED
-    );
-    for (const [fireTime, group] of soonest) {
-      const leads = uniq(group.map((g) => g.reminder.daysBefore));
-      const label = leads.length === 1 ? dueLabel(leads[0]) : 'soon';
-      const single = group.length === 1 ? group[0].reminder : null;
+    for (const fire of planReminders(reminders, reminderTime, new Date(), MAX_SCHEDULED)) {
+      const single = fire.reminders.length === 1 ? fire.reminders[0] : null;
       await Notifications.scheduleNotificationAsync({
         content: {
-          ...buildSummaryContent(group.map((g) => g.reminder), label),
+          ...buildSummaryContent(fire.reminders, dueLabel(fire.daysBefore)),
           data: single?.target ? { ...single.target } : {},
           categoryIdentifier: single?.target ? BILL_DUE_CATEGORY : undefined,
         },
-        trigger: { type: SchedulableTriggerInputTypes.DATE, date: new Date(Number(fireTime)) },
+        trigger: { type: SchedulableTriggerInputTypes.DATE, date: fire.fireAt },
       });
     }
   } catch (err) {

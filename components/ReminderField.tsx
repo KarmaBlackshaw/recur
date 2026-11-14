@@ -3,7 +3,7 @@ import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { DEFAULT_REMINDER, reminderOptionsFor } from "@/utils/reminders";
 
 interface ReminderFieldProps {
-  // The form value: "0" is off, empty is the default (a day before).
+  // The form value, the lead of the earlier reminder: "0" is none (the due day's only), empty is the default (a day before).
   value: string;
   onChange: (value: string) => void;
   // The saved lead time, so one the chips don't offer stays pickable.

@@ -311,7 +311,7 @@ export default function AddExpenseScreen() {
     }
     allowLeave();
     router.back();
-    if (!isEditing && !isRegular && fields.reminderDaysBefore !== 0) {
+    if (!isEditing && !isRegular) {
       try {
         await maybeAskForReminders(data.notes.trim() || data.category);
       } catch (e) {

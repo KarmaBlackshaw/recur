@@ -66,7 +66,6 @@ account transactions. Never hand-build another row.
   direction or state.
 - **Title:** Quicksand Bold 14px Ink, one line, truncates first.
 - **Meta:** what or where, Quicksand 10.5px Secondary Graphite, one line, at most one " · " ("Housing · BPI").
-  An optional periwinkle bell-off before it marks a bill whose reminder is turned off.
 - **Amount:** Oswald 16px. Never truncated.
 - **Caption:** when, or which state, 10.5px under the amount. Upcoming dates read "Today", "Tomorrow",
   "in 4 days", then "Nov 30". Late reads "3 days late" in coral. Settled reads "Paid Oct 21" in the neutral

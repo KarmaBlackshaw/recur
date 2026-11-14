@@ -5,7 +5,8 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
-// Mirrors formatDueDate / formatDaysLate in utils/dateHelpers.ts.
+// Same captions as Home's formatDueDate / formatDaysLate (utils/dateHelpers.ts); both are pinned to
+// src/test/resources/due-captions.txt, read by UpcomingBillsDatesTest and scripts/upcoming-bills-widget-check.mjs.
 object UpcomingBillsDates {
     private const val MILLIS_PER_DAY = 86_400_000L
 
@@ -28,8 +29,8 @@ object UpcomingBillsDates {
         return (dayNumber(year, month, day) - today).toInt()
     }
 
-    fun dueText(due: String): String {
-        val diff = daysUntil(due)
+    fun dueText(due: String, now: Calendar = Calendar.getInstance()): String {
+        val diff = daysUntil(due, now)
         return when {
             diff < 0 -> "${-diff} ${if (diff == -1) "day" else "days"} late"
             diff == 0 -> "Today"

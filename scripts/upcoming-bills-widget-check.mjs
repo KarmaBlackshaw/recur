@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
+import { mock } from "node:test";
 
 const root = new URL("../", import.meta.url);
 registerHooks({
@@ -105,5 +106,24 @@ const many = Array.from({ length: SNAPSHOT_ROW_LIMIT + 10 }, (_, i) => expense(`
 equal(build([], many).rows.length, SNAPSHOT_ROW_LIMIT);
 equal(JSON.stringify(build([], many)), JSON.stringify(build([], [...many].reverse())), "row order must not depend on input order");
 equal(JSON.stringify(snapshot), JSON.stringify(JSON.parse(JSON.stringify(snapshot))), "snapshot must be plain JSON");
+
+const captionRows = read("modules/upcoming-bills-widget/android/src/test/resources/due-captions.txt")
+  .split("\n")
+  .map((line) => line.trim())
+  .filter((line) => line && !line.startsWith("#"))
+  .map((line) => line.split("|").map((cell) => cell.trim()));
+ok(captionRows.length > 0, "due-captions.txt has no rows");
+const { formatDueDate, formatDaysLate } = await import("../utils/dateHelpers.ts");
+const localDate = (iso, hour = 0) => {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day, hour);
+};
+mock.timers.enable({ apis: ["Date"], now: localDate(captionRows[0][0], 12) });
+for (const [today, due, caption] of captionRows) {
+  mock.timers.setTime(localDate(today, 12).getTime());
+  const homeCaption = due < today ? formatDaysLate(localDate(due)) : formatDueDate(localDate(due));
+  equal(homeCaption, caption, `due-captions.txt: ${today} | ${due} | ${caption}: Home reads "${homeCaption}"`);
+}
+mock.timers.reset();
 
 console.log("upcoming-bills-widget-check: ok");

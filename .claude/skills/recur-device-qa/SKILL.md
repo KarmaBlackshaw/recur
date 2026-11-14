@@ -1,6 +1,6 @@
 ---
 name: recur-device-qa
-description: Use when a recur change needs checking in the running Android app (a test-plan step, "test it on the emulator", "QA this", app screenshots, or SQLite state the UI is slow to reach), and when the shared emulator is busy, re-pinned by another session, or crashes on this tree's native modules.
+description: Use when a recur change needs checking in the running Android app (a test-plan step, "test it on the emulator", "QA this", app screenshots, or SQLite state the UI is slow to reach), and when the shared emulator is busy, re-pinned by another session, or crashes on this tree's native modules. Also when a JS-only check (form logic, a double tap, what a save writes) doesn't need an emulator, or several sessions need the app at once: run it on Expo web.
 ---
 
 # Recur device QA
@@ -13,6 +13,7 @@ Drive the debug app by hand over adb + uiautomator, and judge every step by what
 |---|---|
 | An emulator already runs this worktree's code | Reuse it: `npm run start:wt` (`bash scripts/expo-wt.sh --attach` when Metro already runs). Prefix every helper call with `ANDROID_ADB_SERVER_PORT=5037 ANDROID_SERIAL=<serial from adb devices>`. |
 | You need a clean install, another session drives the shared emulator, or its APK crashes (`Fatal signal 11`, `Can't find ViewManager`) | A private emulator (below). The helpers target it by default: `emulator-5602` on its own adb server, port 5099. The shared server never lists it, so nothing installs over it and no tap lands in someone else's app. |
+| The check is JS only (a form, a double tap, which rows a save writes), or emulators are too heavy to run one per session | Expo web (below): no emulator, one Metro and a headless browser per session. |
 
 ## Private run
 
@@ -27,6 +28,19 @@ Drive the debug app by hand over adb + uiautomator, and judge every step by what
    - Run `bash $S/db.sh --seed <file>`, which force-stops the app, runs the file and relaunches.
 7. **Drive** with `ui.py`. After each write, check the rows with `bash $S/db.sh "select …"`.
 8. **Teardown**: `bash $S/teardown.sh <metro-port>` (leave out the port if the Metro was already running before you). Make no adb call afterwards: one would restart the private server. A `-read-only` AVD keeps nothing, so for a clean slate, tear down and redo steps 3–6.
+
+## Expo web
+
+1. **Server**: `npx expo start --web --port <free port>` as a background command (`CI=1` turns off the file watcher, so restart it after an edit). The first bundle takes 1–3 min; wait for `curl -s -o /dev/null -w '%{http_code}' http://localhost:<port>` to print 200.
+2. **Browser**: Playwright Chromium at 412×915. A new browser context starts a new app: an empty SQLite DB (expo-sqlite keeps it in OPFS) and the "Get started" onboarding.
+3. **Navigate in the app**, never `page.goto` after the first load: `history.pushState(null, '', path); dispatchEvent(new PopStateEvent('popstate'))`. A reload while the app runs breaks the DB ("Error finalizing statement").
+4. **Drive by accessibility label**: Pressables render as `[role="button"]` with `aria-label`; inputs by placeholder (`getByPlaceholder('0.00')`). A Pressable fires `onPress` from a DOM `click()`, so two `click()` calls in one `page.evaluate` are a double tap with no render between them.
+5. **Check** what the page shows (`page.innerText('body')`) and the console errors (`page.on('console')`, `page.on('pageerror')`).
+
+Web can't show:
+- `Alert.alert` (a no-op in react-native-web): a confirm or error behind one never appears, so delete and revert flows need the emulator.
+- Notifications: reminders and the permission prompt are a no-op, and Settings shows the "Notifications are off" banner (web reports the permission as denied).
+- Android layout, the keyboard, bottom-sheet drags, swipe rows and the hardware Back button.
 
 ## ui.py
 

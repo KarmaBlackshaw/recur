@@ -24,12 +24,11 @@ import {
   insertMany as insertTransactions,
   remove as removeTransaction,
   insertReversals,
-  removePayments,
-  removeReversals,
   removeTransfer,
-  replacePayments as replacePaymentRows,
   replaceTransfer,
   updateIncome as updateIncomeRow,
+  type TBillMonth,
+  type TLedgerChange,
 } from "@/db/accountTransactions";
 import {
   clearAmount as clearCardBillAmount,
@@ -92,21 +91,25 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-export interface PaymentSync {
-  expenseId: string;
-  accountId: string | null | undefined;
-  cycleYear: number | null;
-  cycleMonth: number | null;
-  amount: number | null;
-  note: string;
-  createdAt?: string;
-}
-
 export interface PaymentInput {
   accountId: string | null | undefined;
   amount: number | null;
   note: string;
   createdAt: string;
+}
+
+// The account side of an expense write, before it's turned into rows.
+export interface TLedgerPlan {
+  // Replaces the month's live payments. A ₱0 payment, or one whose account is gone, adds no row.
+  payments?: TBillMonth & { inputs: PaymentInput[] };
+  reverseIds?: string[];
+  undoReversalIds?: string[];
+  deletePayments?: TBillMonth;
+}
+
+export interface TPreparedLedger {
+  change: TLedgerChange;
+  removedIds: string[];
 }
 
 interface AccountContextValue {
@@ -139,16 +142,11 @@ interface AccountContextValue {
   // Rewrites an existing transfer (all its rows) from the edited input, keeping its id.
   updateTransfer: (transferId: string, input: TransferInput) => Promise<void>;
   deleteTransfer: (transferId: string) => Promise<void>;
-  syncPayment: (p: PaymentSync) => Promise<void>;
-  replacePayments: (
-    expenseId: string,
-    cycleYear: number | null,
-    cycleMonth: number | null,
-    payments: PaymentInput[]
-  ) => Promise<void>;
+  // Builds the rows an expense write will change and checks them for overdraft; writes nothing.
+  prepareLedger: (plan: TLedgerPlan) => Promise<TPreparedLedger>;
+  // Mirrors a committed expense write into state.
+  applyLedger: (removedIds: string[], added: AccountTransaction[]) => void;
   reverseTransactions: (ids: string[]) => Promise<AccountTransaction[]>;
-  undoReversals: (reversalIds: string[]) => Promise<void>;
-  deletePayments: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => Promise<void>;
   getPayments: (expenseId: string, cycleYear: number | null, cycleMonth: number | null) => AccountTransaction[];
   isTxnCharged: (txn: AccountTransaction) => boolean;
   getCardBills: (year: number, month: number) => CardBill[];
@@ -579,10 +577,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: removedIds });
   });
 
-  const replacePayments = useMemoizedFn(
-    async (expenseId: string, cycleYear: number | null, cycleMonth: number | null, payments: PaymentInput[]) => {
+  const paymentRows = useMemoizedFn(
+    async ({ expenseId, cycleYear, cycleMonth, inputs }: TBillMonth & { inputs: PaymentInput[] }) => {
       const rows: Omit<AccountTransaction, "id">[] = [];
-      for (const p of payments) {
+      for (const p of inputs) {
         let account = state.accounts.find((a) => a.id === p.accountId);
         if (!account && state.isLoading && p.accountId != null) {
           account = await getAccountById(p.accountId);
@@ -602,30 +600,65 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           });
         }
       }
-      const isReplaced = isPaymentFor(expenseId, cycleYear, cycleMonth);
-      const error = overdraftError(rows, isReplaced);
-      if (error) {
-        throw error;
-      }
-      const replacedIds = transactions.filter(isReplaced).map((t) => t.id);
-      const inserted = await replacePaymentRows(expenseId, cycleYear, cycleMonth, rows);
-      dispatch({ type: "REMOVE_TRANSACTIONS", payload: replacedIds });
-      if (inserted.length > 0) {
-        dispatch({ type: "ADD_TRANSACTIONS", payload: inserted });
-      }
+      return rows;
     }
   );
 
-  const syncPayment = useMemoizedFn(async (p: PaymentSync) => {
-    const existing = transactions.find(isPaymentFor(p.expenseId, p.cycleYear, p.cycleMonth));
-    await replacePayments(p.expenseId, p.cycleYear, p.cycleMonth, [
-      {
-        accountId: p.accountId,
-        amount: p.amount,
-        note: p.note,
-        createdAt: p.createdAt ?? existing?.createdAt ?? new Date().toISOString(),
-      },
-    ]);
+  const prepareLedger = useMemoizedFn(async (plan: TLedgerPlan): Promise<TPreparedLedger> => {
+    const change: TLedgerChange = {};
+    const removedIds: string[] = [];
+    const balanceChanges: TBalanceChange[] = [];
+    let isReplaced: ((t: AccountTransaction) => boolean) | undefined;
+    if (plan.payments) {
+      const { expenseId, cycleYear, cycleMonth } = plan.payments;
+      const rows = await paymentRows(plan.payments);
+      change.payments = { expenseId, cycleYear, cycleMonth, rows };
+      isReplaced = isPaymentFor(expenseId, cycleYear, cycleMonth);
+      removedIds.push(...transactions.filter(isReplaced).map((t) => t.id));
+      balanceChanges.push(...rows);
+    }
+    if (plan.reverseIds && plan.reverseIds.length > 0) {
+      const now = new Date().toISOString();
+      change.reversals = plan.reverseIds.map((id) => {
+        const original = transactions.find((t) => t.id === id);
+        if (!original) {
+          throw new Error("Already reverted");
+        }
+        return buildReversal(original, now);
+      });
+      balanceChanges.push(...change.reversals);
+    }
+    if (plan.undoReversalIds && plan.undoReversalIds.length > 0) {
+      const ids = new Set(plan.undoReversalIds);
+      const reversals = state.ledger.filter((t) => t.kind === "reversal" && ids.has(t.id));
+      change.removedReversalIds = reversals.map((r) => r.id);
+      removedIds.push(...change.removedReversalIds);
+      balanceChanges.push(...reversals.map((r) => ({ accountId: r.accountId, amount: -r.amount })));
+    }
+    if (plan.deletePayments) {
+      const { expenseId, cycleYear, cycleMonth } = plan.deletePayments;
+      change.deletedPayments = plan.deletePayments;
+      removedIds.push(
+        ...withReversals(
+          state.ledger,
+          state.ledger.filter(isPaymentFor(expenseId, cycleYear, cycleMonth)).map((t) => t.id)
+        )
+      );
+    }
+    const error = overdraftError(balanceChanges, isReplaced);
+    if (error) {
+      throw error;
+    }
+    return { change, removedIds };
+  });
+
+  const applyLedger = useMemoizedFn((removedIds: string[], added: AccountTransaction[]) => {
+    if (removedIds.length > 0) {
+      dispatch({ type: "REMOVE_TRANSACTIONS", payload: removedIds });
+    }
+    if (added.length > 0) {
+      dispatch({ type: "ADD_TRANSACTIONS", payload: added });
+    }
   });
 
   const reverseTransactions = useMemoizedFn(async (ids: string[]): Promise<AccountTransaction[]> => {
@@ -649,29 +682,6 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const inserted = await insertReversals(rows);
     dispatch({ type: "ADD_TRANSACTIONS", payload: inserted });
     return inserted;
-  });
-
-  const undoReversals = useMemoizedFn(async (reversalIds: string[]): Promise<void> => {
-    const ids = new Set(reversalIds);
-    const reversals = state.ledger.filter((t) => t.kind === "reversal" && ids.has(t.id));
-    const error = overdraftError(reversals.map((r) => ({ accountId: r.accountId, amount: -r.amount })));
-    if (error) {
-      throw error;
-    }
-    const removedIds = reversals.map((r) => r.id);
-    await removeReversals(removedIds);
-    dispatch({ type: "REMOVE_TRANSACTIONS", payload: removedIds });
-  });
-
-  const deletePayments = useMemoizedFn(async (expenseId: string, cycleYear: number | null, cycleMonth: number | null): Promise<void> => {
-    const removedIds = [
-      ...withReversals(
-        state.ledger,
-        state.ledger.filter(isPaymentFor(expenseId, cycleYear, cycleMonth)).map((t) => t.id)
-      ),
-    ];
-    await removePayments(expenseId, cycleYear, cycleMonth);
-    dispatch({ type: "REMOVE_TRANSACTIONS", payload: removedIds });
   });
 
   const setBillAmount = useMemoizedFn(async (accountId: string, year: number, month: number, amount: number | null) => {
@@ -783,11 +793,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       transfer,
       updateTransfer,
       deleteTransfer,
-      syncPayment,
-      replacePayments,
+      prepareLedger,
+      applyLedger,
       reverseTransactions,
-      undoReversals,
-      deletePayments,
       getPayments,
       isTxnCharged,
       getCardBills,

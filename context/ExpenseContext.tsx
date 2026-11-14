@@ -15,18 +15,13 @@ import { round } from "@/utils/round";
 import { formatAmount } from "@/utils/formatAmount";
 import dayjs from "dayjs";
 import type { AccountTransaction, Expense, Status, MonthStatus, HomeBandSlot } from "@/types";
-import {
-  getAll as getAllExpenses,
-  insert as insertExpense,
-  remove as removeExpense,
-  update as updateExpenseRow,
-  updateStatus as updateExpenseStatus,
-} from "@/db/expenses";
+import { getAll as getAllExpenses, newExpense } from "@/db/expenses";
 import { getPreference, setPreference } from "@/db/preferences";
-import { getAll as getAllMonths, setMonth, upsertMonthlyAmount } from "@/db/expenseMonths";
+import { getAll as getAllMonths } from "@/db/expenseMonths";
+import { editExpense, insertExpense, removeExpense, setMonthState, type TMonthAmount } from "@/db/expenseWrites";
 import { monthKey, parseMonthKey } from "@/utils/monthKey";
 import { scheduleAllNotifications, cancelAllNotifications, getExpenseReminders, getUnpaidBillReminders } from '@/utils/notifications';
-import { useAccounts, type PaymentInput } from "@/context/AccountContext";
+import { useAccounts, type PaymentInput, type TLedgerPlan } from "@/context/AccountContext";
 import { payFromAccountId } from "@/utils/accounts/payFromAccountId";
 import { billProgress, canPayPart, type BillProgress } from "@/utils/expenses/billProgress";
 import { BillPaymentError } from "@/utils/expenses/BillPaymentError";
@@ -165,7 +160,6 @@ interface ExpenseContextValue {
   getBillProgress: (expense: Expense, year: number, month: number) => BillProgress;
   resolveAmount: (expense: Expense, year: number, month: number) => number;
   getMonthPaidAt: (id: string, year: number, month: number) => string | null;
-  toggleMonthStatus: (id: string, year: number, month: number) => Promise<void>;
   // Recurring months only. All throw when the write fails (the month is left as it was).
   payMonth: (id: string, year: number, month: number, details?: PayDetails) => Promise<UndoMonth>;
   payPart: (id: string, year: number, month: number, details: PayDetails & { amount: number }) => Promise<UndoMonth>;
@@ -275,84 +269,66 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     }
   });
 
+  // A one-off's single payment: its amount from its Pay from account, dated when it was paid.
+  const oneOffPayment = (
+    id: string,
+    expense: Pick<Expense, "name" | "category" | "accountId" | "amount" | "paidDate">
+  ): NonNullable<TLedgerPlan["payments"]> => ({
+    expenseId: id,
+    cycleYear: null,
+    cycleMonth: null,
+    inputs: [
+      {
+        accountId: expense.accountId,
+        amount: expense.amount,
+        note: paymentNote(expense),
+        createdAt: expense.paidDate ?? accounts.getPayments(id, null, null)[0]?.createdAt ?? new Date().toISOString(),
+      },
+    ],
+  });
+
   const addExpense = useMemoizedFn(
-    async (e: Omit<Expense, "id" | "createdAt">, monthlyAmount?: { year: number; month: number; amount: number | null }) => {
-      const saved = await insertExpense(e);
-      dispatch({ type: "ADD", payload: saved });
-      if (saved.recurrence === "one-off") {
-        try {
-          await accounts.syncPayment({
-            expenseId: saved.id,
-            accountId: saved.accountId,
-            cycleYear: null,
-            cycleMonth: null,
-            amount: saved.amount,
-            note: paymentNote(saved),
-            createdAt: saved.paidDate ?? undefined,
-          });
-        } catch (err) {
-          console.error("Failed to sync one-off payment, removing expense", err);
-          await removeExpense(saved.id);
-          dispatch({ type: "REMOVE", payload: saved.id });
-          throw err;
-        }
+    async (e: Omit<Expense, "id" | "createdAt">, monthlyAmount?: TMonthAmount) => {
+      const expense = newExpense(e);
+      const monthAmount = e.isVariable ? monthlyAmount : undefined;
+      const { change, removedIds } = await accounts.prepareLedger(
+        expense.recurrence === "one-off" ? { payments: oneOffPayment(expense.id, expense) } : {}
+      );
+      const inserted = await insertExpense(expense, { monthAmount, ledger: change });
+      dispatch({ type: "ADD", payload: expense });
+      if (monthAmount) {
+        dispatch({ type: "SET_MONTH_AMOUNT", payload: { expenseId: expense.id, ...monthAmount } });
       }
-      if (e.isVariable && monthlyAmount !== undefined) {
-        await upsertMonthlyAmount(saved.id, monthlyAmount.year, monthlyAmount.month, monthlyAmount.amount);
-        dispatch({
-          type: "SET_MONTH_AMOUNT",
-          payload: { expenseId: saved.id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
-        });
-      }
+      accounts.applyLedger(removedIds, inserted);
     }
   );
 
   const updateExpense = useMemoizedFn(
-    async (
-      id: string,
-      fields: Omit<Expense, "id" | "createdAt">,
-      monthlyAmount?: { year: number; month: number; amount: number | null }
-    ) => {
+    async (id: string, fields: Omit<Expense, "id" | "createdAt">, monthlyAmount?: TMonthAmount) => {
       const existing = state.expenses.find((e) => e.id === id);
       if (!existing) {
         return;
       }
-      const monthPayments =
-        fields.isVariable && fields.recurrence !== "one-off" && monthlyAmount !== undefined
-          ? variableMonthPayments(id, fields, monthlyAmount)
-          : undefined;
-      await updateExpenseRow(id, fields);
+      const monthAmount = fields.isVariable ? monthlyAmount : undefined;
+      const plan: TLedgerPlan = {};
+      if (monthAmount && fields.recurrence !== "one-off") {
+        const inputs = variableMonthPayments(id, fields, monthAmount);
+        if (inputs) {
+          plan.payments = { expenseId: id, cycleYear: monthAmount.year, cycleMonth: monthAmount.month, inputs };
+        }
+      }
+      if (fields.recurrence === "one-off" && fields.status === "paid") {
+        plan.payments = oneOffPayment(id, fields);
+      } else if (existing.recurrence === "one-off") {
+        plan.reverseIds = accounts.getPayments(id, null, null).map((t) => t.id);
+      }
+      const { change, removedIds } = await accounts.prepareLedger(plan);
+      const inserted = await editExpense(id, fields, { monthAmount, ledger: change });
       dispatch({ type: "UPDATE", payload: { ...existing, ...fields } });
-      if (fields.isVariable && monthlyAmount !== undefined) {
-        await upsertMonthlyAmount(id, monthlyAmount.year, monthlyAmount.month, monthlyAmount.amount);
-        dispatch({
-          type: "SET_MONTH_AMOUNT",
-          payload: { expenseId: id, year: monthlyAmount.year, month: monthlyAmount.month, amount: monthlyAmount.amount },
-        });
-        if (monthPayments) {
-          await accounts.replacePayments(id, monthlyAmount.year, monthlyAmount.month, monthPayments);
-        }
+      if (monthAmount) {
+        dispatch({ type: "SET_MONTH_AMOUNT", payload: { expenseId: id, ...monthAmount } });
       }
-      try {
-        if (fields.recurrence === "one-off" && fields.status === "paid") {
-          await accounts.syncPayment({
-            expenseId: id,
-            accountId: fields.accountId,
-            cycleYear: null,
-            cycleMonth: null,
-            amount: fields.amount,
-            note: paymentNote(fields),
-            createdAt: fields.paidDate ?? undefined,
-          });
-        } else if (existing.recurrence === "one-off") {
-          await reverseOneOffPayment(id);
-        }
-      } catch (err) {
-        console.error("Failed to sync one-off payment, reverting expense", err);
-        await updateExpenseRow(id, existing);
-        dispatch({ type: "UPDATE", payload: existing });
-        throw err;
-      }
+      accounts.applyLedger(removedIds, inserted);
     }
   );
 
@@ -485,10 +461,15 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.remove();
   }, []);
 
-  const writeMonth = useMemoizedFn(async (expenseId: string, year: number, month: number, next: MonthState) => {
-    await setMonth(expenseId, year, month, next.status, next.amount, next.paidAt);
-    dispatch({ type: "SET_MONTH", payload: { expenseId, year, month, ...next } });
-  });
+  const commitMonth = useMemoizedFn(
+    async (expenseId: string, year: number, month: number, next: MonthState, plan: TLedgerPlan): Promise<AccountTransaction[]> => {
+      const { change, removedIds } = await accounts.prepareLedger(plan);
+      const inserted = await setMonthState({ expenseId, year, month, ...next }, change);
+      dispatch({ type: "SET_MONTH", payload: { expenseId, year, month, ...next } });
+      accounts.applyLedger(removedIds, inserted);
+      return inserted;
+    }
+  );
 
   const monthStateOf = (id: string, year: number, month: number): MonthState => {
     const k = monthKey(id, year, month);
@@ -569,13 +550,9 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     async (expense: Expense, year: number, month: number, next: MonthState, payments: PaymentInput[]): Promise<UndoMonth> => {
       const previous = monthStateOf(expense.id, year, month);
       const previousRows = accounts.getPayments(expense.id, year, month);
-      await writeMonth(expense.id, year, month, next);
-      try {
-        await accounts.replacePayments(expense.id, year, month, payments);
-      } catch (err) {
-        await writeMonth(expense.id, year, month, previous);
-        throw err;
-      }
+      await commitMonth(expense.id, year, month, next, {
+        payments: { expenseId: expense.id, cycleYear: year, cycleMonth: month, inputs: payments },
+      });
       return async () => {
         await writeMonthPayments(expense, year, month, previous, previousRows.map((t) => paymentInputOf(t, expense)));
       };
@@ -603,10 +580,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       if (!isUnchanged) {
         throw new BillPaymentError("This month changed since. Undo isn't available.");
       }
-      if (reversalIds.length > 0) {
-        await accounts.undoReversals(reversalIds);
-      }
-      await writeMonth(expenseId, year, month, previous);
+      await commitMonth(expenseId, year, month, previous, { undoReversalIds: reversalIds });
     }
   );
 
@@ -630,27 +604,11 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
         .getPayments(expense.id, year, month)
         .map((t) => t.id)
         .filter((id) => !reversing.has(id));
-      await writeMonth(expense.id, year, month, next);
-      let reversals: AccountTransaction[] = [];
-      try {
-        if (paymentIds.length > 0) {
-          reversals = await accounts.reverseTransactions(paymentIds);
-        }
-      } catch (err) {
-        await writeMonth(expense.id, year, month, previous);
-        throw err;
-      }
+      const reversals = await commitMonth(expense.id, year, month, next, { reverseIds: paymentIds });
       const reversalIds = reversals.map((t) => t.id);
       return () => undoMonthReversal({ expenseId: expense.id, year, month, previous, reversalIds, liveIds });
     }
   );
-
-  const reverseOneOffPayment = useMemoizedFn(async (id: string) => {
-    const paymentIds = accounts.getPayments(id, null, null).map((t) => t.id);
-    if (paymentIds.length > 0) {
-      await accounts.reverseTransactions(paymentIds);
-    }
-  });
 
   const payMonth = useMemoizedFn(
     async (id: string, year: number, month: number, details: PayDetails = {}): Promise<UndoMonth> => {
@@ -764,59 +722,14 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     });
   });
 
-  const toggleMonthStatus = useMemoizedFn(
-    async (id: string, year: number, month: number): Promise<void> => {
-      const expense = state.expenses.find((e) => e.id === id);
-      if (!expense) {
-        return;
-      }
-
-      if (expense.recurrence === "one-off") {
-        const next: Status = expense.status === "unpaid" ? "paid" : "unpaid";
-        await updateExpenseStatus(id, next);
-        dispatch({ type: "UPDATE", payload: { ...expense, status: next } });
-        try {
-          if (next === "paid") {
-            await accounts.syncPayment({
-              expenseId: id,
-              accountId: expense.accountId,
-              cycleYear: null,
-              cycleMonth: null,
-              amount: expense.amount,
-              note: paymentNote(expense),
-              createdAt: expense.paidDate ?? undefined,
-            });
-          } else {
-            await reverseOneOffPayment(id);
-          }
-        } catch (err) {
-          console.error("Failed to sync payment, reverting status", err);
-          await updateExpenseStatus(id, expense.status);
-          dispatch({ type: "UPDATE", payload: expense });
-          throw err;
-        }
-      } else {
-        try {
-          if (monthStateOf(id, year, month).status === "paid") {
-            await unpayMonth(id, year, month);
-          } else {
-            await payMonth(id, year, month);
-          }
-        } catch (err) {
-          console.error("Failed to sync payment, reverting status", err);
-          throw err;
-        }
-      }
-    }
-  );
-
   const deleteExpense = useMemoizedFn(async (id: string) => {
     const expense = state.expenses.find((e) => e.id === id);
-    if (expense?.recurrence === "one-off") {
-      await accounts.deletePayments(id, null, null);
-    }
-    await removeExpense(id);
+    const { change, removedIds } = await accounts.prepareLedger(
+      expense?.recurrence === "one-off" ? { deletePayments: { expenseId: id, cycleYear: null, cycleMonth: null } } : {}
+    );
+    const inserted = await removeExpense(id, change);
     dispatch({ type: "REMOVE", payload: id });
+    accounts.applyLedger(removedIds, inserted);
   });
 
   const reloadAll = useMemoizedFn(async () => {
@@ -850,7 +763,6 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
       getBillProgress,
       resolveAmount,
       getMonthPaidAt,
-      toggleMonthStatus,
       payMonth,
       payPart,
       updatePayment,

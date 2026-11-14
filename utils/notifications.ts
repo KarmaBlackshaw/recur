@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import dayjs from 'dayjs';
@@ -5,6 +6,7 @@ import { range, sumBy } from '@/utils/collections';
 import { getDueDateForMonth, hasCycleIn } from '@/utils/dateHelpers';
 import { expenseTitle } from '@/utils/expenseHelpers';
 import { billReminderLead, planReminders, reminderLead } from '@/utils/reminders';
+import { requestNotificationPermission } from '@/utils/systemScreens';
 import type { Account, CardBill, Expense, Status } from '@/types';
 
 // The bill a reminder is about, so tapping it (or its Mark paid action) can open that bill.
@@ -32,6 +34,8 @@ export const MARK_PAID_ACTION = 'mark-paid';
 const REMINDER_MONTHS_AHEAD = 12;
 // iOS keeps at most 64 pending local notifications per app, so only the soonest ones are scheduled.
 const MAX_SCHEDULED = 60;
+// expo-notifications has no web module for permissions, categories or scheduling, so reminders are a no-op there.
+const SUPPORTED = Platform.OS !== 'web';
 
 function upcomingMonths(now: Date): dayjs.Dayjs[] {
   const start = dayjs(now).startOf('month');
@@ -39,15 +43,24 @@ function upcomingMonths(now: Date): dayjs.Dayjs[] {
 }
 
 export async function requestPermissions(): Promise<boolean> {
-  const { status } = await Notifications.requestPermissionsAsync();
+  if (!SUPPORTED) {
+    return false;
+  }
+  const { status } = await requestNotificationPermission();
   return status === 'granted';
 }
 
 export async function cancelAllNotifications(): Promise<void> {
+  if (!SUPPORTED) {
+    return;
+  }
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
 export async function registerNotificationCategories(): Promise<void> {
+  if (!SUPPORTED) {
+    return;
+  }
   await Notifications.setNotificationCategoryAsync(BILL_DUE_CATEGORY, [
     { identifier: MARK_PAID_ACTION, buttonTitle: 'Mark paid', options: { opensAppToForeground: true } },
   ]);
@@ -146,6 +159,9 @@ export function getUnpaidBillReminders(
 }
 
 export async function scheduleAllNotifications(reminders: Reminder[], reminderTime: string): Promise<void> {
+  if (!SUPPORTED) {
+    return;
+  }
   try {
     await cancelAllNotifications();
     for (const fire of planReminders(reminders, reminderTime, new Date(), MAX_SCHEDULED)) {

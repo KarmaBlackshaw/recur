@@ -1,6 +1,5 @@
 import React from "react";
 import { Image, TouchableOpacity, View } from "react-native";
-import * as ImagePicker from "expo-image-picker";
 import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
 import { Ionicon } from "@/components/ui/Ionicon";
@@ -9,6 +8,7 @@ import { CARD_COLORS } from "@/constants/cardColors";
 import { BANKS, type BankId } from "@/constants/banks";
 import { colors } from "@/constants/theme";
 import { resolveAccountLogo } from "@/utils/accountLogo/resolveAccountLogo";
+import { pickImage } from "@/utils/systemScreens";
 import type { IoniconName } from "@/types";
 
 const CARD_ICONS: IoniconName[] = [
@@ -107,7 +107,7 @@ export function CardTemplatePicker({ value, onChange }: PickerProps<BankId | nul
 
 export function CardLogoPicker({ value, onChange }: PickerProps<string | null>) {
   async function pickLogo() {
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const result = await pickImage({
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],

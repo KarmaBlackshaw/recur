@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { View, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import { useMount } from "@/utils/useMount";
 import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
@@ -35,7 +36,7 @@ export default function AddCategoryScreen() {
     control,
     handleSubmit,
     formState: { isValid, isSubmitting },
-  } = useForm<FormValues>({ mode: "onChange", defaultValues: { name: originalName } });
+  } = useAppForm<FormValues>({ mode: "onChange", defaultValues: { name: originalName } });
 
   useMount(async () => {
     const names = await getAll(kind);

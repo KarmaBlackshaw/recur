@@ -1,4 +1,4 @@
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { getPreference, setPreference } from "@/db/preferences";
 import { PREF_NOTIFICATIONS_ENABLED, PREF_NOTIFICATIONS_PERMISSION_ASKED } from "@/constants/preferences";
@@ -7,6 +7,9 @@ import { requestPermissions } from "@/utils/notifications";
 // Asks for notification permission once, right after the first recurring bill or credit card with a due day is
 // saved: the moment a reminder means something. Later ones, and anyone who already answered, skip straight past.
 export async function maybeAskForReminders(billName: string): Promise<void> {
+  if (Platform.OS === "web") {
+    return;
+  }
   if ((await getPreference(PREF_NOTIFICATIONS_PERMISSION_ASKED)) !== null) {
     return;
   }

@@ -275,10 +275,10 @@ and revert still confirm with an Alert.
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes
 `accessible={false}`: gorhom's default makes the whole sheet one element and hides its controls from screen readers.
 A picker opened from a sheet (Pay from, Paid on) stacks over it, and the sheet is still there when the picker closes.
-Every sheet is an `AppBottomSheet`, which draws the title, Close and backdrop; content lines up with the title at
-`px-4`. An action whose write changes what the open sheet shows (Save balance, Revert transfer) closes the sheet first
-and writes once it's gone. A save that keeps the sheet open, like a card bill's statement amount, updates it in place.
-A sheet whose content can outgrow the space above the keyboard passes `scrollable`.
+Every sheet is an `AppBottomSheet`, which draws the title, Close and backdrop and closes on Android Back; content lines
+up with the title at `px-4`. An action whose write changes what the open sheet shows (Save balance, Revert transfer)
+closes the sheet first and writes once it's gone. A save that keeps the sheet open, like a card bill's statement amount,
+updates it in place. A sheet whose content can outgrow the space above the keyboard passes `scrollable`.
 
 Detail sheets (tap a Transfer, Card bill or Loan row to read it and act on it) share one layout:
 label/value rows under the title, then full-width actions stacked under them, one primary at most and the destructive

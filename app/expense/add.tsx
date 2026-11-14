@@ -6,7 +6,8 @@ import { useUpdateEffect } from "@/utils/useUpdateEffect";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import dayjs from "dayjs";
 import { useExpenses } from "@/context/ExpenseContext";
 import { isPaymentFor, useAccounts } from "@/context/AccountContext";
@@ -141,7 +142,7 @@ export default function AddExpenseScreen() {
     trigger,
     watch,
     formState: { isValid, isSubmitting, isDirty },
-  } = useForm<ExpenseFormValues>({
+  } = useAppForm<ExpenseFormValues>({
     mode: "onChange",
     defaultValues: {
       amount: editingExpense?.amount != null ? editingExpense.amount.toString() : "",

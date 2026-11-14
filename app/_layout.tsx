@@ -18,6 +18,7 @@ import { TransferTemplateProvider } from "@/context/TransferTemplateContext";
 import { SnackbarProvider } from "@/context/SnackbarContext";
 import { PayFlowProvider } from "@/context/PayFlowContext";
 import { NotificationRouter } from "@/components/NotificationRouter";
+import { UpcomingBillsWidgetSync } from "@/components/UpcomingBillsWidgetSync";
 import { colors } from "@/constants/theme";
 import { registerNotificationCategories } from "@/utils/notifications";
 import { skipRepeatPush } from "@/utils/navigation/skipRepeatPush";
@@ -85,6 +86,7 @@ export default function RootLayout() {
                         }}
                       />
                       <NotificationRouter />
+                      <UpcomingBillsWidgetSync />
                     </PayFlowProvider>
                   </BottomSheetModalProvider>
                 </SnackbarProvider>

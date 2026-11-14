@@ -36,8 +36,7 @@ export const TransferSheet = forwardRef<TransferSheetRef>(function TransferSheet
   const rows = transferId ? accounts.transactions.filter((t) => t.transferId === transferId) : [];
   const { from, to, fee, income, isBillPayment } = splitTransfer(rows, accounts.accounts);
   const side = from ?? to;
-  const accountName = (accountId?: string) =>
-    accounts.accounts.find(({ id }) => id === accountId)?.name ?? DELETED_ACCOUNT;
+  const accountName = (accountId?: string) => (accountId == null ? DELETED_ACCOUNT : accounts.nameOf(accountId));
   const source = accountName(from?.accountId);
   const destination = accountName(to?.accountId);
   const note = side && customTransferNote(side.note, source, destination);

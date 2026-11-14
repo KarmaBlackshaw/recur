@@ -1,6 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useRef } from "react";
 import { Alert, View } from "react-native";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import { useAccounts } from "@/context/AccountContext";
 import { AppBottomSheet, CONTENT_HEIGHT_SNAP, type AppBottomSheetRef } from "@/components/ui/AppBottomSheet";
 import { AppButton } from "@/components/ui/AppButton";
@@ -23,7 +24,7 @@ export const AdjustBalanceSheet = forwardRef<AdjustBalanceSheetRef, { account: A
       handleSubmit,
       reset,
       formState: { isValid },
-    } = useForm<{ target: string }>({ mode: "onChange", defaultValues: { target: "" } });
+    } = useAppForm<{ target: string }>({ mode: "onChange", defaultValues: { target: "" } });
 
     useImperativeHandle(ref, () => ({
       present: () => {

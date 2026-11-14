@@ -171,7 +171,7 @@ export async function seedLoans(): Promise<void> {
     for (const { accountId, amount } of loanOutChanges(loan)) {
       await insertTransaction({
         accountId, kind: "loan_out", amount, expenseId: null, cycleYear: null,
-        cycleMonth: null, transferId: null, note: null, category: null, loanId: loan.id, reversesId: null, createdAt: loan.lentAt,
+        cycleMonth: null, transferId: null, note: null, category: null, loanId: loan.id, reversesId: null, repaymentId: null, createdAt: loan.lentAt,
       });
     }
   }

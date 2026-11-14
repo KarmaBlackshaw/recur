@@ -3,7 +3,8 @@ import { maxBy } from "@/utils/collections";
 import { View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import { CategoryBottomSheet, CategoryBottomSheetRef } from "@/components/CategoryBottomSheet";
 import { AccountPickerSheet, AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { TransferInButton } from "@/components/accounts/TransferInButton";
@@ -79,7 +80,7 @@ export default function AddIncomeScreen() {
     getValues,
     trigger,
     formState: { isDirty, isValid, isSubmitting },
-  } = useForm<IncomeFormValues>({
+  } = useAppForm<IncomeFormValues>({
     mode: "onChange",
     defaultValues: toFormValues(editingIncome),
   });

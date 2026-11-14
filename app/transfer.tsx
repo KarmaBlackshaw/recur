@@ -3,7 +3,8 @@ import { Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import { maxBy } from "@/utils/collections";
 import { useAccounts } from "@/context/AccountContext";
 import { useTransferTemplates } from "@/context/TransferTemplateContext";
@@ -88,7 +89,7 @@ export default function TransferScreen() {
     if (parts) {
       const { from, to, main, fee, income } = parts;
       const toId = to?.accountId ?? "";
-      const toName = accounts.accounts.find((a) => a.id === toId)?.name;
+      const toName = accounts.nameOf(toId);
       const note = main.note ?? "";
       return {
         fromId: from?.accountId ?? "",
@@ -133,7 +134,7 @@ export default function TransferScreen() {
     getValues,
     trigger,
     formState: { isValid, isSubmitting, isDirty },
-  } = useForm<TransferFormValues>({
+  } = useAppForm<TransferFormValues>({
     mode: "onChange",
     defaultValues: toFormValues(),
   });

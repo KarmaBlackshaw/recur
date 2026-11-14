@@ -153,6 +153,7 @@ export interface Account {
   creditLimit: number | null;
   statementDay: number | null;
   dueDay: number | null;
+  reminderDaysBefore: number | null;   // Credit cards: days before the bill's due date of an earlier reminder (the due day always reminds). 0 = none, null = 1 day.
   color: string | null;
   icon: IoniconName | null;
   logoUri: string | null;
@@ -191,7 +192,26 @@ export interface AccountTransaction {
   category: string | null;
   loanId: string | null;
   reversesId: string | null;
+  repaymentId: string | null;
   createdAt: string;
+}
+
+export interface TRepaymentPayment {
+  txn: AccountTransaction;
+  loan: Loan | undefined;
+  isSettling: boolean;
+}
+
+export interface TRepayment {
+  id: string;
+  borrower: string | undefined;
+  payments: TRepaymentPayment[];
+  excess: AccountTransaction | undefined;
+  principal: number;
+  total: number;
+  settledCount: number;
+  paidAt: string;
+  accountIds: string[];
 }
 
 export type CategoryKind = 'expense' | 'income';

@@ -66,7 +66,6 @@ account transactions. Never hand-build another row.
   direction or state.
 - **Title:** Quicksand Bold 14px Ink, one line, truncates first.
 - **Meta:** what or where, Quicksand 10.5px Secondary Graphite, one line, at most one " · " ("Housing · BPI").
-  An optional periwinkle bell-off before it marks a bill whose reminder is turned off.
 - **Amount:** Oswald 16px. Never truncated.
 - **Caption:** when, or which state, 10.5px under the amount. Upcoming dates read "Today", "Tomorrow",
   "in 4 days", then "Nov 30". Late reads "3 days late" in coral. Settled reads "Paid Oct 21" in the neutral
@@ -95,6 +94,12 @@ account transactions. Never hand-build another row.
 - **Reverted and reversal rows:** a reverted original keeps its glyph and signed amount, is muted, captions
   "Reverted Nov 5" (the date of its reversal) and has no tap or swipe. Its reversal row (`rotate-ccw` tile, "Reversal: <original title>") is an
   ordinary row in its direction's tone, also with no tap or swipe.
+- **Loan repayment rows:** one row per repayment, not one per loan it touched. Activity shows `arrow-down-left` mint,
+  "<Name> repaid", meta "account · loan(s)" and caption "Settled" or "n settled", plus "+₱X extra" when it overpaid.
+  The borrower page lists them under a "Payments" header after Active and Settled, newest first: title "Paid into
+  <account>", meta "n loans · k settled", caption date · extra. They have no tap; dragging left reveals Revert
+  (`rotate-ccw`, coral), which asks with an Alert. A reverted repayment leaves both lists, and its rows stay in the
+  account's history, marked reverted.
 
 ### Detail Row (`components/ui/AppDetailRow.tsx`)
 One label and value on a line: the facts on a detail screen or sheet (a bill's plan, a loan's totals, a transfer, a
@@ -270,10 +275,10 @@ and revert still confirm with an Alert.
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes
 `accessible={false}`: gorhom's default makes the whole sheet one element and hides its controls from screen readers.
 A picker opened from a sheet (Pay from, Paid on) stacks over it, and the sheet is still there when the picker closes.
-Every sheet is an `AppBottomSheet`, which draws the title, Close and backdrop; content lines up with the title at
-`px-4`. An action whose write changes what the open sheet shows (Save balance, Revert transfer) closes the sheet first
-and writes once it's gone. A save that keeps the sheet open, like a card bill's statement amount, updates it in place.
-A sheet whose content can outgrow the space above the keyboard passes `scrollable`.
+Every sheet is an `AppBottomSheet`, which draws the title, Close and backdrop and closes on Android Back; content lines
+up with the title at `px-4`. An action whose write changes what the open sheet shows (Save balance, Revert transfer)
+closes the sheet first and writes once it's gone. A save that keeps the sheet open, like a card bill's statement amount,
+updates it in place. A sheet whose content can outgrow the space above the keyboard passes `scrollable`.
 
 Detail sheets (tap a Transfer, Card bill or Loan row to read it and act on it) share one layout:
 label/value rows under the title, then full-width actions stacked under them, one primary at most and the destructive
@@ -293,10 +298,20 @@ would bundle at the top of the ring. Row tiles stay neutral with a glyph. Amount
 and Secondary Graphite.
 
 ### Home-screen widget (Android)
-"Quick add", a 4x1 row of Expense, Income, Transfer and Loan that opens each add form (`plugins/withQuickAddWidget`).
+"Quick add", a 4x1 row of Expense, Income, Transfer and Loan that opens each add form (`modules/quick-add-widget`).
 Raised Graphite with a Hairline border and the system widget radius (21dp before Android 12). Each button is a List
 Row tile (36dp, 10.5dp radius, Indigo 15%, 17dp Periwinkle Feather glyph) over a 12sp Ink label, and announces its
 FAB label ("New expense").
+
+"Upcoming bills" (`modules/upcoming-bills-widget`), 4x2 by default and at least 250dp wide, lists Home's Overdue and
+Upcoming recurring dues and card bills, overdue first, each by due date. Same surface as Quick add. A 44dp header (11sp
+Secondary "UPCOMING BILLS", a coral "N late" when something is late, and a chevron) opens Home, over a Hairline. When
+something is late the rows sit under 10sp all-caps bands, coral "Overdue" and Secondary "Upcoming"; otherwise there
+are no bands. Each 52dp row is a List Row: a 36dp tile (coral when late, indigo for a card bill, neutral otherwise), a
+14sp medium Ink title over an 11sp meta, and a 15sp amount over an 11sp caption ("in 4 days", coral "3 days late",
+"₱1,000.00 paid · in 4 days" when part-paid). A row opens its bill's page (a card bill, the card's page). The empty
+state ("All caught up", or "No bills loaded yet" before the rows first load) opens Home too. At midnight, without the
+app, captions and the late count roll over and the rows are rebuilt from the database.
 
 ### Empty and Loading States
 Empty: one large muted glyph, a short title, one plain sentence, and the action that fills it when there

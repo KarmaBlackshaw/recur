@@ -4,27 +4,23 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useIsFocused } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
 import dayjs from "dayjs";
-import { range, sortBy, sumBy } from "@/utils/collections";
+import { sortBy, sumBy } from "@/utils/collections";
 import { useExpenses } from "@/context/ExpenseContext";
-import { useAccounts } from "@/context/AccountContext";
 import { HomeMonthStats } from "@/components/HomeMonthStats";
 import { SetupChecklist, useSetupChecklist } from "@/components/SetupChecklist";
 import { BackupNudge } from "@/components/BackupNudge";
-import { type DayEntry } from "@/components/DayGroupedExpenseList";
-import { HomeExpenseSections, type BillEntry, type HomeEntry, type UpcomingBand } from "@/components/HomeExpenseSections";
+import { HomeExpenseSections, type HomeEntry, type UpcomingBand } from "@/components/HomeExpenseSections";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { AppText } from "@/components/ui/AppText";
-import { isOverdueOn, hasCycleIn, getDueDateForMonth, getGreeting } from "@/utils/dateHelpers";
+import { getGreeting } from "@/utils/dateHelpers";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { groupEntriesByDay } from "@/utils/groupEntriesByDay";
 import { dayTotalOf } from "@/utils/activity/dayTotalOf";
 import { netFlow } from "@/utils/activity/netFlow";
 import { useOwedToYou } from "@/utils/useOwedToYou";
 import { useLingeringEntries } from "@/utils/useLingeringEntries";
-import { openCardBills } from "@/utils/cardBills";
-import { monthKey } from "@/utils/monthKey";
-import { useToday } from "@/utils/useToday";
+import { useDueBills } from "@/utils/useDueBills";
 import { colors } from "@/constants/theme";
 import { PREF_SWIPE_HINT_SEEN } from "@/constants/preferences";
 import { getPreference, setPreference } from "@/db/preferences";
@@ -32,8 +28,6 @@ import { useRefreshControl } from "@/utils/useRefreshControl";
 import type { HomeBandSlot } from "@/types";
 
 const ACTIVITY_LIMIT = 10;
-// How many months back an unpaid due or card bill stays in Overdue after its own month has ended.
-const OVERDUE_LOOKBACK_MONTHS = 3;
 // Past this many expenses the user is set up; the checklist stops appearing above the due list.
 const SETUP_EXPENSE_LIMIT = 3;
 
@@ -79,76 +73,26 @@ function withSwipeHint(entries: HomeEntry[], hintKey: string | null): HomeEntry[
 }
 
 export default function HomeScreen() {
-  const { expenses, loading, userName, getMonthStatus, getBillProgress, collapsedHomeBands, toggleHomeBand } = useExpenses();
-  const accounts = useAccounts();
+  const { expenses, loading, userName, getMonthStatus, collapsedHomeBands, toggleHomeBand } = useExpenses();
   const refreshControl = useRefreshControl();
   const feed = useActivityFeed();
   const owed = useOwedToYou();
   const setup = useSetupChecklist();
   const isFocused = useIsFocused();
-  const today = useToday();
+
+  const { overdue: overdueLive, upcoming: upcomingLive, openBills, today } = useDueBills();
   const year = today.getFullYear();
   const month = today.getMonth();
-
-  // Unpaid recurring cycles, split by urgency.
-  // Keyed per cycle: near month end the same expense can be due in both Upcoming months.
-  // Every due row can be paid in place (the bill sheet and the Pay swipe).
-  const dueEntry = (e: (typeof expenses)[number], y: number, m: number): DayEntry => ({
-    kind: "expense",
-    key: monthKey(e.id, y, m),
-    expense: e,
-    effDate: getDueDateForMonth(e.dueDay, y, m),
-    refDate: new Date(y, m, 1),
-    amount: getBillProgress(e, y, m).left ?? 0,
-    canOpenBillSheet: true,
-  });
-
-  // Next month too: a new card's first bill is due next month.
-  const openBills = useMemo(
-    () =>
-      openCardBills(accounts.getCardBills, today, OVERDUE_LOOKBACK_MONTHS).map((b): BillEntry => ({
-        kind: "cardBill",
-        key: `bill-${b.account.id}-${b.year}-${b.month}`,
-        bill: b,
-        effDate: b.dueDate,
-        amount: b.remaining,
-      })),
-    [accounts.getCardBills, today]
-  );
 
   // Just-paid cards linger with their Paid badge before leaving Overdue / Upcoming.
   const isPaidNow = (e: HomeEntry) =>
     e.kind === "expense" && getMonthStatus(e.expense.id, e.refDate.getFullYear(), e.refDate.getMonth()) === "paid";
 
-  const overdueLive = useMemo<HomeEntry[]>(() => {
-    // A missed due stays here after its month ends, and so does a card bill until it's paid.
-    const entries = range(OVERDUE_LOOKBACK_MONTHS + 1).flatMap((monthsBack) => {
-      const at = dayjs(today).subtract(monthsBack, "month");
-      const [y, m] = [at.year(), at.month()];
-      return expenses
-        .filter((e) => hasCycleIn(e, y, m) && getMonthStatus(e.id, y, m) === "unpaid" && isOverdueOn(e.dueDay, y, m))
-        .map((e) => dueEntry(e, y, m));
-    });
-    const bills = openBills.filter((b) => !b.bill.isPaid && b.effDate < today);
-    return [...entries, ...bills];
-  }, [expenses, getMonthStatus, getBillProgress, year, month, openBills, today]);
   const overdueWithPaid = useLingeringEntries(overdueLive, isPaidNow);
   const overdue = useMemo(() => sortBy(overdueWithPaid, "effDate"), [overdueWithPaid]);
 
   const next = dayjs(today).add(1, "month").startOf("month");
 
-  const upcomingLive = useMemo<HomeEntry[]>(() => {
-    const unpaidDues = (y: number, m: number) =>
-      expenses
-        .filter((e) => hasCycleIn(e, y, m) && getMonthStatus(e.id, y, m) === "unpaid")
-        .map((e) => dueEntry(e, y, m));
-    return [
-      ...unpaidDues(year, month).filter((d) => d.effDate >= today),
-      ...openBills.filter((b) => b.effDate >= today && dayjs(b.effDate).isSame(today, "month")),
-      ...unpaidDues(next.year(), next.month()),
-      ...openBills.filter((b) => dayjs(b.effDate).isSame(next, "month")),
-    ];
-  }, [expenses, getMonthStatus, getBillProgress, year, month, openBills, today]);
   const upcomingWithPaid = useLingeringEntries(upcomingLive, isPaidNow);
 
   const upcoming = useMemo<UpcomingBand[]>(() => {

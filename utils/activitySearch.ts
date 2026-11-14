@@ -1,12 +1,13 @@
 import { expenseTitle } from "@/utils/expenseHelpers";
 import { incomeTitle } from "@/utils/accounts/incomeTitle";
+import { repaidTitle } from "@/utils/loans/repaidTitle";
 import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
 
 export interface ActivitySearchContext {
   accountName: (id: string | null | undefined) => string | undefined;
 }
 
-// What a row shows (plus its kind), so a search finds it by name, category, account, person or keyword.
+// What a row shows (plus its kind and note), so a search finds it by name, category, account, person, note or keyword.
 function searchableText(entry: ActivityEntry, { accountName }: ActivitySearchContext): (string | null | undefined)[] {
   switch (entry.kind) {
     case "expense": {
@@ -24,11 +25,22 @@ function searchableText(entry: ActivityEntry, { accountName }: ActivitySearchCon
     case "loan": {
       const { loanTxn, loan } = entry;
       const borrower = loan?.borrower;
-      const title = borrower == null ? null : loanTxn.kind === "loan_in" ? `${borrower} repaid` : `Lent to ${borrower}`;
-      return [title, "loan", accountName(loanTxn.accountId)];
+      const title = borrower == null ? null : `Lent to ${borrower}`;
+      return [title, "loan", loan?.note, accountName(loanTxn.accountId)];
+    }
+    case "repayment": {
+      const { repayment, excess } = entry;
+      const { borrower } = repayment;
+      return [
+        borrower == null ? null : repaidTitle(borrower),
+        "loan",
+        ...repayment.accountIds.map(accountName),
+        excess?.income.category,
+        ...repayment.payments.map(({ txn }) => txn.amount.toFixed(2)),
+      ];
     }
     case "billPayment":
-      return [`${entry.account.name} bill`, entry.sourceName];
+      return [`${entry.account.name} bill`, entry.sourceName, entry.payment.note];
   }
 }
 

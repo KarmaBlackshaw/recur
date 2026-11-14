@@ -20,10 +20,6 @@ export default function TransferTemplatesScreen() {
   const accounts = useAccounts();
   const { templates, isLoading, deleteTemplate } = useTransferTemplates();
 
-  function accountName(accountId: string) {
-    return accounts.accounts.find((a) => a.id === accountId)?.name ?? "Deleted account";
-  }
-
   function confirmDelete(template: TransferTemplate) {
     Alert.alert("Delete template?", "Transfers you made with it stay.", [
       { text: "Cancel", style: "cancel" },
@@ -47,7 +43,7 @@ export default function TransferTemplatesScreen() {
   }
 
   function renderTemplate(template: TransferTemplate) {
-    const meta = `${accountName(template.fromId)} → ${accountName(template.toId)}`;
+    const meta = `${accounts.nameOf(template.fromId)} → ${accounts.nameOf(template.toId)}`;
     const caption =
       template.income > 0
         ? `+${formatAmount(template.income)} earned`

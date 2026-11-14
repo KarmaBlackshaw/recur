@@ -1,6 +1,6 @@
 // components/ui/AppBottomSheet.tsx
-import React, { forwardRef, useCallback, useRef } from "react";
-import { View, TouchableOpacity, Keyboard } from "react-native";
+import React, { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import { View, TouchableOpacity, Keyboard, BackHandler } from "react-native";
 import {
   BottomSheetModal,
   BottomSheetScrollView,
@@ -42,6 +42,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
 ) {
   const sheetRef = useRef<BottomSheetModal>(null);
   const afterDismissRef = useRef<(() => void) | null>(null);
+  const [isPresented, setIsPresented] = useState(false);
   const { top, bottom } = useSafeAreaInsets();
 
   const runAfterDismiss = useCallback(() => {
@@ -51,6 +52,7 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
   }, []);
 
   const handleDismiss = useCallback(() => {
+    setIsPresented(false);
     onDismiss?.();
     runAfterDismiss();
   }, [onDismiss, runAfterDismiss]);
@@ -62,10 +64,23 @@ export const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(function AppB
     sheetRef.current?.dismiss();
   }, []);
 
+  // Registered on present, so a sheet stacked on top handles Back first.
+  useEffect(() => {
+    if (!isPresented) {
+      return;
+    }
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      dismissSheet();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [isPresented, dismissSheet]);
+
   React.useImperativeHandle(ref, () => ({
     present: () => {
       runAfterDismiss();
       Keyboard.dismiss();
+      setIsPresented(true);
       sheetRef.current?.present();
     },
     dismiss: (afterDismiss) => {

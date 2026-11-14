@@ -24,12 +24,13 @@ function expenseLine(entry: ActivityEntry): TCategoryLine | null {
     case "income":
     case "interest":
     case "loan":
+    case "repayment":
       return null;
   }
 }
 
-// Loan repayments add nothing either: getting lent money back isn't earning it. Income a loan brought in gets its
-// own category, so a loan's income never reads as bank interest.
+// Getting lent money back isn't earning it, so a repayment adds only the excess it carries. Income a loan brought
+// in gets its own category, so a loan's income never reads as bank interest.
 function incomeLine(entry: ActivityEntry): TCategoryLine | null {
   switch (entry.kind) {
     case "income": {
@@ -40,6 +41,8 @@ function incomeLine(entry: ActivityEntry): TCategoryLine | null {
       return line(INTEREST_CATEGORY, entry.amount);
     case "transfer":
       return line(entry.earnedCategory ?? UNCATEGORIZED_INCOME, entry.earned);
+    case "repayment":
+      return entry.excess ? incomeLine(entry.excess) : null;
     case "expense":
     case "billPayment":
     case "loan":

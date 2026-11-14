@@ -3,11 +3,12 @@ import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { revertLoanMessage } from "@/utils/loans/revertLoanMessage";
+import { staysInHistory } from "@/utils/loans/staysInHistory";
 import type { AccountTransaction } from "@/types";
 
 export function useRevertLoan() {
   const loans = useLoans();
-  const accounts = useAccounts();
+  const { nameOf } = useAccounts();
 
   return (txn: AccountTransaction, runAction: (revert: () => Promise<void>) => void = (revert) => revert()) => {
     const loan = loans.loans.find(({ id }) => id === txn.loanId);
@@ -15,14 +16,13 @@ export function useRevertLoan() {
       return;
     }
     const isPayment = txn.kind === "loan_in";
-    const accountName = accounts.accounts.find(({ id }) => id === txn.accountId)?.name ?? "its account";
     const message = isPayment
-      ? `The money leaves ${accountName} and ${loan.borrower} owes it again. The payment stays in the account history, marked as reverted.`
+      ? `The money leaves ${nameOf(txn.accountId)} and ${loan.borrower} owes it again. ${staysInHistory("The payment")}`
       : revertLoanMessage({
           loan,
           paymentCount: loans.paymentsOf(loan.id).length,
           incomeCount: loans.incomeOf(loan.id).length,
-          accountName,
+          accountNameOf: nameOf,
         });
 
     const revert = async () => {

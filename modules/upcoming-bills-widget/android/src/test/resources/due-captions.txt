@@ -1,0 +1,34 @@
+# Due captions the app's Home rows and the Android "Upcoming bills" widget must agree on.
+# Read by UpcomingBillsDatesTest (Kotlin dueText) and scripts/upcoming-bills-widget-check.mjs
+# (formatDaysLate / formatDueDate in utils/dateHelpers.ts, composed the way Home does).
+# Columns: today | due | caption, dates as YYYY-MM-DD, "today" taken at noon local time.
+
+# late
+2026-11-14 | 2026-11-13 | 1 day late
+2026-11-14 | 2026-11-09 | 5 days late
+2026-11-14 | 2026-01-05 | 313 days late
+
+# today, tomorrow, the coming week, then the date itself
+2026-11-14 | 2026-11-14 | Today
+2026-11-14 | 2026-11-15 | Tomorrow
+2026-11-14 | 2026-11-16 | in 2 days
+2026-11-14 | 2026-11-20 | in 6 days
+2026-11-14 | 2026-11-21 | Nov 21
+2026-11-14 | 2027-08-03 | Aug 3
+
+# month and year crossings
+2026-11-28 | 2026-12-02 | in 4 days
+2026-12-02 | 2026-11-28 | 4 days late
+2026-12-30 | 2027-01-05 | in 6 days
+2026-12-26 | 2027-01-02 | Jan 2
+2027-01-02 | 2026-12-30 | 3 days late
+
+# leap day
+2028-02-27 | 2028-02-29 | in 2 days
+2028-02-22 | 2028-02-29 | Feb 29
+2028-03-01 | 2028-02-29 | 1 day late
+2027-02-28 | 2027-03-01 | Tomorrow
+
+# US daylight saving changes (they only shift the clock where the run's time zone observes them)
+2026-03-07 | 2026-03-09 | in 2 days
+2026-10-31 | 2026-11-02 | in 2 days

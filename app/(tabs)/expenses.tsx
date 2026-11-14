@@ -145,7 +145,7 @@ export default function ExpensesScreen() {
   const categorySheetRef = useRef<CategoryFilterSheetRef>(null);
 
   function openStats() {
-    router.push(`/stats?year=${year}&month=${month}&period=${period}&type=${statsType}`, { dangerouslySingular: true });
+    router.push(`/stats?year=${year}&month=${month}&period=${period}&type=${statsType}`);
   }
 
   function openCategoryPicker() {

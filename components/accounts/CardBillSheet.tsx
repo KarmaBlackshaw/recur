@@ -1,6 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Alert, View } from "react-native";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import dayjs from "dayjs";
 import { round } from "@/utils/round";
 import { useAccounts } from "@/context/AccountContext";
@@ -46,8 +47,8 @@ export const CardBillSheet = forwardRef<CardBillSheetRef>(function CardBillSheet
     handleSubmit,
     reset,
     formState: { isValid, isSubmitting },
-  } = useForm<BillFormValues>({ mode: "onChange", defaultValues: { amount: "" } });
-  const payForm = useForm<PaymentFormValues>({
+  } = useAppForm<BillFormValues>({ mode: "onChange", defaultValues: { amount: "" } });
+  const payForm = useAppForm<PaymentFormValues>({
     mode: "onChange",
     defaultValues: { amount: "", paidAt: "", fromId: CASH_ACCOUNT_ID, fee: "", note: "" },
   });

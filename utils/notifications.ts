@@ -1,10 +1,13 @@
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import dayjs from 'dayjs';
-import { groupBy, range, sortBy, sumBy, uniq } from '@/utils/collections';
+import { range, sumBy } from '@/utils/collections';
 import { getDueDateForMonth, hasCycleIn } from '@/utils/dateHelpers';
 import { expenseTitle } from '@/utils/expenseHelpers';
-import type { CardBill, Expense, Status } from '@/types';
+import { billReminderLead, planReminders, reminderLead } from '@/utils/reminders';
+import { requestNotificationPermission } from '@/utils/systemScreens';
+import type { Account, CardBill, Expense, Status } from '@/types';
 
 // The bill a reminder is about, so tapping it (or its Mark paid action) can open that bill.
 export interface ReminderTarget {
@@ -17,7 +20,8 @@ export interface Reminder {
   title: string;
   amount: number | null;
   dueDate: Date;
-  daysBefore: number;
+  // Days before the due date of the earlier reminder; null for none. The due day always reminds.
+  daysBefore: number | null;
   target?: ReminderTarget;
 }
 
@@ -30,6 +34,8 @@ export const MARK_PAID_ACTION = 'mark-paid';
 const REMINDER_MONTHS_AHEAD = 12;
 // iOS keeps at most 64 pending local notifications per app, so only the soonest ones are scheduled.
 const MAX_SCHEDULED = 60;
+// expo-notifications has no web module for permissions, categories or scheduling, so reminders are a no-op there.
+const SUPPORTED = Platform.OS !== 'web';
 
 function upcomingMonths(now: Date): dayjs.Dayjs[] {
   const start = dayjs(now).startOf('month');
@@ -37,15 +43,24 @@ function upcomingMonths(now: Date): dayjs.Dayjs[] {
 }
 
 export async function requestPermissions(): Promise<boolean> {
-  const { status } = await Notifications.requestPermissionsAsync();
+  if (!SUPPORTED) {
+    return false;
+  }
+  const { status } = await requestNotificationPermission();
   return status === 'granted';
 }
 
 export async function cancelAllNotifications(): Promise<void> {
+  if (!SUPPORTED) {
+    return;
+  }
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
 export async function registerNotificationCategories(): Promise<void> {
+  if (!SUPPORTED) {
+    return;
+  }
   await Notifications.setNotificationCategoryAsync(BILL_DUE_CATEGORY, [
     { identifier: MARK_PAID_ACTION, buttonTitle: 'Mark paid', options: { opensAppToForeground: true } },
   ]);
@@ -93,16 +108,13 @@ export function getExpenseReminders(
   expenses: Expense[],
   getMonthStatus: (id: string, year: number, month: number) => Status,
   getDisplayAmount: (expense: Expense, year: number, month: number) => number | null,
+  cardOf: (accountId: string | null | undefined) => Account | undefined,
   now: Date
 ): Reminder[] {
   const months = upcomingMonths(now);
   const reminders: Reminder[] = [];
   for (const expense of expenses) {
-    // 0 days before means the reminder is off for this bill.
-    if (expense.reminderDaysBefore === 0) {
-      continue;
-    }
-    const daysBefore = expense.reminderDaysBefore ?? 1;
+    const daysBefore = billReminderLead(expense, cardOf(expense.accountId));
     const isOneOff = expense.recurrence === 'one-off';
     const cycles = isOneOff ? [months[0]] : months;
     for (const cycle of cycles) {
@@ -131,44 +143,36 @@ export function getUnpaidBillReminders(
   now: Date
 ): Reminder[] {
   // Statements not cut yet are estimated from the card's balance as of now.
-  return upcomingMonths(now)
-    .flatMap((month) => getCardBills(month.year(), month.month()))
-    .filter((bill) => !bill.isPaid && bill.remaining > 0)
-    .map((bill) => ({ title: `${bill.account.name} bill`, amount: bill.remaining, dueDate: bill.dueDate, daysBefore: 1 }));
+  const reminders: Reminder[] = [];
+  for (const bill of upcomingMonths(now).flatMap((month) => getCardBills(month.year(), month.month()))) {
+    if (bill.isPaid || bill.remaining <= 0) {
+      continue;
+    }
+    reminders.push({
+      title: `${bill.account.name} bill`,
+      amount: bill.remaining,
+      dueDate: bill.dueDate,
+      daysBefore: reminderLead(bill.account.reminderDaysBefore),
+    });
+  }
+  return reminders;
 }
 
 export async function scheduleAllNotifications(reminders: Reminder[], reminderTime: string): Promise<void> {
+  if (!SUPPORTED) {
+    return;
+  }
   try {
     await cancelAllNotifications();
-    const [hoursStr, minutesStr] = reminderTime.split(':');
-    const hours = parseInt(hoursStr, 10);
-    const minutes = parseInt(minutesStr, 10);
-    const now = new Date();
-
-    const eligible: { reminder: Reminder; fireTime: number }[] = [];
-    for (const reminder of reminders) {
-      const fireDate = dayjs(reminder.dueDate).subtract(reminder.daysBefore, 'day').hour(hours).minute(minutes).toDate();
-      if (dayjs(fireDate).isBefore(now)) {
-        continue;
-      }
-      eligible.push({ reminder, fireTime: fireDate.getTime() });
-    }
-
-    const soonest = sortBy(Object.entries(groupBy(eligible, 'fireTime')), ([fireTime]) => Number(fireTime)).slice(
-      0,
-      MAX_SCHEDULED
-    );
-    for (const [fireTime, group] of soonest) {
-      const leads = uniq(group.map((g) => g.reminder.daysBefore));
-      const label = leads.length === 1 ? dueLabel(leads[0]) : 'soon';
-      const single = group.length === 1 ? group[0].reminder : null;
+    for (const fire of planReminders(reminders, reminderTime, new Date(), MAX_SCHEDULED)) {
+      const single = fire.reminders.length === 1 ? fire.reminders[0] : null;
       await Notifications.scheduleNotificationAsync({
         content: {
-          ...buildSummaryContent(group.map((g) => g.reminder), label),
+          ...buildSummaryContent(fire.reminders, dueLabel(fire.daysBefore)),
           data: single?.target ? { ...single.target } : {},
           categoryIdentifier: single?.target ? BILL_DUE_CATEGORY : undefined,
         },
-        trigger: { type: SchedulableTriggerInputTypes.DATE, date: new Date(Number(fireTime)) },
+        trigger: { type: SchedulableTriggerInputTypes.DATE, date: fire.fireAt },
       });
     }
   } catch (err) {

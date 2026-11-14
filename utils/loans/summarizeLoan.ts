@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import type { TLoanPayment, TLoanTerms } from "@/types";
+import { orderBy } from "@/utils/collections";
 
 export interface TLoanCharge { date: string; amount: number }
 export interface TLoanOverpayment<P extends TLoanPayment = TLoanPayment> { payment: P; amount: number }
@@ -12,6 +13,7 @@ export interface TLoanSummary<P extends TLoanPayment = TLoanPayment> {
   overpaid: number;
   isSettled: boolean;
   settledAt: string | null;
+  settledBy: P | null;
   isValid: boolean;
 }
 
@@ -27,14 +29,16 @@ export function summarizeLoan<P extends TLoanPayment>({ loan, payments, today }:
 }): TLoanSummary<P> {
   const { principal, lentAt, interest } = loan;
   const lentDay = day(lentAt);
-  const queue = payments
-    .map((payment) => ({ payment, day: day(payment.createdAt) }))
-    .sort((a, b) => a.day.localeCompare(b.day));
+  const queue = orderBy(
+    payments.map((payment) => ({ payment, day: day(payment.createdAt), at: dayjs(payment.createdAt).valueOf() })),
+    ["day", "at"]
+  );
   const charges: TLoanCharge[] = [];
   const overpayments: TLoanOverpayment<P>[] = [];
   let balance = round2(principal);
   let paid = 0;
   let settledAt: string | null = null;
+  let settledBy: P | null = null;
 
   const applyPaymentsBefore = (limit?: string) => {
     while (queue.length > 0 && (limit == null || queue[0].day < limit)) {
@@ -52,6 +56,7 @@ export function summarizeLoan<P extends TLoanPayment>({ loan, payments, today }:
       }
       if (balance <= 0 && settledAt == null) {
         settledAt = next.day;
+        settledBy = next.payment;
       }
     }
   };
@@ -101,6 +106,7 @@ export function summarizeLoan<P extends TLoanPayment>({ loan, payments, today }:
     overpaid: round2(overpayments.reduce((sum, { amount }) => sum + amount, 0)),
     isSettled,
     settledAt: isSettled ? settledAt : null,
+    settledBy: isSettled ? settledBy : null,
     isValid: payments.every(({ createdAt }) => day(createdAt) >= lentDay),
   };
 }

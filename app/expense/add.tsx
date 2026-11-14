@@ -6,7 +6,8 @@ import { useUpdateEffect } from "@/utils/useUpdateEffect";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import dayjs from "dayjs";
 import { useExpenses } from "@/context/ExpenseContext";
 import { isPaymentFor, useAccounts } from "@/context/AccountContext";
@@ -25,9 +26,11 @@ import { AppTabs } from "@/components/ui/AppTabs";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { TransferInButton } from "@/components/accounts/TransferInButton";
+import { ReminderField } from "@/components/ReminderField";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { formatOrdinal, getDueDateForMonth } from "@/utils/dateHelpers";
 import { maybeAskForReminders } from "@/utils/reminderPermission";
+import { parseReminder, toReminderFormValue } from "@/utils/reminders";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
@@ -46,16 +49,6 @@ const RECURRENCE_OPTIONS: TOption<Recurrence>[] = [
   { label: "Yearly", value: "yearly" },
 ];
 
-// Days before the due date. "0" turns the bill's reminder off; an empty value is the default, a day before.
-const REMINDER_OPTIONS = [
-  { label: "Off", value: "0" },
-  { label: "1 day", value: "1" },
-  { label: "2 days", value: "2" },
-  { label: "3 days", value: "3" },
-  { label: "1 week", value: "7" },
-];
-const DEFAULT_REMINDER = "1";
-
 const monthStart = (year: number, month: number) => new Date(year, month, 1).toISOString();
 const monthIndex = (iso: string) => dayjs(iso).year() * 12 + dayjs(iso).month();
 
@@ -67,16 +60,6 @@ function isDayOfMonth(value: string): boolean {
 function isValidAmount(value: string): boolean {
   const amount = parseFloat(value);
   return !isNaN(amount) && amount >= 0.01;
-}
-
-// A lead time the chips don't offer (the old typed field took 1–14 days) stays pickable as its own chip.
-function reminderOptionsFor(stored: number | null | undefined) {
-  if (stored == null || stored < 1 || REMINDER_OPTIONS.some((option) => option.value === String(stored))) {
-    return REMINDER_OPTIONS;
-  }
-  return [...REMINDER_OPTIONS, { label: `${stored} days`, value: String(stored) }].sort(
-    (a, b) => Number(a.value) - Number(b.value)
-  );
 }
 
 // Whether a stack screen (the bill screen or an editor) is about this expense; params are its URL params.
@@ -125,7 +108,6 @@ export default function AddExpenseScreen() {
     "createdAt"
   )?.accountId;
   const initialAccountId = editingExpense ? editingExpense.accountId : lastUsedAccountId;
-  const reminderOptions = reminderOptionsFor(editingExpense?.reminderDaysBefore);
 
   function toKnownAccountId(accountId?: string | null) {
     return accountId && accounts.some((a) => a.id === accountId) ? accountId : CASH_ACCOUNT_ID;
@@ -141,7 +123,7 @@ export default function AddExpenseScreen() {
     trigger,
     watch,
     formState: { isValid, isSubmitting, isDirty },
-  } = useForm<ExpenseFormValues>({
+  } = useAppForm<ExpenseFormValues>({
     mode: "onChange",
     defaultValues: {
       amount: editingExpense?.amount != null ? editingExpense.amount.toString() : "",
@@ -261,7 +243,7 @@ export default function AddExpenseScreen() {
         isVariable: editingExpense.isVariable,
         monthlyAmount: "",
         notes: editingExpense.notes || editingExpense.name || "",
-        reminderDaysBefore: editingExpense.reminderDaysBefore != null ? editingExpense.reminderDaysBefore.toString() : "",
+        reminderDaysBefore: toReminderFormValue(editingExpense.reminderDaysBefore),
         paidDate: editingExpense.paidDate ?? new Date().toISOString(),
         startDate: startOf(editingExpense, currentYear, currentMonth),
         hasEndDate: editingExpense.endYear != null || endPrompt === "1",
@@ -297,7 +279,6 @@ export default function AddExpenseScreen() {
     const endActive = !isRegular && data.hasEndDate;
     const endParsed = endActive ? dayjs(data.endDate).toDate() : null;
     const startParsed = isRegular ? null : dayjs(data.startDate);
-    const reminder = data.reminderDaysBefore.trim();
 
     const fields: Omit<Expense, "id" | "createdAt"> = {
       name: "",
@@ -309,7 +290,7 @@ export default function AddExpenseScreen() {
       status: editingExpense?.status ?? "unpaid",
       notes: data.notes.trim() || undefined,
       // "0" is off, empty is the default (a day before).
-      reminderDaysBefore: isRegular || payCard ? null : reminder === "" ? null : parseInt(reminder, 10),
+      reminderDaysBefore: isRegular || payCard ? null : parseReminder(data.reminderDaysBefore),
       paidDate: isRegular ? stampPickedDay(data.paidDate, editingExpense?.paidDate) : null,
       startYear: startParsed ? startParsed.year() : null,
       startMonth: startParsed ? startParsed.month() : null,
@@ -331,7 +312,7 @@ export default function AddExpenseScreen() {
     }
     allowLeave();
     router.back();
-    if (!isEditing && !isRegular && fields.reminderDaysBefore !== 0) {
+    if (!isEditing && !isRegular) {
       try {
         await maybeAskForReminders(data.notes.trim() || data.category);
       } catch (e) {
@@ -531,21 +512,9 @@ export default function AddExpenseScreen() {
               <Controller
                 control={control}
                 name="reminderDaysBefore"
-                render={({ field: { value, onChange } }) => {
-                  const shown = value.trim() === "" ? DEFAULT_REMINDER : value;
-                  return (
-                    <AppRadioGroup
-                      label="Reminder"
-                      options={reminderOptions}
-                      value={shown}
-                      onChange={(next) => {
-                        if (next !== shown) {
-                          onChange(next);
-                        }
-                      }}
-                    />
-                  );
-                }}
+                render={({ field: { value, onChange } }) => (
+                  <ReminderField value={value} onChange={onChange} stored={editingExpense?.reminderDaysBefore} />
+                )}
               />
             )}
 

@@ -22,7 +22,8 @@ import { maxPaymentOn } from "@/utils/loans/maxPaymentOn";
 import { canChangeLoan } from "@/utils/loans/canChangeLoan";
 import { canEditPayment } from "@/utils/loans/canEditPayment";
 import { useToday } from "@/utils/useToday";
-import type { AccountTransaction, Loan, LoanExcessInput, LoanInput, LoanPaymentInput } from "@/types";
+import { groupRepayments } from "@/utils/loans/groupRepayments";
+import type { AccountTransaction, Loan, LoanExcessInput, LoanInput, LoanPaymentInput, TRepayment } from "@/types";
 
 interface State {
   loans: Loan[];
@@ -65,6 +66,8 @@ interface LoanContextValue {
   deletePayment: (txnId: string) => Promise<void>;
   revertPayment: (txnId: string) => Promise<void>;
   revertLoan: (id: string) => Promise<void>;
+  repayments: TRepayment[];
+  revertRepayment: (repaymentId: string) => Promise<void>;
   reload: () => Promise<void>;
 }
 
@@ -118,6 +121,11 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     }
     return map;
   }, [activeLoans, paymentsOf, today]);
+
+  const repayments = useMemo(
+    () => groupRepayments({ transactions: accounts.transactions, loans: activeLoans, summaries }),
+    [accounts.transactions, activeLoans, summaries]
+  );
 
   const assertDepositAccount = (accountId: string) => {
     const account = accounts.accounts.find((a) => a.id === accountId);
@@ -246,6 +254,18 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     await accounts.reverseTransactions([txnId]);
   });
 
+  const revertRepayment = useMemoizedFn(async (id: string) => {
+    const repayment = repayments.find((r) => r.id === id);
+    if (!repayment) {
+      throw new Error("Already reverted");
+    }
+    const ids = repayment.payments.map(({ txn }) => txn.id);
+    if (repayment.excess) {
+      ids.push(repayment.excess.id);
+    }
+    await accounts.reverseTransactions(ids);
+  });
+
   const revertLoan = useMemoizedFn(async (id: string) => {
     const loan = activeLoans.find((l) => l.id === id);
     if (!loan) {
@@ -278,9 +298,11 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       deletePayment,
       revertPayment,
       revertLoan,
+      repayments,
+      revertRepayment,
       reload,
     }),
-    [activeLoans, state.isLoading, summaries, paymentsOf, incomeOf, borrowerOf]
+    [activeLoans, state.isLoading, summaries, paymentsOf, incomeOf, borrowerOf, repayments]
   );
 
   return <LoanContext.Provider value={value}>{children}</LoanContext.Provider>;

@@ -2,7 +2,8 @@ import React, { useEffect } from "react";
 import { View, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { useForm, Controller } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { AppText } from "@/components/ui/AppText";
 import { AppLabel } from "@/components/ui/AppLabel";
@@ -21,7 +22,7 @@ export default function ProfileScreen() {
     handleSubmit,
     reset,
     formState: { isDirty, isValid },
-  } = useForm<FormValues>({
+  } = useAppForm<FormValues>({
     defaultValues: { name: userName ?? "" },
   });
 

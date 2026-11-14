@@ -3,7 +3,8 @@ import { maxBy, orderBy, uniqBy } from "@/utils/collections";
 import { View, Alert, type TextInputInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import { useAppForm } from "@/utils/useAppForm";
 import dayjs from "dayjs";
 import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
 import { TransferInButton } from "@/components/accounts/TransferInButton";
@@ -19,7 +20,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppCombobox } from "@/components/ui/AppCombobox";
-import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
+import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { sanitizeAmount } from "@/utils/amountInput";
 import { formatAmount } from "@/utils/formatAmount";
 import { alertFailure } from "@/utils/accounts/alertFailure";
@@ -171,7 +172,7 @@ export default function AddLoanScreen() {
     trigger,
     watch,
     formState: { isValid, isSubmitting, isDirty },
-  } = useForm<LoanFormValues>({
+  } = useAppForm<LoanFormValues>({
     mode: "onChange",
     defaultValues: toFormValues(editing),
   });
@@ -274,7 +275,7 @@ export default function AddLoanScreen() {
       loan: editing,
       paymentCount: loans.paymentsOf(editing.id).length,
       incomeCount: loans.incomeOf(editing.id).length,
-      accountName: savedAccountName,
+      accountNameOf: accounts.nameOf,
     });
     Alert.alert("Delete this loan?", message, [
       { text: "Cancel", style: "cancel" },
@@ -417,7 +418,7 @@ export default function AddLoanScreen() {
             render={({ field: { value } }) => (
               <AppSelectField
                 label="From account"
-                value={accounts.accounts.find((a) => a.id === value)?.name ?? DELETED_ACCOUNT}
+                value={accounts.nameOf(value)}
                 onPress={() => accountSheetRef.current?.present()}
               />
             )}

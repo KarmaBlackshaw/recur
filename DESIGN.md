@@ -299,10 +299,20 @@ would bundle at the top of the ring. Row tiles stay neutral with a glyph. Amount
 and Secondary Graphite.
 
 ### Home-screen widget (Android)
-"Quick add", a 4x1 row of Expense, Income, Transfer and Loan that opens each add form (`plugins/withQuickAddWidget`).
+"Quick add", a 4x1 row of Expense, Income, Transfer and Loan that opens each add form (`modules/quick-add-widget`).
 Raised Graphite with a Hairline border and the system widget radius (21dp before Android 12). Each button is a List
 Row tile (36dp, 10.5dp radius, Indigo 15%, 17dp Periwinkle Feather glyph) over a 12sp Ink label, and announces its
 FAB label ("New expense").
+
+"Upcoming bills" (`modules/upcoming-bills-widget`), 4x2 by default and at least 250dp wide, lists Home's Overdue and
+Upcoming recurring dues and card bills, overdue first, each by due date. Same surface as Quick add. A 44dp header (11sp
+Secondary "UPCOMING BILLS", a coral "N late" when something is late, and a chevron) opens Home, over a Hairline. When
+something is late the rows sit under 10sp all-caps bands, coral "Overdue" and Secondary "Upcoming"; otherwise there
+are no bands. Each 52dp row is a List Row: a 36dp tile (coral when late, indigo for a card bill, neutral otherwise), a
+14sp medium Ink title over an 11sp meta, and a 15sp amount over an 11sp caption ("in 4 days", coral "3 days late",
+"₱1,000.00 paid · in 4 days" when part-paid). A row opens its bill's page (a card bill, the card's page). The empty
+state ("All caught up", or "No bills loaded yet" before the rows first load) opens Home too. At midnight, without the
+app, captions and the late count roll over and the rows are rebuilt from the database.
 
 ### Empty and Loading States
 Empty: one large muted glyph, a short title, one plain sentence, and the action that fills it when there

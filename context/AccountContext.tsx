@@ -4,7 +4,6 @@ import dayjs from "dayjs";
 import { useAsyncEffect } from "@/utils/useAsyncEffect";
 import { useMemoizedFn } from "@/utils/useMemoizedFn";
 import { round } from "@/utils/round";
-import { sortBy } from "@/utils/collections";
 import { saveAccountLogo } from "@/utils/accountLogo/saveAccountLogo";
 import { deleteAccountLogo } from "@/utils/accountLogo/deleteAccountLogo";
 import type { Account, AccountInput, AccountTransaction, CardBill, CardBillOverride, IncomeInput, InterestEstimate, TransferInput } from "@/types";
@@ -37,7 +36,9 @@ import {
 } from "@/db/cardBills";
 import { touchCategory } from "@/db/categories";
 import { accrueInterest, PERIODS_PER_YEAR } from "@/utils/interest";
-import { computeBill, unsettledDebitIds } from "@/utils/cardBills";
+import { unsettledDebitIds } from "@/utils/cardBills";
+import { cardBillsFor } from "@/utils/accounts/cardBillsFor";
+import { paymentLookup } from "@/utils/accounts/paymentLookup";
 import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { TRANSFER_CATEGORY } from "@/constants/categories";
 import { findOverdraft, type TBalanceChange } from "@/utils/accounts/findOverdraft";
@@ -174,34 +175,12 @@ export function isPaymentFor(expenseId: string, cycleYear: number | null, cycleM
     t.kind === "payment" && t.expenseId === expenseId && t.cycleYear === cycleYear && t.cycleMonth === cycleMonth;
 }
 
-function paymentKey(expenseId: string, cycleYear: number | null, cycleMonth: number | null) {
-  return JSON.stringify([expenseId, cycleYear, cycleMonth]);
-}
-
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { accounts: [], ledger: [], billOverrides: [], isLoading: true });
   const isRunningInterest = useRef(false);
 
   const transactions = useMemo(() => inEffectTransactions(state.ledger), [state.ledger]);
-  const paymentsByCycle = useMemo(() => {
-    const payments = new Map<string, AccountTransaction[]>();
-    for (const transaction of transactions) {
-      if (transaction.kind !== "payment" || transaction.expenseId == null) {
-        continue;
-      }
-      const key = paymentKey(transaction.expenseId, transaction.cycleYear, transaction.cycleMonth);
-      const cyclePayments = payments.get(key);
-      if (cyclePayments) {
-        cyclePayments.push(transaction);
-      } else {
-        payments.set(key, [transaction]);
-      }
-    }
-    for (const [key, cyclePayments] of payments) {
-      payments.set(key, sortBy(cyclePayments, "createdAt"));
-    }
-    return payments;
-  }, [transactions]);
+  const getPayments = useMemo(() => paymentLookup(transactions), [transactions]);
 
   const reload = useMemoizedFn(async () => {
     const [accounts, ledger, billOverrides] = await Promise.all([
@@ -695,30 +674,15 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   });
 
   const getCardBills = useCallback(
-    (year: number, month: number): CardBill[] => {
-      const now = new Date();
-      const bills: CardBill[] = [];
-      for (const account of state.accounts) {
-        const { statementDay, dueDay } = account;
-        if (account.type !== "credit" || statementDay == null || dueDay == null) {
-          continue;
-        }
-        const txns = transactions.filter((t) => t.accountId === account.id);
-        const override =
-          state.billOverrides.find((o) => o.accountId === account.id && o.year === year && o.month === month)?.amount ??
-          null;
-        const bill = computeBill({ txns, statementDay, dueDay, year, month, override, now });
-        if (dayjs(bill.cutoff).isBefore(dayjs(account.createdAt).startOf("month"))) {
-          continue;
-        }
-        // An archived card has no bills after it was archived; earlier ones stay part of past months.
-        if (account.archivedAt && dayjs(bill.dueDate).isAfter(dayjs(account.archivedAt), "day")) {
-          continue;
-        }
-        bills.push({ ...bill, account, year, month });
-      }
-      return bills;
-    },
+    (year: number, month: number): CardBill[] =>
+      cardBillsFor({
+        accounts: state.accounts,
+        transactions,
+        billOverrides: state.billOverrides,
+        year,
+        month,
+        now: new Date(),
+      }),
     [state.accounts, transactions, state.billOverrides]
   );
 
@@ -731,12 +695,6 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     }
     return map;
   }, [state.accounts, transactions]);
-
-  const getPayments = useCallback(
-    (expenseId: string, cycleYear: number | null, cycleMonth: number | null) =>
-      [...(paymentsByCycle.get(paymentKey(expenseId, cycleYear, cycleMonth)) ?? [])],
-    [paymentsByCycle]
-  );
 
   const isTxnCharged = useCallback(
     (txn: AccountTransaction) => unsettledByCard.get(txn.accountId)?.has(txn.id) ?? false,

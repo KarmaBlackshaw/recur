@@ -52,7 +52,7 @@ interface Expense {
 - A recurring bill takes part payments: a bill-month holds one or more payment rows (`AccountContext.getPayments`), and the month flips to `paid` once they settle it, recording their sum in `expense_months.amount`, so editing the expense later never rewrites paid history. A fixed bill's month freezes its amount at the first part payment. "Pay part, rest later" can't reach what's left (`canPayPart`; paying all of it is Mark as paid), and a part-paid month stays unpaid, showing what's left (`getBillProgress`). Mark unpaid (button or the row's Unpay swipe) asks first, then reverses every live payment of the month (each stays in the account history with an opposite reversal row; a fixed month's amount clears again, and follows the expense); reverting one payment reopens a settled month. All paying goes through `usePayFlow()`: a bill with a known amount asks to confirm first (a confirm sheet, `PayConfirmSheet` on `AppConfirmSheet`, naming the amount, its Pay from account and the month; Cancel or closing it writes nothing), then pays (its amount, now, its Pay from account); a bill without one (TBD), or an unpaid bill row tapped on Home or Recurring, opens the Pay sheet, which records the amount, paid-on date and account. A month with no bill pays at ₱0, which writes no account transaction. Every bill payment comes from an account: a bill with none, or whose account is archived or deleted, pays from Cash (`payFromAccountId`). Only a loan lent before Recur has no account. `payMonth`/`unpayMonth` return an undo that restores the month and its payments exactly, offered in the snackbar. Undo of Mark unpaid / Revert a payment deletes the reversal rows, and is refused ("This month changed since. Undo isn't available.") if the month's payments changed since.
 - Categories are stored by name on expenses and income, so renaming one renames it on every row. The locked income categories (`LOCKED_INCOME_CATEGORIES`: Overpayment, Transfer) can't be renamed or deleted (`isLockedCategory`) and always list last, in that order (`lockedLast`). Loan overpayments always save under Overpayment, and income earned on a transfer always saves under Transfer (`buildTransferRows`, no picker). `backfillHistory` re-files older transfer income at launch and after a backup import.
 - Deleting a recurring expense with paid months warns that its history leaves Activity (payments stay in the balances) and offers setting an end month instead.
-- Home Overdue keeps unpaid recurring dues and card bills from the last 3 months (`OVERDUE_LOOKBACK_MONTHS`), so a missed card bill stays until it's paid (`openCardBills` in `utils/cardBills.ts`). A statement already includes the previous bill's unpaid balance and payments clear the oldest bill first, so while an older bill is open a newer one only shows the charges it added.
+- Home Overdue keeps unpaid recurring dues and card bills from the last 3 months (`OVERDUE_LOOKBACK_MONTHS`), so a missed card bill stays until it's paid (`openCardBills` in `utils/cardBills.ts`). A statement already includes the previous bill's unpaid balance and payments clear the oldest bill first, so while an older bill is open a newer one only shows the charges it added. The Android "Upcoming bills" widget lists the same Overdue then Upcoming rows (`computeDueBills`, without Home's lingering Paid rows); the app republishes them on every change. At midnight the widget recomputes its captions and late tones, then its `UpcomingBillsRefreshJobService` runs a headless JS task (`refreshUpcomingBillsWidget`, registered in `index.ts`) that rebuilds the rows from the database, so a new month's cycles and card statements show without the app open.
 - Archived accounts (`archived_at`) keep their transactions and still count in net worth, but leave every account picker (`activeAccounts`), card bills, bill reminders and interest. Unarchiving resumes interest from that day. Cash can't be archived. Deleting an account with history offers archiving instead.
 - Net worth = account assets + open loan balances ("Lent", the same total as Home's "Owed to you" stat) − card balances owed (`utils/useNetWorth.ts`).
 - Debit and cash accounts never go below ₱0. Every write that lowers one (spend, mark paid, lend, transfer + fee, editing or deleting income, editing or deleting a transfer or loan payment, deleting a loan) runs `findOverdraft` (`utils/accounts/findOverdraft.ts`) through `useAccounts().overdraftError`: as the form's inline Amount error, and again in the context before writing. The error offers "Transfer in" (`TransferInButton` under the field, `alertFailure` in Alerts), which opens `/transfer?toAccountId=…&amount=<shortfall>` from the richest other account; forms re-check when balances change, so coming back clears it. Raising a balance is always allowed, so an overdrawn account can still be topped up. Credit cards are exempt.
@@ -90,10 +90,12 @@ Fonts: Oswald (headings, subset TTFs in `assets/fonts/oswald`, regenerated from 
 ## Folder Structure
 
 ```
+index.ts                 # Entry: registers the widget's headless refresh task, then loads expo-router/entry
 app/_layout.tsx          # Root: GestureHandlerRootView, BottomSheetModalProvider, fonts
-app/+native-intent.tsx   # Rewrites recur://quick-add/<action> (Android widget) to add routes; warm taps push
+app/+native-intent.tsx   # Rewrites recur://quick-add/<action> and recur://widget/… (Android widgets) to app routes; warm taps push
 app/index.tsx            # Main screen
 components/              # All UI components
+components/UpcomingBillsWidgetSync.tsx # Publishes the Upcoming bills widget's snapshot whenever its rows change (renders nothing)
 context/ExpenseContext.tsx
 db/schema.ts             # initDB() — run once on mount
 db/expenses.ts           # getAll, insert, remove
@@ -101,10 +103,17 @@ db/categories.ts         # getCustom, insertCustom
 utils/dateHelpers.ts     # getDueDate, isOverdue, formatDue
 utils/categories.ts      # PRESET_CATEGORIES
 utils/collections.ts     # orderBy, groupBy, sumBy… (lodash semantics, no lodash)
+utils/computeDueBills.ts # Pure Overdue / Upcoming derivation over the expenses, month lookups and card bills
+utils/useDueBills.ts     # Live Overdue / Upcoming entries (computeDueBills over the contexts), shared by Home and the Upcoming bills widget
+utils/widget/upcomingBillsSnapshot.ts # Home's due rows → the widget's JSON snapshot (text pre-formatted in JS)
+utils/widget/refreshUpcomingBillsWidget.ts # Headless task: rebuilds and publishes the widget's snapshot straight from the database
 constants/theme.ts       # Color tokens (mirrors tailwind.config.js)
 constants/quickActions.ts # Quick-action → href map shared by the FAB and the widget
+constants/widgetLinks.ts # recur://widget/… links the Upcoming bills widget emits → app routes
+constants/widgetTasks.ts # Name of the widget's headless refresh task (matches the Kotlin contract)
+modules/quick-add-widget/ # Local Expo module: Android "Quick add" widget (Kotlin provider + res); its URL contract is pinned by scripts/quick-actions-check.mjs
+modules/upcoming-bills-widget/ # Local Expo module: Android "Upcoming bills" widget (Kotlin provider + list service + midnight refresh job + res); its URL, snapshot and refresh-task contract are pinned by scripts/upcoming-bills-widget-check.mjs, and its due captions to Home's by the table `android/src/test/resources/due-captions.txt` (read by that script and by the Kotlin `UpcomingBillsDatesTest`)
 plugins/                 # Local Expo config plugins (android/ and ios/ are generated)
-plugins/withQuickAddWidget/ # Android "Quick add" widget: Kotlin provider + res, copied into android/ at prebuild; its URL contract is pinned by scripts/quick-actions-check.mjs
 scripts/                 # *-check.mjs logic checks; asset generators (fonts, icons, bank logos)
 types.ts                 # Shared TS types
 ```

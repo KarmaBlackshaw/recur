@@ -21,6 +21,7 @@ import { PayFlowProvider } from "@/context/PayFlowContext";
 import { AppLockProvider, useAppLockState } from "@/context/AppLockContext";
 import { NotificationRouter } from "@/components/NotificationRouter";
 import { AppLockScreen } from "@/components/AppLockScreen";
+import { UpcomingBillsWidgetSync } from "@/components/UpcomingBillsWidgetSync";
 import { colors } from "@/constants/theme";
 import { registerNotificationCategories } from "@/utils/notifications";
 import { skipRepeatPush } from "@/utils/navigation/skipRepeatPush";
@@ -100,6 +101,7 @@ export default function RootLayout() {
                             }}
                           />
                           <NotificationRouter />
+                          <UpcomingBillsWidgetSync />
                         </PayFlowProvider>
                       </BottomSheetModalProvider>
                     </SnackbarProvider>

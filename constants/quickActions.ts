@@ -16,5 +16,5 @@ export function isWidgetQuickAction(value: string): value is WidgetQuickAction {
   return WIDGET_QUICK_ACTIONS.some((action) => action === value);
 }
 
-// Must match URL_PREFIX in plugins/withQuickAddWidget/android/QuickAddWidgetProvider.kt and the app.json "scheme"; scripts/quick-actions-check.mjs pins the prefix and action list.
+// Must match URL_PREFIX in modules/quick-add-widget/android/src/main/java/com/erniejeash/recur/QuickAddWidgetProvider.kt and the app.json "scheme"; scripts/quick-actions-check.mjs pins the prefix and action list.
 export const QUICK_ADD_URL_PREFIX = "recur://quick-add/";

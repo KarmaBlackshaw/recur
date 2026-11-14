@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import { groupBy, range, sortBy, sumBy, uniq } from '@/utils/collections';
 import { getDueDateForMonth, hasCycleIn } from '@/utils/dateHelpers';
 import { expenseTitle } from '@/utils/expenseHelpers';
+import { requestNotificationPermission } from '@/utils/systemScreens';
 import type { CardBill, Expense, Status } from '@/types';
 
 // The bill a reminder is about, so tapping it (or its Mark paid action) can open that bill.
@@ -43,7 +44,7 @@ export async function requestPermissions(): Promise<boolean> {
   if (!SUPPORTED) {
     return false;
   }
-  const { status } = await Notifications.requestPermissionsAsync();
+  const { status } = await requestNotificationPermission();
   return status === 'granted';
 }
 

@@ -28,7 +28,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.erniejeash.recur"
+      "package": "com.erniejeash.recur",
+      "blockedPermissions": ["android.permission.READ_MEDIA_IMAGES"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,6 +42,12 @@
       "expo-sharing",
       "expo-splash-screen",
       "expo-status-bar",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID to unlock the app."
+        }
+      ],
       [
         "expo-build-properties",
         {

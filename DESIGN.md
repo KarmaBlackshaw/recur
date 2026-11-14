@@ -311,8 +311,8 @@ something is late the rows sit under 10sp all-caps bands, coral "Overdue" and Se
 are no bands. Each 52dp row is a List Row: a 36dp tile (coral when late, indigo for a card bill, neutral otherwise), a
 14sp medium Ink title over an 11sp meta, and a 15sp amount over an 11sp caption ("in 4 days", coral "3 days late",
 "₱1,000.00 paid · in 4 days" when part-paid). A row opens its bill's page (a card bill, the card's page). The empty
-state ("All caught up", or "No bills loaded yet" before the app has run) opens Home too. Captions and the late count
-roll over at midnight without the app.
+state ("All caught up", or "No bills loaded yet" before the rows first load) opens Home too. At midnight, without the
+app, captions and the late count roll over and the rows are rebuilt from the database.
 
 ### Empty and Loading States
 Empty: one large muted glyph, a short title, one plain sentence, and the action that fills it when there

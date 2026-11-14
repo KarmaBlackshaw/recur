@@ -29,6 +29,10 @@ import { scheduleAllNotifications, cancelAllNotifications, getExpenseReminders, 
 import { useAccounts, type PaymentInput } from "@/context/AccountContext";
 import { payFromAccountId } from "@/utils/accounts/payFromAccountId";
 import { billProgress, canPayPart, type BillProgress } from "@/utils/expenses/billProgress";
+import { billProgressOf } from "@/utils/expenses/billProgressOf";
+import { displayAmountOf, type MonthLedger } from "@/utils/expenses/displayAmountOf";
+import { monthMaps } from "@/utils/expenses/monthMaps";
+import { monthStatusOf } from "@/utils/expenses/monthStatusOf";
 import { BillPaymentError } from "@/utils/expenses/BillPaymentError";
 
 interface State {
@@ -97,18 +101,7 @@ function reducer(state: State, action: Action): State {
     case "SET_COLLAPSED_BANDS":
       return { ...state, collapsedHomeBands: action.payload };
     case "LOAD_MONTHS": {
-      const statusMap: Record<string, Status> = {};
-      const amountMap: Record<string, number | null> = {};
-      const paidAtMap: Record<string, string | null> = {};
-      for (const m of action.payload) {
-        const k = monthKey(m.expenseId, m.year, m.month);
-        statusMap[k] = m.status;
-        if (m.amount !== undefined) {
-          amountMap[k] = m.amount;
-        }
-        paidAtMap[k] = m.paidAt ?? null;
-      }
-      return { ...state, monthStatuses: statusMap, monthAmounts: amountMap, monthPaidAts: paidAtMap };
+      return { ...state, ...monthMaps(action.payload) };
     }
     case "SET_MONTH_AMOUNT": {
       const { expenseId, year, month, amount } = action.payload;
@@ -358,14 +351,7 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
 
   const getMonthStatus = useCallback(
     (id: string, year: number, month: number): Status => {
-      const expense = expensesById[id];
-      if (!expense) {
-        return "unpaid";
-      }
-      if (expense.recurrence === "one-off") {
-        return expense.status;
-      }
-      return state.monthStatuses[monthKey(id, year, month)] ?? "unpaid";
+      return monthStatusOf({ expense: expensesById[id], year, month, monthStatuses: state.monthStatuses });
     },
     [expensesById, state.monthStatuses]
   );
@@ -377,41 +363,19 @@ export function ExpenseProvider({ children }: { children: React.ReactNode }) {
     [state.monthAmounts]
   );
 
+  const monthLedger = useMemo<MonthLedger>(
+    () => ({ monthStatuses: state.monthStatuses, monthAmounts: state.monthAmounts, getPayments: accounts.getPayments }),
+    [state.monthStatuses, state.monthAmounts, accounts.getPayments]
+  );
+
   const getDisplayAmount = useCallback(
-    (expense: Expense, year: number, month: number): number | null => {
-      if (expense.recurrence === "one-off") {
-        return expense.amount;
-      }
-      const k = monthKey(expense.id, year, month);
-      const stored = state.monthAmounts[k] ?? null;
-      if (expense.isVariable) {
-        return stored;
-      }
-      if (stored != null && (state.monthStatuses[k] === "paid" || accounts.getPayments(expense.id, year, month).length > 0)) {
-        return stored;
-      }
-      return expense.amount;
-    },
-    [state.monthAmounts, state.monthStatuses, accounts.getPayments]
+    (expense: Expense, year: number, month: number): number | null => displayAmountOf(expense, year, month, monthLedger),
+    [monthLedger]
   );
 
   const getBillProgress = useCallback(
-    (expense: Expense, year: number, month: number): BillProgress => {
-      if (expense.recurrence === "one-off") {
-        const isPaid = expense.status === "paid";
-        return billProgress({
-          bill: expense.amount,
-          payments: isPaid && expense.amount != null ? [expense.amount] : [],
-          isPaid,
-        });
-      }
-      return billProgress({
-        bill: getDisplayAmount(expense, year, month),
-        payments: accounts.getPayments(expense.id, year, month).map((t) => Math.abs(t.amount)),
-        isPaid: state.monthStatuses[monthKey(expense.id, year, month)] === "paid",
-      });
-    },
-    [getDisplayAmount, accounts.getPayments, state.monthStatuses]
+    (expense: Expense, year: number, month: number): BillProgress => billProgressOf(expense, year, month, monthLedger),
+    [monthLedger]
   );
 
   const resolveAmount = useCallback(

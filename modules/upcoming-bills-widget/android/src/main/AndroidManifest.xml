@@ -16,5 +16,10 @@
             android:name="expo.modules.upcomingbillswidget.UpcomingBillsWidgetService"
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <service
+            android:name="expo.modules.upcomingbillswidget.UpcomingBillsRefreshJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>
 </manifest>

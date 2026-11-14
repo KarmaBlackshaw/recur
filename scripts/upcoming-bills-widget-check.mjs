@@ -126,4 +126,12 @@ for (const [today, due, caption] of captionRows) {
 }
 mock.timers.reset();
 
+const { UPCOMING_BILLS_REFRESH_TASK } = await import("../constants/widgetTasks.ts");
+equal(kotlinConst("REFRESH_TASK"), UPCOMING_BILLS_REFRESH_TASK, "REFRESH_TASK in the Kotlin contract differs from UPCOMING_BILLS_REFRESH_TASK");
+ok(/const\s+val\s+REFRESH_JOB_ID\s*=\s*\d+/.test(contract), `${contractPath}: REFRESH_JOB_ID int literal not found`);
+ok(/UpcomingBillsRefreshJobService[\s\S]*?BIND_JOB_SERVICE/.test(manifest), "manifest must declare the refresh job service with BIND_JOB_SERVICE");
+ok(read(`${kotlinDir}/UpcomingBillsRefreshJobService.kt`).includes("UpcomingBillsWidgetContract.REFRESH_TASK"), "the refresh job must start the task named in the contract");
+equal(JSON.parse(read("package.json")).main, "index.ts", "package.json main must be index.ts, which registers the refresh task");
+ok(read("index.ts").includes("registerHeadlessTask(UPCOMING_BILLS_REFRESH_TASK"), "index.ts must register the refresh task");
+
 console.log("upcoming-bills-widget-check: ok");

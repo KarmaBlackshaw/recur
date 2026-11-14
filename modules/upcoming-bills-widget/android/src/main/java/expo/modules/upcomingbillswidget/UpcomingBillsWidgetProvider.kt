@@ -20,12 +20,20 @@ class UpcomingBillsWidgetProvider : AppWidgetProvider() {
         super.onReceive(context, intent)
         if (intent.action == UpcomingBillsWidgetContract.ACTION_ROLLOVER) {
             refreshAll(context)
+            UpcomingBillsRefreshJobService.schedule(context)
         }
+    }
+
+    // The first widget placed gets its rows even if Recur hasn't been opened since it was installed.
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        UpcomingBillsRefreshJobService.schedule(context)
     }
 
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
         alarmManager(context)?.cancel(rolloverIntent(context))
+        UpcomingBillsRefreshJobService.cancel(context)
     }
 
     companion object {
@@ -122,7 +130,8 @@ class UpcomingBillsWidgetProvider : AppWidgetProvider() {
             )
         }
 
-        // Inexact alarm just after local midnight so captions and the late count roll over without the app.
+        // Inexact alarm just after local midnight. Captions and the late count roll over from the stored
+        // rows at once, then the refresh job rebuilds the rows from the database (new cycles, statements).
         private fun scheduleRollover(context: Context) {
             val triggerAt = UpcomingBillsDates.nextMidnightMillis() + 60_000L
             alarmManager(context)?.set(AlarmManager.RTC, triggerAt, rolloverIntent(context))

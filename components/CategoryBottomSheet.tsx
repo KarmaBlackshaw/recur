@@ -14,7 +14,7 @@ import { AppTextInput } from "@/components/ui/AppTextInput";
 import { colors } from "@/constants/theme";
 import { getAll, getAllWithIds, insertCategory } from "@/db/categories";
 import type { CategoryKind } from "@/types";
-import { maxBy } from "@/utils/collections";
+import { categoryAfterManage, snapshotBeforeManage, type ManageSnapshot } from "@/utils/categories";
 import { useBoolean } from "@/utils/useBoolean";
 
 export interface CategoryBottomSheetRef {
@@ -133,8 +133,7 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
   function CategoryBottomSheet({ value, onChange, onDismiss, kind = "expense" }, ref) {
     const sheetRef = useRef<AppBottomSheetRef>(null);
     const newCategorySheetRef = useRef<AppBottomSheetRef>(null);
-    // A new row gets max rowid + 1 and a rename keeps its rowid, so only a category created in Manage lands above this.
-    const newestIdBeforeManage = useRef<number>(undefined);
+    const snapshotBeforeManageRef = useRef<ManageSnapshot>(undefined);
     const [categories, setCategories] = React.useState<string[]>([]);
     const [search, setSearch] = React.useState("");
     const [isSearchOpen, searchOpen] = useBoolean(false);
@@ -175,26 +174,24 @@ export const CategoryBottomSheet = forwardRef<CategoryBottomSheetRef, Props>(
 
     async function openManage() {
       sheetRef.current?.dismiss();
-      const cats = await getAllWithIds(kind);
-      newestIdBeforeManage.current = maxBy(cats, "id")?.id ?? 0;
+      snapshotBeforeManageRef.current = snapshotBeforeManage(await getAllWithIds(kind), value);
       router.push(`/settings/category?kind=${kind}`);
     }
 
     useFocusEffect(
       useCallback(() => {
-        async function selectCategoryCreatedInManage() {
-          const newestIdBefore = newestIdBeforeManage.current;
-          if (newestIdBefore == null) {
+        async function followManageChanges() {
+          const before = snapshotBeforeManageRef.current;
+          if (before == null) {
             return;
           }
-          newestIdBeforeManage.current = undefined;
-          const cats = await getAllWithIds(kind);
-          const newest = maxBy(cats, "id");
-          if (newest && newest.id > newestIdBefore) {
-            onChange(newest.name);
+          snapshotBeforeManageRef.current = undefined;
+          const category = categoryAfterManage(before, await getAllWithIds(kind));
+          if (category !== undefined) {
+            onChange(category);
           }
         }
-        selectCategoryCreatedInManage();
+        followManageChanges();
       }, [kind, onChange])
     );
 

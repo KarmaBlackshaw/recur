@@ -1,13 +1,17 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { View, TouchableOpacity, Alert, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
 import { AppText } from "@/components/ui/AppText";
 import { AppTabs } from "@/components/ui/AppTabs";
-import { Category, getAllWithIds, deleteCategory } from "@/db/categories";
+import { MoveCategorySheet, type MoveCategorySheetRef } from "@/components/MoveCategorySheet";
+import { Category, getAllWithIds, deleteCategory, countCategoryUses } from "@/db/categories";
+import { useExpenses } from "@/context/ExpenseContext";
+import { useAccounts } from "@/context/AccountContext";
 import { colors } from "@/constants/theme";
 import { isLockedCategory } from "@/utils/categories";
+import { categoryUsesLabel } from "@/utils/categoryUsesLabel";
 import type { CategoryKind, TOption } from "@/types";
 
 const KIND_TABS: TOption<CategoryKind>[] = [
@@ -19,6 +23,9 @@ export default function ManageCategoriesScreen() {
   const params = useLocalSearchParams<{ kind?: string }>();
   const [kind, setKind] = useState<CategoryKind>(params.kind === "income" ? "income" : "expense");
   const [categories, setCategories] = useState<Category[]>([]);
+  const moveSheetRef = useRef<MoveCategorySheetRef>(null);
+  const { reloadAll } = useExpenses();
+  const { reload } = useAccounts();
 
   useFocusEffect(
     useCallback(() => {
@@ -34,23 +41,44 @@ export default function ManageCategoriesScreen() {
     }, [kind])
   );
 
-  function handleDelete(cat: Category) {
-    Alert.alert("Delete category", `Remove "${cat.name}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteCategory(cat.id);
-            setCategories((prev) => prev.filter((c) => c.id !== cat.id));
-          } catch (e) {
-            console.error("Delete category failed", e);
-            Alert.alert("Delete failed", "Something went wrong. Please try again.");
-          }
-        },
-      },
-    ]);
+  async function removeCategory(cat: Category, moveTo?: string) {
+    try {
+      await deleteCategory(cat.id, moveTo);
+      if (moveTo) {
+        await Promise.all([reloadAll(), reload()]);
+      }
+      setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+    } catch (e) {
+      console.error("Delete category failed", e);
+      Alert.alert("Delete failed", "Something went wrong. Please try again.");
+    }
+  }
+
+  async function handleDelete(cat: Category) {
+    const uses = await countCategoryUses(cat.id);
+    if (uses === 0) {
+      Alert.alert("Delete category", `Remove "${cat.name}"?`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => removeCategory(cat) },
+      ]);
+      return;
+    }
+    const options = categories
+      .filter((c) => c.id !== cat.id && !isLockedCategory(c.name, kind))
+      .map((c) => c.name);
+    if (options.length === 0) {
+      Alert.alert(
+        `Can't delete ${cat.name}`,
+        uses === 1
+          ? `${categoryUsesLabel(kind, uses)} uses it. Add another category to move it to first.`
+          : `${categoryUsesLabel(kind, uses)} use it. Add another category to move them to first.`
+      );
+      return;
+    }
+    const moveTo = await moveSheetRef.current?.ask({ name: cat.name, kind, uses, options });
+    if (moveTo) {
+      await removeCategory(cat, moveTo);
+    }
   }
 
   return (
@@ -122,6 +150,7 @@ export default function ManageCategoriesScreen() {
           );
         }}
       />
+      <MoveCategorySheet ref={moveSheetRef} />
     </SafeAreaView>
   );
 }

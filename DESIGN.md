@@ -335,7 +335,8 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
   again whenever another tab is picked or the app leaves the foreground. Opening an account and coming back keeps
   them shown.
 - Activity's hero shows only its overline and the period's total, above the Stats row: no breakdown under the
-  total for any type. Stats carries the detail.
+  total for any type. Stats carries the detail. The one exception is Paid: its total counts every fee in the period
+  (transfer fees included, which the list doesn't show), so while there are any it reads "Incl. ₱X fees" under it.
 - Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header, and a filter toggle at the header's end
   that opens the filters panel under it (Keyword, Type, Category); a badge on it counts the filters on. Filtered to
   a category (picked in the panel, or opened from a Stats category), the hero reads "<category> spent" or "received

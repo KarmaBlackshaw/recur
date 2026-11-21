@@ -64,6 +64,8 @@ interface LoanContextValue {
   recordPayments: (payments: LoanPaymentInput[], excess?: LoanExcessInput) => Promise<void>;
   updatePayment: (txnId: string, p: LoanPaymentInput) => Promise<void>;
   deletePayment: (txnId: string) => Promise<void>;
+  // The Overpayment income saved by the same Record payment; reverting the payment reverts it too.
+  excessOf: (paymentId: string) => AccountTransaction | undefined;
   revertPayment: (txnId: string) => Promise<void>;
   revertLoan: (id: string) => Promise<void>;
   repayments: TRepayment[];
@@ -125,6 +127,11 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
   const repayments = useMemo(
     () => groupRepayments({ transactions: accounts.transactions, loans: activeLoans, summaries }),
     [accounts.transactions, activeLoans, summaries]
+  );
+
+  const excessOf = useCallback(
+    (paymentId: string) => repayments.find(({ payments }) => payments.some(({ txn }) => txn.id === paymentId))?.excess,
+    [repayments]
   );
 
   const assertDepositAccount = (accountId: string) => {
@@ -251,7 +258,8 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
   });
 
   const revertPayment = useMemoizedFn(async (txnId: string) => {
-    await accounts.reverseTransactions([txnId]);
+    const excess = excessOf(txnId);
+    await accounts.reverseTransactions(excess ? [txnId, excess.id] : [txnId]);
   });
 
   const revertRepayment = useMemoizedFn(async (id: string) => {
@@ -296,13 +304,14 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
       recordPayments,
       updatePayment,
       deletePayment,
+      excessOf,
       revertPayment,
       revertLoan,
       repayments,
       revertRepayment,
       reload,
     }),
-    [activeLoans, state.isLoading, summaries, paymentsOf, incomeOf, borrowerOf, repayments]
+    [activeLoans, state.isLoading, summaries, paymentsOf, incomeOf, borrowerOf, repayments, excessOf]
   );
 
   return <LoanContext.Provider value={value}>{children}</LoanContext.Provider>;

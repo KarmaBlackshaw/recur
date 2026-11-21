@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
 import { keyBy, sumBy } from "@/utils/collections";
 import { useBoolean } from "@/utils/useBoolean";
+import { formatAmount } from "@/utils/formatAmount";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
@@ -180,7 +181,7 @@ export default function ExpensesScreen() {
   const scopeNames = [segment === "all" ? null : segments.find(({ value }) => value === segment)?.label, category].filter(Boolean);
   const inScope = scopeNames.length === 0 ? "" : ` in ${scopeNames.join(", ")}`;
 
-  const { byFilter, lent, moneyIn, paidTotal } = usePeriodActivity(feed, year, month, period);
+  const { byFilter, fees, lent, moneyIn, paidTotal } = usePeriodActivity(feed, year, month, period);
 
   const segmentEntries = byFilter[segment];
   const filtered = useMemo(
@@ -205,6 +206,7 @@ export default function ExpensesScreen() {
   };
   const periodLabel = dayjs(new Date(year, month, 1)).format(period === "year" ? "YYYY" : "MMMM");
   const heroLabel = filtered == null ? view.hero.label : `${filtered.category} ${view.hero.label.toLowerCase()}`;
+  const heroCaption = filtered == null && segment === "paid" && fees > 0 ? `Incl. ${formatAmount(fees)} fees` : undefined;
   const listedCount = query === "" ? view.entries.length : results.length;
 
   if (loading) {
@@ -287,7 +289,13 @@ export default function ExpensesScreen() {
               className="mx-5 mt-1"
             />
 
-            <ActivityHero overline={`${heroLabel} this ${period}`} total={view.total} tone={view.hero.tone} onStatsPress={openStats} />
+            <ActivityHero
+              overline={`${heroLabel} this ${period}`}
+              total={view.total}
+              tone={view.hero.tone}
+              caption={heroCaption}
+              onStatsPress={openStats}
+            />
 
             <DayGroupedExpenseList
               entries={view.entries}

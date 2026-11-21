@@ -2,6 +2,7 @@ import * as SQLite from "expo-sqlite";
 import dayjs from "dayjs";
 import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { TRANSFER_CATEGORY } from "@/constants/categories";
+import { addForecastColumns } from "@/db/addForecastColumns";
 import { withWriteTransaction } from "@/db/withWriteTransaction";
 import { chunk, groupBy } from "@/utils/collections";
 import { inferStartMonth } from "@/utils/dateHelpers";
@@ -310,6 +311,7 @@ async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!accountCols.some((c) => c.name === "reminder_days_before")) {
     await db.execAsync("ALTER TABLE accounts ADD COLUMN reminder_days_before INTEGER");
   }
+  await addForecastColumns(db);
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS account_transactions (
       id           TEXT PRIMARY KEY NOT NULL,

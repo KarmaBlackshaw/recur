@@ -6,10 +6,13 @@ import { router } from "expo-router";
 import { useAccounts } from "@/context/AccountContext";
 import { AppText } from "@/components/ui/AppText";
 import { AppHeroAmount } from "@/components/ui/AppHeroAmount";
-import { AMOUNT_TONE, ICON_TONE } from "@/components/ui/AppListRow";
+import { AMOUNT_TONE, ICON_TONE, type RowTone } from "@/components/ui/AppListRow";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/formatAmount";
+import { signedAmount } from "@/utils/signedAmount";
 import { usePeriodActivity } from "@/utils/usePeriodActivity";
+import { useForecast } from "@/utils/forecast/useForecast";
+import { formatShortDate } from "@/utils/dates/formatShortDate";
 import type { ActivityFeed } from "@/utils/useActivityFeed";
 import type { OwedToYou } from "@/utils/useOwedToYou";
 import type { ActivitySegment, FeatherIconName } from "@/types";
@@ -27,7 +30,11 @@ interface LinkRow {
   icon: FeatherIconName;
   href: string;
   isShown: boolean;
+  meta?: string;
+  tone?: RowTone;
 }
+
+const FORECAST_DAYS = 30;
 
 function FigureLabel({ children }: { children: string }) {
   return (
@@ -43,6 +50,7 @@ function FigureLabel({ children }: { children: string }) {
 export function HomeMonthStats({ year, month, feed, owed }: Props) {
   const { accounts } = useAccounts();
   const { paidTotal, moneyIn, chargedTotal } = usePeriodActivity(feed, year, month, "month");
+  const forecast = useForecast(FORECAST_DAYS);
   const hasCards = accounts.some((a) => a.type === "credit");
   const monthName = dayjs(new Date(year, month, 1)).format("MMMM");
   const isQuiet = paidTotal === 0 && moneyIn === 0 && chargedTotal === 0;
@@ -62,6 +70,17 @@ export function HomeMonthStats({ year, month, feed, owed }: Props) {
       icon: "users",
       href: "/loans?segment=active",
       isShown: owed != null,
+    },
+    {
+      label: "Lowest point",
+      value: forecast.total.lowest,
+      icon: "trending-down",
+      href: `/forecast?days=${FORECAST_DAYS}`,
+      isShown: forecast.outflows.length > 0,
+      meta: dayjs(forecast.total.lowestOn).isSame(forecast.today, "day")
+        ? "today"
+        : `on ${formatShortDate(forecast.total.lowestOn)}`,
+      tone: forecast.total.belowOn ? "negative" : "accent",
     },
   ];
 
@@ -106,19 +125,24 @@ export function HomeMonthStats({ year, month, feed, owed }: Props) {
       )}
       {linkRows
         .filter(({ isShown }) => isShown)
-        .map(({ label, value, icon, href }) => (
+        .map(({ label, value, icon, href, meta, tone = "accent" }) => (
           <TouchableOpacity
             key={label}
             activeOpacity={0.7}
             onPress={() => router.navigate(href)}
             className="min-h-[44px] flex-row items-center border-t border-border px-5"
           >
-            <Feather name={icon} size={16} color={ICON_TONE.accent.glyph} />
+            <Feather name={icon} size={16} color={ICON_TONE[tone].glyph} />
             <AppText variant="body-bold" className="ml-3 flex-1 text-sm text-white">
               {label}
             </AppText>
-            <AppText variant="amount" numberOfLines={1} className={`mr-2 ${AMOUNT_TONE.accent}`}>
-              {formatAmount(value)}
+            {meta && (
+              <AppText variant="meta" numberOfLines={1} className="mr-2">
+                {meta}
+              </AppText>
+            )}
+            <AppText variant="amount" numberOfLines={1} className={`mr-2 ${AMOUNT_TONE[tone]}`}>
+              {signedAmount(value)}
             </AppText>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </TouchableOpacity>

@@ -29,7 +29,7 @@ import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { colors } from "@/constants/theme";
-import { parseMoneyFlow, parsePeriod, PERIODS } from "@/constants/periods";
+import { parseMoneyFlow, parseMonth, parsePeriod, parseYear, PERIODS } from "@/constants/periods";
 
 const SEGMENTS: TOption<ActivitySegment>[] = [
   { label: "All", value: "all" },
@@ -123,12 +123,8 @@ export default function ExpensesScreen() {
   // "Charged" only means something once there's a credit card to charge.
   const segments = accounts.some((a) => a.type === "credit") ? SEGMENTS : SEGMENTS.filter(({ value }) => value !== "charged");
   const segment = segments.find(({ value }) => value === params.segment)?.value ?? "all";
-  const today = dayjs().startOf("day").toDate();
-  const paramYear = Number.parseInt(params.year ?? "", 10);
-  const paramMonth = Number.parseInt(params.month ?? "", 10);
-  // A year past four digits can't be shown (and past ±275,760 isn't even a Date), so it falls back like a bad month.
-  const year = paramYear >= 1000 && paramYear <= 9999 ? paramYear : today.getFullYear();
-  const month = paramMonth >= 0 && paramMonth <= 11 ? paramMonth : today.getMonth();
+  const year = parseYear(params.year);
+  const month = parseMonth(params.month);
   const period = parsePeriod(params.period);
   // Set from the category sheet or a Stats category: the list narrows to the rows of that slice the type keeps.
   const category = params.category || undefined;

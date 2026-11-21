@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { maxBy } from "@/utils/collections";
 import { View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,6 +20,8 @@ import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { stampPickedDay } from "@/utils/dates/stampPickedDay";
+import { guessAccount } from "@/utils/sms/guessAccount";
+import { parseTransactionSms } from "@/utils/sms/parseTransactionSms";
 import type { AccountTransaction } from "@/types";
 import dayjs from "dayjs";
 
@@ -35,7 +37,9 @@ interface IncomeFormValues {
 }
 
 export default function AddIncomeScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // sms: a bank or e-wallet SMS shared into Recur, read into the form
+  const { id, sms } = useLocalSearchParams<{ id?: string; sms?: string }>();
+  const shared = useMemo(() => (sms && !id ? parseTransactionSms(sms) : null), [sms, id]);
   const { accounts, activeAccounts, transactions, isLoading, overdraftError, addIncome, updateIncome, deleteIncome } =
     useAccounts();
   const incomes = transactions.filter((t) => t.kind === "income");
@@ -65,11 +69,11 @@ export default function AddIncomeScreen() {
       };
     }
     return {
-      receivedAt: dayjs().startOf("day").toISOString(),
-      amount: "",
+      receivedAt: dayjs(shared?.day ?? undefined).startOf("day").toISOString(),
+      amount: shared?.amount?.toString() ?? "",
       category: lastIncome?.category ?? "Salary",
-      accountId: toKnownAccountId(lastIncome?.accountId, false),
-      notes: "",
+      accountId: toKnownAccountId((shared ? guessAccount(shared, depositAccounts) : null) ?? lastIncome?.accountId, false),
+      notes: shared?.counterparty ? `From ${shared.counterparty}` : "",
     };
   }
 

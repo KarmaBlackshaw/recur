@@ -32,6 +32,13 @@ export async function shareFile(uri: string, options: Sharing.SharingOptions) {
   await openSystemScreen(() => Sharing.shareAsync(uri, options));
 }
 
+// Text another app shared into Recur. Taking it clears it, so one share opens one form.
+export function takeSharedText(): string | null {
+  const text = Sharing.getSharedPayloads().find((p) => p.shareType === "text" || p.shareType === "url")?.value ?? null;
+  Sharing.clearSharedPayloads();
+  return text;
+}
+
 export function pickImage(options: ImagePicker.ImagePickerOptions) {
   return openSystemScreen(() => ImagePicker.launchImageLibraryAsync(options));
 }

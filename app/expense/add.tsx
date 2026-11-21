@@ -143,6 +143,7 @@ export default function AddExpenseScreen() {
   });
   const { allowLeave } = useDiscardGuard(isDirty);
 
+  const categoryWatched = watch("category");
   const amountWatched = watch("amount");
   const isVariableWatched = watch("isVariable");
   const hasEndDateWatched = watch("hasEndDate");
@@ -323,6 +324,9 @@ export default function AddExpenseScreen() {
 
   // Names what keeps Save disabled, in the order the fields appear.
   function describeSaveBlocker(): string {
+    if (categoryWatched === "") {
+      return "Pick a category to save";
+    }
     const isAmountEmpty = amountWatched.trim() === "";
     if (!isVariableAmount && isAmountEmpty && isRegular) {
       return "Enter an amount to save";
@@ -404,10 +408,12 @@ export default function AddExpenseScreen() {
         <Controller
           control={control}
           name="category"
+          rules={{ required: true }}
           render={({ field: { value } }) => (
             <AppSelectField
               label="Category"
               value={value}
+              placeholder="Pick a category"
               onPress={() => categorySheetRef.current?.present()}
             />
           )}
@@ -611,9 +617,11 @@ export default function AddExpenseScreen() {
         <View className="h-8" />
       </AppFormScrollView>
 
+      {/* Needs the same rules as the Category field: react-hook-form keeps only the rules of the last Controller to register a name. */}
       <Controller
         control={control}
         name="category"
+        rules={{ required: true }}
         render={({ field: { value, onChange } }) => (
           <CategoryBottomSheet
             ref={categorySheetRef}

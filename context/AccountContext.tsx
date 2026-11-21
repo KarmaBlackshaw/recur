@@ -21,7 +21,7 @@ import {
   getAll as getAllTransactions,
   insert as insertTransaction,
   insertMany as insertTransactions,
-  remove as removeTransaction,
+  remove as removeTransactions,
   insertReversals,
   removeTransfer,
   replaceTransfer,
@@ -441,7 +441,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
     const removedIds = [...withReversals(state.ledger, [id])];
-    await removeTransaction(id);
+    await removeTransactions([id]);
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: removedIds });
   });
 

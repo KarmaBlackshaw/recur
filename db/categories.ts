@@ -72,14 +72,51 @@ export async function insertCategory(
   return result.changes;
 }
 
-// Expenses and income store the category by name, so the rename cascades to every row using it.
+interface TCategoryRow {
+  name: string;
+  kind: CategoryKind;
+}
+
+async function getCategoryRow(conn: SQLiteDatabase, id: number): Promise<TCategoryRow | null> {
+  return conn.getFirstAsync<TCategoryRow>("SELECT name, kind FROM categories WHERE rowid = ?", [id]);
+}
+
+async function countRowsUsing(conn: SQLiteDatabase, { name, kind }: TCategoryRow): Promise<number> {
+  const row =
+    kind === "income"
+      ? await conn.getFirstAsync<{ count: number }>(
+          "SELECT COUNT(*) AS count FROM account_transactions WHERE kind = 'income' AND category = ?",
+          [name]
+        )
+      : await conn.getFirstAsync<{ count: number }>("SELECT COUNT(*) AS count FROM expenses WHERE category = ?", [
+          name,
+        ]);
+  return row?.count ?? 0;
+}
+
+// Expenses and income store the category by name, so every row using it follows the move.
+async function moveRows(txn: SQLiteDatabase, { name, kind }: TCategoryRow, toName: string): Promise<void> {
+  if (kind === "income") {
+    await txn.runAsync("UPDATE account_transactions SET category = ? WHERE kind = 'income' AND category = ?", [
+      toName,
+      name,
+    ]);
+  } else {
+    await txn.runAsync("UPDATE expenses SET category = ? WHERE category = ?", [toName, name]);
+  }
+}
+
+// How many expenses (or income entries, for an income category) use the category.
+export async function countCategoryUses(id: number): Promise<number> {
+  const db = await getDB();
+  const row = await getCategoryRow(db, id);
+  return row ? countRowsUsing(db, row) : 0;
+}
+
 export async function renameCategory(id: number, newName: string): Promise<void> {
   const db = await getDB();
   await withWriteTransaction(db, async (txn) => {
-    const row = await txn.getFirstAsync<{ name: string; kind: CategoryKind }>(
-      "SELECT name, kind FROM categories WHERE rowid = ?",
-      [id]
-    );
+    const row = await getCategoryRow(txn, id);
     if (!row) {
       return;
     }
@@ -87,25 +124,36 @@ export async function renameCategory(id: number, newName: string): Promise<void>
       throw new Error(`${row.name} can't be renamed`);
     }
     await txn.runAsync("UPDATE categories SET name = ? WHERE rowid = ?", [newName, id]);
-    if (row.kind === "income") {
-      await txn.runAsync(
-        "UPDATE account_transactions SET category = ? WHERE kind = 'income' AND category = ?",
-        [newName, row.name]
-      );
-    } else {
-      await txn.runAsync("UPDATE expenses SET category = ? WHERE category = ?", [newName, row.name]);
-    }
+    await moveRows(txn, row, newName);
   });
 }
 
-export async function deleteCategory(id: number): Promise<void> {
+// A category still in use needs `moveTo`, another category of its kind: its rows move there in the same write, so
+// none is left naming a category that no longer exists.
+export async function deleteCategory(id: number, moveTo?: string): Promise<void> {
   const db = await getDB();
-  const row = await db.getFirstAsync<{ name: string; kind: CategoryKind }>(
-    "SELECT name, kind FROM categories WHERE rowid = ?",
-    [id]
-  );
-  if (row && isLockedCategory(row.name, row.kind)) {
-    throw new Error(`${row.name} can't be deleted`);
-  }
-  await db.runAsync("DELETE FROM categories WHERE rowid = ?", [id]);
+  await withWriteTransaction(db, async (txn) => {
+    const row = await getCategoryRow(txn, id);
+    if (!row) {
+      return;
+    }
+    if (isLockedCategory(row.name, row.kind)) {
+      throw new Error(`${row.name} can't be deleted`);
+    }
+    if (moveTo == null) {
+      if ((await countRowsUsing(txn, row)) > 0) {
+        throw new Error(`${row.name} is in use`);
+      }
+    } else {
+      const target = await txn.getFirstAsync<{ name: string }>(
+        "SELECT name FROM categories WHERE name = ? AND kind = ? AND rowid != ?",
+        [moveTo, row.kind, id]
+      );
+      if (!target) {
+        throw new Error(`Can't move ${row.name} to ${moveTo}`);
+      }
+      await moveRows(txn, row, moveTo);
+    }
+    await txn.runAsync("DELETE FROM categories WHERE rowid = ?", [id]);
+  });
 }

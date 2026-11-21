@@ -166,4 +166,17 @@ assert.ok(matchesActivity(billPaid, "october", ctx), "a bill payment matches its
 const named = { kind: "expense", expense: { name: "", notes: "Meralco", category: "Utilities", accountId: "a1" }, amount: 1200 };
 assert.ok(matchesActivity(named, "meralco", ctx), "an expense matches its notes, which are its title");
 
+const { parseMonth, parseYear } = await import("../constants/periods.ts");
+const thisYear = new Date().getFullYear();
+const thisMonth = new Date().getMonth();
+assert.equal(parseYear("2025"), 2025);
+assert.equal(parseMonth("0"), 0);
+assert.equal(parseMonth("11"), 11);
+for (const bad of [undefined, "", "abc", "999", "10000"]) {
+  assert.equal(parseYear(bad), thisYear, `year ${bad} falls back to this year`);
+}
+for (const bad of [undefined, "", "xyz", "-1", "12"]) {
+  assert.equal(parseMonth(bad), thisMonth, `month ${bad} falls back to this month`);
+}
+
 console.log("stats-check ok");

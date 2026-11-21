@@ -10,10 +10,11 @@ interface ActivityHeroProps {
   overline: string;
   total: number;
   tone: HeroTone;
+  caption?: string;
   onStatsPress: () => void;
 }
 
-export function ActivityHero({ overline, total, tone, onStatsPress }: ActivityHeroProps) {
+export function ActivityHero({ overline, total, tone, caption, onStatsPress }: ActivityHeroProps) {
   const statsRow = (
     <TouchableOpacity
       onPress={onStatsPress}
@@ -36,6 +37,12 @@ export function ActivityHero({ overline, total, tone, onStatsPress }: ActivityHe
       isNegative={total < 0}
       footer={statsRow}
       className="mx-5 mt-3 mb-1"
-    />
+    >
+      {caption != null && (
+        <AppText variant="meta" className="mt-1" testID="activity-hero-caption">
+          {caption}
+        </AppText>
+      )}
+    </AppHeroCard>
   );
 }

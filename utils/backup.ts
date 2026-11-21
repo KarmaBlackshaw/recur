@@ -19,7 +19,7 @@ import { getPreference, setPreference } from '@/db/preferences';
 import { backfillHistory, getDB } from '@/db/schema';
 import { withWriteTransaction } from '@/db/withWriteTransaction';
 import { CASH_ACCOUNT_ID } from '@/constants/accounts';
-import { PREF_LAST_BACKUP_AT } from '@/constants/preferences';
+import { PREF_LAST_BACKUP_AT, PREF_LOW_BALANCE_THRESHOLD } from '@/constants/preferences';
 import { LOGO_DIR } from '@/utils/accountLogo/logoDir';
 import { resolveAccountLogo } from '@/utils/accountLogo/resolveAccountLogo';
 import {
@@ -37,7 +37,14 @@ import {
 const BACKUP_VERSION = 10;
 
 // The settings a backup carries. Migration flags and the permission prompt flag belong to the device.
-const BACKUP_PREFERENCE_KEYS = ['user_name', 'reminderTime', 'notificationsEnabled', 'homeCollapsedBands', 'accountsGroupByBank'];
+const BACKUP_PREFERENCE_KEYS = [
+  'user_name',
+  'reminderTime',
+  'notificationsEnabled',
+  'homeCollapsedBands',
+  'accountsGroupByBank',
+  PREF_LOW_BALANCE_THRESHOLD,
+];
 
 const NOT_A_BACKUP = "This file isn't a Recur backup.";
 const NEWER_BACKUP = 'This backup was made by a newer version of Recur. Update the app and try again.';
@@ -141,7 +148,9 @@ function isValidAccount(value: unknown): value is Account {
     typeof value.name === 'string' &&
     typeof value.type === 'string' &&
     ACCOUNT_TYPES.includes(value.type) &&
-    typeof value.createdAt === 'string'
+    typeof value.createdAt === 'string' &&
+    isOptionalString(value.payBillFromAccountId) &&
+    (value.lowBalanceThreshold == null || typeof value.lowBalanceThreshold === 'number')
   );
 }
 

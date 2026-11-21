@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
 import { keyBy, sumBy } from "@/utils/collections";
 import { useBoolean } from "@/utils/useBoolean";
+import { formatAmount } from "@/utils/formatAmount";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
@@ -29,7 +30,7 @@ import { useRefreshControl } from "@/utils/useRefreshControl";
 import { AppText } from "@/components/ui/AppText";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { colors } from "@/constants/theme";
-import { parseMoneyFlow, parsePeriod, PERIODS } from "@/constants/periods";
+import { parseMoneyFlow, parseMonth, parsePeriod, parseYear, PERIODS } from "@/constants/periods";
 
 const SEGMENTS: TOption<ActivitySegment>[] = [
   { label: "All", value: "all" },
@@ -123,12 +124,8 @@ export default function ExpensesScreen() {
   // "Charged" only means something once there's a credit card to charge.
   const segments = accounts.some((a) => a.type === "credit") ? SEGMENTS : SEGMENTS.filter(({ value }) => value !== "charged");
   const segment = segments.find(({ value }) => value === params.segment)?.value ?? "all";
-  const today = dayjs().startOf("day").toDate();
-  const paramYear = Number.parseInt(params.year ?? "", 10);
-  const paramMonth = Number.parseInt(params.month ?? "", 10);
-  // A year past four digits can't be shown (and past ±275,760 isn't even a Date), so it falls back like a bad month.
-  const year = paramYear >= 1000 && paramYear <= 9999 ? paramYear : today.getFullYear();
-  const month = paramMonth >= 0 && paramMonth <= 11 ? paramMonth : today.getMonth();
+  const year = parseYear(params.year);
+  const month = parseMonth(params.month);
   const period = parsePeriod(params.period);
   // Set from the category sheet or a Stats category: the list narrows to the rows of that slice the type keeps.
   const category = params.category || undefined;
@@ -180,7 +177,7 @@ export default function ExpensesScreen() {
   const scopeNames = [segment === "all" ? null : segments.find(({ value }) => value === segment)?.label, category].filter(Boolean);
   const inScope = scopeNames.length === 0 ? "" : ` in ${scopeNames.join(", ")}`;
 
-  const { byFilter, lent, moneyIn, paidTotal } = usePeriodActivity(feed, year, month, period);
+  const { byFilter, fees, lent, moneyIn, paidTotal } = usePeriodActivity(feed, year, month, period);
 
   const segmentEntries = byFilter[segment];
   const filtered = useMemo(
@@ -205,6 +202,7 @@ export default function ExpensesScreen() {
   };
   const periodLabel = dayjs(new Date(year, month, 1)).format(period === "year" ? "YYYY" : "MMMM");
   const heroLabel = filtered == null ? view.hero.label : `${filtered.category} ${view.hero.label.toLowerCase()}`;
+  const heroCaption = filtered == null && segment === "paid" && fees > 0 ? `Incl. ${formatAmount(fees)} fees` : undefined;
   const listedCount = query === "" ? view.entries.length : results.length;
 
   if (loading) {
@@ -287,7 +285,13 @@ export default function ExpensesScreen() {
               className="mx-5 mt-1"
             />
 
-            <ActivityHero overline={`${heroLabel} this ${period}`} total={view.total} tone={view.hero.tone} onStatsPress={openStats} />
+            <ActivityHero
+              overline={`${heroLabel} this ${period}`}
+              total={view.total}
+              tone={view.hero.tone}
+              caption={heroCaption}
+              onStatsPress={openStats}
+            />
 
             <DayGroupedExpenseList
               entries={view.entries}

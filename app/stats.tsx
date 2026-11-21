@@ -15,7 +15,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppUnderlineTabs, type TUnderlineTab } from "@/components/ui/AppUnderlineTabs";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { chartHues, chartRest, colors } from "@/constants/theme";
-import { parseMoneyFlow, parsePeriod, PERIODS } from "@/constants/periods";
+import { parseMoneyFlow, parseMonth, parsePeriod, parseYear, PERIODS } from "@/constants/periods";
 import { categoryRows } from "@/utils/activity/categoryLine";
 import { countLabel } from "@/utils/countLabel";
 import { isInPeriod } from "@/utils/dateHelpers";
@@ -71,8 +71,8 @@ export default function StatsScreen() {
   const feed = useActivityFeed();
   const params = useLocalSearchParams<{ year?: string; month?: string; period?: string; type?: string }>();
   const [{ year, month, period, type }, setSelected] = useSetState<{ year: number; month: number; period: Period; type: MoneyFlow }>({
-    year: Number(params.year ?? dayjs().year()),
-    month: Number(params.month ?? dayjs().month()),
+    year: parseYear(params.year),
+    month: parseMonth(params.month),
     period: parsePeriod(params.period),
     type: parseMoneyFlow(params.type),
   });

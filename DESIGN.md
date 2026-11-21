@@ -268,8 +268,10 @@ Pay bill opens the Transfer screen to the card instead, to pay it ahead.
 Content-sized sheet. The title is the question ("Mark Netflix paid?"), then a meta line (the cycle and its due date or
 days late), a neutral Hero Card with the amount (overline Amount, or Left to pay with "₱X paid so far" under it) and a
 hairline footer naming the Pay from account with its logo. A primary confirm and a ghost Cancel stack full width below.
-Closing it any way writes nothing; confirming closes it and writes once it's gone. Pay is its only user so far; unpay
-and revert still confirm with an Alert.
+Closing it any way writes nothing; confirming closes it and writes once it's gone. Deleting a category in use
+(`MoveCategorySheet`) asks the same way: "Delete Food?", a meta line counting the rows that use it, and a "Move to"
+radio list of the other categories of its kind; its "Move and delete" stays disabled until one is picked. Unpay and
+revert still confirm with an Alert.
 
 ### Sheets
 `@gorhom/bottom-sheet` modals, content-sized. No plain `Modal` for primary flows. Every `BottomSheetModal` passes
@@ -335,7 +337,8 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
   again whenever another tab is picked or the app leaves the foreground. Opening an account and coming back keeps
   them shown.
 - Activity's hero shows only its overline and the period's total, above the Stats row: no breakdown under the
-  total for any type. Stats carries the detail.
+  total for any type. Stats carries the detail. The one exception is Paid: its total counts every fee in the period
+  (transfer fees included, which the list doesn't show), so while there are any it reads "Incl. ₱X fees" under it.
 - Activity has Month/Year tabs (`AppTabs`, as on Stats) under its header, and a filter toggle at the header's end
   that opens the filters panel under it (Keyword, Type, Category); a badge on it counts the filters on. Filtered to
   a category (picked in the panel, or opened from a Stats category), the hero reads "<category> spent" or "received

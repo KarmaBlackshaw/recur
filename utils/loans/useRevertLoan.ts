@@ -3,7 +3,7 @@ import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { revertLoanMessage } from "@/utils/loans/revertLoanMessage";
-import { staysInHistory } from "@/utils/loans/staysInHistory";
+import { revertPaymentMessage } from "@/utils/loans/revertPaymentMessage";
 import type { AccountTransaction } from "@/types";
 
 export function useRevertLoan() {
@@ -17,7 +17,12 @@ export function useRevertLoan() {
     }
     const isPayment = txn.kind === "loan_in";
     const message = isPayment
-      ? `The money leaves ${nameOf(txn.accountId)} and ${loan.borrower} owes it again. ${staysInHistory("The payment")}`
+      ? revertPaymentMessage({
+          payment: txn,
+          excess: loans.excessOf(txn.id),
+          borrower: loan.borrower,
+          accountNameOf: nameOf,
+        })
       : revertLoanMessage({
           loan,
           paymentCount: loans.paymentsOf(loan.id).length,

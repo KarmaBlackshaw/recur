@@ -21,7 +21,7 @@ import {
   getAll as getAllTransactions,
   insert as insertTransaction,
   insertMany as insertTransactions,
-  remove as removeTransaction,
+  remove as removeTransactions,
   insertReversals,
   removeTransfer,
   replaceTransfer,
@@ -38,6 +38,7 @@ import { touchCategory } from "@/db/categories";
 import { accrueInterest, PERIODS_PER_YEAR } from "@/utils/interest";
 import { unsettledDebitIds } from "@/utils/cardBills";
 import { cardBillsFor } from "@/utils/accounts/cardBillsFor";
+import { autoTransferNotes } from "@/utils/accounts/autoTransferNotes";
 import { paymentLookup } from "@/utils/accounts/paymentLookup";
 import { CASH_ACCOUNT_ID, DELETED_ACCOUNT } from "@/constants/accounts";
 import { TRANSFER_CATEGORY } from "@/constants/categories";
@@ -441,7 +442,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
     const removedIds = [...withReversals(state.ledger, [id])];
-    await removeTransaction(id);
+    await removeTransactions([id]);
     dispatch({ type: "REMOVE_TRANSACTIONS", payload: removedIds });
   });
 
@@ -472,6 +473,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Invalid transfer income");
     }
     const createdAt = when ?? new Date().toISOString();
+    const notes = autoTransferNotes(from.name, to.name, to.type === "credit");
     const rows: Omit<AccountTransaction, "id">[] = [
       {
         ...emptyTxnFields(),
@@ -479,7 +481,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         kind: "transfer",
         amount: -value,
         transferId,
-        note: note ?? `Transfer to ${to.name}`,
+        note: note ?? notes.outgoing,
         createdAt,
       },
       {
@@ -488,7 +490,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         kind: "transfer",
         amount: to.type === "credit" ? -value : value,
         transferId,
-        note: note ?? `Transfer from ${from.name}`,
+        note: note ?? notes.incoming,
         createdAt,
       },
     ];
@@ -499,7 +501,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         kind: "fee",
         amount: -feeValue,
         transferId,
-        note: `Fee for transfer to ${to.name}`,
+        note: notes.fee,
         createdAt,
       });
     }

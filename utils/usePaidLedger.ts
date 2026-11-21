@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import dayjs from "dayjs";
-import { keyBy, orderBy } from "@/utils/collections";
+import { groupBy, keyBy, orderBy } from "@/utils/collections";
 import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
@@ -63,8 +63,14 @@ export interface TransferEntry {
   earnedAccountName: string | null; // set only when the income went to an account other than To
 }
 
-function transferFee(transactions: AccountTransaction[], transferId: string | null) {
-  return Math.abs(transactions.find((o) => transferId != null && o.transferId === transferId && o.kind === "fee")?.amount ?? 0);
+// A transfer's rows (both sides, fee, income), grouped once per list so each row reads its own group instead of
+// rescanning the whole ledger.
+function groupByTransfer(transactions: AccountTransaction[]) {
+  return groupBy(transactions.filter(({ transferId }) => transferId != null), "transferId");
+}
+
+function transferFee(rows: AccountTransaction[]) {
+  return Math.abs(rows.find(({ kind }) => kind === "fee")?.amount ?? 0);
 }
 
 // Every paid entry across all time — recurring cycles (dated by pay-date) + paid
@@ -146,6 +152,7 @@ export function useBillPayments(): BillPaymentEntry[] {
 
   return useMemo(() => {
     const accountsById = keyBy(accounts, "id");
+    const byTransfer = groupByTransfer(transactions);
     const items: BillPaymentEntry[] = [];
 
     for (const t of transactions) {
@@ -156,7 +163,8 @@ export function useBillPayments(): BillPaymentEntry[] {
       if (!account) {
         continue;
       }
-      const source = transactions.find((o) => t.transferId != null && o.transferId === t.transferId && o.id !== t.id && o.kind === "transfer");
+      const rows = t.transferId != null ? byTransfer[t.transferId] : [];
+      const source = rows.find((o) => o.id !== t.id && o.kind === "transfer");
       items.push({
         kind: "billPayment",
         key: t.id,
@@ -165,7 +173,7 @@ export function useBillPayments(): BillPaymentEntry[] {
         sourceName: source ? accountsById[source.accountId]?.name : undefined,
         effDate: dayjs(t.createdAt).toDate(),
         amount: Math.abs(t.amount),
-        fee: transferFee(transactions, t.transferId),
+        fee: transferFee(rows),
       });
     }
 
@@ -181,15 +189,15 @@ export function useTransfers(): TransferEntry[] {
 
   return useMemo(() => {
     const accountsById = keyBy(accounts, "id");
+    const byTransfer = groupByTransfer(transactions);
     const items: TransferEntry[] = [];
 
     for (const t of transactions) {
       if (t.kind !== "transfer" || isCardAccount(t.accountId)) {
         continue;
       }
-      const counterpart = transactions.find(
-        (o) => t.transferId != null && o.transferId === t.transferId && o.id !== t.id && o.kind === "transfer"
-      );
+      const rows = t.transferId != null ? byTransfer[t.transferId] : [];
+      const counterpart = rows.find((o) => o.id !== t.id && o.kind === "transfer");
       const isFromSide = t.amount < 0;
       if (isFromSide ? counterpart != null && isCardAccount(counterpart.accountId) : counterpart != null) {
         continue;
@@ -197,7 +205,7 @@ export function useTransfers(): TransferEntry[] {
       const ownName = accountsById[t.accountId]?.name;
       const otherName = counterpart ? accountsById[counterpart.accountId]?.name : undefined;
       const toAccountId = isFromSide ? counterpart?.accountId : t.accountId;
-      const income = transactions.find((o) => t.transferId != null && o.transferId === t.transferId && o.kind === "income");
+      const income = rows.find(({ kind }) => kind === "income");
       items.push({
         kind: "transfer",
         key: t.id,
@@ -206,7 +214,7 @@ export function useTransfers(): TransferEntry[] {
         toName: isFromSide ? otherName : ownName,
         effDate: dayjs(t.createdAt).toDate(),
         amount: Math.abs(t.amount),
-        fee: transferFee(transactions, t.transferId),
+        fee: transferFee(rows),
         earned: income?.amount ?? 0,
         earnedCategory: income?.category ?? null,
         earnedAccountName: income && income.accountId !== toAccountId ? accountsById[income.accountId]?.name ?? null : null,

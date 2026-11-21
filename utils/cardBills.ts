@@ -80,18 +80,19 @@ export function computeBill(a: {
 
 export const isBillTbd = ({ isEstimate, amount }: BillSummary) => isEstimate && amount === 0;
 
-// Unpaid bills from `lookbackMonths` back through next month, oldest first: a missed bill stays until it's paid.
+// Unpaid bills from `lookbackMonths` back through `aheadMonths` ahead (next month by default), oldest first: a missed bill stays until it's paid.
 // A statement already includes what the card's previous bill still owes, and payments clear that bill first, so
 // while it's open a newer bill only asks for the charges it added. The oldest bill shown carries anything older.
 export function openCardBills(
   getCardBills: (year: number, month: number) => CardBill[],
   today: Date,
-  lookbackMonths: number
+  lookbackMonths: number,
+  aheadMonths = 1
 ): CardBill[] {
   const thisMonth = dayjs(today).startOf("month");
   const previousByCard = new Map<string, CardBill>();
   const open: CardBill[] = [];
-  for (let offset = -lookbackMonths; offset <= 1; offset++) {
+  for (let offset = -lookbackMonths; offset <= aheadMonths; offset++) {
     const at = thisMonth.add(offset, "month");
     for (const statement of getCardBills(at.year(), at.month())) {
       const owedBefore = previousByCard.get(statement.account.id)?.remaining ?? 0;

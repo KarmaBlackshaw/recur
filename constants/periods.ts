@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import type { MoneyFlow, Period, TOption } from "@/types";
 
 export const PERIODS: TOption<Period>[] = [
@@ -12,4 +13,15 @@ export function parsePeriod(value: string | undefined): Period {
 
 export function parseMoneyFlow(value: string | undefined): MoneyFlow {
   return value === "income" ? "income" : "expenses";
+}
+
+// A year past four digits can't be shown (and past ±275,760 isn't even a Date), so it falls back like a bad month.
+export function parseYear(value: string | undefined): number {
+  const year = Number.parseInt(value ?? "", 10);
+  return year >= 1000 && year <= 9999 ? year : dayjs().year();
+}
+
+export function parseMonth(value: string | undefined): number {
+  const month = Number.parseInt(value ?? "", 10);
+  return month >= 0 && month <= 11 ? month : dayjs().month();
 }

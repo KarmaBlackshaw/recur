@@ -30,13 +30,14 @@ const KIND_ICON: Record<TransactionKind, FeatherIconName> = {
 interface Props {
   transaction: AccountTransaction;
   accountType: AccountType;
+  isBillPayment?: boolean;
   reversal?: AccountTransaction;
   original?: AccountTransaction;
   onPress?: () => void;
   rightAction?: SwipeAction;
 }
 
-function titleOf(transaction: AccountTransaction, borrower: string | undefined) {
+function titleOf(transaction: AccountTransaction, borrower: string | undefined, isBillPayment: boolean) {
   if (borrower != null && transaction.kind === "loan_out") {
     return `Lent to ${borrower}`;
   }
@@ -46,22 +47,30 @@ function titleOf(transaction: AccountTransaction, borrower: string | undefined) 
   if (borrower != null && transaction.kind === "income") {
     return `${TRANSACTION_KIND_LABEL.income} from ${borrower}`;
   }
+  if (isBillPayment && transaction.kind === "transfer") {
+    return "Bill payment";
+  }
+  if (isBillPayment && transaction.kind === "fee") {
+    return "Bill payment fee";
+  }
   return TRANSACTION_KIND_LABEL[transaction.kind];
 }
 
 function reversalTitleOf(
   original: AccountTransaction | undefined,
-  borrowerOf: (loanId: string | null) => string | undefined
+  borrowerOf: (loanId: string | null) => string | undefined,
+  isBillPayment: boolean
 ) {
   if (!original) {
     return TRANSACTION_KIND_LABEL.reversal;
   }
-  return `Reversal: ${titleOf(original, borrowerOf(original.loanId))}`;
+  return `Reversal: ${titleOf(original, borrowerOf(original.loanId), isBillPayment)}`;
 }
 
 export function TransactionRow({
   transaction,
   accountType,
+  isBillPayment = false,
   reversal,
   original,
   onPress,
@@ -72,8 +81,8 @@ export function TransactionRow({
   const isReverted = reversal != null;
   const isInert = isReversal || isReverted;
   const title = isReversal
-    ? reversalTitleOf(original, borrowerOf)
-    : titleOf(transaction, borrowerOf(transaction.loanId));
+    ? reversalTitleOf(original, borrowerOf, isBillPayment)
+    : titleOf(transaction, borrowerOf(transaction.loanId), isBillPayment);
   const source = isReversal ? original : transaction;
   const icon = isReversal
     ? categoryIcon(null, KIND_ICON.reversal)

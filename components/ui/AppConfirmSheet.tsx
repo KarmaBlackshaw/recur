@@ -10,11 +10,12 @@ export interface AppConfirmSheetRef {
 interface Props {
   title: string;
   confirmLabel: string;
+  isConfirmDisabled?: boolean;
   children?: React.ReactNode;
 }
 
 export const AppConfirmSheet = forwardRef<AppConfirmSheetRef, Props>(function AppConfirmSheet(
-  { title, confirmLabel, children },
+  { title, confirmLabel, isConfirmDisabled, children },
   ref
 ) {
   const sheetRef = useRef<AppBottomSheetRef>(null);
@@ -59,7 +60,7 @@ export const AppConfirmSheet = forwardRef<AppConfirmSheetRef, Props>(function Ap
       <View className="px-4 pb-4">
         {children}
         <View className="mt-4 gap-2">
-          <AppButton label={confirmLabel} onPress={confirm} />
+          <AppButton label={confirmLabel} onPress={confirm} disabled={isConfirmDisabled} />
           <AppButton label="Cancel" variant="ghost" onPress={() => sheetRef.current?.dismiss()} />
         </View>
       </View>

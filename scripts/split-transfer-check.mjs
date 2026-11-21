@@ -1,5 +1,17 @@
 import assert from "node:assert/strict";
-import { splitTransfer } from "../utils/accounts/splitTransfer.ts";
+import { registerHooks } from "node:module";
+
+const root = new URL("../", import.meta.url);
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier.startsWith("@/")) {
+      return nextResolve(new URL(`${specifier.slice(2)}.ts`, root).href, context);
+    }
+    return nextResolve(specifier, context);
+  },
+});
+const { splitTransfer } = await import("../utils/accounts/splitTransfer.ts");
+const { customTransferNote } = await import("../utils/accounts/customTransferNote.ts");
 
 const accounts = [
   { id: "bpi", type: "debit" },
@@ -40,5 +52,11 @@ const cardFromDeleted = splitTransfer([toCard], accounts);
 assert.equal(cardFromDeleted.from, undefined);
 assert.equal(cardFromDeleted.to, toCard);
 assert.equal(cardFromDeleted.isBillPayment, true);
+
+for (const autoNote of ["Transfer to BPI Card", "Transfer from Cash", "BPI Card bill payment", "Paid from Cash"]) {
+  assert.equal(customTransferNote(autoNote, "Cash", "BPI Card"), null, `"${autoNote}" is the app's own note`);
+}
+assert.equal(customTransferNote("October statement", "Cash", "BPI Card"), "October statement");
+assert.equal(customTransferNote("Paid from BDO", "Cash", "BPI Card"), "Paid from BDO");
 
 console.log("split-transfer-check passed");

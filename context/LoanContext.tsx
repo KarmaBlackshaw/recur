@@ -12,7 +12,7 @@ import {
   insertPayments,
   revert,
 } from "@/db/loans";
-import { remove as removeTransaction, updateLoanPayment } from "@/db/accountTransactions";
+import { remove as removeTransactions, updateLoanPayment } from "@/db/accountTransactions";
 import { useAccounts } from "@/context/AccountContext";
 import { buildReversal } from "@/utils/reversals/buildReversal";
 import { summarizeLoan, type TLoanSummary } from "@/utils/loans/summarizeLoan";
@@ -23,6 +23,7 @@ import { canChangeLoan } from "@/utils/loans/canChangeLoan";
 import { canEditPayment } from "@/utils/loans/canEditPayment";
 import { useToday } from "@/utils/useToday";
 import { groupRepayments } from "@/utils/loans/groupRepayments";
+import { findExcess } from "@/utils/loans/findExcess";
 import type { AccountTransaction, Loan, LoanExcessInput, LoanInput, LoanPaymentInput, TRepayment } from "@/types";
 
 interface State {
@@ -64,7 +65,7 @@ interface LoanContextValue {
   recordPayments: (payments: LoanPaymentInput[], excess?: LoanExcessInput) => Promise<void>;
   updatePayment: (txnId: string, p: LoanPaymentInput) => Promise<void>;
   deletePayment: (txnId: string) => Promise<void>;
-  // The Overpayment income saved by the same Record payment; reverting the payment reverts it too.
+  // The Overpayment income saved by the same Record payment; reverting or deleting the payment removes it too.
   excessOf: (paymentId: string) => AccountTransaction | undefined;
   revertPayment: (txnId: string) => Promise<void>;
   revertLoan: (id: string) => Promise<void>;
@@ -129,10 +130,7 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     [accounts.transactions, activeLoans, summaries]
   );
 
-  const excessOf = useCallback(
-    (paymentId: string) => repayments.find(({ payments }) => payments.some(({ txn }) => txn.id === paymentId))?.excess,
-    [repayments]
-  );
+  const excessOf = useCallback((paymentId: string) => findExcess(repayments, paymentId), [repayments]);
 
   const assertDepositAccount = (accountId: string) => {
     const account = accounts.accounts.find((a) => a.id === accountId);
@@ -248,18 +246,24 @@ export function LoanProvider({ children }: { children: React.ReactNode }) {
     await accounts.reload();
   });
 
+  // A payment with the Overpayment income it brought: once the payment goes, the borrower owes again.
+  const rowsOf = (paymentId: string) => {
+    const excess = excessOf(paymentId);
+    return excess ? [paymentId, excess.id] : [paymentId];
+  };
+
   const deletePayment = useMemoizedFn(async (txnId: string) => {
-    const error = accounts.overdraftError([], (t) => t.id === txnId);
+    const ids = rowsOf(txnId);
+    const error = accounts.overdraftError([], (t) => ids.includes(t.id));
     if (error) {
       throw error;
     }
-    await removeTransaction(txnId);
+    await removeTransactions(ids);
     await accounts.reload();
   });
 
   const revertPayment = useMemoizedFn(async (txnId: string) => {
-    const excess = excessOf(txnId);
-    await accounts.reverseTransactions(excess ? [txnId, excess.id] : [txnId]);
+    await accounts.reverseTransactions(rowsOf(txnId));
   });
 
   const revertRepayment = useMemoizedFn(async (id: string) => {

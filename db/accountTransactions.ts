@@ -184,9 +184,12 @@ export async function updateLoanPayment(
   );
 }
 
-export async function remove(id: string): Promise<void> {
+export async function remove(ids: string[]): Promise<void> {
+  if (ids.length === 0) {
+    return;
+  }
   const db = await getDB();
-  await db.runAsync("DELETE FROM account_transactions WHERE id = ?", [id]);
+  await db.runAsync(`DELETE FROM account_transactions WHERE id IN (${ids.map(() => "?").join(", ")})`, ids);
 }
 
 export async function creditInterest(accountId: string, gross: number, tax: number, through: string): Promise<void> {

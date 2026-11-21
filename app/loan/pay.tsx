@@ -25,6 +25,7 @@ import { useLoans } from "@/context/LoanContext";
 import { useAccounts } from "@/context/AccountContext";
 import { maxPaymentOn } from "@/utils/loans/maxPaymentOn";
 import { canEditPayment } from "@/utils/loans/canEditPayment";
+import { deletePaymentMessage } from "@/utils/loans/deletePaymentMessage";
 import { splitLoanPayment, type TLoanPaymentSplit, type TLoanPaymentTarget } from "@/utils/loans/splitLoanPayment";
 import { formatAmount } from "@/utils/formatAmount";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
@@ -50,7 +51,7 @@ function PaymentForm({ choices, payment }: FormProps) {
   const accountSheetRef = useRef<AccountPickerSheetRef>(null);
   const isReducedMotion = useReducedMotion();
   const loans = useLoans();
-  const { accounts, activeAccounts, transactions, overdraftError } = useAccounts();
+  const { accounts, activeAccounts, transactions, overdraftError, nameOf } = useAccounts();
   const depositAccounts = activeAccounts.filter((a) => a.type !== "credit");
   const isEditing = payment != null;
   const today = dayjs().format("YYYY-MM-DD");
@@ -216,7 +217,13 @@ function PaymentForm({ choices, payment }: FormProps) {
     if (!payment) {
       return;
     }
-    Alert.alert("Delete this payment?", "The balance will go back up.", [
+    const message = deletePaymentMessage({
+      payment,
+      excess: loans.excessOf(payment.id),
+      borrower: choices[0].borrower,
+      accountNameOf: nameOf,
+    });
+    Alert.alert("Delete this payment?", message, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",

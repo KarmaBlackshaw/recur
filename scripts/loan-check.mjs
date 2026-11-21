@@ -559,4 +559,35 @@ assert.equal(
   "The money leaves BPI and Ana owes it again, so the ₱200.00 overpayment income leaves GCash. Both stay in the account history, marked as reverted."
 );
 
+const { findExcess } = await import("../utils/loans/findExcess.ts");
+const sharedRepayments = group([pA, pB, extra, txn("q1", { repaymentId: "RQ", amount: 80 })]);
+assert.equal(findExcess(sharedRepayments, "p1"), extra);
+assert.equal(findExcess(sharedRepayments, "p2"), extra);
+assert.equal(findExcess(sharedRepayments, "q1"), undefined);
+assert.equal(findExcess(sharedRepayments, "missing"), undefined);
+
+const { deletePaymentMessage } = await import("../utils/loans/deletePaymentMessage.ts");
+assert.equal(
+  deletePaymentMessage({ payment: settlingPayment, excess: undefined, borrower: "Ana", accountNameOf }),
+  "The money leaves BPI and Ana owes it again."
+);
+assert.equal(
+  deletePaymentMessage({
+    payment: settlingPayment,
+    excess: txn("p2", { kind: "income", repaymentId: "RV5", amount: 200 }),
+    borrower: "Ana",
+    accountNameOf,
+  }),
+  "The money leaves BPI and Ana owes it again, so the ₱200.00 overpayment income leaves too. Both are deleted."
+);
+assert.equal(
+  deletePaymentMessage({
+    payment: settlingPayment,
+    excess: txn("p3", { kind: "income", repaymentId: "RV5", accountId: "a2", amount: 200 }),
+    borrower: "Ana",
+    accountNameOf,
+  }),
+  "The money leaves BPI and Ana owes it again, so the ₱200.00 overpayment income leaves GCash. Both are deleted."
+);
+
 console.log("loan-check: all passed");

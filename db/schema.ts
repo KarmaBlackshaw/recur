@@ -501,6 +501,7 @@ export async function backfillHistory(database: SQLite.SQLiteDatabase): Promise<
     "UPDATE account_transactions SET category = ? WHERE kind = 'income' AND transfer_id IS NOT NULL AND category IS NOT ?",
     [TRANSFER_CATEGORY, TRANSFER_CATEGORY]
   );
+  await rewordBillPaymentNotes(database);
 
   await groupLegacyRepayments(database);
   await database.runAsync(
@@ -529,6 +530,40 @@ export async function backfillHistory(database: SQLite.SQLiteDatabase): Promise<
          WHERE o.id = account_transactions.reverses_id AND o.repayment_id IS NOT NULL
        )`
   );
+}
+
+// Bill payments saved before they had their own wording kept "Transfer to/from". Only the notes the app wrote match.
+async function rewordBillPaymentNotes(database: SQLite.SQLiteDatabase): Promise<void> {
+  const rewords = [
+    {
+      kind: "transfer",
+      cardFilter: "a.type = 'credit'",
+      oldNote: "'Transfer to ' || a.name",
+      newNote: "a.name || ' bill payment'",
+    },
+    {
+      kind: "transfer",
+      cardFilter: "account_transactions.account_id IN (SELECT id FROM accounts WHERE type = 'credit')",
+      oldNote: "'Transfer from ' || a.name",
+      newNote: "'Paid from ' || a.name",
+    },
+    {
+      kind: "fee",
+      cardFilter: "a.type = 'credit'",
+      oldNote: "'Fee for transfer to ' || a.name",
+      newNote: "'Fee for ' || a.name || ' bill payment'",
+    },
+  ];
+  for (const { kind, cardFilter, oldNote, newNote } of rewords) {
+    const transferSide = `FROM account_transactions s JOIN accounts a ON a.id = s.account_id
+      WHERE s.transfer_id = account_transactions.transfer_id AND s.kind = 'transfer' AND s.id != account_transactions.id
+        AND ${cardFilter} AND account_transactions.note = ${oldNote}`;
+    await database.runAsync(
+      `UPDATE account_transactions SET note = (SELECT ${newNote} ${transferSide} LIMIT 1)
+       WHERE kind = ? AND transfer_id IS NOT NULL AND EXISTS (SELECT 1 ${transferSide})`,
+      [kind]
+    );
+  }
 }
 
 // One borrower payment writes its loan_in rows back to back with the same account and timestamp, at most one per

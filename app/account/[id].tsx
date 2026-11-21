@@ -179,6 +179,16 @@ export default function AccountDetailScreen() {
     return map;
   }, [accounts.ledger]);
   const byId = useMemo(() => new Map(accounts.ledger.map((t) => [t.id, t])), [accounts.ledger]);
+  const billPaymentIds = useMemo(() => {
+    const cardIds = new Set(accounts.accounts.filter((a) => a.type === "credit").map((a) => a.id));
+    const ids = new Set<string>();
+    for (const transaction of accounts.ledger) {
+      if (transaction.kind === "transfer" && transaction.transferId != null && cardIds.has(transaction.accountId)) {
+        ids.add(transaction.transferId);
+      }
+    }
+    return ids;
+  }, [accounts.ledger, accounts.accounts]);
 
   useEffect(() => {
     if (!account || hasPresentedAction.current) {
@@ -366,6 +376,7 @@ export default function AccountDetailScreen() {
           <TransactionRow
             transaction={item}
             accountType={account.type}
+            isBillPayment={item.transferId != null && billPaymentIds.has(item.transferId)}
             reversal={reversalOf.get(item.id)}
             original={originalFor(item)}
             onPress={openHandlerFor(item)}

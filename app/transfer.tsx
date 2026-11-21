@@ -22,6 +22,7 @@ import { TRANSFER_CATEGORY } from "@/constants/categories";
 import { colors } from "@/constants/theme";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { alertFailure } from "@/utils/accounts/alertFailure";
+import { customTransferNote } from "@/utils/accounts/customTransferNote";
 import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import { formatIncomeHint } from "@/utils/accounts/formatIncomeHint";
 import { formatIncomeSummary } from "@/utils/accounts/formatIncomeSummary";
@@ -89,8 +90,7 @@ export default function TransferScreen() {
     if (parts) {
       const { from, to, main, fee, income } = parts;
       const toId = to?.accountId ?? "";
-      const toName = accounts.nameOf(toId);
-      const note = main.note ?? "";
+      const note = customTransferNote(main.note, accounts.nameOf(from?.accountId ?? ""), accounts.nameOf(toId)) ?? "";
       return {
         fromId: from?.accountId ?? "",
         toId,
@@ -98,7 +98,7 @@ export default function TransferScreen() {
         fee: fee ? Math.abs(fee.amount).toString() : "",
         income: income ? income.amount.toString() : "",
         incomeAccountId: income && income.accountId !== toId ? income.accountId : "",
-        note: note === `Transfer to ${toName}` ? "" : note,
+        note,
         date: main.createdAt,
       };
     }
@@ -245,8 +245,10 @@ export default function TransferScreen() {
     }
     const transferId = id;
     Alert.alert(
-      "Delete transfer?",
-      "Both sides of this transfer and any fee or income recorded with it are removed, and the balances restored.",
+      isBillPayment ? "Delete payment?" : "Delete transfer?",
+      isBillPayment
+        ? "This payment and any fee recorded with it are removed, and both balances restored."
+        : "Both sides of this transfer and any fee or income recorded with it are removed, and the balances restored.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -476,7 +478,12 @@ export default function TransferScreen() {
           <AppButton label="Save as template" variant="tonal" onPress={saveAsTemplate} className="mt-3" />
         )}
         {isEditing && (
-          <AppButton label="Delete transfer" variant="destructive" onPress={confirmDelete} className="mt-3" />
+          <AppButton
+            label={isBillPayment ? "Delete payment" : "Delete transfer"}
+            variant="destructive"
+            onPress={confirmDelete}
+            className="mt-3"
+          />
         )}
       </AppFormScrollView>
     </SafeAreaView>

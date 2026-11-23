@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { maxBy, sumBy } from "@/utils/collections";
 import { round } from "@/utils/round";
 import { formatAmount } from "@/utils/formatAmount";
@@ -35,6 +35,8 @@ import { alertFailure } from "@/utils/accounts/alertFailure";
 import { stampPickedDay } from "@/utils/dates/stampPickedDay";
 import { useDeleteExpense } from "@/utils/useDeleteExpense";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
+import { guessAccount } from "@/utils/sms/guessAccount";
+import { parseTransactionSms } from "@/utils/sms/parseTransactionSms";
 import type { Expense, Recurrence, ExpenseFormValues, TOption } from "@/types";
 
 type ExpenseType = "regular" | "recurring";
@@ -83,13 +85,15 @@ function endOf(expense: Expense | null, fallbackYear: number, fallbackMonth: num
 }
 
 export default function AddExpenseScreen() {
-  const { id, year: yearParam, month: monthParam, type, endPrompt } = useLocalSearchParams<{
+  const { id, year: yearParam, month: monthParam, type, endPrompt, sms } = useLocalSearchParams<{
     id?: string;
     year?: string;
     month?: string;
     type?: ExpenseType;
     endPrompt?: string; // "1" from the delete dialog's "Set end month": opens with the end month switched on
+    sms?: string; // a bank or e-wallet SMS shared into Recur, read into the form
   }>();
+  const shared = useMemo(() => (sms && !id ? parseTransactionSms(sms) : null), [sms, id]);
   const { addExpense, updateExpense, expenses, getMonthAmount, getMonthStatus } = useExpenses();
   const confirmDelete = useDeleteExpense();
   const navigation = useNavigation();
@@ -107,7 +111,9 @@ export default function AddExpenseScreen() {
     expenses.filter((e) => activeAccounts.some((a) => a.id === e.accountId)),
     "createdAt"
   )?.accountId;
-  const initialAccountId = editingExpense ? editingExpense.accountId : lastUsedAccountId;
+  const initialAccountId = editingExpense
+    ? editingExpense.accountId
+    : (shared ? guessAccount(shared, activeAccounts) : null) ?? lastUsedAccountId;
 
   function toKnownAccountId(accountId?: string | null) {
     return accountId && accounts.some((a) => a.id === accountId) ? accountId : CASH_ACCOUNT_ID;
@@ -126,15 +132,15 @@ export default function AddExpenseScreen() {
   } = useAppForm<ExpenseFormValues>({
     mode: "onChange",
     defaultValues: {
-      amount: editingExpense?.amount != null ? editingExpense.amount.toString() : "",
+      amount: editingExpense?.amount != null ? editingExpense.amount.toString() : shared?.amount?.toString() ?? "",
       category: editingExpense?.category ?? lastUsedCategory,
       // A new recurring bill starts without a due day, so it's picked rather than silently left on the 1st.
       dueDay: editingExpense?.dueDay?.toString() ?? "",
       recurrence: editingExpense?.recurrence ?? (type === "regular" ? "one-off" : "monthly"),
       isVariable: editingExpense?.isVariable ?? false,
-      notes: editingExpense?.notes || editingExpense?.name || "",
+      notes: editingExpense?.notes || editingExpense?.name || shared?.counterparty || "",
       reminderDaysBefore: "",
-      paidDate: editingExpense?.paidDate ?? new Date().toISOString(),
+      paidDate: editingExpense?.paidDate ?? (shared?.day ? dayjs(shared.day).toISOString() : new Date().toISOString()),
       startDate: startOf(editingExpense, currentYear, currentMonth),
       hasEndDate: editingExpense?.endYear != null || endPrompt === "1",
       endDate: endOf(editingExpense, currentYear, currentMonth),

@@ -1,19 +1,17 @@
-<h1 align="center">Recur</h1>
-
 <p align="center">
-  <strong>See what's due, pay it in a tap, and know where your money went.</strong>
+  <img src=".github/hero/hero.png" width="100%" alt="Recur: see what's due, pay it in a tap, and know where your money went. Bills, accounts, cards and loans in one app, made for the Philippines, for Android and iPhone." />
 </p>
 
 <p align="center">
-  Bills, accounts, cards and loans in one app for iPhone and Android.<br />
-  Made for the Philippines · Works offline · No account needed
+  <a href="https://github.com/KarmaBlackshaw/recur/stargazers"><img src="https://img.shields.io/github/stars/KarmaBlackshaw/recur?style=flat-square&logo=github&label=stars&labelColor=1C1C1E&color=6366F1" alt="GitHub stars" /></a>
+  <a href="https://github.com/KarmaBlackshaw/recur/releases/latest"><img src="https://img.shields.io/github/v/release/KarmaBlackshaw/recur?style=flat-square&label=latest%20release&labelColor=1C1C1E&color=6366F1" alt="Latest release" /></a>
+  <a href="https://github.com/KarmaBlackshaw/recur/releases"><img src="https://img.shields.io/github/downloads/KarmaBlackshaw/recur/total?style=flat-square&label=downloads&labelColor=1C1C1E&color=6366F1" alt="Downloads" /></a>
+  <a href="https://github.com/KarmaBlackshaw/recur/actions/workflows/build.yml?query=branch%3Amaster"><img src="https://img.shields.io/github/actions/workflow/status/KarmaBlackshaw/recur/build.yml?branch=master&style=flat-square&label=build&labelColor=1C1C1E" alt="Build status" /></a>
 </p>
 
 <p align="center">
-  <img src=".github/screenshots/home.png" width="180" alt="Home: ₱1,848 left to pay this month, two overdue bills and what's due next" />&nbsp;
-  <img src=".github/screenshots/recurring.png" width="180" alt="Recurring: October's bills split into overdue, unpaid and paid" />&nbsp;
-  <img src=".github/screenshots/activity.png" width="180" alt="Activity: net this month, then every payment, income and loan by day" />&nbsp;
-  <img src=".github/screenshots/stats.png" width="180" alt="Stats: October's spending by category on a donut chart" />
+  <a href="https://github.com/KarmaBlackshaw/recur/releases/latest/download/recur.apk"><img src=".github/hero/button-apk.png" width="260" alt="Download the Android APK" /></a>&nbsp;&nbsp;
+  <a href="https://github.com/KarmaBlackshaw/recur#build-it-yourself"><img src=".github/hero/button-source.png" width="260" alt="Build it yourself from source" /></a>
 </p>
 
 Recur keeps your recurring bills in one place, together with the bank accounts, e-wallets and credit cards you pay
@@ -58,11 +56,21 @@ Amounts are in Philippine pesos (₱).
 - Below that: overdue bills, this month, next month, credit card bills and money owed to you.
 - The Recurring tab steps through any month: total bills, paid, charged to cards and still to pay.
 
+<p align="center">
+  <img src=".github/screenshots/home.png" width="240" alt="Home: ₱1,848 left to pay this month, two overdue bills and what's due next" />&nbsp;
+  <img src=".github/screenshots/recurring.png" width="240" alt="Recurring: October's bills split into overdue, unpaid and paid" />
+</p>
+
 ### Activity and Stats
 
 - Every payment, card charge, income, transfer and loan in one feed, by day, with filters and search.
 - **Net this month** shows money in, spent, lent and repaid.
 - Stats breaks spending and income down by category, for a month or a whole year.
+
+<p align="center">
+  <img src=".github/screenshots/activity.png" width="240" alt="Activity: net this month, then every payment, income and loan by day" />&nbsp;
+  <img src=".github/screenshots/stats.png" width="240" alt="Stats: October's spending by category on a donut chart" />
+</p>
 
 ### Accounts and cards
 
@@ -115,16 +123,27 @@ works fully offline. Your data only leaves the phone when you export a backup.
 
 ## Get Recur
 
-Recur isn't on the App Store or Google Play. To install it, build it yourself. With Node.js and Android Studio set
-up, connect your phone (with USB debugging on) or start an emulator, then run:
+Recur isn't on the App Store or Google Play.
+
+### Android
+
+Download the latest APK from [GitHub Releases](https://github.com/KarmaBlackshaw/recur/releases/latest) on your
+phone ([direct link](https://github.com/KarmaBlackshaw/recur/releases/latest/download/recur.apk)), open it, and
+allow your browser to install apps when Android asks. Every push to `master` publishes a new build, and installing a
+newer APK over the old one keeps your data.
+
+### Build it yourself
+
+With Node.js and Android Studio set up, connect your phone (with USB debugging on) or start an emulator, then run:
 
 ```bash
 npm install
 npx expo run:android --variant release
 ```
 
-That installs a standalone build that works without a computer attached. iPhone builds need Xcode and an Apple
-Developer account; see the developer notes below.
+That installs a standalone build that works without a computer attached. It's signed with a different key from the
+released APK, so uninstall one before installing the other (which erases the app's data). iPhone builds need Xcode
+and an Apple Developer account; see the developer notes below.
 
 <details>
 <summary><strong>Developer notes</strong></summary>
@@ -132,7 +151,8 @@ Developer account; see the developer notes below.
 <br />
 
 Recur is an Expo (React Native) app in TypeScript, styled with NativeWind, with its data in SQLite on the device.
-Code conventions live in [`CLAUDE.md`](CLAUDE.md) and the visual language in [`DESIGN.md`](DESIGN.md).
+Code conventions live in [`CLAUDE.md`](https://github.com/KarmaBlackshaw/recur/blob/staging/CLAUDE.md) and the
+visual language in [`DESIGN.md`](https://github.com/KarmaBlackshaw/recur/blob/staging/DESIGN.md).
 
 #### Run a debug build
 
@@ -165,8 +185,11 @@ npm run build:ios-sim  # iOS Simulator build (EAS, no Apple account needed)
 npm run build:ipa      # iPhone build for registered devices (EAS preview, needs an Apple Developer account)
 ```
 
-Requires EAS CLI and an Expo account for cloud builds. Pushing to `master` builds the APK and the iOS Simulator
-build (`.eas/workflows/build.yml`). Install the latest simulator build with `npx eas-cli build:run -p ios --latest`.
+Requires EAS CLI and an Expo account for cloud builds. Pushing to `master` builds the APK on EAS and publishes it as
+the [latest GitHub release](https://github.com/KarmaBlackshaw/recur/releases/latest)
+(`.github/workflows/release-apk.yml`, which needs an `EXPO_TOKEN` repository secret), and builds the iOS Simulator
+build (`.eas/workflows/build.yml`). Install the latest simulator build with
+`npx eas-cli build:run -p ios --latest`.
 
 To get installable iPhone builds: join the Apple Developer Program, run `npm run build:ipa` once to sign in and
 let EAS create the certificate and profile, register each iPhone with `npx eas-cli device:create`, then switch
@@ -183,6 +206,7 @@ Generated assets, committed alongside their sources:
 ```bash
 node scripts/subset-fonts.mjs        # Oswald without Cyrillic/Greek + the Ionicons in constants/ionicons.ts
 node scripts/generate-bank-logos.mjs # assets/banks/*.svg → @1x/@2x/@3x PNGs
+node .github/hero/render.mjs         # README hero and download buttons from .github/hero/*.html
 ```
 
 </details>

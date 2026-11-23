@@ -17,7 +17,8 @@
         "SHARP_IGNORE_GLOBAL_LIBVIPS": "1"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "autoIncrement": true
       }
     },
     "preview-simulator": {

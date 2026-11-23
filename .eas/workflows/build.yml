@@ -5,14 +5,9 @@ on:
     branches:
       - master
 
+# The Android APK isn't built here: .github/workflows/release-apk.yml builds it once per push to master and
+# publishes it as the latest GitHub release.
 jobs:
-  build_android:
-    name: Build Android
-    type: build
-    params:
-      platform: android
-      profile: preview
-
   # Simulator build: needs no Apple account. Switch the profile to `preview` for an installable iPhone build
   # once Apple credentials and devices are set up (`npm run build:ipa` once, interactively).
   build_ios:
@@ -21,4 +16,3 @@ jobs:
     params:
       platform: ios
       profile: preview-simulator
-

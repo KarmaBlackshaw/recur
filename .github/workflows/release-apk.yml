@@ -1,0 +1,56 @@
+name: Release APK
+
+# Each push to master builds the Android APK once on EAS (signed with the Expo-managed keystore) and publishes it
+# as the latest GitHub release, so the README's download button always serves the newest build:
+# https://github.com/KarmaBlackshaw/recur/releases/latest/download/recur.apk
+# Needs an EXPO_TOKEN repository secret: an Expo access token with access to the recur project.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# Queue releases instead of cancelling one mid-build, so every push still gets its release.
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+
+      # --json makes it non-interactive and prints the finished build; it exits non-zero if the build fails.
+      - name: Build the APK on EAS
+        run: eas build --platform android --profile preview --wait --json > build.json
+
+      - name: Download the APK
+        run: curl --fail --location --silent --show-error --output recur.apk "$(jq -r '.[0].artifacts.buildUrl' build.json)"
+
+      # app.json's version doesn't change per build, so the date and commit keep each tag unique.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(jq -r .expo.version app.json)
+          tag="v${version}-$(date -u +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+          gh release create "$tag" recur.apk \
+            --target "$GITHUB_SHA" \
+            --title "Recur ${version} ($(date -u +%Y-%m-%d))" \
+            --generate-notes \
+            --latest

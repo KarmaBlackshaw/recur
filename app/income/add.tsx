@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { maxBy } from "@/utils/collections";
 import { View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,11 +20,13 @@ import { CASH_ACCOUNT_ID } from "@/constants/accounts";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
 import { alertFailure } from "@/utils/accounts/alertFailure";
 import { stampPickedDay } from "@/utils/dates/stampPickedDay";
+import { guessAccount } from "@/utils/sms/guessAccount";
+import { parseTransactionSms } from "@/utils/sms/parseTransactionSms";
 import type { AccountTransaction } from "@/types";
 import dayjs from "dayjs";
 
-// Amount is the only field that can be invalid.
-const SAVE_HINT = "Enter an amount to save";
+const AMOUNT_HINT = "Enter an amount to save";
+const CATEGORY_HINT = "Pick a category to save";
 
 interface IncomeFormValues {
   receivedAt: string;
@@ -35,7 +37,9 @@ interface IncomeFormValues {
 }
 
 export default function AddIncomeScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // sms: a bank or e-wallet SMS shared into Recur, read into the form
+  const { id, sms } = useLocalSearchParams<{ id?: string; sms?: string }>();
+  const shared = useMemo(() => (sms && !id ? parseTransactionSms(sms) : null), [sms, id]);
   const { accounts, activeAccounts, transactions, isLoading, overdraftError, addIncome, updateIncome, deleteIncome } =
     useAccounts();
   const incomes = transactions.filter((t) => t.kind === "income");
@@ -65,11 +69,11 @@ export default function AddIncomeScreen() {
       };
     }
     return {
-      receivedAt: dayjs().startOf("day").toISOString(),
-      amount: "",
+      receivedAt: dayjs(shared?.day ?? undefined).startOf("day").toISOString(),
+      amount: shared?.amount?.toString() ?? "",
       category: lastIncome?.category ?? "Salary",
-      accountId: toKnownAccountId(lastIncome?.accountId, false),
-      notes: "",
+      accountId: toKnownAccountId((shared ? guessAccount(shared, depositAccounts) : null) ?? lastIncome?.accountId, false),
+      notes: shared?.counterparty ? `From ${shared.counterparty}` : "",
     };
   }
 
@@ -79,12 +83,16 @@ export default function AddIncomeScreen() {
     reset,
     getValues,
     trigger,
-    formState: { isDirty, isValid, isSubmitting },
+    watch,
+    formState: { errors, isDirty, isValid, isSubmitting },
   } = useAppForm<IncomeFormValues>({
     mode: "onChange",
     defaultValues: toFormValues(editingIncome),
   });
   const { allowLeave } = useDiscardGuard(isDirty);
+  // Names what keeps Save disabled, in the order the fields appear. Category empties when Manage deletes it.
+  const isCategoryBlocking = watch("amount").trim() !== "" && !errors.amount && watch("category") === "";
+  const saveHint = isCategoryBlocking ? CATEGORY_HINT : AMOUNT_HINT;
 
   React.useEffect(() => {
     if (!isLoading) {
@@ -160,7 +168,7 @@ export default function AddIncomeScreen() {
           onPress: onSubmit,
           isDisabled: !isValid || isLoading,
           isLoading: isSubmitting,
-          accessibilityHint: isValid ? undefined : SAVE_HINT,
+          accessibilityHint: isValid ? undefined : saveHint,
         }}
       />
 
@@ -210,8 +218,14 @@ export default function AddIncomeScreen() {
         <Controller
           control={control}
           name="category"
+          rules={{ required: true }}
           render={({ field: { value } }) => (
-            <AppSelectField label="Category" value={value} onPress={() => categorySheetRef.current?.present()} />
+            <AppSelectField
+              label="Category"
+              value={value}
+              placeholder="Pick a category"
+              onPress={() => categorySheetRef.current?.present()}
+            />
           )}
         />
 
@@ -248,11 +262,11 @@ export default function AddIncomeScreen() {
           onPress={onSubmit}
           disabled={!isValid || isLoading}
           loading={isSubmitting}
-          accessibilityHint={isValid ? undefined : SAVE_HINT}
+          accessibilityHint={isValid ? undefined : saveHint}
           className="mt-4"
         />
         {!isValid && (
-          <AppText variant="meta" className="text-center mt-2">{SAVE_HINT}</AppText>
+          <AppText variant="meta" className="text-center mt-2">{saveHint}</AppText>
         )}
         {isEditing && (
           <AppButton
@@ -266,9 +280,11 @@ export default function AddIncomeScreen() {
         <View className="h-8" />
       </AppFormScrollView>
 
+      {/* Needs the same rules as the Category field: react-hook-form keeps only the rules of the last Controller to register a name. */}
       <Controller
         control={control}
         name="category"
+        rules={{ required: true }}
         render={({ field: { value, onChange } }) => (
           <CategoryBottomSheet
             ref={categorySheetRef}

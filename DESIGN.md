@@ -96,7 +96,7 @@ account transactions. Never hand-build another row.
   ordinary row in its direction's tone, also with no tap or swipe.
 - **Loan repayment rows:** one row per repayment, not one per loan it touched. Activity shows `arrow-down-left` mint,
   "<Name> repaid", meta "account · loan(s)" and caption "Settled" or "n settled", plus "+₱X extra" when it overpaid.
-  The borrower page lists them under a "Payments" header after Active and Settled, newest first: title "Paid into
+  The borrower page lists them on its Payments tab (`AppTabs` Active, Settled, Payments, each with its count), newest first: title "Paid into
   <account>", meta "n loans · k settled", caption date · extra. They have no tap; dragging left reveals Revert
   (`rotate-ccw`, coral), which asks with an Alert. A reverted repayment leaves both lists, and its rows stay in the
   account's history, marked reverted.

@@ -22,7 +22,7 @@ function repaymentPress(
   if (payments.length === 1 && !excess) {
     return () => onOpenLoan(payments[0].txn);
   }
-  return () => router.push({ pathname: "/loan/borrower", params: { name: borrower } });
+  return () => router.push({ pathname: "/loan/borrower", params: { name: borrower, tab: "payments" } });
 }
 
 interface Props {

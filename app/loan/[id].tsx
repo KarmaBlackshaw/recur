@@ -14,6 +14,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppDetailRow } from "@/components/ui/AppDetailRow";
 import { AppFormHeader } from "@/components/ui/AppFormHeader";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { AddLoanFab } from "@/components/loans/AddLoanFab";
 import { LoanHistoryRow, type TLoanHistoryItem } from "@/components/loans/LoanHistoryRow";
 import { colors } from "@/constants/theme";
 import { formatAmount } from "@/utils/formatAmount";
@@ -151,7 +152,7 @@ export default function LoanDetailScreen() {
         sections={sections}
         keyExtractor={(item) => item.key}
         stickySectionHeadersEnabled={false}
-        contentContainerClassName="pb-12"
+        contentContainerClassName="pb-[96px]"
         refreshControl={refreshControl}
         ListHeaderComponent={
           <>
@@ -180,6 +181,8 @@ export default function LoanDetailScreen() {
         renderSectionHeader={renderSectionHeader}
         renderItem={renderItem}
       />
+
+      <AddLoanFab borrower={loan.borrower} />
     </SafeAreaView>
   );
 }

@@ -107,13 +107,8 @@ export default function LoansScreen() {
     searchOpen.toggle();
   }
 
-  // A borrower with a single loan in this segment opens that loan straight away.
-  function openBorrower({ borrower, loanIds }: (typeof entries)[number]) {
-    if (loanIds.length === 1) {
-      router.push({ pathname: "/loan/[id]", params: { id: loanIds[0] } });
-      return;
-    }
-    router.push({ pathname: "/loan/borrower", params: { name: borrower } });
+  function openBorrower({ borrower }: (typeof entries)[number]) {
+    router.push({ pathname: "/loan/borrower", params: { name: borrower, tab: segment } });
   }
 
   const renderItem = ({ item }: { item: (typeof entries)[number] }) => (

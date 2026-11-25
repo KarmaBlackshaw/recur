@@ -11,8 +11,7 @@ export type HomeBandSlot = 'current' | 'next';
 export type ActivitySegment = "all" | "paid" | "charged" | "income" | "transfers" | "loans";
 export type Period = "month" | "year";
 export type MoneyFlow = "income" | "expenses";
-export type StatsView = "donut" | "bar";
-export type BarBucket = "day" | "week" | "month";
+export type StatsView = "donut" | "trend";
 
 export interface TOption<T> {
   label: string;

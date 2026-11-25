@@ -1,37 +1,34 @@
 import dayjs from "dayjs";
 import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
-import type { BarBucket, Period } from "@/types";
+import type { Period } from "@/types";
 import { categoryLine } from "@/utils/activity/categoryLine";
 
 export interface TFlowBucket {
   key: string;
   start: Date;
-  end: Date;
   income: number;
   expenses: number;
 }
 
-const KEY_FORMAT: Record<BarBucket, string> = { day: "YYYY-MM-DD", week: "YYYY-MM-DD", month: "YYYY-MM" };
+const UNIT = { month: "day", year: "month" } as const;
+const KEY_FORMAT = { day: "YYYY-MM-DD", month: "YYYY-MM" } as const;
 
-export function bucketFlows({ entries, year, month, period, bucket }: {
+export function bucketFlows({ entries, year, month, period }: {
   entries: readonly ActivityEntry[];
   year: number;
   month: number;
   period: Period;
-  bucket: BarBucket;
 }): TFlowBucket[] {
+  const unit = UNIT[period];
   const periodStart = dayjs(new Date(year, period === "year" ? 0 : month, 1));
-  const periodEnd = periodStart.endOf(period).startOf("day");
-  const buckets: TFlowBucket[] = [];
-  for (let cursor = periodStart; !cursor.isAfter(periodEnd); cursor = cursor.add(1, "day")) {
-    const bucketEnd = cursor.endOf(bucket).startOf("day");
-    const end = bucketEnd.isAfter(periodEnd) ? periodEnd : bucketEnd;
-    buckets.push({ key: cursor.format(KEY_FORMAT[bucket]), start: cursor.toDate(), end: end.toDate(), income: 0, expenses: 0 });
-    cursor = end;
-  }
+  const count = period === "year" ? 12 : periodStart.daysInMonth();
+  const buckets = Array.from({ length: count }, (_, index) => {
+    const start = periodStart.add(index, unit);
+    return { key: start.format(KEY_FORMAT[unit]), start: start.toDate(), income: 0, expenses: 0 };
+  });
+  const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
   for (const entry of entries) {
-    const day = dayjs(entry.effDate).startOf("day").valueOf();
-    const target = buckets.find(({ start, end }) => start.getTime() <= day && day <= end.getTime());
+    const target = byKey.get(dayjs(entry.effDate).format(KEY_FORMAT[unit]));
     if (target) {
       target.income += categoryLine(entry, "income")?.amount ?? 0;
       target.expenses += categoryLine(entry, "expenses")?.amount ?? 0;

@@ -8,7 +8,7 @@ import { sumBy } from "@/utils/collections";
 import { useExpenses } from "@/context/ExpenseContext";
 import { EmptyState } from "@/components/EmptyState";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
-import { StatsBarView } from "@/components/stats/StatsBarView";
+import { StatsTrendView } from "@/components/stats/StatsTrendView";
 import { AppDonutChart } from "@/components/ui/AppDonutChart";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { AppTabs } from "@/components/ui/AppTabs";
@@ -149,11 +149,13 @@ export default function StatsScreen() {
           Stats
         </AppText>
         <TouchableOpacity
-          onPress={() => setSelected({ view: view === "donut" ? "bar" : "donut" })}
+          onPress={() => setSelected({ view: view === "donut" ? "trend" : "donut" })}
           className="w-11 h-11 items-center justify-center"
+          accessibilityRole="button"
+          accessibilityLabel={view === "trend" ? "Show categories" : "Show net so far"}
           testID="stats-view-toggle"
         >
-          <Feather name={view === "bar" ? "pie-chart" : "bar-chart-2"} size={20} color={colors.secondary} />
+          <Feather name={view === "trend" ? "pie-chart" : "trending-up"} size={20} color={colors.secondary} />
         </TouchableOpacity>
         <PeriodNavigator
           unit={period}
@@ -204,7 +206,7 @@ export default function StatsScreen() {
           />
         </>
       ) : (
-        <StatsBarView entries={entries} year={year} month={month} period={period} periodLabel={periodLabel} />
+        <StatsTrendView entries={entries} year={year} month={month} period={period} periodLabel={periodLabel} />
       )}
     </SafeAreaView>
   );

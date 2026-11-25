@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import type { BarBucket, MoneyFlow, Period, StatsView, TOption } from "@/types";
+import type { MoneyFlow, Period, StatsView, TOption } from "@/types";
 
 export const PERIODS: TOption<Period>[] = [
   { label: "Month", value: "month" },
@@ -26,24 +26,7 @@ export function parseMonth(value: string | undefined): number {
   return month >= 0 && month <= 11 ? month : dayjs().month();
 }
 
-export const BAR_BUCKETS: Record<Period, TOption<BarBucket>[]> = {
-  month: [
-    { label: "Days", value: "day" },
-    { label: "Weeks", value: "week" },
-  ],
-  year: [
-    { label: "Weeks", value: "week" },
-    { label: "Months", value: "month" },
-  ],
-};
-
+// "bar" is the view's name before it became the Net so far line.
 export function parseStatsView(value: string | undefined): StatsView {
-  return value === "bar" ? "bar" : "donut";
-}
-
-export function resolveBarBucket(picked: BarBucket, period: Period): BarBucket {
-  if (BAR_BUCKETS[period].some(({ value }) => value === picked)) {
-    return picked;
-  }
-  return period === "month" ? "day" : "month";
+  return value === "trend" || value === "bar" ? "trend" : "donut";
 }

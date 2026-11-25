@@ -19,7 +19,7 @@ import { getPreference, setPreference } from '@/db/preferences';
 import { backfillHistory, getDB } from '@/db/schema';
 import { withWriteTransaction } from '@/db/withWriteTransaction';
 import { CASH_ACCOUNT_ID } from '@/constants/accounts';
-import { PREF_LAST_BACKUP_AT, PREF_LOW_BALANCE_THRESHOLD } from '@/constants/preferences';
+import { PREF_LAST_BACKUP_AT } from '@/constants/preferences';
 import { LOGO_DIR } from '@/utils/accountLogo/logoDir';
 import { resolveAccountLogo } from '@/utils/accountLogo/resolveAccountLogo';
 import {
@@ -43,7 +43,6 @@ const BACKUP_PREFERENCE_KEYS = [
   'notificationsEnabled',
   'homeCollapsedBands',
   'accountsGroupByBank',
-  PREF_LOW_BALANCE_THRESHOLD,
 ];
 
 const NOT_A_BACKUP = "This file isn't a Recur backup.";
@@ -148,9 +147,7 @@ function isValidAccount(value: unknown): value is Account {
     typeof value.name === 'string' &&
     typeof value.type === 'string' &&
     ACCOUNT_TYPES.includes(value.type) &&
-    typeof value.createdAt === 'string' &&
-    isOptionalString(value.payBillFromAccountId) &&
-    (value.lowBalanceThreshold == null || typeof value.lowBalanceThreshold === 'number')
+    typeof value.createdAt === 'string'
   );
 }
 

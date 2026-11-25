@@ -289,8 +289,8 @@ one last. A card bill opened from Home adds Details (tonal), which opens the car
 ### Stats (`app/stats.tsx`)
 A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite
 pie-chart glyph, Ink label, Muted chevron; neutral because it sits on mint and periwinkle heroes alike) that opens it
-on Activity's month or year and Income/Expenses. Header: back chevron, 22px `title`,
-`PeriodNavigator`; no tab bar or FAB. Each category row ends with a Muted chevron and opens Activity filtered to it.
+on Activity's month or year and Income/Expenses. Header: back chevron, 22px `title`, a 20dp Periwinkle view glyph
+(bar-chart-2 on the donut, pie-chart on the bars) that switches the two views, `PeriodNavigator`; no tab bar or FAB. Each category row ends with a Muted chevron and opens Activity filtered to it.
 Underline tabs (`AppUnderlineTabs`) switch Income and Expenses and show each total, with a Periwinkle underline on the
 active one, since mint and coral stay states. The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so
 a hue says which slice is which row and never belongs to a category. Past the sixth, categories fold into one neutral
@@ -298,6 +298,15 @@ a hue says which slice is which row and never belongs to a category. Past the si
 hue; labels stack so they never touch, and long names truncate. Smaller slices rely on the list, because their lines
 would bundle at the top of the ring. Row tiles stay neutral with a glyph. Amounts and labels stay in Ink
 and Secondary Graphite.
+
+Bar view (`components/stats/StatsBarView.tsx`, `AppBarChart`): the underline tabs give way to a legend, an overline
+naming the period (or the tapped bucket) over two figures, each with an 8dp dot: Income in Mint, Expenses in
+Periwinkle. `AppChips` under it group the bars by Days or Weeks (month) and Weeks or Months (year). Each bucket draws
+one column, 70% of its slot wide, with the Mint income bar and the Periwinkle expense bar overlapping from the same
+baseline, the shorter one in front. The period's largest value is marked by a dashed Muted line with its amount above
+it, and sparse Secondary Graphite ticks sit under the plot. Tapping a bar tints its slot (Ink at 6%) and puts
+its figures in the legend; tapping it again goes back to the period's. Under the chart, each bucket with activity is
+an `AppListRow`, newest first: spent as the amount, received as a Mint `+` caption. Tapping one selects its bar.
 
 ### Home-screen widget (Android)
 "Quick add", a 4x1 row of Expense, Income, Transfer and Loan that opens each add form (`modules/quick-add-widget`).

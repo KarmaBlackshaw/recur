@@ -21,8 +21,6 @@ import { useExpenses } from "@/context/ExpenseContext";
 import { useAccounts } from "@/context/AccountContext";
 import { useLoans } from "@/context/LoanContext";
 import { useTransferTemplates } from "@/context/TransferTemplateContext";
-import { formatAmount } from "@/utils/formatAmount";
-import { useLowBalanceThreshold } from "@/utils/forecast/useLowBalanceThreshold";
 import { seedRecurring, seedOneOff, clearRecurring, clearOneOff, seedLoans, clearSeedLoans } from "@/db/seed";
 import {
   PREF_LAST_BACKUP_AT,
@@ -65,7 +63,6 @@ export default function SettingsScreen() {
   const accounts = useAccounts();
   const loans = useLoans();
   const templates = useTransferTemplates();
-  const lowBalanceThreshold = useLowBalanceThreshold();
   const unpaidItems = [
     ...expenses.filter((e) => e.status === 'unpaid').map((e) => ({ title: expenseTitle(e), amount: e.amount })),
     ...getUnpaidBillReminders(accounts.getCardBills, new Date()),
@@ -292,26 +289,6 @@ export default function SettingsScreen() {
                 {templates.templates.length}
               </AppText>
             )}
-            <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
-          </TouchableOpacity>
-          <View className="h-px bg-white/[0.07]" />
-          <TouchableOpacity
-            className="flex-row items-center px-5 py-4"
-            onPress={() => router.push("/settings/low-balance")}
-            accessibilityRole="button"
-            accessibilityLabel={`Low balance warning, below ${formatAmount(lowBalanceThreshold ?? 0)}`}
-          >
-            <View
-              className="w-8 h-8 rounded-lg items-center justify-center mr-3 bg-primary"
-            >
-              <Feather name="trending-down" size={15} color={colors.text} />
-            </View>
-            <AppText variant="body-medium" className="flex-1 text-white text-sm">
-              Low balance warning
-            </AppText>
-            <AppText variant="caption" className="text-textMuted mr-2">
-              {formatAmount(lowBalanceThreshold ?? 0)}
-            </AppText>
             <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.25)" />
           </TouchableOpacity>
         </View>

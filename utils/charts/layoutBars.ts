@@ -1,4 +1,7 @@
+import { orderBy } from "@/utils/collections";
+
 export interface TBarRect {
+  series: number;
   x: number;
   y: number;
   width: number;
@@ -14,6 +17,7 @@ export interface TBarSlot {
 const SLOT_PADDING = 0.15;
 const MIN_BAR_HEIGHT = 2;
 
+// A slot's series overlap in one column from the same baseline; bars come in paint order, tallest first, so a shorter one is never hidden.
 export function layoutBars({ groups, width, height }: {
   groups: readonly (readonly number[])[];
   width: number;
@@ -23,12 +27,11 @@ export function layoutBars({ groups, width, height }: {
   const slotWidth = width / groups.length;
   const slots = groups.map((values, index) => {
     const x = index * slotWidth;
-    const barWidth = (slotWidth * (1 - 2 * SLOT_PADDING)) / values.length;
-    const bars = values.map((value, barIndex) => {
+    const bars = values.map((value, series) => {
       const barHeight = value > 0 ? Math.max(MIN_BAR_HEIGHT, (value / max) * height) : 0;
-      return { x: x + slotWidth * SLOT_PADDING + barIndex * barWidth, y: height - barHeight, width: barWidth, height: barHeight };
+      return { series, x: x + slotWidth * SLOT_PADDING, y: height - barHeight, width: slotWidth * (1 - 2 * SLOT_PADDING), height: barHeight };
     });
-    return { x, width: slotWidth, bars };
+    return { x, width: slotWidth, bars: orderBy(bars, "height", "desc") };
   });
   return { slots, max };
 }

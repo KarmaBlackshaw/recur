@@ -47,15 +47,15 @@ export function AppBarChart({ groups, colors: seriesColors, width, height, forma
               {key === selectedKey ? (
                 <Rect x={slot.x} y={TOP_GUTTER} width={slot.width} height={height} rx={3} fill={colors.text} fillOpacity={0.06} />
               ) : null}
-              {slot.bars.map((bar, seriesIndex) => (
+              {slot.bars.map((bar) => (
                 <Rect
-                  key={seriesIndex}
+                  key={bar.series}
                   x={bar.x}
                   y={TOP_GUTTER + bar.y}
                   width={bar.width}
                   height={bar.height}
                   rx={Math.min(2, bar.width / 2)}
-                  fill={seriesColors[seriesIndex]}
+                  fill={seriesColors[bar.series]}
                 />
               ))}
               {tick ? (

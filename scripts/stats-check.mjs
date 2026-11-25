@@ -230,9 +230,18 @@ assert.equal(weekTicks[yearWeeks.findIndex((b) => b.key === "2026-02-01")], "F")
 
 const bars = layoutBars({ groups: [[0, 50], [100, 25]], width: 200, height: 100 });
 assert.equal(bars.max, 100);
-assert.deepEqual(bars.slots[1].bars, [{ x: 115, y: 0, width: 35, height: 100 }, { x: 150, y: 75, width: 35, height: 25 }]);
-assert.deepEqual(bars.slots[0].bars[0], { x: 15, y: 100, width: 35, height: 0 });
-assert.equal(layoutBars({ groups: [[1000, 1]], width: 100, height: 100 }).slots[0].bars[1].height, 2, "a tiny value stays visible");
+assert.deepEqual(
+  bars.slots[1].bars,
+  [{ series: 0, x: 115, y: 0, width: 70, height: 100 }, { series: 1, x: 115, y: 75, width: 70, height: 25 }],
+  "series overlap in one column, the taller painted first",
+);
+assert.deepEqual(
+  bars.slots[0].bars,
+  [{ series: 1, x: 15, y: 50, width: 70, height: 50 }, { series: 0, x: 15, y: 100, width: 70, height: 0 }],
+  "a taller second series paints first, so the shorter first one stays in front",
+);
+assert.deepEqual(layoutBars({ groups: [[50, 50]], width: 100, height: 100 }).slots[0].bars.map((b) => b.series), [0, 1], "a tie keeps series order");
+assert.equal(layoutBars({ groups: [[1000, 1]], width: 100, height: 100 }).slots[0].bars.find((b) => b.series === 1).height, 2, "a tiny value stays visible");
 const flat = layoutBars({ groups: [[0, 0], [0, 0]], width: 100, height: 100 });
 assert.equal(flat.max, 0);
 assert.ok(flat.slots.every((s) => s.bars.every((b) => b.height === 0 && Number.isFinite(b.y))), "all-zero: no NaN");

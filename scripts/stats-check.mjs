@@ -240,7 +240,7 @@ assert.deepEqual(
   [{ series: 1, x: 15, y: 50, width: 70, height: 50 }, { series: 0, x: 15, y: 100, width: 70, height: 0 }],
   "a taller second series paints first, so the shorter first one stays in front",
 );
-assert.deepEqual(layoutBars({ groups: [[50, 50]], width: 100, height: 100 }).slots[0].bars.map((b) => b.series), [0, 1], "a tie keeps series order");
+assert.deepEqual(layoutBars({ groups: [[50, 50]], width: 100, height: 100 }).slots[0].bars.map((b) => b.series), [1, 0], "a tie paints the first series (Stats: income) in front");
 assert.equal(layoutBars({ groups: [[1000, 1]], width: 100, height: 100 }).slots[0].bars.find((b) => b.series === 1).height, 2, "a tiny value stays visible");
 const flat = layoutBars({ groups: [[0, 0], [0, 0]], width: 100, height: 100 });
 assert.equal(flat.max, 0);

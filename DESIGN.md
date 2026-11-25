@@ -124,8 +124,8 @@ the same net over the whole day, even when the list stops partway through it. A 
 card charges, plain transfers or loans) shows no total.
 
 ### Cards
-Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity, loans, net worth), account
-cards, Home's month card, and Home's setup checklist, card suggestion and backup nudge.
+Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity, loans, net worth), Stats' bar-view
+totals, account cards, Home's month card, and Home's setup checklist, card suggestion and backup nudge.
 14dp radius (21dp for account cards), Raised Graphite or a 10% tint, 1px Hairline. Never wrap list rows
 in cards.
 
@@ -138,12 +138,14 @@ hand-build another.
   bill that isn't due that month, and the card's own signal color on tinted heroes.
 
 ### Hero Card (`components/ui/AppHeroCard.tsx`)
-The tinted card behind Activity's, the Loans tab's, a borrower's and a loan's hero: overline, Hero Amount, then the
-screen's own lines under it. Never hand-build another tint map.
+The tinted card behind Activity's, the Loans tab's, a borrower's and a loan's hero, and Stats' bar-view totals:
+overline, Hero Amount, then the screen's own lines under it. Never hand-build another tint map.
 
 - One tone sets both the 10% tint with its 20% border and the amount color: Indigo or Periwinkle with a Periwinkle
   total, Mint with a Mint total, or neutral (4% white, Hairline) with an Ink total.
 - A negative total turns Coral and keeps the card's tint (Activity's net).
+- A card with several figures and no one total (Stats' Income and Expenses) leaves out the Hero Amount: its own lines
+  sit straight under the overline.
 - 20dp padding. A footer row (Activity's Stats row) sits under the body, whose bottom padding drops to 12dp.
 - The screen sets only the card's margins.
 
@@ -316,9 +318,10 @@ hue; labels stack so they never touch, and long names truncate. Smaller slices r
 would bundle at the top of the ring. Row tiles stay neutral with a glyph. Amounts and labels stay in Ink
 and Secondary Graphite.
 
-Bar view (`components/stats/StatsBarView.tsx`, `AppBarChart`): the underline tabs give way to a legend, an overline
-naming the period (or the tapped bucket) over two figures, each with an 8dp dot: Income in Mint, Expenses in
-Periwinkle. `AppChips` under it group the bars by Days or Weeks (month) and Weeks or Months (year). Each bucket draws
+Bar view (`components/stats/StatsBarView.tsx`, `AppBarChart`): the underline tabs give way to a legend in a Periwinkle
+Hero Card (the Loans tab's "Owed to you" look), an overline naming the period (or the tapped bucket) over two figures,
+each with an 8dp dot: Income in Mint, Expenses in Periwinkle. `AppChips` under the card, outside it, group the bars by
+Days or Weeks (month) and Weeks or Months (year). Each bucket draws
 one column, 70% of its slot wide, with the Mint income bar and the Periwinkle expense bar overlapping from the same
 baseline, the shorter one in front. The period's largest value is marked by a dashed Muted line with its amount above
 it, and sparse Secondary Graphite ticks sit under the plot. Tapping a bar tints its slot (Ink at 6%) and puts

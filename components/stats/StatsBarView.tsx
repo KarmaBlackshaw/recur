@@ -94,7 +94,6 @@ export function StatsBarView({ entries, year, month, period, periodLabel }: {
           <View className="pt-3 pb-2">
             <AppHeroCard
               overline={selected ? bucketLabel(selected, activeBucket) : periodLabel}
-              overlineTestID="stats-bar-readout-label"
               tone="secondary"
               className="mx-5"
               testID="stats-bar-totals"

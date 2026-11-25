@@ -16,33 +16,19 @@ const HERO_TONE: Record<HeroTone, { box: string; amount: RowTone }> = {
 
 interface AppHeroCardProps extends ViewProps {
   overline: string;
-  overlineTestID?: string;
-  // Omit when the card holds several figures instead of one total (Stats' Income and Expenses).
   value?: string;
   tone: HeroTone;
   isNegative?: boolean;
   footer?: React.ReactNode;
 }
 
-export function AppHeroCard({
-  overline,
-  overlineTestID,
-  value,
-  tone,
-  isNegative,
-  footer,
-  className,
-  children,
-  ...rest
-}: AppHeroCardProps) {
+export function AppHeroCard({ overline, value, tone, isNegative, footer, className, children, ...rest }: AppHeroCardProps) {
   const { box, amount } = HERO_TONE[tone];
 
   return (
     <View className={mergeClassNames(`rounded-2xl border ${box}`, className)} {...rest}>
       <View className={`px-5 pt-5 ${footer ? "pb-3" : "pb-5"}`}>
-        <AppText variant="overline" testID={overlineTestID}>
-          {overline}
-        </AppText>
+        <AppText variant="overline">{overline}</AppText>
         {value != null && <AppHeroAmount value={value} tone={isNegative ? "negative" : amount} className="mt-1" />}
         {children}
       </View>

@@ -124,8 +124,8 @@ the same net over the whole day, even when the list stops partway through it. A 
 card charges, plain transfers or loans) shows no total.
 
 ### Cards
-Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity, loans, net worth), account
-cards, Home's month card, and Home's setup checklist, card suggestion and backup nudge.
+Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity, loans, net worth), Stats' Net so far
+totals, account cards, Home's month card, and Home's setup checklist, card suggestion and backup nudge.
 14dp radius (21dp for account cards), Raised Graphite or a 10% tint, 1px Hairline. Never wrap list rows
 in cards.
 
@@ -138,12 +138,14 @@ hand-build another.
   bill that isn't due that month, and the card's own signal color on tinted heroes.
 
 ### Hero Card (`components/ui/AppHeroCard.tsx`)
-The tinted card behind Activity's, the Loans tab's, a borrower's and a loan's hero: overline, Hero Amount, then the
-screen's own lines under it. Never hand-build another tint map.
+The tinted card behind Activity's, the Loans tab's, a borrower's and a loan's hero, and Stats' Net so far totals:
+overline, Hero Amount, then the screen's own lines under it. Never hand-build another tint map.
 
 - One tone sets both the 10% tint with its 20% border and the amount color: Indigo or Periwinkle with a Periwinkle
   total, Mint with a Mint total, or neutral (4% white, Hairline) with an Ink total.
 - A negative total turns Coral and keeps the card's tint (Activity's net).
+- A card with several figures and no one total (Stats' Income and Expenses) leaves out the Hero Amount: its own lines
+  sit straight under the overline.
 - 20dp padding. A footer row (Activity's Stats row) sits under the body, whose bottom padding drops to 12dp.
 - The screen sets only the card's margins.
 
@@ -316,9 +318,10 @@ hue; labels stack so they never touch, and long names truncate. Smaller slices r
 would bundle at the top of the ring. Row tiles stay neutral with a glyph. Amounts and labels stay in Ink
 and Secondary Graphite.
 
-Net so far view (`components/stats/StatsTrendView.tsx`, `AppLineChart`): the underline tabs give way to an overline
-readout, "By Oct 12 · ahead ₱X" ("behind" below zero, "even" at it), and a legend of two figures, each with an 8dp
-dot: Income in Mint, Expenses in Periwinkle, both running totals to the readout's day. The line is the running net,
+Net so far view (`components/stats/StatsTrendView.tsx`, `AppLineChart`): the underline tabs give way to a Periwinkle
+Hero Card (the Loans tab's "Owed to you" look) holding an overline readout, "By Oct 12 · ahead ₱X" ("behind" below
+zero, "even" at it), and a legend of two figures, each with an 8dp dot: Income in Mint, Expenses in Periwinkle, both
+running totals to the readout's day. The chart sits under the card, outside it. The line is the running net,
 income so far minus expenses so far, per day for a month and per month for a year. It starts at the period's first
 day and stops at today, so a current period leaves the rest of the plot empty. The line is Ink at 2dp; the area
 between it and zero is Mint (18%) above and Periwinkle below, split exactly where the line crosses. Zero is a Muted

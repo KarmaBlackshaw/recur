@@ -9,5 +9,3 @@ export const PREF_REMINDER_TIME = "reminderTime";
 // App lock stays on this phone: it isn't in backups (BACKUP_PREFERENCE_KEYS), since another phone may have no screen lock.
 export const PREF_APP_LOCK_ENABLED = "appLockEnabled";
 export const PREF_APP_LOCK_AFTER_MINUTES = "appLockAfterMinutes";
-// The cash-flow forecast warns when a balance would drop below this. Unset = ₱0. An account's own threshold wins.
-export const PREF_LOW_BALANCE_THRESHOLD = "lowBalanceThreshold";

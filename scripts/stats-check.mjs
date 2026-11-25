@@ -12,7 +12,12 @@ registerHooks({
     return nextResolve(specifier, context);
   },
 });
-const { categoryLine, categorySlice } = await import("../utils/activity/categoryLine.ts");
+const { categoryLine, categorySlice, categoryRows } = await import("../utils/activity/categoryLine.ts");
+const { sumBy } = await import("../utils/collections.ts");
+const { bucketFlows } = await import("../utils/stats/bucketFlows.ts");
+const { bucketLabel } = await import("../utils/stats/bucketLabel.ts");
+const { bucketTicks } = await import("../utils/stats/bucketTicks.ts");
+const { layoutBars } = await import("../utils/charts/layoutBars.ts");
 const { netFlow } = await import("../utils/activity/netFlow.ts");
 const { loanFlow } = await import("../utils/activity/loanFlow.ts");
 const { matchesActivity } = await import("../utils/activitySearch.ts");
@@ -166,7 +171,7 @@ assert.ok(matchesActivity(billPaid, "october", ctx), "a bill payment matches its
 const named = { kind: "expense", expense: { name: "", notes: "Meralco", category: "Utilities", accountId: "a1" }, amount: 1200 };
 assert.ok(matchesActivity(named, "meralco", ctx), "an expense matches its notes, which are its title");
 
-const { parseMonth, parseYear } = await import("../constants/periods.ts");
+const { parseMonth, parseYear, resolveBarBucket } = await import("../constants/periods.ts");
 const thisYear = new Date().getFullYear();
 const thisMonth = new Date().getMonth();
 assert.equal(parseYear("2025"), 2025);
@@ -178,5 +183,59 @@ for (const bad of [undefined, "", "abc", "999", "10000"]) {
 for (const bad of [undefined, "", "xyz", "-1", "12"]) {
   assert.equal(parseMonth(bad), thisMonth, `month ${bad} falls back to this month`);
 }
+assert.equal(resolveBarBucket("day", "year"), "month", "a year has no day bars");
+assert.equal(resolveBarBucket("month", "month"), "day", "a month has no month bars");
+assert.equal(resolveBarBucket("week", "year"), "week");
+assert.equal(resolveBarBucket("week", "month"), "week");
+
+const on = (entry, y, m, d, h = 12, min = 0) => ({ ...entry, effDate: new Date(y, m, d, h, min) });
+const october = [
+  on(paid("Food", 100), 2026, 9, 2, 10),
+  on(paid("Rent", 600), 2026, 9, 4),
+  on(income("Salary", 900), 2026, 9, 4),
+  on(loanTxn, 2026, 9, 5),
+  on(transfer(10, 50), 2026, 9, 31, 23, 59),
+];
+const octWeeks = bucketFlows({ entries: october, year: 2026, month: 9, period: "month", bucket: "week" });
+assert.deepEqual(octWeeks.map((b) => b.key), ["2026-10-01", "2026-10-04", "2026-10-11", "2026-10-18", "2026-10-25"], "Sunday weeks, first one clipped to the month");
+assert.deepEqual(octWeeks.map((b) => [b.income, b.expenses]), [[0, 100], [900, 600], [0, 0], [0, 0], [50, 10]], "23:59 on the last day lands in the last week; a loan adds nothing");
+assert.equal(sumBy(octWeeks, "expenses"), sumBy(categoryRows(october, "expenses"), "amount"), "bars add up to the Expenses tab");
+assert.equal(sumBy(octWeeks, "income"), sumBy(categoryRows(october, "income"), "amount"), "bars add up to the Income tab");
+const octDays = bucketFlows({ entries: october, year: 2026, month: 9, period: "month", bucket: "day" });
+assert.equal(octDays.length, 31);
+assert.equal(octDays[3].expenses, 600);
+assert.equal(bucketFlows({ entries: [], year: 2026, month: 1, period: "month", bucket: "day" }).length, 28, "February 2026");
+const yearWeeks = bucketFlows({ entries: october, year: 2026, month: 0, period: "year", bucket: "week" });
+assert.equal(yearWeeks.length, 53);
+assert.equal(yearWeeks[0].key, "2026-01-01");
+assert.equal(yearWeeks.at(-1).key, "2026-12-27");
+assert.equal(yearWeeks.at(-1).end.getDate(), 31, "the last week is clipped to Dec 31");
+const yearMonths = bucketFlows({ entries: october, year: 2026, month: 0, period: "year", bucket: "month" });
+assert.deepEqual(yearMonths.map((b) => b.key).slice(8, 11), ["2026-09", "2026-10", "2026-11"]);
+assert.equal(yearMonths[9].income, 950);
+
+assert.equal(bucketLabel(octDays[1], "day"), "Fri, Oct 2");
+assert.equal(bucketLabel(octWeeks[0], "week"), "Oct 1 – 3");
+assert.equal(bucketLabel(octWeeks[1], "week"), "Oct 4 – 10");
+assert.equal(bucketLabel(yearWeeks.find((b) => b.key === "2026-03-29"), "week"), "Mar 29 – Apr 4");
+assert.equal(bucketLabel(bucketFlows({ entries: [], year: 2026, month: 7, period: "month", bucket: "week" })[0], "week"), "Aug 1", "a Saturday 1st is a one-day week");
+assert.equal(bucketLabel(yearMonths[9], "month"), "October");
+
+assert.deepEqual(bucketTicks(octDays, "day", "month").filter(Boolean), ["1", "8", "15", "22", "29"]);
+assert.deepEqual(bucketTicks(octWeeks, "week", "month"), ["1", "4", "11", "18", "25"]);
+assert.deepEqual(bucketTicks(yearMonths, "month", "year"), ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]);
+const weekTicks = bucketTicks(yearWeeks, "week", "year");
+assert.equal(weekTicks.filter(Boolean).length, 12);
+assert.equal(weekTicks[yearWeeks.findIndex((b) => b.key === "2026-02-01")], "F");
+
+const bars = layoutBars({ groups: [[0, 50], [100, 25]], width: 200, height: 100 });
+assert.equal(bars.max, 100);
+assert.deepEqual(bars.slots[1].bars, [{ x: 115, y: 0, width: 35, height: 100 }, { x: 150, y: 75, width: 35, height: 25 }]);
+assert.deepEqual(bars.slots[0].bars[0], { x: 15, y: 100, width: 35, height: 0 });
+assert.equal(layoutBars({ groups: [[1000, 1]], width: 100, height: 100 }).slots[0].bars[1].height, 2, "a tiny value stays visible");
+const flat = layoutBars({ groups: [[0, 0], [0, 0]], width: 100, height: 100 });
+assert.equal(flat.max, 0);
+assert.ok(flat.slots.every((s) => s.bars.every((b) => b.height === 0 && Number.isFinite(b.y))), "all-zero: no NaN");
+assert.deepEqual(layoutBars({ groups: [], width: 100, height: 100 }), { slots: [], max: 0 });
 
 console.log("stats-check ok");

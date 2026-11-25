@@ -9,6 +9,7 @@ import { useExpenses } from "@/context/ExpenseContext";
 import { HomeMonthStats } from "@/components/HomeMonthStats";
 import { SetupChecklist, useSetupChecklist } from "@/components/SetupChecklist";
 import { BackupNudge } from "@/components/BackupNudge";
+import { CardSuggestion } from "@/components/CardSuggestion";
 import { HomeExpenseSections, type HomeEntry, type UpcomingBand } from "@/components/HomeExpenseSections";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -195,6 +196,7 @@ export default function HomeScreen() {
             {isChecklistInHeader ? (
               <SetupChecklist steps={setup.steps} hasExpenses={hasExpenses} onDismiss={setup.dismiss} />
             ) : null}
+            <CardSuggestion today={today} />
             {hasExpenses ? <BackupNudge /> : null}
           </View>
         }

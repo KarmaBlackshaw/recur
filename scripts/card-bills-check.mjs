@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { billDates, computeBill, openCardBills, unsettledDebitIds } from "../utils/cardBills.ts";
+import { billDates, billForPurchase, computeBill, openCardBills, unsettledDebitIds } from "../utils/cardBills.ts";
 
 const ymd = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
@@ -16,6 +16,22 @@ assert.equal(ymd(billDates(31, 15, 2028, 2).cutoff), "2028-2-29");
 assert.equal(ymd(billDates(5, 31, 2028, 1).dueDate), "2028-2-29");
 assert.equal(ymd(billDates(31, 31, 2026, 1).cutoff), "2026-1-31");
 assert.equal(ymd(billDates(25, 15, 2026, 0).cutoff), "2025-12-25");
+
+// billForPurchase: the first statement closing on or after the purchase day, the statement day itself included.
+const lands = (statementDay, dueDay, day) => {
+  const { cutoff, dueDate } = billForPurchase(statementDay, dueDay, day);
+  return `${ymd(cutoff)} > ${ymd(dueDate)}`;
+};
+assert.equal(lands(25, 15, new Date(2026, 10, 10)), "2026-11-25 > 2026-12-15");
+assert.equal(lands(25, 15, new Date(2026, 10, 25, 23, 30)), "2026-11-25 > 2026-12-15");
+assert.equal(lands(25, 15, new Date(2026, 10, 26)), "2026-12-25 > 2027-1-15");
+assert.equal(lands(25, 15, new Date(2026, 11, 26)), "2027-1-25 > 2027-2-15");
+assert.equal(lands(5, 25, new Date(2026, 10, 5)), "2026-11-5 > 2026-11-25");
+assert.equal(lands(5, 25, new Date(2026, 10, 6)), "2026-12-5 > 2026-12-25");
+assert.equal(lands(15, 15, new Date(2026, 10, 15)), "2026-11-15 > 2026-12-15");
+assert.equal(lands(31, 15, new Date(2026, 1, 28)), "2026-2-28 > 2026-3-15");
+assert.equal(lands(31, 15, new Date(2026, 2, 1)), "2026-3-31 > 2026-4-15");
+assert.equal(lands(30, 31, new Date(2026, 1, 28)), "2026-2-28 > 2026-2-28");
 
 const base = { statementDay: 25, dueDay: 15, year: 2026, month: 10, override: undefined, now: new Date(2026, 10, 20) };
 

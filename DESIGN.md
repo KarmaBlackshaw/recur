@@ -125,7 +125,7 @@ card charges, plain transfers or loans) shows no total.
 
 ### Cards
 Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity, loans, net worth), account
-cards, Home's month card, and Home's setup checklist and backup nudge.
+cards, Home's month card, and Home's setup checklist, card suggestion and backup nudge.
 14dp radius (21dp for account cards), Raised Graphite or a 10% tint, 1px Hairline. Never wrap list rows
 in cards.
 
@@ -203,6 +203,23 @@ standing balance, not a month total. Zero amounts go Secondary Graphite. When no
 yet (the 1st of a month), the figures give way to the month name and "Nothing spent or received yet", and that block
 is not tappable. Each figure opens Activity on the matching type for the month (Spent: Paid, Received: Income, Charged:
 Charged); Owed to you opens Loans' Active chip. No tiles, progress bars or Hairline-split grids.
+
+### Card suggestion (`components/CardSuggestion.tsx`)
+One line on Home, under the month card (or the checklist) and above the backup nudge, naming the credit card that
+gives a purchase made today the most days before its bill is due.
+
+```
+┌──────────────────────────────────────────────────┐
+│ [▭] Use today: BPI Amore · due Nov 25 (32 days) › │
+└──────────────────────────────────────────────────┘
+```
+
+- A Raised Graphite row with a Hairline border, 44dp tall, built like the backup nudge: a 16dp Periwinkle
+  `credit-card` glyph, the line in meta 13px with the card name in body-bold, and a Muted chevron. A line too long
+  for the row wraps after the "·", keeping "due Dec 25 (32 days)" whole on the second line.
+- "due today" replaces the date and count when the bill falls due today (a short month's clamp).
+- Tapping it opens the card's account page. It hides when fewer than two active cards have both a statement and a
+  due day, or when every card with a limit is maxed out.
 
 ### Buttons (`AppButton`)
 Primary: Indigo fill, Ink label. Tonal: Indigo 15% with a Periwinkle label. Ghost: Hairline outline.
@@ -326,8 +343,8 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Touch targets are at least 44dp.
 - Money lists sort by date. Home opens on the month card, then Overdue, this month, and all of next month (so its
   bills can be paid ahead), then Recent activity, which ends with "All activity". New users get a three-step "Get started"
-  checklist, shown in place of the month card until they have three expenses; a backup nudge appears when the last
-  backup is over 30 days old.
+  checklist, shown in place of the month card until they have three expenses. With two or more credit cards, a "Use
+  today" line under it names the card to charge; a backup nudge appears when the last backup is over 30 days old.
 - Home Overdue also lists unpaid dues and card bills from the last 3 months; their caption keeps counting "N days late".
 - The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)

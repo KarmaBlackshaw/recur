@@ -319,7 +319,7 @@ and Secondary Graphite.
 Bar view (`components/stats/StatsBarView.tsx`, `AppBarChart`): the underline tabs give way to a legend, an overline
 naming the period (or the tapped bucket) over two figures, each with an 8dp dot: Income in Mint, Expenses in
 Periwinkle. `AppChips` under it group the bars by Days or Weeks (month) and Weeks or Months (year). Each bucket draws
-one column, 70% of its slot wide, with the Mint income bar and the Periwinkle expense bar overlapping from the same
+one column, 90% of its slot wide, with the Mint income bar and the Periwinkle expense bar overlapping from the same
 baseline, the shorter one in front (income on a tie). The period's largest value is marked by a dashed Muted line
 with its amount above it, and sparse Secondary Graphite ticks sit under the plot. Tapping a bar tints its slot (Ink at
 6%) and puts its figures in the legend; tapping it again goes back to the period's. Under the chart, each bucket with

@@ -14,7 +14,7 @@ export interface TBarSlot {
   bars: TBarRect[];
 }
 
-const SLOT_PADDING = 0.15;
+const SLOT_PADDING = 0.05;
 const MIN_BAR_HEIGHT = 2;
 
 // A slot's series overlap in one column from the same baseline; bars come in paint order, tallest first, so a shorter one is never hidden.

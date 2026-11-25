@@ -232,12 +232,12 @@ const bars = layoutBars({ groups: [[0, 50], [100, 25]], width: 200, height: 100 
 assert.equal(bars.max, 100);
 assert.deepEqual(
   bars.slots[1].bars,
-  [{ series: 0, x: 115, y: 0, width: 70, height: 100 }, { series: 1, x: 115, y: 75, width: 70, height: 25 }],
+  [{ series: 0, x: 105, y: 0, width: 90, height: 100 }, { series: 1, x: 105, y: 75, width: 90, height: 25 }],
   "series overlap in one column, the taller painted first",
 );
 assert.deepEqual(
   bars.slots[0].bars,
-  [{ series: 1, x: 15, y: 50, width: 70, height: 50 }, { series: 0, x: 15, y: 100, width: 70, height: 0 }],
+  [{ series: 1, x: 5, y: 50, width: 90, height: 50 }, { series: 0, x: 5, y: 100, width: 90, height: 0 }],
   "a taller second series paints first, so the shorter first one stays in front",
 );
 assert.deepEqual(layoutBars({ groups: [[50, 50]], width: 100, height: 100 }).slots[0].bars.map((b) => b.series), [1, 0], "a tie paints the first series (Stats: income) in front");

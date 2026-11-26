@@ -11,6 +11,7 @@ export type HomeBandSlot = 'current' | 'next';
 export type ActivitySegment = "all" | "paid" | "charged" | "income" | "transfers" | "loans";
 export type Period = "month" | "year";
 export type MoneyFlow = "income" | "expenses";
+export type StatsView = "donut" | "trend";
 
 export interface TOption<T> {
   label: string;
@@ -154,8 +155,6 @@ export interface Account {
   statementDay: number | null;
   dueDay: number | null;
   reminderDaysBefore: number | null;   // Credit cards: days before the bill's due date of an earlier reminder (the due day always reminds). 0 = none, null = 1 day.
-  payBillFromAccountId: string | null;   // Credit cards: the account the forecast takes the bill from. Null = it counts in the total only.
-  lowBalanceThreshold: number | null;   // Debit and cash: the forecast warns below this. Null = the general threshold.
   color: string | null;
   icon: IoniconName | null;
   logoUri: string | null;

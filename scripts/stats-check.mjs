@@ -12,7 +12,14 @@ registerHooks({
     return nextResolve(specifier, context);
   },
 });
-const { categoryLine, categorySlice } = await import("../utils/activity/categoryLine.ts");
+const { categoryLine, categorySlice, categoryRows } = await import("../utils/activity/categoryLine.ts");
+const { sumBy } = await import("../utils/collections.ts");
+const { bucketFlows } = await import("../utils/stats/bucketFlows.ts");
+const { bucketLabel } = await import("../utils/stats/bucketLabel.ts");
+const { bucketTicks } = await import("../utils/stats/bucketTicks.ts");
+const { layoutLine, lineSlotAt } = await import("../utils/charts/layoutLine.ts");
+const { runningNet } = await import("../utils/stats/runningNet.ts");
+const { netReadout, signedNet } = await import("../utils/stats/netReadout.ts");
 const { netFlow } = await import("../utils/activity/netFlow.ts");
 const { loanFlow } = await import("../utils/activity/loanFlow.ts");
 const { matchesActivity } = await import("../utils/activitySearch.ts");
@@ -166,7 +173,7 @@ assert.ok(matchesActivity(billPaid, "october", ctx), "a bill payment matches its
 const named = { kind: "expense", expense: { name: "", notes: "Meralco", category: "Utilities", accountId: "a1" }, amount: 1200 };
 assert.ok(matchesActivity(named, "meralco", ctx), "an expense matches its notes, which are its title");
 
-const { parseMonth, parseYear } = await import("../constants/periods.ts");
+const { parseMonth, parseStatsView, parseYear } = await import("../constants/periods.ts");
 const thisYear = new Date().getFullYear();
 const thisMonth = new Date().getMonth();
 assert.equal(parseYear("2025"), 2025);
@@ -178,5 +185,85 @@ for (const bad of [undefined, "", "abc", "999", "10000"]) {
 for (const bad of [undefined, "", "xyz", "-1", "12"]) {
   assert.equal(parseMonth(bad), thisMonth, `month ${bad} falls back to this month`);
 }
+assert.equal(parseStatsView("trend"), "trend");
+assert.equal(parseStatsView("bar"), "trend", "an old bar-view link opens the Net so far line");
+for (const other of [undefined, "", "donut", "pie"]) {
+  assert.equal(parseStatsView(other), "donut", `view ${other} falls back to the donut`);
+}
+
+const on = (entry, y, m, d, h = 12, min = 0) => ({ ...entry, effDate: new Date(y, m, d, h, min) });
+const october = [
+  on(paid("Food", 100), 2026, 9, 2, 10),
+  on(paid("Rent", 600), 2026, 9, 4),
+  on(income("Salary", 900), 2026, 9, 4),
+  on(loanTxn, 2026, 9, 5),
+  on(transfer(10, 50), 2026, 9, 31, 23, 59),
+];
+const octDays = bucketFlows({ entries: october, year: 2026, month: 9, period: "month" });
+assert.equal(octDays.length, 31);
+assert.equal(octDays[0].key, "2026-10-01");
+assert.deepEqual([octDays[3].income, octDays[3].expenses], [900, 600]);
+assert.deepEqual([octDays[4].income, octDays[4].expenses], [0, 0], "a loan adds nothing");
+assert.deepEqual([octDays[30].income, octDays[30].expenses], [50, 10], "23:59 on the last day lands on the last day");
+assert.equal(sumBy(octDays, "expenses"), sumBy(categoryRows(october, "expenses"), "amount"), "days add up to the Expenses tab");
+assert.equal(sumBy(octDays, "income"), sumBy(categoryRows(october, "income"), "amount"), "days add up to the Income tab");
+assert.equal(bucketFlows({ entries: [], year: 2026, month: 1, period: "month" }).length, 28, "February 2026");
+const yearMonths = bucketFlows({ entries: october, year: 2026, month: 0, period: "year" });
+assert.equal(yearMonths.length, 12);
+assert.deepEqual(yearMonths.map((b) => b.key).slice(8, 11), ["2026-09", "2026-10", "2026-11"]);
+assert.equal(yearMonths[9].income, 950);
+assert.equal(yearMonths[9].expenses, 710);
+
+assert.equal(bucketLabel(octDays[1], "month"), "Fri, Oct 2");
+assert.equal(bucketLabel(yearMonths[9], "year"), "October");
+assert.deepEqual(bucketTicks(octDays, "month").filter(Boolean), ["1", "8", "15", "22", "29"]);
+assert.deepEqual(bucketTicks(yearMonths, "year"), ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]);
+
+const soFar = runningNet(octDays, new Date(2026, 9, 4, 8));
+assert.deepEqual(soFar.map((p) => p.net), [0, -100, -100, 200], "the net runs from the 1st and stops at today");
+assert.deepEqual([soFar[3].income, soFar[3].expenses], [900, 700], "income and expenses are running totals too");
+assert.equal(soFar[3].key, "2026-10-04");
+const wholeMonth = runningNet(octDays, new Date(2026, 10, 1));
+assert.equal(wholeMonth.length, 31, "a past month runs to its last day");
+assert.equal(wholeMonth.at(-1).net, 240);
+assert.equal(wholeMonth.at(-1).net, sumBy(categoryRows(october, "income"), "amount") - sumBy(categoryRows(october, "expenses"), "amount"), "the end of the line is the period's net");
+assert.deepEqual(runningNet(octDays, new Date(2026, 8, 30)), [], "a month that hasn't started has no line");
+const fractions = runningNet(
+  bucketFlows({ entries: [on(paid("Food", 0.1), 2026, 9, 1), on(paid("Food", 0.2), 2026, 9, 1)], year: 2026, month: 9, period: "month" }),
+  new Date(2026, 9, 1, 13),
+);
+assert.equal(fractions[0].net, -0.3, "centavos don't drift");
+const yearSoFar = runningNet(yearMonths, new Date(2026, 9, 15));
+assert.equal(yearSoFar.length, 10, "a year runs to this month");
+assert.equal(yearSoFar.at(-1).net, 240);
+
+assert.equal(netReadout(soFar[1], "month"), "By Oct 2 · behind ₱100.00");
+assert.equal(netReadout(soFar[3], "month"), "By Oct 4 · ahead ₱200.00");
+assert.equal(netReadout(soFar[0], "month"), "By Oct 1 · even");
+assert.equal(netReadout(yearSoFar.at(-1), "year"), "By October · ahead ₱240.00");
+assert.equal(signedNet(240), "+₱240.00");
+assert.equal(signedNet(-100), "−₱100.00");
+assert.equal(signedNet(0), "₱0.00");
+
+const crossing = layoutLine({ values: [100, -100], slots: 3, width: 100, height: 100, inset: 0 });
+assert.deepEqual(crossing.slotXs, [0, 50, 100], "slots span the width, past the last value");
+assert.equal(crossing.linePath, "M0,0L50,100");
+assert.equal(crossing.baselineY, 50);
+assert.equal(crossing.abovePath, "M0,50L0,0L25,50L50,50L50,50Z", "the area above zero stops where the line crosses it");
+assert.equal(crossing.belowPath, "M0,50L0,50L25,50L50,100L50,50Z", "and the area below starts there");
+assert.deepEqual(crossing.gridlines.map((g) => g.value), [-100, -50, 0, 50, 100]);
+const above = layoutLine({ values: [10, 30], slots: 2, width: 100, height: 100, inset: 0 });
+const pathYs = (path) => [...path.matchAll(/,(-?[\d.]+)/g)].map((m) => Number(m[1]));
+assert.ok(pathYs(above.belowPath).every((y) => y === above.baselineY), "a line above zero has no area below it");
+assert.equal(above.gridlines[0].value, 0, "zero stays on the chart");
+const flat = layoutLine({ values: [0, 0], slots: 2, width: 100, height: 100, inset: 0 });
+assert.ok(!`${flat.linePath}${flat.abovePath}${flat.belowPath}${flat.baselineY}`.includes("NaN"), "all-zero: no NaN");
+const empty = layoutLine({ values: [], slots: 31, width: 100, height: 100, inset: 0 });
+assert.deepEqual([empty.linePath, empty.abovePath, empty.belowPath], ["", "", ""]);
+assert.equal(layoutLine({ values: [50], slots: 31, width: 100, height: 100, inset: 0 }).abovePath, "", "one point has no area");
+assert.equal(lineSlotAt(30, 3, 100, 0), 1);
+assert.equal(lineSlotAt(-20, 3, 100, 0), 0);
+assert.equal(lineSlotAt(500, 3, 100, 0), 2);
+assert.equal(lineSlotAt(30, 1, 100, 0), 0);
 
 console.log("stats-check ok");

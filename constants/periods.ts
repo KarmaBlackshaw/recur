@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import type { MoneyFlow, Period, TOption } from "@/types";
+import type { MoneyFlow, Period, StatsView, TOption } from "@/types";
 
 export const PERIODS: TOption<Period>[] = [
   { label: "Month", value: "month" },
@@ -24,4 +24,9 @@ export function parseYear(value: string | undefined): number {
 export function parseMonth(value: string | undefined): number {
   const month = Number.parseInt(value ?? "", 10);
   return month >= 0 && month <= 11 ? month : dayjs().month();
+}
+
+// "bar" is the view's name before it became the Net so far line.
+export function parseStatsView(value: string | undefined): StatsView {
+  return value === "trend" || value === "bar" ? "trend" : "donut";
 }

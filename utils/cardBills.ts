@@ -32,6 +32,19 @@ export function billDates(statementDay: number, dueDay: number, year: number, mo
   return { cutoff: clampedDate(statementDay, prev.year(), prev.month()), dueDate };
 }
 
+// The bill a purchase made on `day` lands on: the first statement whose cut-off is on or after that day.
+// A purchase on the statement day counts toward that day's statement.
+export function billForPurchase(statementDay: number, dueDay: number, day: Date): { cutoff: Date; dueDate: Date } {
+  const month = dayjs(day).startOf("month");
+  for (let offset = 0; ; offset++) {
+    const at = month.add(offset, "month");
+    const bill = billDates(statementDay, dueDay, at.year(), at.month());
+    if (!dayjs(bill.cutoff).isBefore(day, "day")) {
+      return bill;
+    }
+  }
+}
+
 export function computeBill(a: {
   txns: CardTxn[];
   statementDay: number;

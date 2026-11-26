@@ -8,6 +8,7 @@ import { sumBy } from "@/utils/collections";
 import { useExpenses } from "@/context/ExpenseContext";
 import { EmptyState } from "@/components/EmptyState";
 import { PeriodNavigator } from "@/components/PeriodNavigator";
+import { StatsTrendView } from "@/components/stats/StatsTrendView";
 import { AppDonutChart } from "@/components/ui/AppDonutChart";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { AppTabs } from "@/components/ui/AppTabs";
@@ -15,7 +16,7 @@ import { AppText } from "@/components/ui/AppText";
 import { AppUnderlineTabs, type TUnderlineTab } from "@/components/ui/AppUnderlineTabs";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { chartHues, chartRest, colors } from "@/constants/theme";
-import { parseMoneyFlow, parseMonth, parsePeriod, parseYear, PERIODS } from "@/constants/periods";
+import { parseMoneyFlow, parseMonth, parsePeriod, parseStatsView, parseYear, PERIODS } from "@/constants/periods";
 import { categoryRows } from "@/utils/activity/categoryLine";
 import { countLabel } from "@/utils/countLabel";
 import { isInPeriod } from "@/utils/dateHelpers";
@@ -23,7 +24,7 @@ import { formatAmount } from "@/utils/formatAmount";
 import type { TCategorySpend } from "@/utils/stats/categoryBreakdown";
 import { useActivityFeed } from "@/utils/useActivityFeed";
 import { useSetState } from "@/utils/useSetState";
-import type { FeatherIconName, MoneyFlow, Period } from "@/types";
+import type { FeatherIconName, MoneyFlow, Period, StatsView } from "@/types";
 
 const COPY: Record<MoneyFlow, { overline: string; emptyTitle: string; emptyIcon: FeatherIconName; emptyMessage: string }> = {
   income: { overline: "Received", emptyTitle: "No income", emptyIcon: "arrow-down-left", emptyMessage: "No income in" },
@@ -69,18 +70,25 @@ export default function StatsScreen() {
   const { loading } = useExpenses();
   const { width } = useWindowDimensions();
   const feed = useActivityFeed();
-  const params = useLocalSearchParams<{ year?: string; month?: string; period?: string; type?: string }>();
-  const [{ year, month, period, type }, setSelected] = useSetState<{ year: number; month: number; period: Period; type: MoneyFlow }>({
+  const params = useLocalSearchParams<{ year?: string; month?: string; period?: string; type?: string; view?: string }>();
+  const [{ year, month, period, type, view }, setSelected] = useSetState<{
+    year: number;
+    month: number;
+    period: Period;
+    type: MoneyFlow;
+    view: StatsView;
+  }>({
     year: parseYear(params.year),
     month: parseMonth(params.month),
     period: parsePeriod(params.period),
     type: parseMoneyFlow(params.type),
+    view: parseStatsView(params.view),
   });
 
   // Slices come from the same rows Activity lists, so a category's rows there always add up to its slice here.
-  const { expenseRows, incomeRows } = useMemo(() => {
+  const { entries, expenseRows, incomeRows } = useMemo(() => {
     const entries = feed.all.filter(({ effDate }) => isInPeriod(effDate, year, month, period));
-    return { expenseRows: categoryRows(entries, "expenses"), incomeRows: categoryRows(entries, "income") };
+    return { entries, expenseRows: categoryRows(entries, "expenses"), incomeRows: categoryRows(entries, "income") };
   }, [feed.all, year, month, period]);
 
   const rows = type === "income" ? incomeRows : expenseRows;
@@ -140,6 +148,15 @@ export default function StatsScreen() {
         <AppText variant="title" className="flex-1" numberOfLines={1}>
           Stats
         </AppText>
+        <TouchableOpacity
+          onPress={() => setSelected({ view: view === "donut" ? "trend" : "donut" })}
+          className="w-11 h-11 items-center justify-center"
+          accessibilityRole="button"
+          accessibilityLabel={view === "trend" ? "Show categories" : "Show net so far"}
+          testID="stats-view-toggle"
+        >
+          <Feather name={view === "trend" ? "pie-chart" : "trending-up"} size={20} color={colors.secondary} />
+        </TouchableOpacity>
         <PeriodNavigator
           unit={period}
           year={year}
@@ -150,41 +167,47 @@ export default function StatsScreen() {
 
       <AppTabs tabs={PERIODS} value={period} onChange={(period) => setSelected({ period })} className="mx-5 mt-1" />
 
-      <AppUnderlineTabs tabs={typeTabs} value={type} onChange={(type) => setSelected({ type })} className="mt-1" />
+      {view === "donut" ? (
+        <>
+          <AppUnderlineTabs tabs={typeTabs} value={type} onChange={(type) => setSelected({ type })} className="mt-1" />
 
-      <FlatList
-        data={rows}
-        keyExtractor={({ category }) => category}
-        renderItem={({ item, index }) => (
-          <CategoryRow row={item} color={chartHues[index] ?? chartRest} onPress={() => openCategory(item.category)} />
-        )}
-        contentContainerClassName="pb-5"
-        ListHeaderComponent={
-          rows.length > 0 ? (
-            <View className="items-center pb-2">
-              <AppDonutChart
-                segments={segments}
-                width={width}
-                radius={donutRadius}
-                thickness={Math.round(donutRadius * DONUT_THICKNESS_RATIO)}
-              >
-                <AppText variant="overline">{copy.overline}</AppText>
-                <AppText
-                  variant="title"
-                  className="w-full px-3 text-center"
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.7}
-                >
-                  {formatAmount(total)}
-                </AppText>
-                <AppText variant="meta">{countLabel(sumBy(rows, "count"), "transaction", "transactions")}</AppText>
-              </AppDonutChart>
-            </View>
-          ) : undefined
-        }
-        ListEmptyComponent={<EmptyState title={copy.emptyTitle} icon={copy.emptyIcon} message={`${copy.emptyMessage} ${periodLabel}`} />}
-      />
+          <FlatList
+            data={rows}
+            keyExtractor={({ category }) => category}
+            renderItem={({ item, index }) => (
+              <CategoryRow row={item} color={chartHues[index] ?? chartRest} onPress={() => openCategory(item.category)} />
+            )}
+            contentContainerClassName="pb-5"
+            ListHeaderComponent={
+              rows.length > 0 ? (
+                <View className="items-center pb-2">
+                  <AppDonutChart
+                    segments={segments}
+                    width={width}
+                    radius={donutRadius}
+                    thickness={Math.round(donutRadius * DONUT_THICKNESS_RATIO)}
+                  >
+                    <AppText variant="overline">{copy.overline}</AppText>
+                    <AppText
+                      variant="title"
+                      className="w-full px-3 text-center"
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                    >
+                      {formatAmount(total)}
+                    </AppText>
+                    <AppText variant="meta">{countLabel(sumBy(rows, "count"), "transaction", "transactions")}</AppText>
+                  </AppDonutChart>
+                </View>
+              ) : undefined
+            }
+            ListEmptyComponent={<EmptyState title={copy.emptyTitle} icon={copy.emptyIcon} message={`${copy.emptyMessage} ${periodLabel}`} />}
+          />
+        </>
+      ) : (
+        <StatsTrendView entries={entries} year={year} month={month} period={period} periodLabel={periodLabel} />
+      )}
     </SafeAreaView>
   );
 }

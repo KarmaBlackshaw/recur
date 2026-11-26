@@ -124,8 +124,8 @@ the same net over the whole day, even when the list stops partway through it. A 
 card charges, plain transfers or loans) shows no total.
 
 ### Cards
-Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity, loans, net worth), account
-cards, Home's month card, and Home's setup checklist and backup nudge.
+Only where elevation communicates hierarchy: KPI tiles, hero balances (Activity, loans, net worth), Stats' Net so far
+totals, account cards, Home's month card, and Home's setup checklist, card suggestion and backup nudge.
 14dp radius (21dp for account cards), Raised Graphite or a 10% tint, 1px Hairline. Never wrap list rows
 in cards.
 
@@ -138,12 +138,14 @@ hand-build another.
   bill that isn't due that month, and the card's own signal color on tinted heroes.
 
 ### Hero Card (`components/ui/AppHeroCard.tsx`)
-The tinted card behind Activity's, the Loans tab's, a borrower's and a loan's hero: overline, Hero Amount, then the
-screen's own lines under it. Never hand-build another tint map.
+The tinted card behind Activity's, the Loans tab's, a borrower's and a loan's hero, and Stats' Net so far totals:
+overline, Hero Amount, then the screen's own lines under it. Never hand-build another tint map.
 
 - One tone sets both the 10% tint with its 20% border and the amount color: Indigo or Periwinkle with a Periwinkle
   total, Mint with a Mint total, or neutral (4% white, Hairline) with an Ink total.
 - A negative total turns Coral and keeps the card's tint (Activity's net).
+- A card with several figures and no one total (Stats' Income and Expenses) leaves out the Hero Amount: its own lines
+  sit straight under the overline.
 - 20dp padding. A footer row (Activity's Stats row) sits under the body, whose bottom padding drops to 12dp.
 - The screen sets only the card's margins.
 
@@ -203,6 +205,23 @@ standing balance, not a month total. Zero amounts go Secondary Graphite. When no
 yet (the 1st of a month), the figures give way to the month name and "Nothing spent or received yet", and that block
 is not tappable. Each figure opens Activity on the matching type for the month (Spent: Paid, Received: Income, Charged:
 Charged); Owed to you opens Loans' Active chip. No tiles, progress bars or Hairline-split grids.
+
+### Card suggestion (`components/CardSuggestion.tsx`)
+One line on Home, under the month card (or the checklist) and above the backup nudge, naming the credit card that
+gives a purchase made today the most days before its bill is due.
+
+```
+┌──────────────────────────────────────────────────┐
+│ [▭] Use today: BPI Amore · due Nov 25 (32 days) › │
+└──────────────────────────────────────────────────┘
+```
+
+- A Raised Graphite row with a Hairline border, 44dp tall, built like the backup nudge: a 16dp Periwinkle
+  `credit-card` glyph, the line in meta 13px with the card name in body-bold, and a Muted chevron. A line too long
+  for the row wraps after the "·", keeping "due Dec 25 (32 days)" whole on the second line.
+- "due today" replaces the date and count when the bill falls due today (a short month's clamp).
+- Tapping it opens the card's account page. It hides when fewer than two active cards have both a statement and a
+  due day, or when every card with a limit is maxed out.
 
 ### Buttons (`AppButton`)
 Primary: Indigo fill, Ink label. Tonal: Indigo 15% with a Periwinkle label. Ghost: Hairline outline.
@@ -289,8 +308,8 @@ one last. A card bill opened from Home adds Details (tonal), which opens the car
 ### Stats (`app/stats.tsx`)
 A pushed page, not a tab. The Activity hero ends with a hairline-separated 44dp "Stats" row (Secondary Graphite
 pie-chart glyph, Ink label, Muted chevron; neutral because it sits on mint and periwinkle heroes alike) that opens it
-on Activity's month or year and Income/Expenses. Header: back chevron, 22px `title`,
-`PeriodNavigator`; no tab bar or FAB. Each category row ends with a Muted chevron and opens Activity filtered to it.
+on Activity's month or year and Income/Expenses. Header: back chevron, 22px `title`, a 20dp Periwinkle view glyph
+(trending-up on the donut, pie-chart on the line) that switches the two views, `PeriodNavigator`; no tab bar or FAB. Each category row ends with a Muted chevron and opens Activity filtered to it.
 Underline tabs (`AppUnderlineTabs`) switch Income and Expenses and show each total, with a Periwinkle underline on the
 active one, since mint and coral stay states. The donut (`AppDonutChart`) and each row's 3dp share bar use `chartHues` by rank within the period, biggest first, so
 a hue says which slice is which row and never belongs to a category. Past the sixth, categories fold into one neutral
@@ -298,6 +317,21 @@ a hue says which slice is which row and never belongs to a category. Past the si
 hue; labels stack so they never touch, and long names truncate. Smaller slices rely on the list, because their lines
 would bundle at the top of the ring. Row tiles stay neutral with a glyph. Amounts and labels stay in Ink
 and Secondary Graphite.
+
+Net so far view (`components/stats/StatsTrendView.tsx`, `AppLineChart`): the underline tabs give way to a Periwinkle
+Hero Card (the Loans tab's "Owed to you" look) holding an overline readout, "By Oct 12 · ahead ₱X" ("behind" below
+zero, "even" at it), and a legend of two figures, each with an 8dp dot: Income in Mint, Expenses in Periwinkle, both
+running totals to the readout's day. The chart sits under the card, outside it. The line is the running net,
+income so far minus expenses so far, per day for a month and per month for a year. It starts at the period's first
+day and stops at today, so a current period leaves the rest of the plot empty. The line is Ink at 2dp; the area
+between it and zero is Mint (18%) above and Periwinkle below, split exactly where the line crosses. Zero is a Muted
+line, the other gridlines Hairline. The line ends in a 3dp Ink dot and the signed net (`+₱240.00`, `−₱100.00`) in
+12px Bold, Mint ahead and Periwinkle behind, beside the dot when it fits, else above or below it. Sparse Secondary
+Graphite ticks sit under the plot (1, 8, 15, 22, 29; month initials). Tapping or dragging across the plot drops a
+Muted crosshair and a 4.5dp dot (Mint ahead, Periwinkle behind, ringed in the page background) on that day, and the
+readout and legend follow it; tapping it again goes back to today. Under the chart, each day or month so far with
+activity is an `AppListRow`, newest first: spent as the amount, received as a Mint `+` caption. Tapping one selects
+its point and scrolls back to the chart.
 
 ### Home-screen widget (Android)
 "Quick add", a 4x1 row of Expense, Income, Transfer and Loan that opens each add form (`modules/quick-add-widget`).
@@ -326,8 +360,8 @@ is one. Loading: `LoadingState` for whole screens only; lists never flash a spin
 - Touch targets are at least 44dp.
 - Money lists sort by date. Home opens on the month card, then Overdue, this month, and all of next month (so its
   bills can be paid ahead), then Recent activity, which ends with "All activity". New users get a three-step "Get started"
-  checklist, shown in place of the month card until they have three expenses; a backup nudge appears when the last
-  backup is over 30 days old.
+  checklist, shown in place of the month card until they have three expenses. With two or more credit cards, a "Use
+  today" line under it names the card to charge; a backup nudge appears when the last backup is over 30 days old.
 - Home Overdue also lists unpaid dues and card bills from the last 3 months; their caption keeps counting "N days late".
 - The Accounts tab keeps archived accounts in a collapsed "Archived" band under the grid: compact cards at 60%
   opacity, captioned "Archived". The net worth hero breaks down into Assets, Lent (only while someone owes you)

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { Alert, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -16,8 +16,6 @@ import { AppRadioGroup } from "@/components/ui/AppRadioGroup";
 import { AppTabs } from "@/components/ui/AppTabs";
 import { AppDisclosureCard } from "@/components/ui/AppDisclosureCard";
 import { AccountCard } from "@/components/accounts/AccountCard";
-import { AccountPickerSheet, type AccountPickerSheetRef } from "@/components/AccountPickerSheet";
-import { AppSelectField } from "@/components/ui/AppSelectField";
 import { ReminderField } from "@/components/ReminderField";
 import { CardColorPicker, CardIconPicker, CardLogoPicker, CardTemplatePicker } from "@/components/accounts/CardStylePickers";
 import { DEFAULT_CARD_COLOR } from "@/constants/cardColors";
@@ -28,7 +26,6 @@ import { formatAmount } from "@/utils/formatAmount";
 import { signedAmount } from "@/utils/signedAmount";
 import { netInterestPerPeriod } from "@/utils/interest";
 import { useDiscardGuard } from "@/utils/useDiscardGuard";
-import { useLowBalanceThreshold } from "@/utils/forecast/useLowBalanceThreshold";
 import { maybeAskForReminders } from "@/utils/reminderPermission";
 import { parseReminder, toReminderFormValue } from "@/utils/reminders";
 import { ACCOUNT_TYPE_LABEL, type Account, type AccountInput, type AccountType, type InterestPeriod, type IoniconName, type TOption } from "@/types";
@@ -44,8 +41,6 @@ interface AccountFormValues {
   statementDay: string;
   dueDay: string;
   reminderDaysBefore: string;
-  payBillFromAccountId: string | null;
-  lowBalanceThreshold: string;
   color: string;
   icon: IoniconName;
   logoUri: string | null;
@@ -112,14 +107,6 @@ function validateOptionalAmount(v: string) {
   return v.trim() === "" || !isNaN(parseFloat(v)) || "Enter an amount";
 }
 
-function validateOptionalThreshold(v: string) {
-  if (v.trim() === "") {
-    return true;
-  }
-  const n = parseFloat(v);
-  return (!isNaN(n) && n >= 0) || "Enter ₱0 or more";
-}
-
 function validateDay(v: string) {
   if (v.trim() === "") {
     return true;
@@ -168,8 +155,6 @@ function toFormValues(account: Account | undefined): AccountFormValues {
     statementDay: toText(account?.statementDay),
     dueDay: toText(account?.dueDay),
     reminderDaysBefore: toReminderFormValue(account?.reminderDaysBefore),
-    payBillFromAccountId: account?.payBillFromAccountId ?? null,
-    lowBalanceThreshold: toText(account?.lowBalanceThreshold),
     color: account?.color ?? DEFAULT_CARD_COLOR,
     icon: account?.icon ?? DEFAULT_ICON[account?.type ?? "debit"],
     logoUri: account?.logoUri ?? null,
@@ -196,9 +181,6 @@ export default function EditAccountScreen() {
 
   const [isInterestOpen, setIsInterestOpen] = useState(editingAccount?.interestRate != null);
   const [styleTab, setStyleTab] = useState<CardStyleTab>(editingAccount?.bank ? "template" : "custom");
-  const payBillFromSheetRef = useRef<AccountPickerSheetRef>(null);
-  const generalThreshold = useLowBalanceThreshold();
-  const payBillFromOptions = accounts.activeAccounts.filter((a) => a.type === "debit" || a.type === "cash");
   const type = watch("type");
   const hasInterest = type === "debit" && toNumber(watch("interestRate")) != null;
   const values = watch();
@@ -216,8 +198,6 @@ export default function EditAccountScreen() {
     statementDay: null,
     dueDay: type === "credit" ? toNumber(values.dueDay) : null,
     reminderDaysBefore: null,
-    payBillFromAccountId: null,
-    lowBalanceThreshold: null,
     color: values.color,
     icon: values.icon,
     ...cardStyle(values.logoUri, values.bank),
@@ -274,8 +254,6 @@ export default function EditAccountScreen() {
       statementDay: isCredit ? toNumber(data.statementDay) : null,
       dueDay: isCredit ? toNumber(data.dueDay) : null,
       reminderDaysBefore: isCredit ? parseReminder(data.reminderDaysBefore) : null,
-      payBillFromAccountId: isCredit ? data.payBillFromAccountId : null,
-      lowBalanceThreshold: isCredit ? null : toNumber(data.lowBalanceThreshold),
       color: data.color,
       icon: data.icon,
       ...cardStyle(data.logoUri, data.bank),
@@ -524,37 +502,6 @@ export default function EditAccountScreen() {
           </AppDisclosureCard>
         )}
 
-        {type !== "credit" && (
-          <Controller
-            control={control}
-            name="lowBalanceThreshold"
-            rules={{ validate: validateOptionalThreshold }}
-            render={({ field: { value, onChange, onBlur }, fieldState }) => {
-              const error = fieldState.isTouched ? fieldState.error?.message : undefined;
-              return (
-                <>
-                  <AppTextInput
-                    label="Warn below (₱)"
-                    isAmount
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    placeholder={formatAmount(generalThreshold ?? 0)}
-                    error={error}
-                  />
-                  {!error && (
-                    <AppText variant="caption" className="px-1 mb-2">
-                      {value.trim() === ""
-                        ? "The forecast warns below the amount in Settings"
-                        : "The forecast warns when this account would drop below it"}
-                    </AppText>
-                  )}
-                </>
-              );
-            }}
-          />
-        )}
-
         {type === "credit" && (
           <>
             <Controller
@@ -613,48 +560,6 @@ export default function EditAccountScreen() {
               render={({ field: { value, onChange } }) => (
                 <ReminderField value={value} onChange={onChange} stored={editingAccount?.reminderDaysBefore} />
               )}
-            />
-            <Controller
-              control={control}
-              name="payBillFromAccountId"
-              render={({ field: { value, onChange } }) => {
-                const payFrom = accounts.accounts.find((a) => a.id === value);
-                return (
-                  <>
-                    <AppSelectField
-                      label="Pay bill from"
-                      value={payFrom?.name ?? ""}
-                      placeholder="Not set"
-                      onPress={() => payBillFromSheetRef.current?.present()}
-                      accessibilityHint="Opens an account picker"
-                    />
-                    <View className="flex-row items-center gap-3 px-1 mb-2">
-                      <AppText variant="caption" className="flex-1">
-                        {payFrom
-                          ? `The forecast takes this card's bill from ${payFrom.name}`
-                          : "Unset, the forecast counts this card's bill in the total only"}
-                      </AppText>
-                      {payFrom && (
-                        <AppButton
-                          label="Clear"
-                          variant="ghost"
-                          size="sm"
-                          onPress={() => onChange(null)}
-                          accessibilityLabel="Clear Pay bill from"
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        />
-                      )}
-                    </View>
-                    <AccountPickerSheet
-                      ref={payBillFromSheetRef}
-                      title="Pay bill from"
-                      options={payBillFromOptions}
-                      value={value ?? ""}
-                      onChange={onChange}
-                    />
-                  </>
-                );
-              }}
             />
           </>
         )}

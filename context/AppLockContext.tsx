@@ -184,7 +184,7 @@ export function useAppLockState(): AppLockValue {
   }, [isEnabled, lockAfterMinutes, setStatus, unlock]);
 
   // Hides Recur's screen in recent apps. Android can only do that by marking the window secure, which also blocks
-  // screenshots; iOS blurs its app switcher snapshot instead.
+  // screenshots; iOS blurs its app switcher snapshot instead. The web has no recent apps, and nothing to call.
   useAsyncEffect(async () => {
     if (!isReady) {
       return;
@@ -194,7 +194,7 @@ export function useAppLockState(): AppLockValue {
         await (isEnabled
           ? ScreenCapture.enableAppSwitcherProtectionAsync()
           : ScreenCapture.disableAppSwitcherProtectionAsync());
-      } else {
+      } else if (Platform.OS === "android") {
         await (isEnabled
           ? ScreenCapture.preventScreenCaptureAsync(SCREEN_CAPTURE_KEY)
           : ScreenCapture.allowScreenCaptureAsync(SCREEN_CAPTURE_KEY));

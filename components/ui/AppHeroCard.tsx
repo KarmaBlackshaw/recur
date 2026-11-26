@@ -16,7 +16,7 @@ const HERO_TONE: Record<HeroTone, { box: string; amount: RowTone }> = {
 
 interface AppHeroCardProps extends ViewProps {
   overline: string;
-  value: string;
+  value?: string;
   tone: HeroTone;
   isNegative?: boolean;
   footer?: React.ReactNode;
@@ -29,7 +29,7 @@ export function AppHeroCard({ overline, value, tone, isNegative, footer, classNa
     <View className={mergeClassNames(`rounded-2xl border ${box}`, className)} {...rest}>
       <View className={`px-5 pt-5 ${footer ? "pb-3" : "pb-5"}`}>
         <AppText variant="overline">{overline}</AppText>
-        <AppHeroAmount value={value} tone={isNegative ? "negative" : amount} className="mt-1" />
+        {value != null && <AppHeroAmount value={value} tone={isNegative ? "negative" : amount} className="mt-1" />}
         {children}
       </View>
       {footer}

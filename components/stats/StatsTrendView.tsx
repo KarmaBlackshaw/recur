@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { FlatList, View } from "react-native";
 import type { ActivityEntry } from "@/components/DayGroupedExpenseList";
 import { EmptyState } from "@/components/EmptyState";
+import { AppHeroCard } from "@/components/ui/AppHeroCard";
 import { AppLineChart } from "@/components/ui/AppLineChart";
 import { AppListRow } from "@/components/ui/AppListRow";
 import { AppText } from "@/components/ui/AppText";
@@ -94,18 +95,17 @@ export function StatsTrendView({ entries, year, month, period, periodLabel }: {
       ListHeaderComponent={
         rows.length > 0 && selected && last ? (
           <View className="pt-3 pb-2">
-            <AppText variant="overline" className="px-5" testID="stats-trend-readout">
-              {netReadout(selected, period)}
-            </AppText>
-            <View className="flex-row gap-4 px-5 mt-2">
-              <LegendFigure label="Income" color={colors.paid} amount={selected.income} testID="stats-trend-income" />
-              <LegendFigure
-                label="Expenses"
-                color={colors.secondary}
-                amount={selected.expenses}
-                testID="stats-trend-expenses"
-              />
-            </View>
+            <AppHeroCard overline={netReadout(selected, period)} tone="secondary" className="mx-5" testID="stats-trend-totals">
+              <View className="flex-row gap-4 mt-2">
+                <LegendFigure label="Income" color={colors.paid} amount={selected.income} testID="stats-trend-income" />
+                <LegendFigure
+                  label="Expenses"
+                  color={colors.secondary}
+                  amount={selected.expenses}
+                  testID="stats-trend-expenses"
+                />
+              </View>
+            </AppHeroCard>
             <View className="mx-5 mt-3" onLayout={({ nativeEvent: { layout } }) => setChartWidth(layout.width)}>
               {chartWidth > 0 ? (
                 <AppLineChart
